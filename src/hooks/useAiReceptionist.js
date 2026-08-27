@@ -4,18 +4,51 @@ import { useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { fetchAgents } from "../pages/appointmentAgent/service";
 import { getDecodedToken } from "../utils/localStorage";
-import { GB_CVT_EXT_HOS } from "../utils/constants";
+import { GB_APPOINTMENT_AGENT, GB_CVT_EXT_HOS } from "../utils/constants";
 import {
   getClinic,
   getTokenData,
   shouldAppointmentAgentDisabled,
 } from "../utils/utils";
 
+/* Module cache so Header remounts (many routes) share one fetchAgents call. */
+const agentsByClinic = new Map();
+
+function loadAgentsForClinic(clinicId) {
+  const existing = agentsByClinic.get(clinicId);
+  if (existing?.result !== undefined) {
+    return Promise.resolve(existing.result);
+  }
+  if (existing?.promise) {
+    return existing.promise;
+  }
+
+  const entry = { promise: null, result: undefined };
+  entry.promise = fetchAgents(clinicId)
+    .then((response) => {
+      const data =
+        Array.isArray(response) && response.length > 0
+          ? response[response.length - 1]
+          : null;
+      entry.result = data;
+      entry.promise = null;
+      return data;
+    })
+    .catch((error) => {
+      entry.result = null;
+      entry.promise = null;
+      throw error;
+    });
+  agentsByClinic.set(clinicId, entry);
+  return entry.promise;
+}
+
 export function useAiReceptionist() {
   const navigate = useNavigate();
   const { profile } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const isAppointmentAgentFromGB = useFeatureIsOn(GB_APPOINTMENT_AGENT);
 
   const [agentsData, setAgentsData] = useState(null);
   const [isAgentsLoading, setIsAgentsLoading] = useState(true);
@@ -25,9 +58,8 @@ export function useAiReceptionist() {
   const isAdmin = decodedToken?.result?.admin;
   const clinicId = String(decodedToken?.result?.clinic_id ?? "");
 
-  const isAppointmentAgentWhitelistedClinic = clinicId === "368";
   const isAppointmentAgentEnable =
-    isAppointmentAgentWhitelistedClinic ||
+    isAppointmentAgentFromGB ||
     (planDetails?.currentPlanStatus === "PAID" &&
       !shouldAppointmentAgentDisabled());
 
@@ -35,7 +67,7 @@ export function useAiReceptionist() {
     agentsData?.doctors?.some((doctor) => doctor.um_id === userId) ?? false;
 
   useEffect(() => {
-    if (!isAppointmentAgentEnable || isCvtExtHosAccessableFromGB) {
+    if (!isAppointmentAgentEnable || isCvtExtHosAccessableFromGB || !clinicId) {
       setIsAgentsLoading(false);
       setAgentsData(null);
       return;
@@ -45,13 +77,9 @@ export function useAiReceptionist() {
     const load = async () => {
       setIsAgentsLoading(true);
       try {
-        const response = await fetchAgents(clinicId);
+        const data = await loadAgentsForClinic(clinicId);
         if (cancelled) return;
-        setAgentsData(
-          Array.isArray(response) && response.length > 0
-            ? response[response.length - 1]
-            : null
-        );
+        setAgentsData(data);
       } catch (error) {
         console.error("Error fetching agents:", error);
         if (!cancelled) setAgentsData(null);
@@ -134,6 +162,9 @@ export function useAiReceptionist() {
 
   return {
     canShow,
+    isEnabled: isAppointmentAgentEnable && !isCvtExtHosAccessableFromGB,
+    isLoading: isAgentsLoading,
+    hasAgent: !!agentsData,
     menuLabel: agentsData ? "Your AI Receptionist" : "Setup AI Receptionist",
     openAiReceptionist,
   };

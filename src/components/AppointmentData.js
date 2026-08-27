@@ -194,6 +194,8 @@ import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { ASSETS } from "../assets";
 import { useCrossConsult } from "../hooks/useCrossConsult";
+import { useAiReceptionist } from "../hooks/useAiReceptionist";
+import AiReceptionistButton from "./AiReceptionist";
 import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 const {
   endVisit: visitEnd,
@@ -274,6 +276,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const { isOpdBillingAccessable } = useOpdBilling();
   const isCrossConsultEnabled = useCrossConsult();
   const isChikitsalayAccessable = useChikitsalay();
+  const {
+    canShow: canShowAiReceptionist,
+    isEnabled: isAiReceptionistEnabled,
+    isLoading: isAiReceptionistLoading,
+    hasAgent: hasAiReceptionistAgent,
+    openAiReceptionist,
+  } = useAiReceptionist();
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
   const [modalOpen, setModalOpen] = useState(false);
@@ -3492,7 +3501,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                             await ApiTeleconsult.doctorLeft(activeTeleconsultConsultationId);
                           }
                         } catch (error) {
-                          console.log("[teleconsult] doctorLeft during cancel failed", { consultationId: activeTeleconsultConsultationId, message: error?.message } );
+                          console.error("[teleconsult] doctorLeft during cancel failed", { consultationId: activeTeleconsultConsultationId, message: error?.message } );
                         } finally {
                           dispatch(
                             setAppointmentTeleconsultStatus({
@@ -3747,6 +3756,35 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
+            {canShowAiReceptionist ||
+            (isAiReceptionistEnabled && isAiReceptionistLoading) ? (
+              <div
+                className="receptionist-setup-button"
+                onClick={isAiReceptionistLoading ? undefined : openAiReceptionist}
+              >
+                {isAiReceptionistLoading ? (
+                  <div
+                    className="d-flex align-items-center justify-content-center"
+                    style={{ height: "41px", minWidth: "200px" }}
+                  >
+                    <Spin size="small" />
+                  </div>
+                ) : (
+                  <AiReceptionistButton
+                    agetnsData={hasAiReceptionistAgent}
+                    customText={
+                      hasAiReceptionistAgent
+                        ? isMobile
+                          ? "AI Receptionist"
+                          : "Your AI Receptionist"
+                        : isMobile
+                        ? "Setup AI Receptionist"
+                        : "Setup Your AI Receptionist"
+                    }
+                  />
+                )}
+              </div>
+            ) : null}
           </div>
           <div className="appointment-data">
             <Row className="justify-content-between align-items-center my-3 px-4">

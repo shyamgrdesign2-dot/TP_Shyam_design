@@ -876,7 +876,7 @@ export default function AppointmentListingPage() {
               await ApiTeleconsult.doctorLeft(activeTeleconsultConsultationId);
             }
           } catch (error) {
-            console.log("[teleconsult] doctorLeft during cancel failed", {
+            console.error("[teleconsult] doctorLeft during cancel failed", {
               consultationId: activeTeleconsultConsultationId,
               message: error?.message,
             });

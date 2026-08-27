@@ -442,10 +442,19 @@ export default function useAppointments({
 
         let action = await dispatch(copyGetAllAppointment1(sendData));
         let appData = [];
-        while (appData.length < encounterData.length && action?.meta?.requestStatus === "fulfilled") {
-          appData.push(...(action?.payload?.app_data || []).filter((x) => x.pam_ref_id != null));
-          if (appData.length >= encounterData.length) break;
-          sendData.page += 1;
+        let page = 0;
+        while (
+          appData.length < encounterData.length &&
+          action?.meta?.requestStatus === "fulfilled" &&
+          page < LIST_PAGE_CAP
+        ) {
+          const before = appData.length;
+          appData.push(
+            ...(action?.payload?.app_data || []).filter((x) => x.pam_ref_id != null)
+          );
+          if (appData.length >= encounterData.length || appData.length === before) break;
+          page += 1;
+          sendData.page = page;
           action = await dispatch(copyGetAllAppointment1(sendData));
         }
 

@@ -105,8 +105,6 @@ function Header({ locationPath }) {
     openAiReceptionist,
   } = useAiReceptionist();
 
-  console.log(canShowAiReceptionist,"canShowAiReceptionist")
-
   const decodedToken = getDecodedToken();
   const apiUrl = env.opd_encryption_url;
   const opdVisitUrl = env.opd_visit_url;

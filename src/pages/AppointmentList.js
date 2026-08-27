@@ -16,7 +16,7 @@ import { useDeviceType } from "../utils/deviceDetection";
 
 import { useSelector, useDispatch } from "react-redux";
 import WalkInConsultationZydus from "./WalkInConsultationZydus";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, GB_CVT_EXT_HOS } from "../utils/constants";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, GB_CVT_EXT_HOS, APPOINTMENT_LISTING_V2_ENABLED } from "../utils/constants";
 import { jwtDecode } from "jwt-decode";
 import { setUserId } from "../redux/doctorsSlice";
 import ExtendTrialModal from "./monetization/components/ExtendTrialModal";
@@ -92,9 +92,16 @@ function AppointmentList() {
     }
   }, []);
 
+  // APPOINTMENT_LISTING_V2_ENABLED in constants.js is the deploy kill switch
+  // (no GrowthBook). Flip to false to keep legacy AppointmentData on `/`.
+  const useNewAppointmentListing =
+    APPOINTMENT_LISTING_V2_ENABLED &&
+    !shouldShowMobileDashboard &&
+    !analyticsOnlyHome &&
+    !isReceptionist;
+
   const fetchAgentsData = async () => {
     if (!isReceptionist) {
-      // setIsAgentsLoading(true);
       try {
         const decodedToken = getDecodedToken();
         const clinicId = String(decodedToken?.result?.clinic_id);
@@ -109,7 +116,10 @@ function AppointmentList() {
   };
 
   useEffect(() => {
-    if (!isReceptionist) {
+    // New listing: Header's useAiReceptionist owns the CTA + fetch (Welcome
+    // is hidden). Legacy / receptionist / mobile still need agents for
+    // AppointmentData + MessagesData.
+    if (!isReceptionist && !useNewAppointmentListing) {
       fetchAgentsData();
     }
   }, []);
@@ -118,14 +128,6 @@ function AppointmentList() {
     locationPath === "/mission-analytics" ||
     (analyticsOnlyHome && (locationPath === "/" || locationPath === ""));
 
-  // The Tesseract appointment listing is the standard desktop doctor flow for
-  // all account types including Zydus. Zydus-specific tabs (Encounter,
-  // Appointment) are rendered inside AppointmentListingPage using the same
-  // GrowthBook + business_id gates that legacy AppointmentData.js used.
-  const useNewAppointmentListing =
-    !shouldShowMobileDashboard &&
-    !analyticsOnlyHome &&
-    !isReceptionist;
   const hideWelcomeForNewAppointmentListing =
     useNewAppointmentListing && (locationPath === "/" || locationPath === "");
 
