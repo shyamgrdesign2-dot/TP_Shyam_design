@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import { isGrowthBookFeatureOn } from "../../../utils/growthbook";
-import { GB_CVT_EXT_HOS, TAB_FINISHED, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
+import { GB_CVT_EXT_HOS, GB_APPT_SEQUENCE, TAB_FINISHED, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
 import { zydusConsultAppoint, zydusAppointment, copyGetAllAppointment1 } from "../../../redux/appointmentsSlice";
 import { calculateAge } from "../../../utils/utils";
 import { buildZydusEncounterAppointmentRows } from "../../../utils/zydusEncounterAppointmentRows";
@@ -17,6 +17,8 @@ const DATE_FORMAT = "YYYY-MM-DD";
 const PENDING_START_DATE = "2000-01-01";
 // Same page size the legacy table infinite-scrolls on (`AppointmentData.js`).
 const LIST_PAGE_SIZE = 25;
+/* Safety cap for the Zydus finished↔encounter match pagination only.
+   Calendar / ICS full-window fills are uncapped (legacy scroll parity). */
 const LIST_PAGE_CAP = 40;
 
 async function fetchAppointmentPage(basePayload, page) {
@@ -41,11 +43,13 @@ function appendUnique(prev, incoming) {
 /**
  * Full-window fetch for ICS export (user-initiated). Table view pages via
  * infinite scroll instead; calendar fills remaining pages in the background.
+ * No hard page cap — stop when a page returns fewer than LIST_PAGE_SIZE rows
+ * (same end condition as legacy infinite scroll).
  */
 async function fetchAllAppointmentPages(basePayload, isCancelled) {
   const records = [];
   let firstData = {};
-  for (let page = 0; page < LIST_PAGE_CAP; page += 1) {
+  for (let page = 0; ; page += 1) {
     if (isCancelled?.()) return { cancelled: true, records: [], data: {} };
     const { chunk, data } = await fetchAppointmentPage(basePayload, page);
     if (page === 0) firstData = data;
@@ -257,6 +261,7 @@ export default function useAppointments({
   // listing when the account gate says so (same as useListingAccess).
   const isZydusListing = Boolean(isZydusAccount && zydusSiteId && zydusEmpNo);
   const { advancedSettings } = useSelector((state) => state.billing || {});
+  const sortQueueBySequence = isGrowthBookFeatureOn(GB_APPT_SEQUENCE);
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -292,11 +297,15 @@ export default function useAppointments({
       search: query || "",
       sortOrder: statusTab === TAB_IDS.REFERRAL ? "descend" : "ascend",
       fetchBillStatus: true,
+      // Legacy AppointmentData: sortBySequence only on Queue when GB is on.
+      ...(sortQueueBySequence && statusTab === TAB_IDS.QUEUE
+        ? { sortBySequence: true }
+        : {}),
       ...(statusTab === TAB_IDS.PENDING && pendingIds?.length
         ? { cvtAppointmentIdsStr: pendingIds.join(",") }
         : {}),
     }),
-    [startDate, endDate, query, visitTypeCsv, isChikitsalay]
+    [startDate, endDate, query, visitTypeCsv, isChikitsalay, sortQueueBySequence]
   );
 
   const applyCounts = useCallback((data, statusTab) => {
@@ -327,11 +336,17 @@ export default function useAppointments({
     async (statusTab, payload, fromPage, seq) => {
       let page = fromPage;
       let more = true;
-      while (more && page < LIST_PAGE_CAP) {
+      // Calendar must eventually show every appointment in the window.
+      // No LIST_PAGE_CAP — same end condition as legacy infinite scroll
+      // (short/empty page). Stale seq aborts on tab/date changes.
+      while (more) {
         if (seq !== requestSeq.current) return;
         const next = await fetchAppointmentPage(payload, page);
         if (seq !== requestSeq.current) return;
-        const mapped = next.chunk.map((rec, i) => mapRecord(rec, statusTab, page * LIST_PAGE_SIZE + i));
+        if (!next.chunk.length) break;
+        const mapped = next.chunk.map((rec, i) =>
+          mapRecord(rec, statusTab, page * LIST_PAGE_SIZE + i)
+        );
         setRows((prev) => appendUnique(prev, mapped));
         more = next.hasMore;
         page += 1;

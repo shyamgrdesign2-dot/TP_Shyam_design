@@ -13,6 +13,7 @@ import MobileWalkInConsultation from "./mobile/WalkInConsultation/WalkInConsulta
 import MobileWalkInConsultationZydus from "./mobile/WalkInConsultationZydus/WalkInConsultationZydus";
 import MessagesData from "./MessagesData";
 import { useDeviceType } from "../utils/deviceDetection";
+import { isReceptionistSession } from "../utils/receptionistSession";
 
 import { useSelector, useDispatch } from "react-redux";
 import WalkInConsultationZydus from "./WalkInConsultationZydus";
@@ -60,8 +61,9 @@ function AppointmentList() {
   let location = useLocation();
   const [locationPath, setLocationPath] = useState("/");
   const { profile } = useSelector((state) => state.doctors);
-  const urlParams = new URLSearchParams(window.location.search);
-  const isReceptionist = urlParams.has("receptionist");
+  // Match App.js: URL ?receptionist OR tab sessionStorage (query can drop
+  // on internal navigations without ending the receptionist session).
+  const isReceptionist = isReceptionistSession(location.search);
   const {hospital_business_id} = getTokenData() || {};
   const isZydus = hospital_business_id === config.ZYDUS_BUSINESS_ID;
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);

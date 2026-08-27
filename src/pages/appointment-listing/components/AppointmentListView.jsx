@@ -38,22 +38,8 @@ export default function AppointmentListView({
   const wrapRef = useRef(null);
   const access = useListingAccess();
   const { showBilling, showBookActions, isZydusAccount, isChikitsalay } = access;
-  const finishedData = useSelector((state) => state.records?.finishedData) || [];
   const zydusAppointmentData = useSelector((state) => state.records?.zydusAappointmentData) || [];
-
-  // Legacy: hide Encounter Consult when finishedData already has pam_ref_id.
-  const finishedEncounterIds = useMemo(() => {
-    const ids = new Set();
-    finishedData.forEach((item) => {
-      if (item?.pam_ref_id != null) ids.add(String(item.pam_ref_id));
-    });
-    return ids;
-  }, [finishedData]);
-
-  const actionCtx = useMemo(
-    () => ({ ...access, finishedEncounterIds }),
-    [access, finishedEncounterIds]
-  );
+  const actionCtx = access;
 
   // Legacy UAT: name is not clickable on Zydus Appointment or Cancelled tabs.
   const patientNameClickable =

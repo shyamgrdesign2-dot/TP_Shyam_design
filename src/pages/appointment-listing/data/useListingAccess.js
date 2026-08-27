@@ -66,12 +66,22 @@ export function useListingAccess() {
   const isDentalEnabled = useIsDentalEnabled();
   const isChikitsalay = useChikitsalay();
   const showReferral = useCrossConsult();
+  // Legacy hide Encounter Consult once finishedData already has pam_ref_id.
+  const finishedData = useSelector((state) => state.records?.finishedData) || [];
 
   // Zydus: business_id check + GrowthBook flag, matching AppointmentData.js
   const tokenData = getDecodedToken()?.result;
   const isZydusAccount =
     tokenData?.hospital_business_id == env.zydus_business_id && isZydusUserFromGB;
   const { isDesktopRx, isTouchRx } = rxDeviceCaps();
+
+  const finishedEncounterIds = useMemo(() => {
+    const ids = new Set();
+    finishedData.forEach((item) => {
+      if (item?.pam_ref_id != null) ids.add(String(item.pam_ref_id));
+    });
+    return ids;
+  }, [finishedData]);
 
   return useMemo(
     () => ({
@@ -87,6 +97,7 @@ export function useListingAccess() {
       isZydusAccount,
       showDraft,
       showReferral,
+      finishedEncounterIds,
       // Zydus: no kebab / Add Appointment / billing badge (legacy Welcome).
       // Walk-In remains available and routes to the Zydus walk-in screen.
       showKebab: !isCvtExtHos && !isZydusAccount,
@@ -108,6 +119,7 @@ export function useListingAccess() {
       isZydusAccount,
       showDraft,
       showReferral,
+      finishedEncounterIds,
     ]
   );
 }
