@@ -1688,11 +1688,19 @@ export default function AppointmentCalendarView({
                             <>
                               <TPLibraryIcon name="add" family="essential" size={19} />
                               {chip.label12}
-                              {isTele && (
+                              {isTele ? (
                                 <TPLibraryIcon
                                   name="video"
                                   variant="bulk"
                                   family="video-audio-image"
+                                  size={14}
+                                  color="var(--tesseract-blue-400)"
+                                />
+                              ) : (
+                                <TPLibraryIcon
+                                  name="hospital-building-4"
+                                  variant="bulk"
+                                  family="medical"
                                   size={14}
                                   color="var(--tesseract-blue-400)"
                                 />

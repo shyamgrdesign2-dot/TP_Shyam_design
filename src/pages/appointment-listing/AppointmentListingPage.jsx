@@ -60,6 +60,7 @@ import { setUploadDocCategories } from "../../redux/uploadDocSlice";
 import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
+import { useDeviceType } from "../../utils/deviceDetection";
 import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { clinicTargetStatus, generateClinicToken } from "../chikitsalay/service";
@@ -265,8 +266,16 @@ export default function AppointmentListingPage() {
     (state) => state.teleconsultNotification || {}
   );
   const uploadDocCategories = useSelector((state) => state.uploadDoc?.uploadDocCategories) || [];
-  const { showDraft, showBookActions, showWalkIn, isZydusAccount, digitisationWorklistEnabled } =
+  const { showDraft, showBookActions, showWalkIn, isZydusAccount, digitisationWorklistEnabled, isCvtExtHos } =
     useListingAccess();
+  const { isTablet: isTabletDevice } = useDeviceType();
+  const isIPadDesktopMode =
+    typeof navigator !== "undefined" &&
+    /Macintosh/.test(navigator.userAgent) &&
+    navigator.maxTouchPoints > 1;
+  // ICS export kebab is desktop-only — on tablet the overflow menu is easy
+  // to hit by mistake and the download UX is awkward in the WebView.
+  const showQueueExportMenu = !isTabletDevice && !isIPadDesktopMode;
   // siteId / empNo are set by SidebarDoctor after the Zydus ICT login handshake;
   // they live in the doctors redux slice, same as legacy AppointmentData.js reads them.
   const { siteId: zydusSiteId, empNo: zydusEmpNo } = useSelector((state) => state.doctors);
@@ -446,6 +455,9 @@ export default function AppointmentListingPage() {
 
   const filterGroups = useMemo(
     () => {
+      // Mission Hospital / CVT external: no visit-type or slot filters (legacy
+      // AppointmentData also hides the filter cluster for that flag).
+      if (isCvtExtHos) return [];
       // Legacy Zydus column filters use `toct_type` strings; TP listAppointment
       // for non-Zydus uses `toct_id` values in filterVisitType.
       const visitTypeGroup = {
@@ -465,7 +477,7 @@ export default function AppointmentListingPage() {
       if (activeTab === TAB_IDS.REFERRAL) return [visitTypeGroup];
       return [SLOT_FILTER_GROUP, visitTypeGroup];
     },
-    [caseTypes, isZydusAccount, activeTab]
+    [caseTypes, isZydusAccount, activeTab, isCvtExtHos]
   );
 
   // Debounce only the search typing (legacy 500ms); tab / date / filter
@@ -1071,31 +1083,33 @@ export default function AppointmentListingPage() {
                 onSelect={selectTab}
               />
               <div className={styles.tabRowMenu}>
-                <Dropdown
-                  className="tpKebabMenu"
-                  options={[
-                    {
-                      value: "export-queue-ics",
-                      label: exporting ? "Preparing…" : `Download Queue (.ics)${countByTab[TAB_IDS.QUEUE] ? ` · ${countByTab[TAB_IDS.QUEUE]}` : ""}`,
-                    },
-                  ]}
-                  value={null}
-                  onChange={(v) => v === "export-queue-ics" && exportQueueIcs()}
-                  chevron={false}
-                  variant="seamless"
-                  placeholder=""
-                  leadingIcon={<KebabIcon size={16} />}
-                  ariaLabel="More options"
-                  width={240}
-                  renderOption={(o) => (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0" }}>
-                      <TPLibraryIcon name="document-download" size={16} color="var(--tesseract-slate-500)" />
-                      <span style={{ flex: 1, fontSize: 14, color: "var(--tesseract-slate-700)", whiteSpace: "nowrap" }}>
-                        {o.label}
-                      </span>
-                    </div>
-                  )}
-                />
+                {showQueueExportMenu && (
+                  <Dropdown
+                    className="tpKebabMenu"
+                    options={[
+                      {
+                        value: "export-queue-ics",
+                        label: exporting ? "Preparing…" : `Download Queue (.ics)${countByTab[TAB_IDS.QUEUE] ? ` · ${countByTab[TAB_IDS.QUEUE]}` : ""}`,
+                      },
+                    ]}
+                    value={null}
+                    onChange={(v) => v === "export-queue-ics" && exportQueueIcs()}
+                    chevron={false}
+                    variant="seamless"
+                    placeholder=""
+                    leadingIcon={<KebabIcon size={16} />}
+                    ariaLabel="More options"
+                    width={240}
+                    renderOption={(o) => (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0" }}>
+                        <TPLibraryIcon name="document-download" size={16} color="var(--tesseract-slate-500)" />
+                        <span style={{ flex: 1, fontSize: 14, color: "var(--tesseract-slate-700)", whiteSpace: "nowrap" }}>
+                          {o.label}
+                        </span>
+                      </div>
+                    )}
+                  />
+                )}
               </div>
             </div>
 
@@ -1214,24 +1228,28 @@ export default function AppointmentListingPage() {
                     />
                   </div>
                 )}
-                <div className={styles.filterWrap} data-active={activeFilterCount > 0 || undefined}>
-                  <Filter
-                    groups={filterGroups}
-                    value={filters}
-                    onChange={setFilters}
-                    mode="live"
-                    icon={<TPLibraryIcon name="sort" size={15} />}
-                  />
-                </div>
+                {!isCvtExtHos && filterGroups.length > 0 && (
+                  <div className={styles.filterWrap} data-active={activeFilterCount > 0 || undefined}>
+                    <Filter
+                      groups={filterGroups}
+                      value={filters}
+                      onChange={setFilters}
+                      mode="live"
+                      icon={<TPLibraryIcon name="sort" size={15} />}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            <ActiveFilterBar
-              filters={filters}
-              groups={filterGroups}
-              onRemove={removeFilterValue}
-              onClearAll={() => setFilters({})}
-            />
+            {!isCvtExtHos && (
+              <ActiveFilterBar
+                filters={filters}
+                groups={filterGroups}
+                onRemove={removeFilterValue}
+                onClearAll={() => setFilters({})}
+              />
+            )}
 
             <div className={styles.body} data-view={renderCalendar ? "calendar" : "list"}>
               {!renderCalendar ? (
