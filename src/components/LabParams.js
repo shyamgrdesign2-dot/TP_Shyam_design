@@ -21,6 +21,8 @@ import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { getCustomInvestigations } from '../api/services/ApiCustomInvestigation';
 import InlineInvestigationPanel from './InlineInvestigationPanel';
 import { InvestigationSettingsPanel } from '../pages/lims/InvestigationSettingsPage';
+import { useLimsAccess } from '../pages/lims/useLimsAccess';
+import { Alert, Button as TesseractButton } from '@dhspl-tatvacare/tesseract-ui';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -55,6 +57,8 @@ const LabResultsTable = ({
      * when lastVisitDoctor um_id is available.
      */
     isReceptionistSession,
+    /** LIMS header Save proxies the inner button; notify when settings replaces that header. */
+    onInvestigationSettingsChange,
 }) => {
 
     const [token, setToken] = useState(null);
@@ -83,6 +87,8 @@ const LabResultsTable = ({
     const [customGroups, setCustomGroups] = useState([]);
     const [isCreateInvestigationOpen, setIsCreateInvestigationOpen] = useState(false);
     const [isInvestigationSettingsOpen, setIsInvestigationSettingsOpen] = useState(false);
+    const { isLoading: isLimsAccessLoading, hasAccess: hasLimsAccess } = useLimsAccess();
+    const canOpenInvestigationSettings = hasLimsAccess && !isLimsAccessLoading;
 
     useEffect(() => {
       setDefaultTestData(JSON.parse(JSON.stringify(DEFAULT_TESTS_DATA)));
@@ -98,27 +104,33 @@ const LabResultsTable = ({
     // is always true), so no filtering by that here.
     const fetchAndMergeCustomInvestigations = useCallback(async () => {
       if (!tokenData) return;
-      const groups = await getCustomInvestigations();
-      setCustomGroups(groups);
-      const rows = groups.flatMap((group) =>
-        (group.investigations || []).map((inv) => ({
-          reportName: group.name,
-          testName: inv.name,
-          value: "",
-          units: inv.unit || "",
-          arrowDirection: "",
-          resultType: inv.resultType || "numeric",
-          dropdownOptions: inv.dropdownOptions || null,
-          isCustom: true,
-          customTestId: inv.id,
-          refRange: {
-            isConditional: (inv.referenceRanges || []).some((r) => r.gender && r.gender !== "all"),
-            ranges: inv.referenceRanges || [],
-          },
-        }))
-      );
-      // Replace only the previously-merged custom rows so refetching never duplicates.
-      setDefaultTestData((prev) => [...prev.filter((r) => !r.isCustom), ...rows]);
+      try {
+        const groups = await getCustomInvestigations();
+        setCustomGroups(groups);
+        const rows = groups.flatMap((group) =>
+          (group.investigations || []).map((inv) => ({
+            reportName: group.name,
+            testName: inv.name,
+            value: "",
+            units: inv.unit || "",
+            arrowDirection: "",
+            resultType: inv.resultType || "numeric",
+            dropdownOptions: inv.dropdownOptions || null,
+            isCustom: true,
+            customTestId: inv.id,
+            refRange: {
+              isConditional: (inv.referenceRanges || []).some((r) => r.gender && r.gender !== "all"),
+              ranges: inv.referenceRanges || [],
+            },
+          }))
+        );
+        // Replace only the previously-merged custom rows so refetching never duplicates.
+        setDefaultTestData((prev) => [...prev.filter((r) => !r.isCustom), ...rows]);
+      } catch (error) {
+        // Custom groups are additive. A missing/failed endpoint must not take down
+        // catalog lab-result entry (DEFAULT_TESTS_DATA + existing results).
+        console.error("Failed to load custom investigations", error);
+      }
     }, [tokenData]);
 
     useEffect(() => {
@@ -129,6 +141,16 @@ const LabResultsTable = ({
       window.addEventListener("focus", fetchAndMergeCustomInvestigations);
       return () => window.removeEventListener("focus", fetchAndMergeCustomInvestigations);
     }, [fetchAndMergeCustomInvestigations]);
+
+    useEffect(() => {
+      onInvestigationSettingsChange?.(isInvestigationSettingsOpen);
+    }, [isInvestigationSettingsOpen, onInvestigationSettingsChange]);
+
+    useEffect(() => {
+      if (!canOpenInvestigationSettings && isInvestigationSettingsOpen) {
+        setIsInvestigationSettingsOpen(false);
+      }
+    }, [canOpenInvestigationSettings, isInvestigationSettingsOpen]);
 
     const currentDate = new Date().toISOString().split("T")[0];
     const dateFormat = 'YYYY-MM-DD';
@@ -1173,6 +1195,11 @@ const LabResultsTable = ({
       fetchAndMergeCustomInvestigations();
     };
 
+    const closeInvestigationSettings = useCallback(() => {
+      setIsInvestigationSettingsOpen(false);
+      fetchAndMergeCustomInvestigations();
+    }, [fetchAndMergeCustomInvestigations]);
+
     const tooltipTitle = (notes, reportName, testName, date) => {
       return (
         <div
@@ -1194,12 +1221,7 @@ const LabResultsTable = ({
     return (
       <div style={{background:"#fff", position: "relative", minHeight: "100vh"}}>
         {isInvestigationSettingsOpen ? (
-          <InvestigationSettingsPanel
-            onClose={() => {
-              setIsInvestigationSettingsOpen(false);
-              fetchAndMergeCustomInvestigations();
-            }}
-          />
+          <InvestigationSettingsPanel onClose={closeInvestigationSettings} />
         ) : (
         <>
         <div
@@ -1252,6 +1274,7 @@ const LabResultsTable = ({
             <div className="modal-title">Add Investigation Results</div>
           </div>
           <div className="align-items-center d-flex">
+            {canOpenInvestigationSettings && (
             <Button
               type="text"
               className="btn btn-41 px-2 me-2 focus-none d-flex align-items-center justify-content-center"
@@ -1261,6 +1284,7 @@ const LabResultsTable = ({
             >
               <SettingOutlined style={{ fontSize: "18px" }} />
             </Button>
+            )}
             <Button
               className="btn btn-primary3 btn-41 px-4 me-20"
               onClick={handleSave}
@@ -1308,18 +1332,25 @@ const LabResultsTable = ({
         </div>
 
         {searchQuery.trim() !== "" && !queryMatchesExisting && (
-          <div
-            className="d-flex align-items-center justify-content-between px-20 py-2"
-            style={{ background: "#FFF7E6", borderBottom: "1px solid #FFE0A3" }}
-          >
-            <span>Can't find "{searchQuery.trim()}"?</span>
-            <Button
-              type="link"
-              onClick={() => setIsCreateInvestigationOpen(true)}
-              style={{ fontWeight: 600 }}
+          <div style={{ margin: "var(--tesseract-space-2) var(--tesseract-space-4)" }}>
+            <Alert
+              status="info"
+              variant="soft"
+              title={`Can't find "${searchQuery.trim()}"?`}
+              action={
+                <TesseractButton
+                  size="sm"
+                  variant="outline"
+                  theme="primary"
+                  className="create-custom-investigation-cta"
+                  onClick={() => setIsCreateInvestigationOpen(true)}
+                >
+                  Create custom investigation
+                </TesseractButton>
+              }
             >
-              Create custom investigation
-            </Button>
+              Create a hospital-scoped custom investigation to use in result entry.
+            </Alert>
           </div>
         )}
 
@@ -1328,6 +1359,7 @@ const LabResultsTable = ({
           onClose={() => setIsCreateInvestigationOpen(false)}
           initialName={searchQuery.trim()}
           existingGroups={customGroups}
+          defaultGroupMode={customGroups.length > 0 ? "existing" : "new"}
           onCreated={handleCustomInvestigationCreated}
         />
 

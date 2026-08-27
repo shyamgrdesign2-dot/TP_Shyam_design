@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Drawer } from "antd";
 import { CloseOutlined, PrinterOutlined } from "@ant-design/icons";
 import LabParams from "../../components/LabParams";
@@ -15,11 +15,17 @@ export default function LabResultsDrawer({
 }) {
   const bodyRef = useRef(null);
   const attendingDoctorUmId = getPatientLastVisitDoctorUmId(patient);
+  const [isInvestigationSettingsOpen, setIsInvestigationSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) setIsInvestigationSettingsOpen(false);
+  }, [open]);
 
   const handleSave = useCallback(() => {
+    if (isInvestigationSettingsOpen) return;
     const btn = bodyRef.current?.querySelector(".modalCard-header .btn-primary3");
     if (btn) btn.click();
-  }, []);
+  }, [isInvestigationSettingsOpen]);
 
   const handlePrint = useCallback(() => {
     if (patient) printPatientResults(patient);
@@ -52,7 +58,18 @@ export default function LabResultsDrawer({
           {/* <Button onClick={handlePrint} icon={<PrinterOutlined />}>
             Print
           </Button> */}
-          <Button type="primary" className="btn btn-primary3 px-4" onClick={handleSave} style={{ minWidth: 100 }}>
+          <Button
+            type="primary"
+            className="btn btn-primary3 px-4"
+            onClick={handleSave}
+            disabled={isInvestigationSettingsOpen}
+            title={
+              isInvestigationSettingsOpen
+                ? "Close Investigation Settings to save results"
+                : undefined
+            }
+            style={{ minWidth: 100 }}
+          >
             Save
           </Button>
         </div>
@@ -67,6 +84,7 @@ export default function LabResultsDrawer({
           onSave={() => onSaved?.()}
           attendingDoctorUmId={attendingDoctorUmId}
           isReceptionistSession={isReceptionistSession}
+          onInvestigationSettingsChange={setIsInvestigationSettingsOpen}
         />
       </div>
     </Drawer>

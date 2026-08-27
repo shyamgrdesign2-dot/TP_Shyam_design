@@ -164,7 +164,7 @@ const InvestigationFields = ({ fields, duplicateCheck, namePlaceholder = "e.g. F
               </div>
             </div>
           ))}
-          <Button size="sm" variant="ghost" onClick={addRange}>
+          <Button size="sm" variant="ghost" theme="primary" onClick={addRange}>
             + Add range
           </Button>
         </div>

@@ -2,7 +2,7 @@
   position: relative;
   max-width: 960px;
   margin: 0 auto;
-  padding: var(--tesseract-space-8) var(--tesseract-space-6);
+  padding: 0 var(--tesseract-space-6) var(--tesseract-space-8);
   background: var(--tesseract-bg-page);
   min-height: 100vh;
 }
@@ -16,20 +16,15 @@
   font-weight: var(--tesseract-weight-medium) !important;
 }
 
-.drawerCloseButton {
-  background: none;
-  border: none;
-  font-size: var(--tesseract-text-h3);
-  line-height: 1;
-  color: var(--tesseract-fg-tertiary);
-  cursor: pointer;
-  padding: var(--tesseract-space-1);
+/* Outline primary CTAs often keep a slate label — force primary text. */
+.addAnotherCta span {
+  color: var(--tesseract-primary-600, #4b4ad5) !important;
+  font-weight: var(--tesseract-weight-medium) !important;
 }
 
 /* Centered confirm dialog — plain, not Tesseract's ConfirmDialog, for the
-   same portal/z-index reason as the drawers above. Must sit above the
-   drawers (z-index 1001), since a delete can be confirmed from a row inside
-   the create/edit panel as well as from the group list underneath it. */
+   same portal/z-index reason as nested LabParams. Above the group list;
+   create/edit uses the shared Tesseract Drawer at 1200+. */
 .confirmBackdrop {
   position: absolute;
   inset: 0;
@@ -69,45 +64,48 @@
   gap: var(--tesseract-space-3);
 }
 
-.drawerBody {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--tesseract-space-6);
+/* Drawer-style sticky header: Back + New group on one row, title + badge next. */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: var(--tesseract-space-5);
+  gap: var(--tesseract-space-2);
+  margin: 0 calc(-1 * var(--tesseract-space-6)) var(--tesseract-space-6);
+  padding: var(--tesseract-space-4) var(--tesseract-space-6);
+  background: var(--tesseract-bg-page);
+  border-bottom: 1px solid var(--tesseract-border-soft);
 }
 
-.header {
+.headerTop {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--tesseract-space-4);
-  margin-bottom: var(--tesseract-space-8);
+  min-height: 40px;
 }
 
-.backLink {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--tesseract-fg-link);
-  font-size: var(--tesseract-text-body-sm);
-  cursor: pointer;
-  margin-bottom: var(--tesseract-space-2);
+.titleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-3);
 }
 
 .title {
   font-size: var(--tesseract-text-h3);
   font-weight: var(--tesseract-weight-semibold);
   color: var(--tesseract-fg-heading);
-  margin: 0 0 var(--tesseract-space-1) 0;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .subtitle {
   font-size: var(--tesseract-text-body-sm);
   color: var(--tesseract-fg-secondary);
   margin: 0;
-  max-width: 560px;
+  max-width: 640px;
 }
 
 .prefillBanner {
@@ -123,15 +121,12 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: var(--tesseract-space-4);
   margin-bottom: var(--tesseract-space-5);
 }
 
-.toolbarCount {
-  flex-shrink: 0;
-  font-size: var(--tesseract-text-body-sm);
-  color: var(--tesseract-fg-tertiary);
-  white-space: nowrap;
+.toolbar > * {
+  flex: 1;
+  min-width: 0;
 }
 
 .groupList {
@@ -140,100 +135,36 @@
   gap: var(--tesseract-space-3);
 }
 
-.groupHeaderActions {
-  display: flex;
-  align-items: center;
-  gap: var(--tesseract-space-1);
-  flex-shrink: 0;
+/* Title row must span full card width so headerActions + chevron stay right. */
+.groupCard :global([class*="titleRow"]) {
+  width: 100%;
 }
 
-.groupHeaderBlock {
-  display: flex;
-  flex-direction: column;
+.groupTitleWithBadge {
+  display: inline-flex;
+  align-items: center;
   gap: var(--tesseract-space-2);
   min-width: 0;
-}
-
-.groupNameRow {
-  display: flex;
-  align-items: center;
-  gap: var(--tesseract-space-2);
-}
-
-.statusDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--tesseract-slate-300);
-}
-
-.statusDot[data-active="true"] {
-  background: var(--tesseract-success-500);
+  max-width: 100%;
 }
 
 .groupTitleName {
-  font-size: var(--tesseract-text-h5);
-  font-weight: var(--tesseract-weight-semibold);
-  color: var(--tesseract-fg-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.groupMeta {
-  font-size: var(--tesseract-text-body-sm);
-  color: var(--tesseract-fg-secondary);
+.groupHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1);
+  flex-shrink: 0;
 }
 
 .groupChips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--tesseract-space-1);
-}
-
-.kebabWrapper {
-  position: relative;
-}
-
-.kebabOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1004;
-}
-
-.kebabMenu {
-  position: absolute;
-  top: calc(100% + var(--tesseract-space-1));
-  right: 0;
-  z-index: 1005;
-  min-width: 160px;
-  background: var(--tesseract-bg-surface);
-  border: 1px solid var(--tesseract-border-soft);
-  border-radius: var(--tesseract-radius-8);
-  box-shadow: var(--tesseract-shadow-md);
-  padding: var(--tesseract-space-1);
-}
-
-.kebabMenuItem {
-  display: flex;
-  align-items: center;
-  gap: var(--tesseract-space-2);
-  width: 100%;
-  padding: var(--tesseract-space-2) var(--tesseract-space-3);
-  background: none;
-  border: none;
-  border-radius: var(--tesseract-radius-6);
-  font-size: var(--tesseract-text-body-sm);
-  color: var(--tesseract-error-600);
-  cursor: pointer;
-  text-align: left;
-}
-
-.kebabMenuItem:hover:not(:disabled) {
-  background: var(--tesseract-slate-50);
-}
-
-.kebabMenuItem:disabled {
-  color: var(--tesseract-fg-tertiary);
-  cursor: not-allowed;
 }
 
 .emptyGroupBox {
@@ -248,6 +179,7 @@
 .investigationTable {
   display: flex;
   flex-direction: column;
+  gap: var(--tesseract-space-3);
 }
 
 .investigationTableHeader,
@@ -295,28 +227,4 @@
   gap: var(--tesseract-space-1);
   flex-shrink: 0;
   justify-self: end;
-}
-
-.addInvestigationRow {
-  margin-top: var(--tesseract-space-3);
-  padding: var(--tesseract-space-3);
-  background: none;
-  border: 1px dashed var(--tesseract-border-soft);
-  border-radius: var(--tesseract-radius-8);
-  color: var(--tesseract-fg-link);
-  font-size: var(--tesseract-text-body-sm);
-  font-weight: var(--tesseract-weight-medium);
-  cursor: pointer;
-  text-align: left;
-}
-
-.addInvestigationRow:hover {
-  background: var(--tesseract-slate-50);
-}
-
-.footerActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--tesseract-space-3);
-  width: 100%;
 }
