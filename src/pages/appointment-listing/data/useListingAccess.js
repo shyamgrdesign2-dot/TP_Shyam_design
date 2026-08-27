@@ -10,8 +10,11 @@ import {
   GB_CVT_EXT_HOS,
   GB_ISCRIBE,
   GB_SAVE_AS_DRAFT_RX,
+  GB_SMARTSYNC_CVT,
   GB_SNAP_RX,
+  GB_SNAP_RX_DIGITIZATION,
   GB_TAB_RX,
+  GB_TAB_RX_CVT,
   GB_VOICE_RX_FREE,
   GB_ZYDUS_USER,
   PAID,
@@ -60,6 +63,12 @@ export function useListingAccess() {
   const isTabRxEnabled = useFeatureIsOn(GB_TAB_RX);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
   const isVoiceRxAccessible = isVoiceRxFree(isVoiceRxFreeFromGB) || !shouldMonetizationDisabled();
+  // Legacy Pending Digitisation tab: any of these CVT / Snap digitisation flags.
+  const isSmartSyncCvtFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
+  const isSnapRxDigitizationFromGB = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
+  const isTabRxCvtFromGB = useFeatureIsOn(GB_TAB_RX_CVT);
+  const digitisationWorklistEnabled =
+    isSmartSyncCvtFromGB || isSnapRxDigitizationFromGB || isTabRxCvtFromGB;
   const { planDetails } = useSelector((state) => state.subscription);
   const isVoiceRxPaid =
     planDetails?.service_mappings?.find((e) => e.service_name === S_VOICE_RX)?.plan_tier === PAID;
@@ -97,6 +106,10 @@ export function useListingAccess() {
       isZydusAccount,
       showDraft,
       showReferral,
+      /* AppointmentData.js: Pending Digitisation tab only when one of the
+         digitisation GB flags is on AND undigitised ids exist. Flag gate
+         lives here; the id-count gate is applied in AppointmentListingPage. */
+      digitisationWorklistEnabled,
       finishedEncounterIds,
       // Zydus: no kebab / Add Appointment / billing badge (legacy Welcome).
       // Walk-In remains available and routes to the Zydus walk-in screen.
@@ -119,6 +132,7 @@ export function useListingAccess() {
       isZydusAccount,
       showDraft,
       showReferral,
+      digitisationWorklistEnabled,
       finishedEncounterIds,
     ]
   );

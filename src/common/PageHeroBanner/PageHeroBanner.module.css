@@ -13,6 +13,25 @@
   padding-bottom: 56px;
 }
 
+/* Host app globally forces dark ink on div/p/span. Restore inheritance so
+   the violet HeroBanner (and patient info in its actions) stay white-on-dark
+   — same pattern as AppointmentListingPage.module.css. */
+html :where(.wrap) span,
+html :where(.wrap) div,
+html :where(.wrap) p {
+  color: inherit;
+}
+
+/* ProfilePopover patient name / age on the purple Patient Details banner.
+   sidebar.scss sets .patientName to #171725 !important; beat that here. */
+.wrap :global(.patientName),
+.wrap :global(.text-2),
+.wrap :global(.header-patient-details),
+.wrap :global(.header-patient-details *),
+.wrap :global(.icon-right) {
+  color: #ffffff !important;
+}
+
 /* Outline CTA on dark banner — e.g. Add Appointment */
 .outlineBtn {
   height: 42px !important;

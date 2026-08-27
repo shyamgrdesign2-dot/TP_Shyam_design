@@ -64,7 +64,11 @@ import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { clinicTargetStatus, generateClinicToken } from "../chikitsalay/service";
 import { DENTAL_RX_PAD_ROUTE } from "../../utils/dentalRoutes";
-import { handleAdmitToIpd } from "../../utils/utils";
+import { handleAdmitToIpd, sendMessageToParent } from "../../utils/utils";
+import { EVENTS } from "../../utils/events";
+import { isChrome, isSafari } from "react-device-detect";
+import { fetchPatientDefaultLanguage } from "../../api/services/DefaultLanguageService";
+import { getSnapRxDigitization } from "../snapRx/services/snapRxService";
 import { generateUniqueFileName, getCorrectedFileName } from "../medicalRecords/utils/helper";
 import { fetchAllDocumentCategories } from "../medicalRecords/service";
 import {
@@ -84,6 +88,46 @@ import styles from "./AppointmentListingPage.module.css";
 /* All glyphs come from the Tesseract icon CDN via TPLibraryIcon (house
    rule: no inline / third-party SVGs). Closest CDN equivalents to the
    reference set: add, flash, search-normal, row-vertical, calendar, sort. */
+
+async function buildListingPrintUrl(record) {
+  const baseUrl = record?.print_url || record?.print_rx_url;
+  if (!baseUrl) return null;
+
+  let printUrl = baseUrl;
+  try {
+    if (record.patient_unique_id && record.tcm_id) {
+      const urlObj = new URL(baseUrl, window.location.origin);
+      urlObj.searchParams.delete("rxDigitize");
+      const snapRxDigitisedData = await getSnapRxDigitization(
+        record.patient_unique_id,
+        record.tcm_id
+      );
+      const isSnapRxdigitised =
+        snapRxDigitisedData?.digitization?.isVerified &&
+        snapRxDigitisedData?.digitization?.isDigitize;
+      if (isSnapRxdigitised) {
+        urlObj.searchParams.set("rxDigitize", "true");
+      }
+      printUrl = urlObj.toString();
+    }
+  } catch {
+    printUrl = baseUrl;
+  }
+
+  let encodedLang = "";
+  try {
+    const res = await fetchPatientDefaultLanguage(record?.patient_unique_id);
+    const lang = res?.settings?.defaultLanguage;
+    if (lang && lang !== "English") {
+      encodedLang = btoa(String(lang));
+    }
+  } catch {
+    encodedLang = "";
+  }
+
+  const joiner = printUrl.includes("?") ? "&" : "?";
+  return `${printUrl}${joiner}lg=${encodedLang}`;
+}
 
 /* ── Tab bar — replicates the reference tab anatomy exactly:
    20px iconsax icon (bulk when active, linear otherwise), 14px label
@@ -221,7 +265,8 @@ export default function AppointmentListingPage() {
     (state) => state.teleconsultNotification || {}
   );
   const uploadDocCategories = useSelector((state) => state.uploadDoc?.uploadDocCategories) || [];
-  const { showDraft, showBookActions, showWalkIn, isZydusAccount } = useListingAccess();
+  const { showDraft, showBookActions, showWalkIn, isZydusAccount, digitisationWorklistEnabled } =
+    useListingAccess();
   // siteId / empNo are set by SidebarDoctor after the Zydus ICT login handshake;
   // they live in the doctors redux slice, same as legacy AppointmentData.js reads them.
   const { siteId: zydusSiteId, empNo: zydusEmpNo } = useSelector((state) => state.doctors);
@@ -257,7 +302,6 @@ export default function AppointmentListingPage() {
       (t.id !== TAB_IDS.DRAFT || showDraft) &&
       (t.id !== TAB_IDS.REFERRAL || isCrossConsultEnabled)
   );
-  const visibleTabs = tabsForView;
   const isCalendar = view === "calendar";
   /* One deliberate exception to "the view is the view": Pending Digitisation
      and Referral are all-time worklists, not a schedule, so they have nothing
@@ -450,11 +494,27 @@ export default function AppointmentListingPage() {
        uses the same 25-row infinite scroll as the legacy screen. */
     fetchAllPages: renderCalendar,
     includeDraft: showDraft,
+    includePendingDigitisation: digitisationWorklistEnabled,
     zydusSiteId,
     zydusEmpNo,
     isZydusAccount,
     isChikitsalay: isChikitsalayAccessable && !isZydusAccount,
   });
+
+  // Legacy AppointmentData.js: Pending Digitisation only when digitisation
+  // GB flags are on AND there is at least one undigitised/unreviewed id.
+  const showPendingTab =
+    digitisationWorklistEnabled && (countByTab[TAB_IDS.PENDING] || 0) > 0;
+  const visibleTabs = useMemo(
+    () => tabsForView.filter((t) => t.id !== TAB_IDS.PENDING || showPendingTab),
+    [tabsForView, showPendingTab]
+  );
+
+  useEffect(() => {
+    if (!showPendingTab && activeTab === TAB_IDS.PENDING) {
+      setActiveTab(isZydusAccount ? TAB_IDS.ZYDUS_ENCOUNTER : TAB_IDS.QUEUE);
+    }
+  }, [showPendingTab, activeTab, isZydusAccount]);
 
   useEffect(() => {
     if (!error) return undefined;
@@ -742,13 +802,40 @@ export default function AppointmentListingPage() {
           break;
         }
         case "print-rx":
-        case "print-draft-rx":
-          if (rec.print_rx_url) {
-            window.open(rec.print_rx_url, "_blank");
-          } else {
-            setToast({ status: "warning", title: "No prescription PDF is available for this visit yet." });
+        case "print-draft-rx": {
+          // Match Patient Details / legacy AppointmentData: in-app WebView
+          // (iPad tablet shell) uses sendMessageToParent so the native print
+          // Options UI opens. Bare window.open(pdf) takes over the whole
+          // tablet screen with no back into the portal.
+          if (!rec.print_rx_url && !rec.print_url) {
+            setToast({
+              status: "warning",
+              title: "No prescription PDF is available for this visit yet.",
+            });
+            break;
+          }
+          try {
+            const fullPrintUrl = await buildListingPrintUrl(rec);
+            if (!fullPrintUrl) {
+              setToast({
+                status: "warning",
+                title: "No prescription PDF is available for this visit yet.",
+              });
+              break;
+            }
+            if (!isChrome && !isSafari) {
+              sendMessageToParent(EVENTS.PRINT, { url: fullPrintUrl });
+            } else {
+              window.open(fullPrintUrl, "_blank");
+            }
+          } catch (error) {
+            setToast({
+              status: "error",
+              title: error?.message || "Could not open the prescription for printing.",
+            });
           }
           break;
+        }
         case "digitise-rx": {
           // Same flow as the legacy pending-digitisation bar: resolve the
           // unfinished case id, pull its SnapRx files, open the digitiser.
@@ -1030,7 +1117,7 @@ export default function AppointmentListingPage() {
               <div className={styles.toolbarRight}>
                 {/* One date control for both views, in the same place.
                     The table filters over a range; the calendar is anchored
-                    to a single day and its own Day/Week/Month toggle decides
+                    to a single day and its own Day/Week toggle decides
                     how much of it you see, so the picker drops to single
                     mode there rather than making the user express a span
                     twice. */}

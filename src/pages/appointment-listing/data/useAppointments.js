@@ -241,6 +241,10 @@ export default function useAppointments({
   visitTypeCsv,
   fetchAllPages = false,
   includeDraft = true,
+  /* Legacy: only fetch undigitised ids / show Pending when a digitisation
+     GB flag is on (AppointmentData.js smartsync-cvt / snap-rx-digitization /
+     tab-rx-cvt). */
+  includePendingDigitisation = false,
   zydusSiteId,
   zydusEmpNo,
   isZydusAccount = false,
@@ -552,6 +556,14 @@ export default function useAppointments({
 
       let pendingIds = [];
       if (tabId === TAB_IDS.PENDING) {
+        if (!includePendingDigitisation) {
+          if (seq === requestSeq.current) {
+            setRows([]);
+            setCounts((prev) => ({ ...prev, [TAB_IDS.PENDING]: 0 }));
+            setLoading(false);
+          }
+          return;
+        }
         if (!undigitisedIdsRef.current) {
           const idsRes = await ApiAppointments.getSnapRxUnDigitisedIds().catch(() => null);
           undigitisedIdsRef.current = [
@@ -596,6 +608,7 @@ export default function useAppointments({
     applyCounts,
     mergedTabs,
     includeDraft,
+    includePendingDigitisation,
     zydusSiteId,
     zydusEmpNo,
     isZydusListing,
@@ -705,8 +718,14 @@ export default function useAppointments({
     setLoading(false);
   }, [query, isZydusConsultTab, zydusServerRowsVersion]);
 
-  // Prime the pending-digitisation badge count once in the background.
+  // Prime the pending-digitisation badge count once in the background —
+  // only when legacy digitisation flags allow the tab (AppointmentData.js).
   useEffect(() => {
+    if (!includePendingDigitisation) {
+      undigitisedIdsRef.current = null;
+      setCounts((prev) => ({ ...prev, [TAB_IDS.PENDING]: 0 }));
+      return undefined;
+    }
     let alive = true;
     if (undigitisedIdsRef.current) return undefined;
     ApiAppointments.getSnapRxUnDigitisedIds()
@@ -718,12 +737,12 @@ export default function useAppointments({
         ];
         setCounts((prev) => ({
           ...prev,
-          [TAB_IDS.PENDING]: prev[TAB_IDS.PENDING] ?? undigitisedIdsRef.current.length,
+          [TAB_IDS.PENDING]: undigitisedIdsRef.current.length,
         }));
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, []);
+  }, [includePendingDigitisation]);
 
   // Keep Zydus tab counts synced with redux store values the thunks update.
   // The store is the source of truth; local counts are merged on top.
