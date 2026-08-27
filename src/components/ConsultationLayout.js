@@ -2136,6 +2136,7 @@ function ConsultationLayout({ children, headerProps }) {
     }
   }, [
     allUploadedDocs.length,
+    handleAddClick,
     handleAddLabParamsDrawer,
     handleDentalPlanDrawer,
     handleDrawerGrowth,
@@ -2850,6 +2851,15 @@ function ConsultationLayout({ children, headerProps }) {
       <RxPadSyncProvider>
         <ConsultationRxPadCopyListener />
         <>
+          <input
+            type="file"
+            multiple
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
+            style={{ display: "none" }}
+            aria-hidden="true"
+          />
           <HeaderPrescription
             isVaccinationEnabled={isVaccinationAccessable}
             isGrowthChartEnabled={isGrowthChartAccessable}
