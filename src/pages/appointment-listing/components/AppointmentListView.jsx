@@ -37,7 +37,7 @@ export default function AppointmentListView({
   const emptyMeta = EMPTY_STATE_BY_TAB[tabId] || EMPTY_STATE_BY_TAB[TAB_IDS.QUEUE];
   const wrapRef = useRef(null);
   const access = useListingAccess();
-  const { showBilling, showBookActions, isZydusAccount } = access;
+  const { showBilling, showBookActions, isZydusAccount, isChikitsalay } = access;
   const finishedData = useSelector((state) => state.records?.finishedData) || [];
   const zydusAppointmentData = useSelector((state) => state.records?.zydusAappointmentData) || [];
 
@@ -155,6 +155,35 @@ export default function AppointmentListView({
           );
         },
       },
+      ...(tabId === TAB_IDS.REFERRAL
+        ? [
+            {
+              id: "referredBy",
+              header: "Referred By",
+              minWidth: 150,
+              cell: (row) => <span className={styles.contact}>{row.referredBy || "--"}</span>,
+            },
+            {
+              id: "referralDate",
+              header: "Referral Date",
+              minWidth: 140,
+              cell: (row) => <span className={styles.contact}>{row.referralDate || "--"}</span>,
+            },
+            {
+              id: "referralNotes",
+              header: "Referral Notes",
+              minWidth: 220,
+              cell: (row) =>
+                row.referralNotes ? (
+                  <Tooltip content={row.referralNotes} side="top">
+                    <p className={styles.remark}>{row.referralNotes}</p>
+                  </Tooltip>
+                ) : (
+                  <span className={styles.remarkEmpty}>--</span>
+                ),
+            },
+          ]
+        : [
       {
         id: "visitType",
         header: "Visit Type",
@@ -198,6 +227,10 @@ export default function AppointmentListView({
             <span className={styles.remarkEmpty}>--</span>
           ),
       },
+        ]),
+      ...(tabId === TAB_IDS.CLINIC_APPOINTMENT
+        ? []
+        : [
       {
         /* Hug the CTA + kebab. `width: "1%"` is the table-layout trick that
            stops a 100%-wide table from pouring leftover viewport into this
@@ -216,8 +249,19 @@ export default function AppointmentListView({
         cellClassName: styles.actionCol,
         cell: (row) => (
           <div className={styles.actionCell}>
-            {tabId === TAB_IDS.QUEUE ? (
-              <QueueRxSplitButton row={row} onRowAction={onRowAction} />
+            {tabId === TAB_IDS.QUEUE || tabId === TAB_IDS.REFERRAL ? (
+              tabId === TAB_IDS.QUEUE && isChikitsalay ? (
+                <Button
+                  variant="outline"
+                  theme="primary"
+                  size="sm"
+                  onClick={() => onRowAction?.("type-rx", row)}
+                >
+                  Consult
+                </Button>
+              ) : (
+                <QueueRxSplitButton row={row} onRowAction={onRowAction} tabId={tabId} />
+              )
             ) : (
               <TableActions align="right" primary={rowPrimaryAction(tabId, row, onRowAction, actionCtx)} actions={[]} />
             )}
@@ -225,6 +269,7 @@ export default function AppointmentListView({
           </div>
         ),
       },
+        ]),
     ],
     [
       tabId,
@@ -236,6 +281,7 @@ export default function AppointmentListView({
       isZydusAccount,
       zydusAppointmentData,
       actionCtx,
+      isChikitsalay,
     ]
   );
 

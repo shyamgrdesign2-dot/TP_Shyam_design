@@ -39,6 +39,10 @@ const RX = {
  *           same way as PrimaryActionButton. Consult is never in the menu.
  */
 export function queueRxChoices(ctx = {}) {
+  // Chikitsalay clinic queue: a plain Consult, same as AppointmentData.js /
+  // Welcome1.js — no SmartRx / VoiceRx / SnapRx split.
+  if (ctx.isChikitsalay) return { primary: RX.consult, rest: [] };
+
   if (ctx.isCvtExtHos) {
     if (ctx.canShowSmartRx) return { primary: RX.smart, rest: [] };
     return { primary: RX.consult, rest: [] };
@@ -97,12 +101,20 @@ export function rowPrimaryAction(tabId, row, onRowAction, ctx = {}) {
   switch (tabId) {
     case TAB_IDS.QUEUE:
       return asTablePrimary(queueRxChoices(ctx), act);
+    case TAB_IDS.REFERRAL:
+      // Same Consult / SmartRx / VoiceRx / SnapRx split as Queue (AppointmentData.js
+      // treats TAB_QUEUE and TAB_REFERRAL as isQueueOrReferralTab). Chikitsalay
+      // Consult-only does not apply here — that gate is clinic-queue only.
+      return asTablePrimary(queueRxChoices({ ...ctx, isChikitsalay: false }), act);
     case TAB_IDS.FINISHED:
       return { label: "Print Rx", variant: "outline", theme: "primary", icon: "printer", onClick: act("print-rx") };
     case TAB_IDS.DRAFT:
       return { label: "Resume", variant: "outline", theme: "primary", onClick: act("resume-rx") };
     case TAB_IDS.PENDING:
       return { label: "Digitise Rx", variant: "outline", theme: "primary", onClick: act("digitise-rx") };
+    // Chikitsalay Appointment tab: no Action column (AppointmentData.js).
+    case TAB_IDS.CLINIC_APPOINTMENT:
+      return null;
     // Zydus Encounter: Rx split like legacy PrimaryActionButton, but hide once
     // finishedData already has this encounter (legacy AppointmentData.js).
     case TAB_IDS.ZYDUS_ENCOUNTER: {
@@ -134,6 +146,10 @@ export function primaryKebabOption(tabId, ctx = {}) {
       const { primary } = queueRxChoices(ctx);
       return primary ? { value: primary.action, label: primary.label, icon: "document-text" } : null;
     }
+    case TAB_IDS.REFERRAL: {
+      const { primary } = queueRxChoices({ ...ctx, isChikitsalay: false });
+      return primary ? { value: primary.action, label: primary.label, icon: "document-text" } : null;
+    }
     case TAB_IDS.FINISHED:
       return { value: "print-rx", label: "Print Rx", icon: "printer" };
     case TAB_IDS.DRAFT:
@@ -161,12 +177,15 @@ export function kebabOptions(tabId, row, ctx = {}) {
   if (ctx.isCvtExtHos) return [];
   // Zydus Encounter / Appointment rows have no kebab — consult is the only action
   if (tabId === TAB_IDS.ZYDUS_ENCOUNTER || tabId === TAB_IDS.ZYDUS_APPOINTMENT) return [];
+  // Chikitsalay Appointment tab has no action column at all.
+  if (tabId === TAB_IDS.CLINIC_APPOINTMENT) return [];
   const tab = kebabTab(tabId);
   const rec = row?.raw || row || {};
   const isDraft = tab === TAB_IDS.DRAFT;
   const isQueue = tab === TAB_IDS.QUEUE;
   const isFinished = tab === TAB_IDS.FINISHED;
   const isCancelled = tab === TAB_IDS.CANCELLED;
+  const isReferral = tab === TAB_IDS.REFERRAL;
   const billed = !!(rec.billStatus && rec.billStatus !== "Unbilled");
   const opts = [];
 
@@ -188,7 +207,7 @@ export function kebabOptions(tabId, row, ctx = {}) {
   opts.push({ value: "add-lab-results", label: "Add Lab Results", icon: "lab", iconFamily: "medical" });
   /* Legacy: hidden on Draft at build time, then stripped on Finished /
      Cancelled (and Queue+Zydus does not touch Cancel). */
-  if (!isDraft && !isFinished && !isCancelled) {
+  if (!isDraft && !isFinished && !isCancelled && !isReferral) {
     opts.push({
       value: "cancel-appointment",
       label: "Cancel Appointment",
@@ -201,13 +220,16 @@ export function kebabOptions(tabId, row, ctx = {}) {
     opts.push({ value: "admit-to-ipd", label: "Admit to IPD", icon: "hospital", iconFamily: "medical" });
   }
   /* End Visit: not Draft; stripped on Finished / Cancelled; Queue+Zydus
-     also strips it (Zydus encounters are closed from their own flow). */
-  if (!isDraft && !isFinished && !isCancelled && !(isQueue && ctx.isZydus)) {
+     also strips it (Zydus encounters are closed from their own flow).
+     Referral matches Cancelled (AppointmentData.js filters endvisit / cancelappt). */
+  if (!isDraft && !isFinished && !isCancelled && !isReferral && !(isQueue && ctx.isZydus)) {
     opts.push({ value: "end-visit", label: "End Visit", icon: "login", iconFamily: "arrow", iconCorner: "straight" });
   }
   /* End Visit Reason is the read-only Finished view of tpvl_remarks.
-     Queue, Draft, Cancelled, and Zydus Queue never show it. */
-  if (isFinished) {
+     Queue, Draft, Cancelled, and Zydus Queue never show it — except
+     Chikitsalay clinic queue, where AppointmentData.js falls through
+     to the unfiltered menu and leaves it in. */
+  if (isFinished || (isQueue && ctx.isChikitsalay)) {
     opts.push({ value: "end-visit-reason", label: "End Visit Reason", icon: "message-text" });
   }
   opts.push({ value: "upload-records", label: "Upload Medical Records", icon: "document-upload" });
@@ -243,7 +265,7 @@ export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = EMPTY_EXT
   const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
   const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_NEW_IPD_HOS_BUSINESS_ID);
   const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
-  const { isCvtExtHos } = useListingAccess();
+  const { isCvtExtHos, isChikitsalay } = useListingAccess();
   const profile = useSelector((state) => state.doctors?.profile);
   const isZydus = getDecodedToken()?.result?.hospital_business_id == env.zydus_business_id;
   const options = React.useMemo(
@@ -251,6 +273,7 @@ export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = EMPTY_EXT
       ...extraOptions,
       ...kebabOptions(tabId, row, {
         isCvtExtHos,
+        isChikitsalay,
         isOpdBillingAccessable,
         isZydus,
         canAdmitToIpd:
@@ -265,6 +288,7 @@ export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = EMPTY_EXT
       tabId,
       row,
       isCvtExtHos,
+      isChikitsalay,
       isOpdBillingAccessable,
       isZydus,
       isNewIPDAccessableFromGB,

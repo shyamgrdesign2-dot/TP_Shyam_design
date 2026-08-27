@@ -8,7 +8,8 @@ import { zydusConsultAppoint, zydusAppointment, copyGetAllAppointment1 } from ".
 import { calculateAge } from "../../../utils/utils";
 import { buildZydusEncounterAppointmentRows } from "../../../utils/zydusEncounterAppointmentRows";
 import { matchesVisitTypeFilter } from "../../../utils/appointmentVisitTypeFilters";
-import { TAB_IDS, TAB_TO_AP_STATUS, ALL_MERGED_TABS } from "./appointmentsConfig";
+import { getCrossConsultFromRecord } from "../../../utils/crossConsultHelpers";
+import { TAB_IDS, ALL_MERGED_TABS, CHIKITSALAY_MERGED_TABS, apStatueForTab, isAllTimeWorklistTab } from "./appointmentsConfig";
 
 const DATE_FORMAT = "YYYY-MM-DD";
 // The legacy screen widens the window for the digitisation tab so old
@@ -67,6 +68,10 @@ function mapRecord(rec, tabId, index) {
   const timeText = (tabId === TAB_IDS.FINISHED ? rec.finishedTime : rec.apTime) || rec.apTime || "";
   const timeMoment = moment(String(timeText).trim(), ["h:mm A", "hh:mm A", "HH:mm"], true);
   const dateMoment = moment(String(rec.apDate || "").trim(), ["Do MMM YYYY", "DD MMM YYYY", "YYYY-MM-DD"], true);
+  const crossConsult = getCrossConsultFromRecord(rec);
+  const referralDateRaw =
+    crossConsult?.date_of_referral || rec.date_of_referral || rec.referralDate || "";
+  const referralDateMoment = moment(referralDateRaw);
   return {
     id: String(rec.pam_id ?? rec.pam_ref_id ?? `${rec.pm_pid ?? "row"}-${index}`),
     raw: rec,
@@ -106,6 +111,18 @@ function mapRecord(rec, tabId, index) {
     symptomsGathered: !!rec.symptomsGathered,
     consultType: rec.pam_status_type_appointment ?? 0,
     hasVideo: rec.pam_status_type_appointment === 1 || rec.pam_status_type_appointment === 2,
+    referredBy:
+      crossConsult?.referred_by ||
+      rec.referred_by ||
+      rec.referredBy ||
+      rec.dr_reference_name ||
+      crossConsult?.um_name ||
+      "",
+    referralDate:
+      referralDateRaw && referralDateMoment.isValid() ? referralDateMoment.format("DD MMM YYYY") : "",
+    referralNotes: String(
+      crossConsult?.reason_for_cross_consult || rec.reason_for_cross_consult || rec.referralNotes || ""
+    ).trim(),
   };
 }
 
@@ -115,13 +132,13 @@ function mapRecord(rec, tabId, index) {
  * appointments still to be seen — so it must not depend on the user happening
  * to be on the Queue tab.
  */
-export async function fetchQueueRows({ dateRange, query, visitTypeCsv } = {}) {
+export async function fetchQueueRows({ dateRange, query, visitTypeCsv, isChikitsalay = false } = {}) {
   const start = dateRange?.start ? moment(dateRange.start) : moment();
   const end = dateRange?.end ? moment(dateRange.end) : start;
   const { records } = await fetchAllAppointmentPages({
     startDate: start.format(DATE_FORMAT),
     endDate: end.format(DATE_FORMAT),
-    apStatue: TAB_TO_AP_STATUS[TAB_IDS.QUEUE],
+    apStatue: apStatueForTab(TAB_IDS.QUEUE, isChikitsalay),
     filterVisitType: visitTypeCsv || "",
     search: query || "",
     sortOrder: "ascend",
@@ -223,6 +240,7 @@ export default function useAppointments({
   zydusSiteId,
   zydusEmpNo,
   isZydusAccount = false,
+  isChikitsalay = false,
 }) {
   const dispatch = useDispatch();
   // Zydus encounter/appointment counts + buckets are maintained in redux by
@@ -254,10 +272,10 @@ export default function useAppointments({
   const zydusServerRowsRef = useRef([]);
   const [zydusServerRowsVersion, setZydusServerRowsVersion] = useState(0);
 
-  const mergedTabs = useMemo(
-    () => (includeDraft ? ALL_MERGED_TABS : ALL_MERGED_TABS.filter((t) => t !== TAB_IDS.DRAFT)),
-    [includeDraft]
-  );
+  const mergedTabs = useMemo(() => {
+    const base = isChikitsalay ? CHIKITSALAY_MERGED_TABS : ALL_MERGED_TABS;
+    return includeDraft ? base : base.filter((t) => t !== TAB_IDS.DRAFT);
+  }, [includeDraft, isChikitsalay]);
 
   const { startDate, endDate } = useMemo(() => {
     const start = dateRange?.start ? moment(dateRange.start) : moment();
@@ -267,35 +285,43 @@ export default function useAppointments({
 
   const listPayload = useCallback(
     (statusTab, pendingIds) => ({
-      startDate: statusTab === TAB_IDS.PENDING ? PENDING_START_DATE : startDate,
+      startDate: isAllTimeWorklistTab(statusTab) ? PENDING_START_DATE : startDate,
       endDate,
-      apStatue: TAB_TO_AP_STATUS[statusTab],
+      apStatue: apStatueForTab(statusTab, isChikitsalay),
       filterVisitType: visitTypeCsv || "",
       search: query || "",
-      sortOrder: "ascend",
+      sortOrder: statusTab === TAB_IDS.REFERRAL ? "descend" : "ascend",
       fetchBillStatus: true,
       ...(statusTab === TAB_IDS.PENDING && pendingIds?.length
         ? { cvtAppointmentIdsStr: pendingIds.join(",") }
         : {}),
     }),
-    [startDate, endDate, query, visitTypeCsv]
+    [startDate, endDate, query, visitTypeCsv, isChikitsalay]
   );
 
   const applyCounts = useCallback((data, statusTab) => {
     setCounts((prev) => {
       if (statusTab === TAB_IDS.PENDING) {
-        return { ...prev, [TAB_IDS.PENDING]: undigitisedIdsRef.current?.length || 0 };
+        return {
+          ...prev,
+          [TAB_IDS.PENDING]: undigitisedIdsRef.current?.length || 0,
+          [TAB_IDS.REFERRAL]: data.referral_count ?? prev[TAB_IDS.REFERRAL] ?? 0,
+        };
       }
       return {
         ...prev,
-        [TAB_IDS.QUEUE]: data.queue_count ?? prev[TAB_IDS.QUEUE] ?? 0,
+        [TAB_IDS.QUEUE]: isChikitsalay
+          ? data.checked_in_count ?? prev[TAB_IDS.QUEUE] ?? 0
+          : data.queue_count ?? prev[TAB_IDS.QUEUE] ?? 0,
+        [TAB_IDS.CLINIC_APPOINTMENT]: data.queue_count ?? prev[TAB_IDS.CLINIC_APPOINTMENT] ?? 0,
         [TAB_IDS.FINISHED]: data.finished_count ?? prev[TAB_IDS.FINISHED] ?? 0,
         [TAB_IDS.CANCELLED]: data.cancelled_count ?? prev[TAB_IDS.CANCELLED] ?? 0,
         [TAB_IDS.DRAFT]: data.draft_count ?? prev[TAB_IDS.DRAFT] ?? 0,
         [TAB_IDS.PENDING]: prev[TAB_IDS.PENDING] ?? (undigitisedIdsRef.current?.length || 0),
+        [TAB_IDS.REFERRAL]: data.referral_count ?? prev[TAB_IDS.REFERRAL] ?? 0,
       };
     });
-  }, []);
+  }, [isChikitsalay]);
 
   const fillRemaining = useCallback(
     async (statusTab, payload, fromPage, seq) => {
@@ -467,7 +493,8 @@ export default function useAppointments({
           });
         });
         const COUNT_KEY = {
-          [TAB_IDS.QUEUE]: "queue_count",
+          [TAB_IDS.QUEUE]: isChikitsalay ? "checked_in_count" : "queue_count",
+          [TAB_IDS.CLINIC_APPOINTMENT]: "queue_count",
           [TAB_IDS.FINISHED]: "finished_count",
           [TAB_IDS.CANCELLED]: "cancelled_count",
           [TAB_IDS.DRAFT]: "draft_count",
@@ -480,6 +507,10 @@ export default function useAppointments({
             if (key) next[id] = first[i]?.data?.[key] ?? prev[id] ?? 0;
           });
           if (!includeDraft) next[TAB_IDS.DRAFT] = 0;
+          const fromFirst = first[0]?.data;
+          if (fromFirst) {
+            next[TAB_IDS.REFERRAL] = fromFirst.referral_count ?? prev[TAB_IDS.REFERRAL] ?? 0;
+          }
           return next;
         });
         setHasMore(false);
@@ -547,6 +578,7 @@ export default function useAppointments({
     endDate,
     visitTypeCsv,
     query,
+    isChikitsalay,
     advancedSettings?.billingStatusInAppointmentScreen,
     dispatch,
   ]);

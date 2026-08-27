@@ -3,6 +3,8 @@ import { useSelector } from "react-redux";
 import { isMobile, isTablet } from "react-device-detect";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useIsDentalEnabled } from "../../../hooks/useIsDentalEnabled";
+import { useChikitsalay } from "../../chikitsalay/useChikitsalay";
+import { useCrossConsult } from "../../../hooks/useCrossConsult";
 import { isVoiceRxFree, shouldMonetizationDisabled } from "../../../utils/utils";
 import {
   GB_CVT_EXT_HOS,
@@ -62,6 +64,8 @@ export function useListingAccess() {
   const isVoiceRxPaid =
     planDetails?.service_mappings?.find((e) => e.service_name === S_VOICE_RX)?.plan_tier === PAID;
   const isDentalEnabled = useIsDentalEnabled();
+  const isChikitsalay = useChikitsalay();
+  const showReferral = useCrossConsult();
 
   // Zydus: business_id check + GrowthBook flag, matching AppointmentData.js
   const tokenData = getDecodedToken()?.result;
@@ -79,8 +83,10 @@ export function useListingAccess() {
       isVoiceRxPaid,
       isTabRxVisible: isTabRxEnabled && isTouchRx,
       isDentalEnabled,
+      isChikitsalay,
       isZydusAccount,
       showDraft,
+      showReferral,
       // Zydus: no kebab / Add Appointment / billing badge (legacy Welcome).
       // Walk-In remains available and routes to the Zydus walk-in screen.
       showKebab: !isCvtExtHos && !isZydusAccount,
@@ -98,8 +104,10 @@ export function useListingAccess() {
       isTabRxEnabled,
       isTouchRx,
       isDentalEnabled,
+      isChikitsalay,
       isZydusAccount,
       showDraft,
+      showReferral,
     ]
   );
 }

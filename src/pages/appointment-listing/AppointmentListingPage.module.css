@@ -354,6 +354,8 @@ html :where(.page) td {
    built-in one doubles it. */
 .tabRowInner [role="tablist"] {
   border-bottom: none;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
 .tabRowInner [role="tab"][data-detached] {

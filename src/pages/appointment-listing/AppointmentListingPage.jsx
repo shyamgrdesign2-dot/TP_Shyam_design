@@ -30,8 +30,11 @@ import {
   ZYDUS_LIST_TABS,
   ZYDUS_SINGLE_DAY_TABS,
   CALENDAR_TABS,
+  CHIKITSALAY_LIST_TABS,
+  CHIKITSALAY_CALENDAR_TABS,
   SLOT_FILTER_GROUP,
   TAB_IDS,
+  isAllTimeWorklistTab,
 } from "./data/appointmentsConfig";
 import useAppointments, { fetchQueueRows } from "./data/useAppointments";
 import { useListingAccess } from "./data/useListingAccess";
@@ -58,6 +61,7 @@ import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import { useChikitsalay } from "../chikitsalay/useChikitsalay";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { clinicTargetStatus, generateClinicToken } from "../chikitsalay/service";
 import { DENTAL_RX_PAD_ROUTE } from "../../utils/dentalRoutes";
 import { handleAdmitToIpd } from "../../utils/utils";
@@ -158,7 +162,12 @@ function TabBar({ tabs, activeTab, countByTab, onSelect }) {
                whichever view is chosen. Digitisation is an all-time
                worklist that always renders as a table, so a hairline sets
                it apart from the tabs it does not behave like. */
-            data-detached={tab.id === TAB_IDS.PENDING || undefined}
+            data-detached={
+              isAllTimeWorklistTab(tab.id) &&
+              tabs.find((t) => isAllTimeWorklistTab(t.id))?.id === tab.id
+                ? true
+                : undefined
+            }
             leftIcon={<TPLibraryIcon name={tab.icon} family={tab.iconFamily} size={20} />}
             tag={countByTab[tab.id] || 0}
             tagTone={tab.id === activeTab ? "primary" : "neutral"}
@@ -208,6 +217,7 @@ export default function AppointmentListingPage() {
   const profile = useSelector((state) => state.doctors?.profile);
   const isDentalEnabled = useIsDentalEnabled();
   const isChikitsalayAccessable = useChikitsalay();
+  const isCrossConsultEnabled = useCrossConsult();
   const { activeTeleconsultAppointmentId, activeTeleconsultConsultationId } = useSelector(
     (state) => state.teleconsultNotification || {}
   );
@@ -234,16 +244,30 @@ export default function AppointmentListingPage() {
   // opens on its natural default.
   // Zydus keeps Encounter/Appointment/… tabs in both list and calendar; the
   // calendar is day-only with no free-slot layer (see AppointmentCalendarView).
-  const baseTabs = isZydusAccount ? ZYDUS_LIST_TABS : LIST_TABS;
-  const visibleTabs = (view === "calendar" && !isZydusAccount ? CALENDAR_TABS : baseTabs).filter(
-    (t) => t.id !== TAB_IDS.DRAFT || showDraft
+  const baseTabs = isZydusAccount
+    ? ZYDUS_LIST_TABS
+    : isChikitsalayAccessable
+      ? CHIKITSALAY_LIST_TABS
+      : LIST_TABS;
+  const tabsForView = (
+    view === "calendar" && !isZydusAccount
+      ? isChikitsalayAccessable
+        ? CHIKITSALAY_CALENDAR_TABS
+        : CALENDAR_TABS
+      : baseTabs
+  ).filter(
+    (t) =>
+      (t.id !== TAB_IDS.DRAFT || showDraft) &&
+      (t.id !== TAB_IDS.REFERRAL || isCrossConsultEnabled)
   );
+  const visibleTabs = tabsForView;
   const isCalendar = view === "calendar";
   /* One deliberate exception to "the view is the view": Pending Digitisation
-     is an all-time worklist, not a schedule, so it has nothing to draw on a
-     grid anchored to one day. Selecting it renders the table without moving
-     the view toggle, and leaving it puts the grid straight back. */
-  const renderCalendar = isCalendar && activeTab !== TAB_IDS.PENDING;
+     and Referral are all-time worklists, not a schedule, so they have nothing
+     to draw on a grid anchored to one day. Selecting either renders the table
+     without moving the view toggle, and leaving it puts the grid straight back. */
+  const isWorklistTab = isAllTimeWorklistTab(activeTab);
+  const renderCalendar = isCalendar && !isWorklistTab;
   // Single-day prev/next is for Zydus list tabs only; calendar uses the
   // shared day picker like every other account.
   const useZydusSingleDayNav =
@@ -271,6 +295,10 @@ export default function AppointmentListingPage() {
   useEffect(() => {
     if (!showDraft && activeTab === TAB_IDS.DRAFT) setActiveTab(TAB_IDS.QUEUE);
   }, [showDraft, activeTab]);
+
+  useEffect(() => {
+    if (!isCrossConsultEnabled && activeTab === TAB_IDS.REFERRAL) setActiveTab(TAB_IDS.QUEUE);
+  }, [isCrossConsultEnabled, activeTab]);
 
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState({});
@@ -329,7 +357,12 @@ export default function AppointmentListingPage() {
     if (exporting) return;
     setExporting(true);
     try {
-      const queueRows = await fetchQueueRows({ dateRange, query: debouncedQuery, visitTypeCsv });
+      const queueRows = await fetchQueueRows({
+        dateRange,
+        query: debouncedQuery,
+        visitTypeCsv,
+        isChikitsalay: isChikitsalayAccessable,
+      });
       const n = exportableCount(queueRows);
       if (!n) {
         setToast({ status: "error", title: "No queued appointments to export for this date." });
@@ -349,7 +382,10 @@ export default function AppointmentListingPage() {
 
   // Legacy date rule: only Queue (upcoming) may navigate into the future.
   // The calendar "All" view also spans upcoming appointments, so it too.
-  const allowFutureDates = activeTab === TAB_IDS.QUEUE || activeTab === TAB_IDS.ALL;
+  const allowFutureDates =
+    activeTab === TAB_IDS.QUEUE ||
+    activeTab === TAB_IDS.CLINIC_APPOINTMENT ||
+    activeTab === TAB_IDS.ALL;
   useEffect(() => {
     if (!allowFutureDates && dateRange?.end && moment(dateRange.end).isAfter(moment(), "day")) {
       setDateRange(null);
@@ -382,9 +418,13 @@ export default function AppointmentListingPage() {
       };
       // Zydus ICT/GenX rows have no in-clinic vs tele slot concept — visit type only.
       if (isZydusAccount) return [visitTypeGroup];
+      // Referral has no visit-type / slot columns (AppointmentData.js). Keep
+      // visit-type as a server filter; drop the slot group so an in-clinic
+      // chip from Queue cannot silently empty this all-time list.
+      if (activeTab === TAB_IDS.REFERRAL) return [visitTypeGroup];
       return [SLOT_FILTER_GROUP, visitTypeGroup];
     },
-    [caseTypes, isZydusAccount]
+    [caseTypes, isZydusAccount, activeTab]
   );
 
   // Debounce only the search typing (legacy 500ms); tab / date / filter
@@ -416,6 +456,7 @@ export default function AppointmentListingPage() {
     zydusSiteId,
     zydusEmpNo,
     isZydusAccount,
+    isChikitsalay: isChikitsalayAccessable && !isZydusAccount,
   });
 
   useEffect(() => {
@@ -443,11 +484,12 @@ export default function AppointmentListingPage() {
   }, [refetch]);
 
   const rows = useMemo(() => {
+    if (activeTab === TAB_IDS.REFERRAL) return liveRows;
     const slotSel = filters.slot || [];
     if (slotSel.length !== 1) return liveRows;
     const wantVideo = slotSel[0] === "video";
     return liveRows.filter((row) => row.hasVideo === wantVideo);
-  }, [liveRows, filters.slot]);
+  }, [liveRows, filters.slot, activeTab]);
 
   // Zydus legacy date navigator: single day (prev/next + date picker),
   // with the legacy "can't go to next day when on today" rule.
@@ -998,8 +1040,14 @@ export default function AppointmentListingPage() {
                       /* The picker is disabled on the digitisation worklist, and a
                          disabled control explains nothing on its own. */
                       onClickCapture={() => {
-                        if (activeTab === TAB_IDS.PENDING) {
-                          setToast({ status: "error", title: "Digitisation covers all dates." });
+                        if (isWorklistTab) {
+                          setToast({
+                            status: "error",
+                            title:
+                              activeTab === TAB_IDS.REFERRAL
+                                ? "Referral covers all dates."
+                                : "Digitisation covers all dates.",
+                          });
                         }
                       }}
                     >
@@ -1018,7 +1066,7 @@ export default function AppointmentListingPage() {
                         presets={RANGE_PRESETS}
                         commitMode={renderCalendar ? "apply" : "outside-click"}
                         value={
-                          activeTab === TAB_IDS.PENDING
+                          isWorklistTab
                             ? null
                             : renderCalendar
                             ? calendarWindowLabel?.value ?? dateRange?.start ?? null
@@ -1030,13 +1078,13 @@ export default function AppointmentListingPage() {
                           return setDateRange(d ? { start: d, end: d } : null);
                         }}
                         placeholder={
-                          activeTab === TAB_IDS.PENDING ? "Till date" : calendarWindowLabel?.label || "Today"
+                          isWorklistTab ? "Till date" : calendarWindowLabel?.label || "Today"
                         }
                         {...(calendarWindowLabel ? { formatDate: () => calendarWindowLabel.label } : {})}
                         size="sm"
                         fullWidth={false}
                         maxDate={allowFutureDates ? undefined : new Date()}
-                        disabled={activeTab === TAB_IDS.PENDING}
+                        disabled={isWorklistTab}
                       />
                     </div>
                   </>

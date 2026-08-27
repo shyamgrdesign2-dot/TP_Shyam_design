@@ -226,8 +226,9 @@ export default function AppointmentEventCard({
       </div>
 
       {/* Trailing cluster, on the card's centre line: the CTA, then the kebab
-          that carries whatever didn't fit. */}
-      {(v.showCta || v.showKebab) && (
+          that carries whatever didn't fit. Chikitsalay Appointment rows have
+          no action column in the table, so the card stays action-less too. */}
+      {cardTab !== TAB_IDS.CLINIC_APPOINTMENT && (v.showCta || v.showKebab) && (
         <div
           className={styles.trail}
           onClick={(e) => e.stopPropagation()}

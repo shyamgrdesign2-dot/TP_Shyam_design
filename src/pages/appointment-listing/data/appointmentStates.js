@@ -14,6 +14,13 @@ export const STATUS_META = {
     color: "var(--tesseract-blue-600)",
     badge: "primary",
   },
+  [TAB_IDS.CLINIC_APPOINTMENT]: {
+    icon: "calendar",
+    family: "time",
+    label: "Appointment",
+    color: "var(--tesseract-violet-600)",
+    badge: "primary",
+  },
   [TAB_IDS.FINISHED]: {
     icon: "clipboard-tick",
     family: "content-edit",

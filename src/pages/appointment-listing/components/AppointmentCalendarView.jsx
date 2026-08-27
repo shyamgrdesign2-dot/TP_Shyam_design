@@ -47,7 +47,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 /* The four states a card can actually be drawn in, in the order a visit moves
    through them. Pending digitisation borrows Finished's colour, so listing it
    would put the same swatch on the strip twice. */
-const LEGEND = [TAB_IDS.QUEUE, TAB_IDS.FINISHED, TAB_IDS.CANCELLED, TAB_IDS.DRAFT];
+const BASE_LEGEND = [TAB_IDS.QUEUE, TAB_IDS.FINISHED, TAB_IDS.CANCELLED, TAB_IDS.DRAFT];
 /* Placeholder bars for a column whose availability is still loading. Sized
    like a typical consulting day (7 AM – 9 PM in half-hour blocks) so the
    shimmer occupies roughly the space the real slots will. */
@@ -531,6 +531,10 @@ export default function AppointmentCalendarView({
   disableAvailabilityLayer = false, // hides availability controls + stops slot API calls
   hideModeToggle = false,
 }) {
+  const { isChikitsalay } = useListingAccess();
+  const legend = isChikitsalay
+    ? [TAB_IDS.CLINIC_APPOINTMENT, ...BASE_LEGEND]
+    : BASE_LEGEND;
   const [mode, setMode] = useState(() => readPreference("calendarMode", "day"));
   /* The availability layer is on by default, because a doctor opening the
      calendar to book needs to see where the gaps are. Turned off, the grid
@@ -1880,7 +1884,7 @@ export default function AppointmentCalendarView({
           is something you consult once and then stop seeing, so it must not
           take space from the schedule. */}
       <div className={styles.legend}>
-        {LEGEND.map((k) => (
+        {legend.map((k) => (
           <span key={k} className={styles.legendItem}>
             <span className={styles.legendDot} style={{ background: STATUS_META[k].color }} aria-hidden="true" />
             {STATUS_META[k].label}
