@@ -67,7 +67,6 @@ import { DENTAL_RX_PAD_ROUTE } from "../../utils/dentalRoutes";
 import { handleAdmitToIpd } from "../../utils/utils";
 import { generateUniqueFileName, getCorrectedFileName } from "../medicalRecords/utils/helper";
 import { fetchAllDocumentCategories } from "../medicalRecords/service";
-import { isAndroid, isBrowser } from "react-device-detect";
 import {
   GB_VOICE_RX_NEW_UI,
   UNFINISHED_RX_CASE,
@@ -800,45 +799,15 @@ export default function AppointmentListingPage() {
     [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions, isZydusAccount, runZydusEncounterAction]
   );
 
-  /* Legacy AppointmentData.js: kebab click opens the OS picker only.
-     The upload drawer mounts after files are chosen, with those files,
-     so the doctor can fill type / date / notes. Opening the Ant drawer
-     in the same tick as the picker cancelled the input's change event. */
-  const onRowAction = useCallback(
-    (action, row) => {
-      const rec = row?.raw || row;
-      if (!rec) return;
-      if (action === "upload-records" || action === "upload-records-pick") {
-        if (isAndroid && !isBrowser) {
-          setActionDrawer({
-            type: "upload-records",
-            record: rec,
-            name: row.name || rec.pm_fullname,
-            files: [],
-            openPicker: true,
-          });
-          return;
-        }
-        pendingUploadRef.current = rec;
-        if (action === "upload-records-pick") fileInputRef.current?.click();
-        return;
-      }
-      void onRowActionAsync(action, row);
-    },
-    [onRowActionAsync]
-  );
+  /* Same as AppointmentData.js on prod: kebab onClick → handleAddClick
+     (fileInputRef.click()) so the OS Camera/File sheet opens; input onChange
+     → handleFileUpload(event, record) opens the upload drawer. The Android
+     Camera/File modal is commented out there too — tablet uses this input.
+     The input lives on the page so it stays mounted when the kebab closes. */
+  const pickingRef = useRef(false);
 
-  const handleUploadFileChange = (event) => {
-    const files = event.target.files;
-    const record = pendingUploadRef.current;
-    if (!files || !record) {
-      event.target.value = null;
-      return;
-    }
-    const filesData = Array.from(files);
-    event.target.value = null;
-    if (filesData.length === 0) return;
-    const updatedFiles = filesData.map((file) => {
+  const filesFromPicker = (fileList) =>
+    Array.from(fileList || []).map((file) => {
       const cleanFileName = getCorrectedFileName(file?.name || "");
       const isCapturedFromCamera =
         (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg") &&
@@ -848,13 +817,57 @@ export default function AppointmentListingPage() {
       }
       return new File([file], cleanFileName, { type: file.type });
     });
+
+  const openUploadDrawer = (record, files) => {
+    if (!record || !files?.length) return;
+    pendingUploadRef.current = null;
     setActionDrawer({
       type: "upload-records",
       record,
       name: record.pm_fullname,
-      files: updatedFiles,
+      files,
     });
   };
+
+  const onRowAction = useCallback(
+    (action, row) => {
+      const rec = row?.raw || row;
+      if (!rec) return;
+      if (action === "upload-records" || action === "upload-records-pick") {
+        pendingUploadRef.current = rec;
+        if (pickingRef.current) return;
+        pickingRef.current = true;
+        fileInputRef.current?.click();
+        return;
+      }
+      void onRowActionAsync(action, row);
+    },
+    [onRowActionAsync]
+  );
+
+  const handleUploadFileChange = (event) => {
+    const files = filesFromPicker(event.target.files);
+    event.target.value = null;
+    if (files.length === 0) {
+      pickingRef.current = false;
+      return;
+    }
+    const record = pendingUploadRef.current;
+    if (record) openUploadDrawer(record, files);
+    window.setTimeout(() => {
+      pickingRef.current = false;
+    }, 400);
+  };
+
+  useEffect(() => {
+    const onFocus = () => {
+      window.setTimeout(() => {
+        pickingRef.current = false;
+      }, 300);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   const confirmCancelAppointment = async () => {
     const rec = cancelTarget?.raw;
@@ -1324,12 +1337,13 @@ export default function AppointmentListingPage() {
         />
 
         <input
+          id="appointment-upload-records-input"
           type="file"
           multiple
           ref={fileInputRef}
           onChange={handleUploadFileChange}
           accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
-          style={{ position: "fixed", left: 0, top: 0, width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+          style={{ position: "fixed", left: 0, top: 0, width: 1, height: 1, opacity: 0 }}
         />
 
         {toast && (

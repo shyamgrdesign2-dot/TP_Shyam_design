@@ -120,30 +120,67 @@ function layoutOverlaps(items) {
   return laid;
 }
 
+function bookingSpan(row, slots) {
+  const startMin = row.slotHour * 60 + row.slotMinute;
+  const matching = row.hasVideo
+    ? slots.find((s) => s.startMin === startMin && s.bookMode === "teleconsult") ||
+      slots.find((s) => s.startMin === startMin)
+    : slots.find((s) => s.startMin === startMin && s.bookMode === "in-clinic") ||
+      slots.find((s) => s.startMin === startMin);
+  return {
+    startMin,
+    endMin: startMin + (matching?.increment || matching?.durationMin || 15),
+    hasVideo: !!row.hasVideo,
+  };
+}
+
+function sameModeBookingCovers(chip, bookedSpans) {
+  const isTele = chip.bookMode === "teleconsult";
+  const chipEnd = chip.startMin + chip.durationMin;
+  return bookedSpans.some((b) => {
+    if (b.hasVideo !== isTele) return false;
+    return b.startMin < chipEnd && chip.startMin < b.endMin;
+  });
+}
+
 /**
  * Free-slot chips from the dual clinic + tele lists in slotsByDate.
  * Each API row is already a chip (`bookMode`). Overlapping bands share the
- * column; in-clinic is always pinned left, tele right.
+ * column; in-clinic is always pinned left, tele right — even when the other
+ * mode is a booked card, not a free chip (otherwise the leftover chip sits
+ * full-width under that card and looks missing).
  */
-function prepareFreeSlotChips(slots, slotFilter) {
+function prepareFreeSlotChips(slots, slotFilter, bookedRows = []) {
+  const slotList = slots || [];
+  const bookedSpans = (bookedRows || [])
+    .filter((row) => row && row.slotHour != null)
+    .map((row) => bookingSpan(row, slotList));
+  const dualGrid =
+    slotList.some((s) => s?.bookMode === "teleconsult") &&
+    slotList.some((s) => s && s.bookMode !== "teleconsult");
+
   const items = [];
-  (slots || []).forEach((slot) => {
+  slotList.forEach((slot) => {
     if (!slot || slot.startMin == null) return;
-    if (slot.status === "confirmed") return;
 
     const bookMode = slot.bookMode === "teleconsult" ? "teleconsult" : "in-clinic";
-    const bookable = slot.status === "available" && !slot.isPast;
+    const durationMin = Math.max(
+      1,
+      (slot.endMin != null ? slot.endMin : slot.startMin + (slot.increment || 5)) - slot.startMin
+    );
+    const chip = { bookMode, startMin: slot.startMin, durationMin };
+    /* Hide a chip only when this same grid is booked. A clinic booking
+       must not eat the tele chip (and the reverse already worked). */
+    if (sameModeBookingCovers(chip, bookedSpans)) return;
+
+    const bookable =
+      (slot.status === "available" || slot.status === "confirmed") && !slot.isPast;
 
     if (slotFilter) {
       if (!bookable) return;
       if (slotFilter === "video" && bookMode !== "teleconsult") return;
       if (slotFilter === "in-clinic" && bookMode !== "in-clinic") return;
     }
-
-    const durationMin = Math.max(
-      1,
-      (slot.endMin != null ? slot.endMin : slot.startMin + (slot.increment || 5)) - slot.startMin
-    );
 
     items.push({
       ...slot,
@@ -166,8 +203,14 @@ function prepareFreeSlotChips(slots, slotFilter) {
     )
   );
 
-  /* Clusters that mix both modes: hard-pin clinic left / tele right so a
-     dense tele column cannot steal col 0 from in-clinic. */
+  if (dualGrid) {
+    laid.forEach((e) => {
+      e.col = e.bookMode === "teleconsult" ? 1 : 0;
+      e.cols = 2;
+    });
+    return laid;
+  }
+
   const byCluster = new Map();
   laid.forEach((e) => {
     if (!byCluster.has(e.cluster)) byCluster.set(e.cluster, []);
@@ -1596,7 +1639,7 @@ export default function AppointmentCalendarView({
                   {/* Availability layer: every clinic slot and every tele slot
                       from their own APIs, laid on the timeline. Overlapping
                       bands share the column side-by-side. */}
-                  {prepareFreeSlotChips(slots, slotFilter).map((chip) => {
+                  {prepareFreeSlotChips(slots, slotFilter, eventsByDay[dayISO] || []).map((chip) => {
                     if (!showAllSlots && hoverSlotKey !== `${dayISO}|${chip.start}`) return null;
                     const heightPx = Math.max(18, chip.durationMin * minPx - 10);
                     const split = chip.cols > 1;

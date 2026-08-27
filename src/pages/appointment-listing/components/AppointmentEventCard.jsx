@@ -246,7 +246,11 @@ export default function AppointmentEventCard({
               tabId={cardTab}
               row={row}
               onRowAction={onRowAction}
-              extraOptions={v.showCta ? [] : [primaryKebabOption(cardTab, access)].filter(Boolean)}
+              extraOptions={
+                v.showCta || cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL
+                  ? []
+                  : [primaryKebabOption(cardTab, access)].filter(Boolean)
+              }
             />
           )}
         </div>

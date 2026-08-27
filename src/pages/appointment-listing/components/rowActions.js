@@ -6,6 +6,7 @@ import { TAB_IDS } from "../data/appointmentsConfig";
 import { useOpdBilling } from "../../opdBilling/useOpdBilling";
 import { env } from "../../../EnvironmentConfig";
 import { getDecodedToken } from "../../../utils/localStorage";
+import { shouldShowAdmitToIpdCta } from "../../../utils/utils";
 import { GB_HEALTH_CHECKUP_REPORT, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../../../utils/constants";
 import { useListingAccess } from "../data/useListingAccess";
 
@@ -276,8 +277,10 @@ export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = EMPTY_EXT
         isChikitsalay,
         isOpdBillingAccessable,
         isZydus,
-        canAdmitToIpd:
-          (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && !isZydus,
+        canAdmitToIpd: shouldShowAdmitToIpdCta({
+          isNewIPDAccessableFromGB,
+          isNewIPDHosBusinessIdAccessableFromGB,
+        }),
         canHealthCheckupReport: isHealthCheckupReportAccessableFromGB,
         hipId: profile?.HipID,
         abhaEnable: profile?.abhaEnable,
@@ -334,14 +337,9 @@ function renderKebabDropdown(row, onRowAction, options) {
       leadingIcon={<KebabIcon size={16} />}
       ariaLabel="More actions"
       width={300}
-      renderOption={(o) => (
-        <div
-          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0" }}
-          /* Pointer-down still counts as a user gesture, so the hidden file
-             input click can open the OS picker. The drawer opens later, once
-             files are chosen — same sequence as AppointmentData.js. */
-          onPointerDown={o.value === "upload-records" ? () => onRowAction?.("upload-records-pick", row) : undefined}
-        >
+      renderOption={(o) => {
+        const body = (
+          <>
           <TPLibraryIcon
             name={o.icon}
             family={o.iconFamily}
@@ -353,8 +351,11 @@ function renderKebabDropdown(row, onRowAction, options) {
             {o.label}
           </span>
           <TPIcon name="chevron-right" size={14} color="var(--tesseract-slate-400)" />
-        </div>
-      )}
+          </>
+        );
+        const rowStyle = { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0", margin: 0 };
+        return <div style={rowStyle}>{body}</div>;
+      }}
     />
   );
 }
