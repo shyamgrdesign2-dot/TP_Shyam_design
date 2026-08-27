@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import { isGrowthBookFeatureOn } from "../../../utils/growthbook";
-import { GB_CVT_EXT_HOS, TAB_CANCELLED, TAB_FINISHED, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
+import { GB_CVT_EXT_HOS, TAB_FINISHED, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
 import { zydusConsultAppoint, zydusAppointment, copyGetAllAppointment1 } from "../../../redux/appointmentsSlice";
 import { calculateAge } from "../../../utils/utils";
 import { buildZydusEncounterAppointmentRows } from "../../../utils/zydusEncounterAppointmentRows";
@@ -193,7 +193,7 @@ function mapZydusRecord(rec, tabId, index) {
 }
 
 function transformZydusEncounterPayload(payload, { includeCancelled = false } = {}) {
-  // Same row builder the redux thunk uses for GenX clinical encounters.
+  // ICT consultations list uses the same encounter field shapes the row builder expects.
   const rows = buildZydusEncounterAppointmentRows(payload, {
     calculateAge,
     createKey: () => undefined,
@@ -349,8 +349,8 @@ export default function useAppointments({
     setHasMore(false);
     setError(null);
     try {
-      // Zydus Cancelled tab is GenX clinical-encounters with isCancel=true
-      // (legacy AppointmentData.js), not the TP listAppointment cancelled bucket.
+      // Zydus Cancelled: ICT consultations include cancelled rows; filter
+      // client-side (prod does not use GenX isCancel=true).
       if (isZydusListing && tabId === TAB_IDS.CANCELLED) {
         const zydusApiDate = moment(startDate, DATE_FORMAT).format("DD-MM-YYYY");
         const cancelAction = await dispatch(
@@ -358,8 +358,7 @@ export default function useAppointments({
             siteId: zydusSiteId,
             empNo: String(zydusEmpNo),
             date: zydusApiDate,
-            apStatue: TAB_CANCELLED,
-            isCancel: true,
+            apStatue: TAB_ZYDUS_ENCOUNTER,
             page: 0,
             filterVisitType: visitTypeCsv || "",
           })
@@ -369,7 +368,9 @@ export default function useAppointments({
           cancelAction?.meta?.requestStatus === "fulfilled"
             ? cancelAction.payload || []
             : [];
-        let serverRecords = transformZydusEncounterPayload(payload, { includeCancelled: true });
+        let serverRecords = transformZydusEncounterPayload(payload, {
+          includeCancelled: true,
+        }).filter((rec) => rec.isCancelled);
         if (visitTypeCsv) {
           serverRecords = serverRecords.filter((rec) =>
             matchesVisitTypeFilter(rec.toct_type, visitTypeCsv)
@@ -617,8 +618,8 @@ export default function useAppointments({
     tabId === TAB_IDS.ZYDUS_APPOINTMENT ||
     (isZydusListing && tabId === TAB_IDS.CANCELLED);
 
-  // Prefetch GenX cancelled encounters so the Cancelled tab badge stays in
-  // sync (legacy always loads them on date/site change).
+  // Prefetch ICT consultations so Encounter + Cancelled badge counts stay
+  // in sync when the doctor is on another Zydus tab.
   useEffect(() => {
     if (!isZydusListing) return undefined;
     const zydusApiDate = moment(startDate, DATE_FORMAT).format("DD-MM-YYYY");
@@ -627,8 +628,7 @@ export default function useAppointments({
         siteId: zydusSiteId,
         empNo: String(zydusEmpNo),
         date: zydusApiDate,
-        apStatue: TAB_CANCELLED,
-        isCancel: true,
+        apStatue: TAB_ZYDUS_ENCOUNTER,
         page: 0,
         filterVisitType: "",
       })
@@ -712,7 +712,7 @@ export default function useAppointments({
     }
 
     // On Zydus Encounter/Appointment/Cancelled, queue/finished counts come from
-    // `copyGetAllAppointment1` / GenX cancelled prefetch (redux buckets).
+    // `copyGetAllAppointment1`; cancelled badge from ICT consultation payload.
     if (isZydusConsultTab) {
       return {
         ...base,

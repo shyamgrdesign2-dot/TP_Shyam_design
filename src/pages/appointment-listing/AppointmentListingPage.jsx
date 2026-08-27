@@ -225,8 +225,6 @@ export default function AppointmentListingPage() {
   // siteId / empNo are set by SidebarDoctor after the Zydus ICT login handshake;
   // they live in the doctors redux slice, same as legacy AppointmentData.js reads them.
   const { siteId: zydusSiteId, empNo: zydusEmpNo } = useSelector((state) => state.doctors);
-  const finishedData = useSelector((state) => state.records?.finishedData) || [];
-  const genxSyncInFlightRef = useRef(new Set());
 
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
@@ -415,7 +413,7 @@ export default function AppointmentListingPage() {
             : { value: String(t.toct_id), label: t.toct_type }
         ),
       };
-      // Zydus ICT/GenX rows have no in-clinic vs tele slot concept — visit type only.
+      // Zydus ICT rows have no in-clinic vs tele slot concept — visit type only.
       if (isZydusAccount) return [visitTypeGroup];
       // Referral has no visit-type / slot columns (AppointmentData.js). Keep
       // visit-type as a server filter; drop the slot group so an in-clinic
@@ -542,23 +540,17 @@ export default function AppointmentListingPage() {
 
   const runZydusEncounterAction = useCallback(
     async (flag, rec) => {
-      const finishedConsultation =
-        rec?.encounterId &&
-        finishedData.find((item) => String(item?.pam_ref_id) === String(rec.encounterId));
       await runZydusConsultOrPatientDetails({
         flag,
         record: rec,
         activeTab,
         dispatch,
         navigate,
-        profile,
         siteId: zydusSiteId,
         empNo: zydusEmpNo,
-        finishedConsultation: finishedConsultation || null,
         isDentalEnabled,
         dentalRoute: DENTAL_RX_PAD_ROUTE,
         isVoiceRxNewUi,
-        syncInFlight: genxSyncInFlightRef.current,
         onError: (title) => setToast({ status: "error", title }),
       });
     },
@@ -566,10 +558,8 @@ export default function AppointmentListingPage() {
       activeTab,
       dispatch,
       navigate,
-      profile,
       zydusSiteId,
       zydusEmpNo,
-      finishedData,
       isDentalEnabled,
       isVoiceRxNewUi,
     ]
@@ -580,11 +570,10 @@ export default function AppointmentListingPage() {
       const rec = row?.raw || row;
       if (!rec) return;
       const videoConsultData = videoConsultDataFor(rec);
-      // Encounter tab (or GenX-sourced rows): sync before Rx / patient details.
-      // Appointment-tab Consult without GENX keeps the plain navigate path below.
+      // Zydus Encounter tab: ICT sync before Rx / patient details.
+      // Appointment-tab Consult keeps the plain navigate path below.
       const isZydusEncounter =
-        isZydusAccount &&
-        (activeTab === TAB_IDS.ZYDUS_ENCOUNTER || rec?.source === "GENX");
+        isZydusAccount && activeTab === TAB_IDS.ZYDUS_ENCOUNTER;
       switch (action) {
         case "type-rx": {
           window.Moengage?.track_event("patient_search_consult", {
@@ -670,7 +659,7 @@ export default function AppointmentListingPage() {
           break;
         case "tab-rx":
           if (isZydusEncounter) {
-            // TabRx is not a separate GenX flag in legacy; sync then open Consult.
+            // TabRx is not a separate Zydus flag in legacy; sync then open Consult.
             await runZydusEncounterAction(ZYDUS_FLAG.CONSULT, rec);
             break;
           }

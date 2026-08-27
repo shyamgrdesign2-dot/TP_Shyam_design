@@ -18,6 +18,9 @@ const initialState = {
   cancelledCount: 0,
   zydusEncounterCount: 0,
   zydusAappointmentCount: 0,
+  /* ICT consultations include cancelled rows; active encounter tab filters
+     them out, and this count drives the Zydus Cancelled tab badge. */
+  zydusCancelledEncounterCount: 0,
   draftRxCount: 0,
   referralCount: 0,
   setOnLoad: true,
@@ -303,17 +306,11 @@ export const ictAuthToken = createAsyncThunk(
 
 export const zydusConsultAppoint = createAsyncThunk(
   "records/zydusConsultAppoint",
-  async (args, { dispatch }) => {
-    const { siteId, empNo, date, apStatue, isCancel = false } = args;
+  async ({ siteId, empNo, date, apStatue }, { dispatch }) => {
     try {
       let result = {};
-      if (apStatue === TAB_ZYDUS_ENCOUNTER || isCancel) {
-        result = await ApiAppointments.consultations(
-          siteId,
-          empNo,
-          date,
-          isCancel
-        );
+      if (apStatue === TAB_ZYDUS_ENCOUNTER) {
+        result = await ApiAppointments.consultations(siteId, empNo, date);
       } else {
         result = await ApiAppointments.appointments(siteId, empNo, date);
       }
@@ -330,7 +327,7 @@ export const zydusConsultAppoint = createAsyncThunk(
             PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN,
             JSON.stringify(action.payload.tokenNo)
           );
-          dispatch(zydusConsultAppoint(args));
+          dispatch(zydusConsultAppoint({ siteId, empNo, date, apStatue }));
         }
       }
       // console.log("error: ", error);
@@ -374,21 +371,6 @@ export const syncZydusPatientAndAppointment = createAsyncThunk(
       return result;
     } else {
       throw Error(result.error);
-    }
-  }
-);
-
-export const syncGenxPatientAndAppointment = createAsyncThunk(
-  "records/syncGenxPatientAndAppointment",
-  async (data) => {
-    try {
-      const result = await ApiAppointments.syncGenxPatientAndAppointment(data);
-      if (result.status) {
-        return result;
-      }
-      throw Error(result.error || "Genx sync failed");
-    } catch (error) {
-      throw Error(error?.response?.data?.error || error?.message || error);
     }
   }
 );
@@ -641,7 +623,11 @@ const appointmentsSlice = createSlice({
 
         let modifiedData = [];
         if (action.meta.arg.apStatue === TAB_ZYDUS_ENCOUNTER) {
-          modifiedData = (action.payload || [])
+          const rawEncounters = action.payload || [];
+          state.zydusCancelledEncounterCount = rawEncounters.filter(
+            (e) => e.isCancelled
+          ).length;
+          modifiedData = rawEncounters
             .filter((e) => !e.isCancelled)
             .map((e) => {
             const age = calculateAge(

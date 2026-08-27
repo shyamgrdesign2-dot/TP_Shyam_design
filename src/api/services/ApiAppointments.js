@@ -2,20 +2,12 @@ import api from "./axiosService";
 import config from "../../config";
 import { generateMockData } from "../../utils/utils";
 import { IS_DEV } from "../../utils/constants";
-import {
-  formatGenxClinicalEncounterDate,
-  getGenxEncounterIdentity,
-  normalizeGenxClinicalEncounterResponse,
-  normalizeGenxSyncResponse,
-} from "../../utils/zydusClinicalEncounterAdapter";
 
 const baseUrl = { customBaseUrl: config.appointment_api_url };
 const baseZydusUrl = { customBaseUrl: config.zydus_api_url };
 const baseZydusProxyUrl = { customBaseUrl: config.zydus_proxy_url };
 const baseVisitUrl = { customBaseUrl: config.visit_api_url };
 const baseSnapRxUrl = { customBaseUrl: config.snap_rx_api_url };
-const baseIpdUrl = { customBaseUrl: config.ipd_api_url };
-const GENX_CLINICAL_ENCOUNTER_PAGE_SIZE = 100;
 
 const ApiAppointments = {};
 
@@ -132,47 +124,12 @@ ApiAppointments.ictAuthToken = function () {
   return api.post(`/ictAuthProxy`, {}, baseZydusProxyUrl);
 };
 
-const getClinicalEncounterPath = (date, page = 1, isCancel = false) => {
-  const creationTimeStamp = encodeURIComponent(
-    formatGenxClinicalEncounterDate(date)
+/* Prod Zydus path: ICT proxy consultations (not GenX clinical-encounters). */
+ApiAppointments.consultations = function (siteId, empNo, date) {
+  return api.get(
+    `/ictApiProxy/emr/op/consultations/list?siteId=${siteId}&empNo=${empNo}&date=${date}`,
+    baseZydusProxyUrl
   );
-  return `/genx2/clinical-encounters?page=${page}&size=${GENX_CLINICAL_ENCOUNTER_PAGE_SIZE}&sort=encounterNumber%2Cdesc&isActiveFlag=true&isCancel=${Boolean(
-    isCancel
-  )}&creationTimeStamp=${creationTimeStamp}`;
-};
-
-ApiAppointments.clinicalEncounters = async function (date, isCancel = false) {
-  const firstResponse = normalizeGenxClinicalEncounterResponse(
-    await api.get(getClinicalEncounterPath(date, 1, isCancel), baseIpdUrl)
-  );
-  const totalPages = Math.max(firstResponse.totalPages || 1, 1);
-  const recordsByIdentity = new Map();
-
-  firstResponse.data.forEach((record) => {
-    const identity = getGenxEncounterIdentity(record);
-    if (identity) recordsByIdentity.set(identity, record);
-  });
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    const pageResponse = normalizeGenxClinicalEncounterResponse(
-      await api.get(getClinicalEncounterPath(date, page, isCancel), baseIpdUrl)
-    );
-    pageResponse.data.forEach((record) => {
-      const identity = getGenxEncounterIdentity(record);
-      if (identity && !recordsByIdentity.has(identity)) {
-        recordsByIdentity.set(identity, record);
-      }
-    });
-  }
-
-  return {
-    ...firstResponse,
-    data: Array.from(recordsByIdentity.values()),
-  };
-};
-
-ApiAppointments.consultations = function (siteId, empNo, date, isCancel = false) {
-  return ApiAppointments.clinicalEncounters(date, isCancel);
 };
 
 ApiAppointments.appointments = function (siteId, empNo, date) {
@@ -188,15 +145,6 @@ ApiAppointments.syncZydusPatientAndAppointment = function (body) {
     body,
     baseZydusUrl
   );
-};
-
-ApiAppointments.syncGenxPatientAndAppointment = async function (body) {
-  const response = await api.post(
-    `/genx2/sync-patient-and-appointment`,
-    body,
-    baseIpdUrl
-  );
-  return normalizeGenxSyncResponse(response);
 };
 
 ApiAppointments.zydusDocsList = function (mrno) {

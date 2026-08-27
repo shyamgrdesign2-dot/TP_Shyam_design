@@ -34,8 +34,8 @@ export const buildZydusEncounterAppointmentRow = (
   };
 };
 
-// The GenX clinical-encounters API is filtered server side through the
-// isCancel query param, so no cancelled/active split is done here.
+// ICT consultations list is mapped to listing rows here. Cancelled rows are
+// filtered by the caller (active Encounter vs Cancelled tab).
 export const buildZydusEncounterAppointmentRows = (payload, options) =>
   (Array.isArray(payload) ? payload : []).map((encounter) =>
     buildZydusEncounterAppointmentRow(encounter, options)
