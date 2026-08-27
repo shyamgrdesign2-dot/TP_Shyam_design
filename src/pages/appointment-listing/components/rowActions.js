@@ -300,7 +300,10 @@ function renderKebabDropdown(row, onRowAction, options) {
       className="tpKebabMenu"
       options={options}
       value={null}
-      onChange={(v) => v && onRowAction?.(v, row)}
+      onChange={(v) => {
+        const value = v && typeof v === "object" ? v.value : v;
+        if (value) onRowAction?.(value, row);
+      }}
       chevron={false}
       variant="seamless"
       placeholder=""
@@ -308,7 +311,13 @@ function renderKebabDropdown(row, onRowAction, options) {
       ariaLabel="More actions"
       width={300}
       renderOption={(o) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0" }}>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0" }}
+          /* Pointer-down still counts as a user gesture, so the hidden file
+             input click can open the OS picker. The drawer opens later, once
+             files are chosen — same sequence as AppointmentData.js. */
+          onPointerDown={o.value === "upload-records" ? () => onRowAction?.("upload-records-pick", row) : undefined}
+        >
           <TPLibraryIcon
             name={o.icon}
             family={o.iconFamily}

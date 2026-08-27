@@ -310,6 +310,12 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
   const { showBilling } = access;
   const act = (id, r) => {
     onRowAction?.(id, r);
+    /* Keep the popover mounted through the current pointer-down so a
+       medical-records file-input click is not cancelled by this unmount. */
+    if (id === "upload-records" || id === "upload-records-pick") {
+      queueMicrotask(onClose);
+      return;
+    }
     onClose();
   };
   const primary = rowPrimaryAction(cardTab, row, act, access);

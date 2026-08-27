@@ -11,6 +11,8 @@ import { getLoggedInDoctorId } from "../data/useDoctorSlots";
 import { S_TATVA_PRACTICE, S_BILLING, TRIAL } from "../../../utils/constants";
 import { TAB_IDS } from "../data/appointmentsConfig";
 import { getClinic, trackEvent } from "../../../utils/utils";
+import UploadDocument from "../../medicalRecords/UploadDocument";
+import UploadDocPopup from "../../medicalRecords/components/uploadDocPopup/UploadDocPopup";
 import styles from "./BookAppointmentDrawer.module.css";
 
 // The billing / lab / certificate flows reuse the same feature components as
@@ -24,8 +26,6 @@ const CreateCertificate = lazy(() => import("../../../components/medical_certifi
 const LabParams = lazy(() => import("../../../components/LabParams"));
 const ExpiredSubModal = lazy(() => import("../../monetization/components/ExpiredSubModal"));
 const AbhaDrawer = lazy(() => import("../../../components/abha/AbhaDrawer"));
-const UploadDocument = lazy(() => import("../../medicalRecords/UploadDocument"));
-const UploadDocPopup = lazy(() => import("../../medicalRecords/components/uploadDocPopup/UploadDocPopup"));
 
 const BILLING_GATED = new Set(["create-bill", "advance-deposit"]);
 
@@ -144,6 +144,8 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
 
   if (!action) return null;
   const { type, record } = action;
+  const recordsFiles =
+    type === "upload-records" ? (uploadFiles.length > 0 ? uploadFiles : action.files || []) : [];
 
   // Billing upsell gate (same trigger as the legacy checkBillingPurchased).
   if (BILLING_GATED.has(type) && billingLocked) {
@@ -309,7 +311,7 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
           }}
         />
       )}
-      {type === "upload-records" && (uploadFiles.length > 0 || !showUploadDocPopup) && (
+      {type === "upload-records" && recordsFiles.length > 0 && (
         <AntDrawer
           closeIcon={false}
           placement="right"
@@ -321,11 +323,12 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
           push={false}
         >
           <UploadDocument
+            key={record?.pam_id || record?.patient_unique_id || "upload-doc"}
             onClose={() => setShowDeletePopup(true)}
             handleDrawerUploadDoc={onClose}
             shouldShowDeletePopup={showDeletePopup}
             setShowDeletePopup={setShowDeletePopup}
-            filesData={uploadFiles}
+            filesData={recordsFiles}
             setFilesData={setUploadFiles}
             patientData={record}
             handleUploadDocPopup={() => setShowUploadDocPopup((prev) => !prev)}

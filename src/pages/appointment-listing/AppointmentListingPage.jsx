@@ -758,34 +758,27 @@ export default function AppointmentListingPage() {
     [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions, isZydusAccount, runZydusEncounterAction]
   );
 
-  /* Medical-records must stay outside the async path: a programmatic file
-     input click only works while the browser still sees a user gesture. */
+  /* Legacy AppointmentData.js: kebab click opens the OS picker only.
+     The upload drawer mounts after files are chosen, with those files,
+     so the doctor can fill type / date / notes. Opening the Ant drawer
+     in the same tick as the picker cancelled the input's change event. */
   const onRowAction = useCallback(
     (action, row) => {
       const rec = row?.raw || row;
       if (!rec) return;
-      if (action === "upload-records") {
+      if (action === "upload-records" || action === "upload-records-pick") {
         if (isAndroid && !isBrowser) {
           setActionDrawer({
             type: "upload-records",
             record: rec,
-            name: row.name,
+            name: row.name || rec.pm_fullname,
             files: [],
             openPicker: true,
           });
           return;
         }
-        if (fileInputRef.current) {
-          pendingUploadRef.current = rec;
-          fileInputRef.current.click();
-          return;
-        }
-        setActionDrawer({
-          type: "upload-records",
-          record: rec,
-          name: row.name,
-          files: [],
-        });
+        pendingUploadRef.current = rec;
+        if (action === "upload-records-pick") fileInputRef.current?.click();
         return;
       }
       void onRowActionAsync(action, row);
@@ -796,9 +789,12 @@ export default function AppointmentListingPage() {
   const handleUploadFileChange = (event) => {
     const files = event.target.files;
     const record = pendingUploadRef.current;
-    event.target.value = null;
-    if (!files || !record) return;
+    if (!files || !record) {
+      event.target.value = null;
+      return;
+    }
     const filesData = Array.from(files);
+    event.target.value = null;
     if (filesData.length === 0) return;
     const updatedFiles = filesData.map((file) => {
       const cleanFileName = getCorrectedFileName(file?.name || "");
@@ -810,7 +806,12 @@ export default function AppointmentListingPage() {
       }
       return new File([file], cleanFileName, { type: file.type });
     });
-    setActionDrawer({ type: "upload-records", record, name: record.pm_fullname, files: updatedFiles });
+    setActionDrawer({
+      type: "upload-records",
+      record,
+      name: record.pm_fullname,
+      files: updatedFiles,
+    });
   };
 
   const confirmCancelAppointment = async () => {
@@ -1280,7 +1281,7 @@ export default function AppointmentListingPage() {
           ref={fileInputRef}
           onChange={handleUploadFileChange}
           accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
-          style={{ display: "none" }}
+          style={{ position: "fixed", left: 0, top: 0, width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
         />
 
         {toast && (
