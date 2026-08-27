@@ -59,8 +59,14 @@ const GRID_HEAD_PX = 56;
 const MODE_OPTIONS = [
   { value: "day", label: "Day" },
   { value: "week", label: "Week" },
-  { value: "month", label: "Month" },
+  /* Month hidden for now — it fans out many day/slot fetches and can hammer
+     the appointments API on busy clinics. Re-enable when month load is cheaper. */
 ];
+
+function initialCalendarMode() {
+  const saved = readPreference("calendarMode", "day");
+  return saved === "week" ? "week" : "day";
+}
 
 
 const startOfDay = (d) => {
@@ -578,7 +584,7 @@ export default function AppointmentCalendarView({
   const legend = isChikitsalay
     ? [TAB_IDS.CLINIC_APPOINTMENT, ...BASE_LEGEND]
     : BASE_LEGEND;
-  const [mode, setMode] = useState(() => readPreference("calendarMode", "day"));
+  const [mode, setMode] = useState(initialCalendarMode);
   /* The availability layer is on by default, because a doctor opening the
      calendar to book needs to see where the gaps are. Turned off, the grid
      shows only what is actually booked, which is the view you want when you
@@ -876,7 +882,7 @@ export default function AppointmentCalendarView({
       const key = e.key.toLowerCase();
       if (key === "d") pickMode("day");
       else if (key === "w") pickMode("week");
-      else if (key === "m") pickMode("month");
+      // Month shortcut ("m") disabled while Month mode is hidden.
       else if (key === "t") goToDate(new Date());
       else if (key === "arrowleft") step(-1);
       else if (key === "arrowright") step(1);
@@ -1184,9 +1190,11 @@ export default function AppointmentCalendarView({
     onAnchorChange?.(day);
   };
 
-  // Day / Week / Month only changes how much of the anchor day is shown, so
+  // Day / Week only changes how much of the anchor day is shown, so
   // the anchor itself survives the switch. The choice is remembered.
+  // Month is hidden for now (see MODE_OPTIONS).
   const pickMode = (m) => {
+    if (m !== "day" && m !== "week") return;
     setMode(m);
     /* Each view has its own scroller and each starts at the top, so the
        previous one's scroll state must not carry over into the new header. */
@@ -1680,11 +1688,19 @@ export default function AppointmentCalendarView({
                             <>
                               <TPLibraryIcon name="add" family="essential" size={19} />
                               {chip.label12}
-                              {isTele && (
+                              {isTele ? (
                                 <TPLibraryIcon
                                   name="video"
                                   variant="bulk"
                                   family="video-audio-image"
+                                  size={14}
+                                  color="var(--tesseract-blue-400)"
+                                />
+                              ) : (
+                                <TPLibraryIcon
+                                  name="hospital-building-4"
+                                  variant="bulk"
+                                  family="medical"
                                   size={14}
                                   color="var(--tesseract-blue-400)"
                                 />
