@@ -39,7 +39,6 @@ import {
   getClinic,
   getClinicName,
   sendMessageToParent,
-  shouldAppointmentAgentDisabled,
   trackEvent,
   getTokenData,
   isMunshiHospital,
@@ -178,7 +177,6 @@ import { checkSymptomsCollectorTour } from "../api/services/ApiGenRx";
 import ApiAbha from "../api/services/ApiAbha";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { EVENTS } from "../utils/events";
-import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import AbhaDrawer from "./abha/AbhaDrawer";
 import OphthalmologyExamDrawer from "./ophthalmology/OphthalmologyExamDrawer";
@@ -196,6 +194,8 @@ import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { ASSETS } from "../assets";
 import { useCrossConsult } from "../hooks/useCrossConsult";
+import { useAiReceptionist } from "../hooks/useAiReceptionist";
+import AiReceptionistButton from "./AiReceptionist";
 import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 const {
   endVisit: visitEnd,
@@ -276,6 +276,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const { isOpdBillingAccessable } = useOpdBilling();
   const isCrossConsultEnabled = useCrossConsult();
   const isChikitsalayAccessable = useChikitsalay();
+  const {
+    canShow: canShowAiReceptionist,
+    isEnabled: isAiReceptionistEnabled,
+    isLoading: isAiReceptionistLoading,
+    hasAgent: hasAiReceptionistAgent,
+    openAiReceptionist,
+  } = useAiReceptionist();
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
   const [modalOpen, setModalOpen] = useState(false);
@@ -331,8 +338,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
-  const isAppointmentAgentAccessableFromGB =
-    useFeatureIsOn("appointment-agent");
   const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
   const isTabRxCVTAccessableFromGB = useFeatureIsOn(GB_TAB_RX_CVT);
@@ -379,13 +384,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   );
   const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
 
-  const isAppointmentAgentEnable = planDetails?.currentPlanStatus === "PAID" && !shouldAppointmentAgentDisabled();
-  
-  // Check if current userId is in appointmentAgentsData.doctors
-  const isUserInAgentsData = appointmentAgentsData?.doctors?.some(
-    (doctor) => doctor.um_id === userId
-  ) ?? false;
-
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
   const [appointmentSelectedFromMenu, setAppointmentSelectedFromMenu] =
@@ -393,8 +391,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [tourRef, setTourRef] = useState(null);
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const [agentsData, setAgentsData] = useState(null);
-  const [isAgentsLoading, setIsAgentsLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState(isChikitsalayAccessable ? TAB_CLINIC_QUEUE : TAB_QUEUE);
   const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
   const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
@@ -977,7 +973,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
 
   const decodedToken = getDecodedToken();
-  const isAdmin = decodedToken?.result?.admin;
 
   const showHideBackModal = () => {
     setIsBackModalOpen(!isBackModalOpen);
@@ -1003,8 +998,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   useEffect(() => {
     if (appointmentAgentsData) {
-      setAgentsData(appointmentAgentsData);
-      // Store appointment data to local storage
       localStorage.setItem('appointmentAgentsData', JSON.stringify(appointmentAgentsData));
     }
   }, [appointmentAgentsData]);
@@ -1989,72 +1982,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         : undefined;
 
     navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: record, videoConsultData } });
-  };
-
-  const onAppointmentAgentClick = async () => {
-    // window.Moengage.track_event("patient_search_consult", {
-    //     "doctor_id": profile?.doctor_unique_id,
-    //     "patient_id": record?.patient_unique_id
-    // });
-    const tokenData = getTokenData();
-    const clinic = getClinic(profile?.hospital_data);
-    if (agentsData) {
-      window.Moengage.track_event("TP_AG_YourAIReceptionist", {
-        doctor_name: profile?.um_name,
-        doctor_number: profile?.um_contact,
-        doctor_unique_id: profile?.doctor_unique_id,
-        doctor_specialty: profile?.dp_name,
-        um_id: tokenData?.user_id,
-        clinic_name: clinic?.hm_name,
-        agent: "true",
-      });
-
-      // If agentsData exists, navigate to success page
-      navigate("/appointment-agent/success", {
-        state: {
-          agentsData,
-          setupData: {
-            clinicId: agentsData.clinicId || profile?.clinicId,
-            doctors:
-              agentsData.doctors?.map((doctor) => ({
-                um_id: doctor.um_id,
-                dp_id: doctor.dp_id,
-                um_name: doctor.um_name,
-                speciality: doctor.speciality || "MBBS",
-                slotsAvailable: doctor.slotsAvailable,
-              })) || [],
-            clinicData: clinic,
-            useUploadLogo: agentsData.logo ? true : false,
-            logo: agentsData.logo || null,
-            clinicName: agentsData.clinicName || clinic?.hm_name,
-            avatar: agentsData.avatarDetails || null,
-            avatarId: agentsData.avatarId || null,
-            googleLocation:
-              agentsData.googleLocation?.address?.formatted || null,
-            fullgoogleLocation: agentsData.googleLocation || null,
-            receptionistName: agentsData.name || "",
-            contact: agentsData.contact || "",
-            email: agentsData.email || "",
-            receptionId: agentsData.receptionId || null,
-            appointmentLinkShared: agentsData.appointmentLinkShared || null,
-            hospitalBusinessId: decodedToken?.result?.hospital_business_id,
-          },
-          appointment_booking_link: agentsData.appointmentLinkShared,
-        },
-      });
-    } else {
-      window.Moengage.track_event("TP_AG_YourAIReceptionist", {
-        doctor_name: profile?.um_name,
-        doctor_number: profile?.um_contact,
-        doctor_unique_id: profile?.doctor_unique_id,
-        doctor_specialty: profile?.dp_name,
-        um_id: tokenData?.user_id,
-        clinic_name: clinic?.hm_name,
-        agent: "false",
-      });
-      // If no agentsData, navigate to normal flow
-      navigate("/appointment-agent", { state: { agentsData } });
-    }
   };
 
   const fetchData = async (tcm_id) => {
@@ -3574,7 +3501,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                             await ApiTeleconsult.doctorLeft(activeTeleconsultConsultationId);
                           }
                         } catch (error) {
-                          console.log("[teleconsult] doctorLeft during cancel failed", { consultationId: activeTeleconsultConsultationId, message: error?.message } );
+                          console.error("[teleconsult] doctorLeft during cancel failed", { consultationId: activeTeleconsultConsultationId, message: error?.message } );
                         } finally {
                           dispatch(
                             setAppointmentTeleconsultStatus({
@@ -3829,12 +3756,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) && !isCvtExtHosAccessableFromGB ? (
+            {canShowAiReceptionist ||
+            (isAiReceptionistEnabled && isAiReceptionistLoading) ? (
               <div
                 className="receptionist-setup-button"
-                onClick={onAppointmentAgentClick}
+                onClick={isAiReceptionistLoading ? undefined : openAiReceptionist}
               >
-                {isAgentsLoading ? (
+                {isAiReceptionistLoading ? (
                   <div
                     className="d-flex align-items-center justify-content-center"
                     style={{ height: "41px", minWidth: "200px" }}
@@ -3843,9 +3771,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </div>
                 ) : (
                   <AiReceptionistButton
-                    agentsData={agentsData}
+                    agetnsData={hasAiReceptionistAgent}
                     customText={
-                      agentsData
+                      hasAiReceptionistAgent
                         ? isMobile
                           ? "AI Receptionist"
                           : "Your AI Receptionist"
@@ -3856,7 +3784,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   />
                 )}
               </div>
-            ): null}
+            ) : null}
           </div>
           <div className="appointment-data">
             <Row className="justify-content-between align-items-center my-3 px-4">

@@ -32,6 +32,7 @@ import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 import { clinicTargetStatus } from '../pages/chikitsalay/service';
 import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
+import PageHeroBanner from './PageHeroBanner';
 const {
   tubeIcon: playIcons,
   tutorialIcon: tutorial,
@@ -355,40 +356,40 @@ function Welcome1(props) {
         );
     }, [popOverVideo]);
 
+    const bannerTitle =
+        sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY
+            ? "Patient Details"
+            : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE
+              ? "Certificate"
+              : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS
+                ? "ABHA Records"
+                : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT
+                  ? "Health Check-up Report"
+                  : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES
+                    ? "Canvases"
+                    : "Medical Records";
+
+    const bannerEyebrow =
+        sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY &&
+        patientAdmissionStatus?.alreadyAdmitted &&
+        !isZydusUser
+            ? "IPD"
+            : undefined;
+
     return (
         <>
-            <div className="welcomesection position-relative">
-                <div className='bg-welcome d-flex justify-content-between align-items-center'>
-                    <div className='d-flex align-items-center'>
-                        {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY ? (
-                            <div>
-                                <div className='d-flex align-items-center gap-2'>
-                                    <h1 className='mt-2 mb-0'>{'Patient Details'}</h1>
-                                    {patientAdmissionStatus?.alreadyAdmitted && !isZydusUser && (
-                                        <span className="ipd-badge mt-2">
-                                            IPD
-                                        </span>
-                                    )}
-                                </div>
-                                {isMobile && (<ProfilePopover locationPath={locationPath} isMobile={isMobile} patient_data={patient_data} />)}
-                                {isMobile ? '' : <p className='mb-1'>&nbsp;</p>}
-                            </div>
-                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE ? (
-                            <h1 className='mt-2 mb-3'>{'Certificate'}</h1>
-                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS ? (
-                            <h1 className='mt-2 mb-3'>{'ABHA Records'}</h1>
-                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? (
-                            <h1 className='mt-2 mb-3'>{'Health Check-up Report'}</h1>
-                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES ? (
-                            <h1 className='mt-2 mb-3'>{'Canvases'}</h1>
-                        ) : (
-                            <h1 className='mt-2 mb-3'>{'Medical Records'}</h1>
-                        )}
-                    </div>
+            <PageHeroBanner
+                title={bannerTitle}
+                eyebrow={bannerEyebrow}
+                actions={
+                    <>
+                    {isMobile && sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY && (
+                        <ProfilePopover locationPath={locationPath} isMobile={isMobile} patient_data={patient_data} />
+                    )}
                     {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS && abhaHeaderActions ? (
                         <div className="d-flex gap-2">
                             <AntButton
-                              className="abha-records__refresh-btn"
+                              className="abha-records__refresh-btn btn-manage-bill"
                               onClick={abhaHeaderActions.fetchConsents}
                               loading={abhaHeaderActions.loading}
                               icon={<i className="icon-reload" />}
@@ -397,7 +398,7 @@ function Welcome1(props) {
                             </AntButton>
                             <AntButton
                               type="primary"
-                              className="abha-records__request-btn"
+                              className="abha-records__request-btn btn-create-bill"
                               onClick={abhaHeaderActions.handleRequestRecords}
                               icon={<i className="icon-upload" />}
                             >
@@ -604,12 +605,14 @@ function Welcome1(props) {
                         </div>
                     ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT && healthCheckupReports?.length > 0 && (
                         <div>
-                            <Button type="primary" className='btn-41 px-4' onClick={handleGenerateHealthCheckupReport} disabled={healthReportConsultationsLoading} loading={healthReportConsultationsLoading}>
+                            <Button type="primary" className='btn-41 px-4 btn-create-bill' onClick={handleGenerateHealthCheckupReport} disabled={healthReportConsultationsLoading} loading={healthReportConsultationsLoading}>
                                 {healthReportConsultationsLoading ? 'Generating...' : 'Generate New Report'}
                             </Button>
                         </div>
                     )}
-                </div>
+                    </>
+                }
+            />
                 <Drawer
                     className="modalWidth-563" width="auto"
                     title="Create Certificate"
@@ -621,10 +624,6 @@ function Welcome1(props) {
                 >
                     <CreateCertificate handleCreateCertificateDrawer={handleCreateCertificateDrawer} patient_data={patient_data} replace={false} />
                 </Drawer>
-                <div className='pb-5'>
-                    &nbsp;
-                </div>
-            </div>
         </>
     )
 }
