@@ -185,6 +185,19 @@
   text-overflow: ellipsis;
 }
 
+.patientNameLine {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.abhaGlyph {
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .patientMeta {
   display: flex;
   align-items: center;

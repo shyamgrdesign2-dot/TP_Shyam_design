@@ -113,6 +113,10 @@ function mapRecord(rec, tabId, index) {
        shared symptoms / history ahead of the visit. Prod surfaces it as a
        green glyph on the row; the same fact drives ours. */
     symptomsGathered: !!rec.symptomsGathered,
+    abhaAddress: rec.abhaAddress || "",
+    patientConditionId: rec.patient_condition_id || null,
+    arrivedTime: rec.arrivedTime || "",
+    durationConsultation: rec.durationConsultation || "",
     consultType: rec.pam_status_type_appointment ?? 0,
     hasVideo: rec.pam_status_type_appointment === 1 || rec.pam_status_type_appointment === 2,
     referredBy:
@@ -191,6 +195,10 @@ function mapZydusRecord(rec, tabId, index) {
     slotMinute: timeMoment.isValid() ? timeMoment.minute() : 0,
     dateISO: dateMoment.isValid() ? dateMoment.format("YYYY-MM-DD") : null,
     symptomsGathered: !!rec.symptomsGathered,
+    abhaAddress: rec.abhaAddress || "",
+    patientConditionId: rec.patient_condition_id || null,
+    arrivedTime: rec.arrivedTime || "",
+    durationConsultation: rec.durationConsultation || "",
     consultType: 0,
     hasVideo: false,
   };

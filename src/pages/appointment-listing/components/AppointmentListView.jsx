@@ -11,6 +11,7 @@ import {
 
 import { ASSETS } from "../../../assets";
 import { TAB_IDS, EMPTY_STATE_BY_TAB } from "../data/appointmentsConfig";
+import { CONDITION_COLORS, formatDurationConsultation } from "../data/appointmentStates";
 import { useListingAccess } from "../data/useListingAccess";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
 import QueueRxSplitButton from "./QueueRxSplitButton";
@@ -18,6 +19,28 @@ import emptyDocsIllustration from "../assets/empty-docs.svg";
 import BillingTag from "./BillingTag";
 import TeleconsultPopover from "./TeleconsultPopover";
 import styles from "./AppointmentListView.module.css";
+
+function ConditionDot({ conditionId }) {
+  if (!conditionId) return null;
+  const condition = CONDITION_COLORS[conditionId];
+  if (!condition) return null;
+  return (
+    <Tooltip content={condition.name} side="top">
+      <span
+        style={{
+          display: "inline-block",
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          backgroundColor: condition.color,
+          marginLeft: 6,
+          verticalAlign: "middle",
+          flexShrink: 0,
+        }}
+      />
+    </Tooltip>
+  );
+}
 
 export default function AppointmentListView({
   tabId,
@@ -77,37 +100,57 @@ export default function AppointmentListView({
         id: "name",
         header: "Name",
         minWidth: 180,
-        cell: (row) => (
-          <div className={styles.cellStack}>
-            {patientNameClickable ? (
-              <Button
-                variant="link"
-                theme="primary"
-                size="sm"
-                className={styles.patientLink}
-                onClick={() => onPatientClick?.(row)}
-              >
-                {row.name}
-              </Button>
-            ) : (
-              <span className={styles.patientNamePlain}>{row.name}</span>
-            )}
-            <p className={styles.patientMeta}>
-              {row.genderAge}
-              {row.symptomsGathered && (
-                <Tooltip content="Symptoms collected before the visit" side="top">
-                  <img
-                    src={ASSETS.images.symptomsGreen}
-                    alt=""
-                    width={16}
-                    height={16}
-                    className={styles.symptomsGlyph}
-                  />
-                </Tooltip>
-              )}
-            </p>
-          </div>
-        ),
+        cell: (row) => {
+          const canShowAbha = Boolean(
+            (row.abhaAddress || row.raw?.abhaAddress) && access.hipId && access.abhaEnable
+          );
+          const conditionId = row.patientConditionId || row.raw?.patient_condition_id;
+          return (
+            <div className={styles.cellStack}>
+              <div className={styles.patientNameLine}>
+                {patientNameClickable ? (
+                  <Button
+                    variant="link"
+                    theme="primary"
+                    size="sm"
+                    className={styles.patientLink}
+                    onClick={() => onPatientClick?.(row)}
+                  >
+                    {row.name}
+                  </Button>
+                ) : (
+                  <span className={styles.patientNamePlain}>{row.name}</span>
+                )}
+                {canShowAbha && (
+                  <Tooltip content="ABHA" side="top">
+                    <img
+                      src={ASSETS.images.abhaSvg}
+                      alt="ABHA"
+                      width={18}
+                      height={18}
+                      className={styles.abhaGlyph}
+                    />
+                  </Tooltip>
+                )}
+              </div>
+              <p className={styles.patientMeta}>
+                {row.genderAge}
+                <ConditionDot conditionId={conditionId} />
+                {row.symptomsGathered && (
+                  <Tooltip content="Symptoms collected before the visit" side="top">
+                    <img
+                      src={ASSETS.images.symptomsGreen}
+                      alt=""
+                      width={16}
+                      height={16}
+                      className={styles.symptomsGlyph}
+                    />
+                  </Tooltip>
+                )}
+              </p>
+            </div>
+          );
+        },
       },
       {
         id: "contact",
@@ -170,6 +213,20 @@ export default function AppointmentListView({
             },
           ]
         : [
+            ...(access.isMunshiHospital
+              ? [
+                  {
+                    id: "referredBy",
+                    header: "Referred By",
+                    minWidth: 150,
+                    cell: (row) => (
+                      <span className={styles.contact}>
+                        {row.referredBy || row.raw?.dr_reference_name || "--"}
+                      </span>
+                    ),
+                  },
+                ]
+              : []),
       {
         id: "visitType",
         header: "Visit Type",
@@ -190,15 +247,31 @@ export default function AppointmentListView({
         minWidth: 140,
         sortable: true,
         sortAccessor: (row) => `${row.dateISO || ""} ${String(row.slotHour ?? 0).padStart(2, "0")}:${String(row.slotMinute ?? 0).padStart(2, "0")}`,
-        cell: (row) => (
-          <div className={styles.cellStack}>
-            <span className={styles.slotTime}>
-              {row.slotTime}
-              {row.hasVideo && <TeleconsultPopover row={row} tabId={tabId} onRowAction={onRowAction} />}
-            </span>
-            <p className={styles.slotDate}>{row.slotDate}</p>
-          </div>
-        ),
+        cell: (row) => {
+          let munshiExtra = "";
+          if (access.isMunshiHospital) {
+            if (tabId === TAB_IDS.QUEUE && (row.arrivedTime || row.raw?.arrivedTime)) {
+              munshiExtra = ` (${row.arrivedTime || row.raw?.arrivedTime})`;
+            } else if (
+              tabId === TAB_IDS.FINISHED &&
+              (row.durationConsultation || row.raw?.durationConsultation)
+            ) {
+              munshiExtra = ` (${formatDurationConsultation(
+                row.durationConsultation || row.raw?.durationConsultation
+              )})`;
+            }
+          }
+          return (
+            <div className={styles.cellStack}>
+              <span className={styles.slotTime}>
+                {row.slotTime}
+                {munshiExtra}
+                {row.hasVideo && <TeleconsultPopover row={row} tabId={tabId} onRowAction={onRowAction} />}
+              </span>
+              <p className={styles.slotDate}>{row.slotDate}</p>
+            </div>
+          );
+        },
       },
       {
         id: "remarks",
