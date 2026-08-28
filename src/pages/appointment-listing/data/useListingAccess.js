@@ -5,7 +5,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useIsDentalEnabled } from "../../../hooks/useIsDentalEnabled";
 import { useChikitsalay } from "../../chikitsalay/useChikitsalay";
 import { useCrossConsult } from "../../../hooks/useCrossConsult";
-import { isVoiceRxFree, shouldMonetizationDisabled } from "../../../utils/utils";
+import { isVoiceRxFree, shouldMonetizationDisabled, isMunshiHospital } from "../../../utils/utils";
 import {
   GB_CVT_EXT_HOS,
   GB_ISCRIBE,
@@ -75,6 +75,7 @@ export function useListingAccess() {
   const isDentalEnabled = useIsDentalEnabled();
   const isChikitsalay = useChikitsalay();
   const showReferral = useCrossConsult();
+  const profile = useSelector((state) => state.doctors?.profile);
   // Legacy hide Encounter Consult once finishedData already has pam_ref_id.
   const finishedData = useSelector((state) => state.records?.finishedData) || [];
 
@@ -117,6 +118,9 @@ export function useListingAccess() {
       showBilling: !isCvtExtHos && !isZydusAccount,
       showBookActions: !isCvtExtHos && !isZydusAccount,
       showWalkIn: !isCvtExtHos,
+      hipId: profile?.HipID,
+      abhaEnable: profile?.abhaEnable,
+      isMunshiHospital: isMunshiHospital(),
     }),
     [
       isCvtExtHos,
@@ -134,6 +138,8 @@ export function useListingAccess() {
       showReferral,
       digitisationWorklistEnabled,
       finishedEncounterIds,
+      profile?.HipID,
+      profile?.abhaEnable,
     ]
   );
 }

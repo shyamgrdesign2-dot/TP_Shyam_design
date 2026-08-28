@@ -14,7 +14,7 @@ import {
 
 import { ASSETS } from "../../../assets";
 import useDoctorSlots from "../data/useDoctorSlots";
-import { STATUS_META, statusMeta, visitMeta, shortGenderAge } from "../data/appointmentStates";
+import { STATUS_META, statusMeta, visitMeta, shortGenderAge, CONDITION_COLORS } from "../data/appointmentStates";
 import { TAB_IDS } from "../data/appointmentsConfig";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
 import QueueRxSplitButton from "./QueueRxSplitButton";
@@ -368,6 +368,11 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
     onClose();
   };
   const primary = rowPrimaryAction(cardTab, row, act, access);
+  const canShowAbha = Boolean(
+    (row.abhaAddress || row.raw?.abhaAddress) && access.hipId && access.abhaEnable
+  );
+  const conditionId = row.patientConditionId || row.raw?.patient_condition_id;
+  const condition = CONDITION_COLORS[conditionId];
   const width = 320;
   const popRef = useRef(null);
   // Placed after the first paint, once the real height is known; until then
@@ -422,6 +427,13 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
         <div className={styles.popoverHeadText}>
           <p className={styles.popoverName}>
             {row.name}
+            {canShowAbha && (
+              <Tooltip content="ABHA" side="top">
+                <span className={styles.popoverNameGlyph}>
+                  <img src={ASSETS.images.abhaSvg} alt="ABHA" width={16} height={16} />
+                </span>
+              </Tooltip>
+            )}
             {row.symptomsGathered && (
               <Tooltip content="Symptoms collected before the visit" side="top">
                 <span className={styles.popoverNameGlyph}>
@@ -448,6 +460,22 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
           {(row.genderAge || row.mrn) && (
             <p className={styles.popoverMeta}>
               {row.genderAge && shortGenderAge(row.genderAge)}
+              {condition && (
+                <Tooltip content={condition.name} side="top">
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      backgroundColor: condition.color,
+                      marginLeft: 3,
+                      verticalAlign: "middle",
+                      flexShrink: 0,
+                    }}
+                  />
+                </Tooltip>
+              )}
               {row.genderAge && row.mrn && <span className={styles.popoverSep}>|</span>}
               {row.mrn}
             </p>
