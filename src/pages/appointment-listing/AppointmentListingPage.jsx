@@ -56,7 +56,14 @@ import {
   setAppointmentTeleconsultStatus,
   setJoinToken,
 } from "../../redux/teleconsultNotificationSlice";
-import { setUploadDocCategories } from "../../redux/uploadDocSlice";
+import { setUploadDocCategories, resetUploadDocState } from "../../redux/uploadDocSlice";
+import { setAdvancedSettings, setBillPrintSettings } from "../../redux/billingSlice";
+import { resetVaccineState } from "../../redux/vaccineSlice";
+import { resetGrowthChartState } from "../../redux/growthChartSlice";
+import { resetObstetricState } from "../../redux/obstetricSlice";
+import { resetDDxState } from "../../redux/ddxSlice";
+import { fetchAdvanceSetting, fetchPrintSetting } from "../opdBilling/service";
+import { useOpdBilling } from "../opdBilling/useOpdBilling";
 import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
@@ -278,7 +285,9 @@ export default function AppointmentListingPage() {
   const showQueueExportMenu = !isTabletDevice && !isIPadDesktopMode;
   // siteId / empNo are set by SidebarDoctor after the Zydus ICT login handshake;
   // they live in the doctors redux slice, same as legacy AppointmentData.js reads them.
-  const { siteId: zydusSiteId, empNo: zydusEmpNo } = useSelector((state) => state.doctors);
+  const { siteId: zydusSiteId, empNo: zydusEmpNo, userId } = useSelector((state) => state.doctors || {});
+  const { advancedSettings } = useSelector((state) => state.billing || {});
+  const { isOpdBillingAccessable } = useOpdBilling();
 
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
@@ -383,6 +392,40 @@ export default function AppointmentListingPage() {
   const pendingUploadRef = useRef(null);
   const dispatch = useDispatch();
   const isVoiceRxNewUi = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+
+  const hasFetchedBillPrintSettings = useRef(false);
+
+  const getAdvanceSettings = useCallback(async () => {
+    const response = await fetchAdvanceSetting();
+    if (response) dispatch(setAdvancedSettings(response));
+  }, [dispatch]);
+
+  const getBillPrintSettings = useCallback(async () => {
+    if (!userId) return;
+    const response = await fetchPrintSetting(userId);
+    if (response) dispatch(setBillPrintSettings(response));
+  }, [dispatch, userId]);
+
+  useEffect(() => {
+    if (advancedSettings && !Object.keys(advancedSettings).length && isOpdBillingAccessable) {
+      getAdvanceSettings();
+    }
+  }, [isOpdBillingAccessable, advancedSettings, getAdvanceSettings]);
+
+  useEffect(() => {
+    if (!hasFetchedBillPrintSettings.current && userId) {
+      hasFetchedBillPrintSettings.current = true;
+      getBillPrintSettings();
+    }
+  }, [getBillPrintSettings, userId]);
+
+  useEffect(() => {
+    dispatch(resetVaccineState());
+    dispatch(resetGrowthChartState());
+    dispatch(resetObstetricState());
+    dispatch(resetUploadDocState());
+    dispatch(resetDDxState());
+  }, [dispatch]);
 
   useEffect(() => {
     if (!isChikitsalayAccessable) return undefined;
