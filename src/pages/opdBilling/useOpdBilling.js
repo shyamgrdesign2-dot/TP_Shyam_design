@@ -6,6 +6,7 @@ import { setShouldShowOpdBilling } from "../../redux/billingSlice";
 
 export const useOpdBilling = () => {
   const dispatch = useDispatch();
+  const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
   const { shouldShowOpdBilling, isOpdBillChecked } = useSelector(
     (state) => state.billing
