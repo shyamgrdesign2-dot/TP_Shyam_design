@@ -509,8 +509,8 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
         <div className={styles.popoverActions}>
           <span className={styles.popoverActionsLead}>
             {primary && (
-              cardTab === TAB_IDS.QUEUE ? (
-                <QueueRxSplitButton row={row} onRowAction={act} />
+              cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL ? (
+                <QueueRxSplitButton row={row} onRowAction={act} tabId={cardTab} />
               ) : (
                 <TableActions align="left" primary={primary} actions={[]} />
               )
