@@ -235,8 +235,8 @@ export default function AppointmentEventCard({
           onPointerDown={(e) => e.stopPropagation()}
         >
           {v.showCta && primary && (
-            cardTab === TAB_IDS.QUEUE ? (
-              <QueueRxSplitButton row={row} onRowAction={onRowAction} />
+            cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL ? (
+              <QueueRxSplitButton row={row} onRowAction={onRowAction} tabId={cardTab} />
             ) : (
               <TableActions align="right" primary={primary} actions={[]} />
             )

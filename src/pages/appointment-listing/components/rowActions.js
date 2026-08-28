@@ -31,17 +31,18 @@ const RX = {
 };
 
 /**
- * Same option lists as PrimaryActionButton (labels + gates + order), with
- * listing styles applied by the Tesseract split Button:
+ * Same option lists and priority logic as PrimaryActionButton.js:
  *
- *   CVT:    SmartRx only (desktop); otherwise a plain Consult
- *   Dental / Zydus / default Queue: Consult is the button (replacing TypeRx).
- *           SmartRx, TabRx, VoiceRx, SnapRx go in the chevron, gated the
- *           same way as PrimaryActionButton. Consult is never in the menu.
+ * Priority order: SmartRx > TabRx > VoiceRx (paid) > SnapRx > Consult > VoiceRx (free/unpaid)
+ *
+ * Special cases:
+ *   Chikitsalay: Consult only (no dropdown)
+ *   CVT / Mission: SmartRx only (if accessible on desktop), else Consult only
+ *   Dental & Enabled: Consult is primary, dropdown has SmartRx, VoiceRx, SnapRx, TabRx
+ *   Zydus: Consult is primary, dropdown has SmartRx, TabRx, VoiceRx, SnapRx
  */
 export function queueRxChoices(ctx = {}) {
-  // Chikitsalay clinic queue: a plain Consult, same as AppointmentData.js /
-  // Welcome1.js — no SmartRx / VoiceRx / SnapRx split.
+  // Chikitsalay clinic queue: a plain Consult, same as AppointmentData.js / Welcome1.js
   if (ctx.isChikitsalay) return { primary: RX.consult, rest: [] };
 
   if (ctx.isCvtExtHos) {
@@ -67,16 +68,27 @@ export function queueRxChoices(ctx = {}) {
     return { primary: RX.consult, rest: dropdown };
   }
 
-  /* Listing Queue always faces Consult (the legacy TypeRx slot). Other Rx
-     modes belong in the chevron, gated the same way as PrimaryActionButton.
-     Paid VoiceRx would have outranked Consult on the Welcome button; with
-     Consult pinned it still appears in this menu when accessible. */
-  const dropdown = [];
-  if (ctx.canShowSmartRx) dropdown.push(RX.smart);
-  if (ctx.isTabRxVisible) dropdown.push(RX.tab);
-  if (ctx.isVoiceRxAccessible) dropdown.push(RX.voice);
-  if (ctx.isSnapRxAccessible) dropdown.push(RX.snap);
-  return { primary: RX.consult, rest: dropdown };
+  const allAvailableOptions = [];
+  if (ctx.canShowSmartRx) {
+    allAvailableOptions.push(RX.smart);
+  }
+  if (ctx.isTabRxVisible) {
+    allAvailableOptions.push(RX.tab);
+  }
+  if (ctx.isVoiceRxAccessible && ctx.isVoiceRxPaid) {
+    allAvailableOptions.push(RX.voice);
+  }
+  if (ctx.isSnapRxAccessible) {
+    allAvailableOptions.push(RX.snap);
+  }
+  allAvailableOptions.push(RX.consult);
+  if (ctx.isVoiceRxAccessible && !ctx.isVoiceRxPaid) {
+    allAvailableOptions.push(RX.voice);
+  }
+
+  const primary = allAvailableOptions[0] || RX.consult;
+  const rest = allAvailableOptions.slice(1);
+  return { primary, rest };
 }
 
 function asTablePrimary(choice, act) {
