@@ -276,3 +276,14 @@ h6[class*="_title_"] {
 [class*="_content_1gxkz"] [class*="_body_1gxkz"] {
   overscroll-behavior: contain;
 }
+
+/* Date-picker quick-select: the chosen preset ("Today", "Past 7 days") reads
+   as a soft-selected chip — a light blue wash with the primary blue text —
+   rather than the heavy solid-blue fill the design system ships, which sat far
+   too dark against the plain list of the other options. The popover is
+   portaled to the body, so this override lives here rather than in a module. */
+[class*="_preset_"][data-selected="true"] {
+  background-color: var(--tesseract-blue-50) !important;
+  color: var(--tesseract-blue-700) !important;
+  font-weight: var(--tesseract-weight-medium) !important;
+}

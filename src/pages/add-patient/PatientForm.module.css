@@ -401,3 +401,17 @@
 @keyframes pinSpin {
   to { transform: rotate(360deg); }
 }
+
+/* DOB picker: one footer action. The day-click interception in PatientForm.jsx
+   tags this picker's own popover with .dobPopover on open, so hiding the design
+   system's Cancel/Apply here never touches any other date picker on the page.
+   Clear stays (still the orange it always was); a day click commits and closes. */
+.dobPopover [class*="_actionsRight_"] {
+  display: none;
+}
+
+/* With Cancel/Apply gone, Clear is the only control left, so it centres in the
+   footer rather than hanging off the left edge where the row once had three. */
+.dobPopover [class*="_actions_"] {
+  justify-content: center;
+}

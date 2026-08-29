@@ -14,11 +14,24 @@
      visible height; it falls back to the vh line above where unsupported, and on
      desktop the two are equal. */
   height: 100dvh;
-  overflow: hidden;
+  /* clip, not hidden: still no page scroll, but it is not a scroll container, so
+     the banner's decorative rays (which lay out a little wider than the banner)
+     can no longer be scrolled into — that scroll was shoving the greeting off
+     the left edge. The rays themselves are kept, just clipped. */
+  overflow: clip;
   /* Same page canvas as data-analytics (slate-100): the white card reads
      against it without needing an outer stroke. */
   background: var(--tesseract-slate-100);
   font-family: var(--tesseract-font-body);
+}
+
+/* The HeroBanner's decorative rays: pulled left and brought up in opacity so
+   the grid pattern actually reads across the violet band rather than hiding at
+   the far right. The page's `overflow: clip` keeps their extra width from
+   creating any horizontal scroll. */
+.page [class*="_rays_"] {
+  opacity: 0.55;
+  transform: translateX(-120px);
 }
 
 /* Inside the app shell (Header + SidebarDoctor), the .wrapper element sizes
@@ -108,6 +121,28 @@ html :where(.page) td {
 :global(html[data-tp-theme] button[class^="_"] span),
 :global(html[data-tp-theme] button[class*=" _"] span) {
   color: inherit;
+}
+
+/* Calendar (single) date picker: one footer action only. The interception
+   tags our own popover with .dayPopover the moment it opens (never the
+   add-patient DOB picker's), so this restyle stays scoped to this one control.
+   Hide the design system's Cancel/Apply and centre the lone Today button. */
+.dayPopover [class*="_actionsRight_"] {
+  display: none;
+}
+
+.dayPopover [class*="_actions_"] {
+  justify-content: center;
+}
+
+/* "Today" borrows the Clear slot but is not a destructive action, so it drops
+   the orange for a calm blue. A plain centred text link, no fill: the footer
+   stays a clean single line, and a doctor on another month is one tap from the
+   current day. */
+.dayPopover [class*="_actions_"] button[data-theme="warning"] {
+  justify-content: center;
+  color: var(--tesseract-blue-700) !important;
+  font-weight: 600;
 }
 
 /* A DS Badge paints its tone on the outer element and wraps its label in a
@@ -213,10 +248,10 @@ html :where(.page) td {
   background: none !important;
   box-shadow: none !important;
   outline: none !important;
-  padding: 0 4px !important;
+  padding: 0 !important;
   min-width: 0 !important;
   width: auto !important;
-  height: 38px !important;
+  height: var(--appt-ctl-h, 38px) !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -355,11 +390,32 @@ html :where(.page) td {
   display: flex;
   align-items: flex-start;
   flex-shrink: 0;
-  /* 18px sides, matching every other row on this card, and a little more air
-     above the tabs than below them: at 8px they sat tight against the card's
-     top edge and read as clipped rather than inset. */
-  padding: 12px 18px 0;
+  /* 18px sides, matching every other row on this card. The top is trimmed to
+     8px so the card gives more of its height to the table below. */
+  padding: 8px 18px 0;
   border-bottom: 1px solid var(--tesseract-slate-100);
+  position: relative;
+}
+
+/* Right-edge fade, shown only while the tab strip has tabs scrolled off to the
+   right (data-overflow-x, set in JS and cleared at the end of the scroll). A
+   soft neutral gradient over the last visible tab, the "there is more" cue the
+   hidden scrollbar can't give. Sits at the strip's right edge (inside the 18px
+   gutter) and lets clicks through. */
+.tabRow[data-overflow-x]::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 1px;
+  right: 18px;
+  width: 40px;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--tesseract-slate-900) 9%, transparent)
+  );
 }
 
 /* Only the tabs scroll; the overflow menu stays pinned at the end. */
@@ -386,6 +442,7 @@ html :where(.page) td {
   overflow-x: auto;
 }
 
+/* Prod parity: the detached tab keeps its wider left inset after the divider. */
 .tabRowInner [role="tab"][data-detached] {
   position: relative;
   margin-left: 16px;
@@ -438,14 +495,21 @@ html :where(.page) td {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 20px 18px 16px;
+  /* Even 18px all round, the same rhythm as the tab row and body. */
+  padding: 18px;
+  /* One height for every control in this row. The design system's `sm`
+     controls don't all land on the same pixel (the segmented toggle sits at
+     36, buttons and the picker at 38), so the whole cluster reads to this
+     single token instead. Change it here and search, segmented, date pill,
+     filter and kebab move together, in both the table and calendar views. */
+  --appt-ctl-h: 38px;
 }
 
 
 .searchLabel {
-  min-width: 160px;
+  min-width: 180px;
   width: 100%;
-  max-width: 420px;
+  max-width: 380px;
 }
 
 /* The leading glyph is part of the placeholder, not part of the value: it
@@ -458,7 +522,7 @@ html :where(.page) td {
 /* The toolbar sits above a dense table, so its search keeps the compact
    38px height rather than the design system's default field height. */
 .searchLabel [class*="_fieldRow_"] {
-  --input-height: 38px;
+  --input-height: var(--appt-ctl-h);
   border-width: 1px;
 }
 
@@ -540,39 +604,86 @@ html :where(.page) td {
 /* The Filter panel is the last control on the toolbar, so its DS default of
    left:0 pushes it off the right edge of the card. Anchor it to the
    trigger's right edge instead. */
+.filterWrap {
+  position: relative;
+}
+
 .filterWrap :global([class*="_panel_"]) {
   left: auto;
   right: 0;
 }
 
-/* ── Filter trigger (restyle the DS Filter molecule to the reference) ── */
+/* Active-filter count, a small badge pinned to the icon's top-right corner. */
+.filterCount {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  /* A light neutral chip with a white ring, so it lifts cleanly off the tonal
+     filter fill behind it. */
+  background: var(--tesseract-slate-500);
+  color: var(--tesseract-slate-0);
+  box-shadow: 0 0 0 3px var(--tesseract-slate-0);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── Filter trigger — icon only. The word "Filter" and the chevron are dropped
+   (the icon reads on its own and the panel says the rest), so the control is a
+   compact square that spends no toolbar width on a label. font-size:0 hides the
+   trigger's own text node while the icon keeps its explicit size. ── */
 .filterWrap [class*="_trigger_"] {
-  height: 38px;
-  padding: 0 12px;
-  gap: 6px;
-  border: 1px solid var(--tesseract-slate-200);
+  height: var(--appt-ctl-h);
+  width: var(--appt-ctl-h);
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  border: 1px solid transparent;
   border-radius: var(--tesseract-radius-10);
-  background: var(--tesseract-bg-surface);
+  background: var(--tesseract-slate-100);
   font-family: var(--tesseract-font-body);
-  font-size: var(--tesseract-text-caption-lg);
+  font-size: 0;
   font-weight: 500;
   color: var(--tesseract-fg-secondary);
   white-space: nowrap;
 }
 
 .filterWrap [class*="_trigger_"]:hover {
-  border-color: var(--tesseract-slate-300);
-  background: var(--tesseract-slate-50);
+  border-color: transparent;
+  background: var(--tesseract-slate-200);
 }
 
+/* Same as the date pill: no open/focus ring or shadow, just the tonal fill. */
+.filterWrap [class*="_trigger_"],
+.filterWrap [class*="_trigger_"][aria-expanded="true"],
+.filterWrap [class*="_root_"] {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.filterWrap [class*="_root_"]::before,
+.filterWrap [class*="_root_"]::after {
+  display: none !important;
+}
+
+/* Active filters read through the count badge, not a colour change — the
+   control stays the same neutral tonal fill whether or not filters are on. */
 .filterWrap[data-active] [class*="_trigger_"] {
-  border-color: var(--tesseract-blue-300);
-  background: var(--tesseract-blue-50);
-  color: var(--tesseract-blue-700);
+  border-color: transparent;
+  background: var(--tesseract-slate-100);
+  color: var(--tesseract-fg-secondary);
 }
 
 .filterWrap [class*="_caret_"] {
-  display: none;
+  display: none !important;
 }
 
 /* The DS Filter renders its active-selection chips inline under its own
@@ -631,6 +742,128 @@ html :where(.page) td {
 
 .dateWrap [class*="_trigger_"]:hover {
   border-color: var(--tesseract-slate-300);
+}
+
+/* Date stepper: [‹ date ›] as ONE pill. The arrows live inside the same
+   bordered box as the date, hugging it either side, and the date in the middle
+   opens the picker. The inner picker's own chrome is stripped below so the
+   three parts read as a single control. Used in both the table and calendar. */
+.dateNav {
+  display: inline-flex;
+  align-items: center;
+  height: var(--appt-ctl-h);
+  /* Tonal, not outlined: a soft neutral fill instead of a border, so the date
+     control reads as a quiet button rather than a boxed field. */
+  border: 1px solid transparent;
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-slate-100);
+  overflow: hidden;
+}
+
+.dateNav:hover {
+  background: var(--tesseract-slate-200);
+}
+
+/* Day/Week grain toggle in the toolbar, sized to the 38px control row and
+   wearing the same neutral track as the date pill and filter beside it. */
+/* The DS `sm` segmented fixes its own root height (~36) at the same
+   specificity as this class, so the track needs `!important` to grow to the
+   shared control height. Everything inside — the items and the sliding white
+   indicator — is left to the DS, which centres them with its own inset, so
+   the selected pill keeps its breathing room top and bottom. */
+.grainSeg {
+  height: var(--appt-ctl-h) !important;
+  flex-shrink: 0;
+  background: var(--tesseract-slate-100);
+}
+
+.dateNavBtn {
+  width: 30px;
+  min-width: 30px !important;
+  /* Fills the pill's content box: the pill is --appt-ctl-h tall with a 1px
+     transparent border top and bottom, so the arrows sit 2px inside it. */
+  height: calc(var(--appt-ctl-h) - 2px) !important;
+  min-height: calc(var(--appt-ctl-h) - 2px) !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--tesseract-fg-secondary) !important;
+}
+
+.dateNavBtn:hover:not(:disabled) {
+  background: var(--tesseract-slate-200) !important;
+}
+
+.dateNavBtn:disabled {
+  opacity: 0.35;
+}
+
+/* The inner picker merges into the pill: no border of its own, and no chevron
+   in the middle, so the whole thing reads as one clean input box with the two
+   arrows as its edges. The arrows already carry the edge spacing, so the
+   trigger drops its own horizontal padding and the date sits close to them. */
+.dateNav .dateWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dateNav .dateWrap [class*="_trigger_"] {
+  min-height: calc(var(--appt-ctl-h) - 2px);
+  height: calc(var(--appt-ctl-h) - 2px);
+  padding: 0 4px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.dateNav .dateWrap [class*="_trigger_"]:hover {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* The pill is the control; the design system's own open/focus ring on the
+   inner trigger read as a faint shadow beside the calendar icon. Kill every
+   ring, shadow and pseudo-element so the open state is just the tonal fill. */
+.dateNav .dateWrap [class*="_trigger_"],
+.dateNav .dateWrap [class*="_trigger_"][data-open="true"],
+.dateNav .dateWrap [class*="_trigger_"][aria-expanded="true"],
+.dateNav .dateWrap [class*="_root_"] {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.dateNav .dateWrap [class*="_root_"]::before,
+.dateNav .dateWrap [class*="_root_"]::after {
+  display: none !important;
+}
+
+.dateNav .dateWrap [class*="_chevron_"] {
+  display: none !important;
+}
+
+/* Single day: the design system's own range text is collapsed and our compact
+   label ("FRI 28 AUG") sits in its place, right after the calendar icon. It is
+   a normal in-flow element, so the pill wraps to the label's own width with no
+   dead space. It carries the click through to the trigger so tapping the date
+   still opens the picker. */
+.dateNav .dateWrap[data-overlay] [class*="_triggerText_"] {
+  display: none;
+}
+
+.dateSingleLabel {
+  display: inline-flex;
+  align-items: center;
+  /* The icon's own trailing space is the only gap; no extra left margin, and no
+     padding before the next arrow (the arrow button carries that spacing). */
+  margin-left: 0;
+  padding-right: 0;
+  cursor: pointer;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 500;
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
 }
 
 /* ── Active filter bar (full-width row below the toolbar) ── */
@@ -717,11 +950,15 @@ html :where(.page) td {
   .toolbar {
     flex-wrap: wrap;
     row-gap: 10px;
-    padding: 14px 12px 12px;
+    /* 18px sides here too, so the search field lines up with the table columns
+       and the tab row below the tablet breakpoint (they kept 18px). */
+    padding: 18px;
   }
 
   .searchLabel {
-    max-width: none;
+    /* Keep the same 420px cap as on desktop rather than letting the field
+       stretch across a tablet toolbar; it only needs to shrink, never grow. */
+    max-width: 380px;
     flex: 1 1 260px;
   }
 

@@ -3,8 +3,6 @@ import { createPortal } from "react-dom";
 import moment from "moment";
 import {
   Button,
-  DateRangePicker,
-  SegmentedControl,
   TableActions,
   Toggle,
   Tooltip,
@@ -61,12 +59,11 @@ const SLOT_SKELETON = Array.from({ length: 28 }, (_, i) => ({ top: 7 * 60 + i * 
 // offsets every scroll calculation below: the head is sticky, so it covers
 // the first GRID_HEAD_PX of the grid body at any scroll position.
 const GRID_HEAD_PX = 56;
-const MODE_OPTIONS = [
-  { value: "day", label: "Day" },
-  { value: "week", label: "Week" },
-  /* Month hidden for now — it fans out many day/slot fetches and can hammer
-     the appointments API on busy clinics. Re-enable when month load is cheaper. */
-];
+// Month "+N more" math: a chip is 18px + the 4px cell gap; the cell's fixed
+// chrome is the 24px date pill + 12px padding + the 18px "+N more" line. Module
+// scope so the fit calc has stable identity across renders.
+const MONTH_CHIP_H = 22;
+const MONTH_CELL_CHROME = 24 + 12 + 18;
 
 function initialCalendarMode() {
   const saved = readPreference("calendarMode", "day");
@@ -611,6 +608,7 @@ export default function AppointmentCalendarView({
   // Zydus parity: calendar is read-only and should render appointments only
   // (no slot availability fetches + no Week/Month controls).
   modeOverride = null, // "day" | "week" | "month"
+  onModeChange = null, // publishes internal mode changes so the toolbar toggle stays in sync
   disableAvailabilityLayer = false, // hides availability controls + stops slot API calls
   hideModeToggle = false,
 }) {
@@ -1064,8 +1062,6 @@ export default function AppointmentCalendarView({
      it as shown. The number now falls out of the measured row height, which
      means a cell either shows a chip in full or counts it in the overflow.
      Never both. */
-  const MONTH_CHIP_H = 22; // 18px chip + the 4px cell gap
-  const MONTH_CELL_CHROME = 24 + 12 + 18; // date pill + cell padding + "+N more"
   const [monthRowH, setMonthRowH] = useState(0);
   const monthGridRef = useRef(null);
   useLayoutEffect(() => {
@@ -1238,8 +1234,9 @@ export default function AppointmentCalendarView({
   // the anchor itself survives the switch. The choice is remembered.
   // Month is hidden for now (see MODE_OPTIONS).
   const pickMode = (m) => {
-    if (m !== "day" && m !== "week") return;
+    if (m !== "day" && m !== "week" && m !== "month") return;
     setMode(m);
+    onModeChange?.(m);
     /* Each view has its own scroller and each starts at the top, so the
        previous one's scroll state must not carry over into the new header. */
     setScrolled(false);
@@ -1408,17 +1405,6 @@ export default function AppointmentCalendarView({
     );
   }, [windowLabel, windowRange, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Whatever the picker hands back, the calendar only ever wants one day: the
-     anchor. A range gives its start, a month gives the month it landed on. */
-  const anchorFromPick = (v) => {
-    if (!v) return null;
-    if (v instanceof Date) return v;
-    if (v.start) return new Date(v.start);
-    if (v.date) return new Date(v.date);
-    if (v.month != null && v.year != null) return new Date(v.year, v.month, 1);
-    return null;
-  };
-
   const scrollToNow = () => {
     const el = scrollRef.current;
     if (!el) return;
@@ -1438,83 +1424,9 @@ export default function AppointmentCalendarView({
 
   return (
     <div className={styles.root}>
-      <div className={styles.header} data-scrolled={scrolled || undefined}>
-        <div className={styles.navGroup}>
-          <button type="button" className={styles.navBtn} aria-label="Previous" onClick={() => step(-1)}>
-            <TPIcon name="chevron-left" size={16} />
-          </button>
-          <div className={styles.datePick}>
-            {/* The same DS picker the toolbar uses, wearing the header's
-                plain-text trigger. One component, one behaviour, one value:
-                whichever one you touch, both read the same date. */}
-            {/* The picker matches what the grid navigates, the way Google
-                Calendar and Teams do it: a day view picks a day, a week view
-                selects the whole week, a month view picks a month. A single-
-                date control above a seven-day grid was naming something that
-                was not on screen, which is why changing the date looked like
-                it did nothing. */}
-            <DateRangePicker
-              className={styles.headerDate}
-              mode={mode === "week" ? "range" : mode === "month" ? "month" : "single"}
-              commitMode="apply"
-              showPresets={false}
-              months={1}
-              size="sm"
-              fullWidth={false}
-              value={mode === "week" ? windowRange : mode === "month" ? anchor : dateRange?.start ?? null}
-              onChange={(v) => {
-                const d = anchorFromPick(v);
-                if (d) onDateChange?.(d);
-              }}
-              maxDate={allowFutureDates ? undefined : new Date()}
-              placeholder={windowLabel}
-              formatDate={mode === "day" ? () => windowLabel : undefined}
-            />
-          </div>
-          <button type="button" className={styles.navBtn} aria-label="Next" onClick={() => step(1)}>
-            <TPIcon name="chevron-right" size={16} />
-          </button>
-        </div>
-        <div className={styles.headerRight}>
-          {/* A switch, not a checkbox: this turns a layer of the grid on and
-              off, which is the same kind of decision as the grain control
-              beside it, not an item being selected from a list. It wears the
-              same slate pill so the two read as one row of view controls.
-
-              "Show Slots" because every block this layer draws is a slot:
-              the open ones, the blocked ones and the ones already past. It
-              names the whole set rather than a subset, which "free slots"
-              did not, and it stays clear of "Availability", which this
-              product already uses for the screen that edits a doctor's
-              working hours. The verb is what makes it read as a control
-              rather than a heading. */}
-          {!disableAvailabilityLayer && (
-            <label className={styles.availabilityToggle}>
-              <span className={styles.availabilityLabel}>Show Slots</span>
-              <Toggle
-                size="sm"
-                ariaLabel="Show the slot grid under the appointments"
-                checked={freeSlots}
-                onCheckedChange={(next) => {
-                  setFreeSlots(next);
-                  writePreference("calendarFreeSlots", next ? "on" : "off");
-                }}
-              />
-            </label>
-          )}
-          {!hideModeToggle && !disableAvailabilityLayer && (
-            <SegmentedControl
-              className={styles.granularity}
-              size="sm"
-              variant="block"
-              options={MODE_OPTIONS}
-              value={mode}
-              onValueChange={pickMode}
-            />
-          )}
-        </div>
-      </div>
-
+      {/* No chrome row of its own any more: Day/Week lives in the page toolbar
+          beside the date stepper, and Show Slots has moved down to the legend
+          bar, so the grid starts straight under the toolbar. */}
 
       {/* Reschedule mode banner */}
       {rescheduleFor && (
@@ -1615,7 +1527,12 @@ export default function AppointmentCalendarView({
                   </button>
                 );
               return (
-                <div key={dayISO} className={styles.colHead} data-today={isToday || undefined}>
+                <div
+                  key={dayISO}
+                  className={styles.colHead}
+                  data-today={isToday || undefined}
+                  data-selected={dayISO === iso(anchor) || undefined}
+                >
                   <span className={styles.colHeadAccent} aria-hidden="true" />
                   {dayHead}
                   {hidden.length > 0 && (
@@ -1903,18 +1820,9 @@ export default function AppointmentCalendarView({
               numeral is missing, because in Month it lives in each cell. */}
           <div className={styles.monthHeader} data-scrolled={scrolled || undefined}>
             {monthCells.slice(0, 7).map((d) => (
-              <div
-                key={iso(d)}
-                className={styles.colHead}
-                data-compact=""
-                /* The head names a weekday, so "today" here means today's
-                   weekday column, and only while the grid actually shows
-                   today's month. */
-                data-today={
-                  (d.getDay() === new Date().getDay() && monthCells.some((c) => iso(c) === todayISO)) || undefined
-                }
-              >
-                <span className={styles.colHeadAccent} aria-hidden="true" />
+              <div key={iso(d)} className={styles.colHead} data-compact="">
+                {/* Just the weekday name — the selected/today emphasis in month
+                    view lives on the day cell below, not on a whole column. */}
                 <span className={styles.colHeadStack}>
                   <span className={styles.colHeadWeekday}>{weekdayShort.format(d)}</span>
                 </span>
@@ -1932,9 +1840,10 @@ export default function AppointmentCalendarView({
                   className={styles.monthCell}
                   data-outside={!inMonth || undefined}
                   data-today={iso(d) === todayISO || undefined}
+                  data-selected={iso(d) === iso(anchor) || undefined}
                   onClick={() => {
                     goToDate(d);
-                    setMode("day");
+                    pickMode("day");
                   }}
                 >
                   <span className={styles.monthDate}>{d.getDate()}</span>
@@ -1999,28 +1908,33 @@ export default function AppointmentCalendarView({
           is something you consult once and then stop seeing, so it must not
           take space from the schedule. */}
       <div className={styles.legend}>
-        {legend.map((k) => (
-          <span key={k} className={styles.legendItem}>
-            <span className={styles.legendDot} style={{ background: STATUS_META[k].color }} aria-hidden="true" />
-            {STATUS_META[k].label}
-          </span>
-        ))}
-        {/* Pinned to the far end of the same bar. A glyph, because it repeats
-            an action the page can already be trusted to do and does not need
-            to announce itself beside four colour swatches. */}
-        {onRefresh && (
-          <button
-            type="button"
-            className={styles.legendRefresh}
-            data-busy={refreshing || undefined}
-            onClick={onRefresh}
-            disabled={refreshing}
-            aria-label="Refresh appointments"
-            title="Refresh appointments"
-          >
-            <TPLibraryIcon name="refresh-arrow2" family="arrow" size={15} />
-          </button>
+        {/* Show Slots now lives here, on the left of the bottom bar — the grid's
+            layer control sits with the grid's key rather than in a chrome row
+            of its own. A switch, not a checkbox: it turns the slot layer on and
+            off, and every block it draws is a slot (open, blocked or past). */}
+        {!disableAvailabilityLayer && (
+          <label className={styles.availabilityToggle}>
+            <span className={styles.availabilityLabel}>Show Available Slots</span>
+            <Toggle
+              size="sm"
+              ariaLabel="Show the slot grid under the appointments"
+              checked={freeSlots}
+              onCheckedChange={(next) => {
+                setFreeSlots(next);
+                writePreference("calendarFreeSlots", next ? "on" : "off");
+              }}
+            />
+          </label>
         )}
+        {/* The colour key sits at the far right of the bar. */}
+        <div className={styles.legendKey}>
+          {legend.map((k) => (
+            <span key={k} className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: STATUS_META[k].color }} aria-hidden="true" />
+              {STATUS_META[k].label}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Subtle floating chip back to the current time, only while the
