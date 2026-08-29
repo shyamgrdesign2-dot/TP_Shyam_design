@@ -420,7 +420,10 @@
   position: sticky;
   top: 0;
   z-index: 6;
-  height: 60px;
+  /* A fixed 52px band: enough top-and-bottom air that the date caption never
+     reads as crunched, without a whole extra row of empty chrome. It does not
+     resize on scroll — a moving header height is more motion than it is worth. */
+  height: 52px;
   /* White, like the grid it sits over. One edge, never two: at rest the rail
      closes with a hairline; once the grid is scrolling underneath, the shadow
      takes over and the hairline withdraws, because a rule and a shadow
@@ -440,7 +443,8 @@
   transition: box-shadow 150ms, border-bottom-color 150ms;
 }
 
-/* Scrolling: the shadow replaces the rule rather than joining it. */
+/* Scrolling: the shadow replaces the rule rather than joining it. The height
+   stays put. */
 .gridHeader[data-scrolled] {
   border-bottom-color: transparent;
   box-shadow: 0 6px 12px -10px color-mix(in srgb, var(--tesseract-slate-900) 22%, transparent);
@@ -756,40 +760,43 @@ button.colHeadStack:hover {
   max-width: none;
 }
 
-.slotBlock[data-book-mode="teleconsult"][data-state="free"] {
-  border-color: color-mix(in srgb, var(--tesseract-blue-300) 80%, transparent);
-  background: color-mix(in srgb, var(--tesseract-blue-100) 55%, transparent);
-}
+/* In-clinic and teleconsult free slots share one colour: the mode is told by
+   the glyph on the chip, not by the chip's tint, so the two lanes read as one
+   pool of open time rather than two differently coloured kinds of slot. */
 
 .gridBody[data-mode="week"] .slotBlock[data-split] {
   padding: 0 4px;
 }
 
-/* A week column has room for the time and one glyph, no more. The plus
-   drops to the size of the text it sits beside, the gap halves, and the
-   video marker is pinned so it can never be the thing that gets clipped. */
+/* A week column is narrow, and a split slot is half of that again — room for
+   the time and the mode glyph, and little else. So the type steps down to micro
+   and the gap tightens, buying the width the mode marker needs to stay on
+   screen rather than being clipped off the right edge. */
 .gridBody[data-mode="week"] .slotBlockLabel {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
   width: 100%;
   overflow: hidden;
   white-space: nowrap;
-  font-size: var(--tesseract-text-caption-sm);
+  font-size: var(--tesseract-text-micro);
 }
 
-.gridBody[data-mode="week"] .slotBlockLabel > span[aria-hidden]:first-child {
-  width: 18px !important;
-  height: 18px !important;
+/* The "+" shrinks to the size of the mode glyph it shares the row with, so on a
+   split week slot the time sits between two small, equal markers and nothing
+   spills. Scoped to the free state so it never touches a past slot's mode glyph
+   (that slot's first element child). */
+.gridBody[data-mode="week"] .slotBlock[data-state="free"] .slotBlockLabel > span[aria-hidden]:first-child {
+  width: 14px !important;
+  height: 14px !important;
   flex-shrink: 0;
 }
 
-/* The video marker is pinned right — but only when there is one. On a slot
-   with no glyph the plus is both the first and the last element child, so
-   an unqualified :last-child pushed the plus and its time to the right. */
-.gridBody[data-mode="week"] .slotBlockLabel > span[aria-hidden]:last-child:not(:first-child) {
-  margin-left: auto;
+/* The mode marker stays one size and one place in every state: 14px, sitting
+   just after the time, never shrunk and never pinned to the far edge, so a
+   bookable slot and a past slot read the same. */
+.slotBlockLabel > span[aria-hidden] {
   flex-shrink: 0;
 }
 

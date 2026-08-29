@@ -8,6 +8,12 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* iOS Safari counts 100vh as the tall viewport behind the address bar, so the
+     page ends up taller than the screen and the whole page scrolls to reach the
+     bottom instead of the calendar/drawer scrolling inside it. dvh is the actual
+     visible height; it falls back to the vh line above where unsupported, and on
+     desktop the two are equal. */
+  height: 100dvh;
   overflow: hidden;
   /* Same page canvas as data-analytics (slate-100): the white card reads
      against it without needing an outer stroke. */
@@ -16,12 +22,15 @@
 }
 
 /* Inside the app shell (Header + SidebarDoctor), the .wrapper element sizes
-   itself to calc(100vh - 56px header). The theme provider inserts an
-   unstyled div between .wrapper and .page, so percentage heights collapse;
-   size against the viewport with the same constant instead. */
+   itself under the app's 52px top nav. The theme provider inserts an unstyled
+   div between .wrapper and .page, so percentage heights collapse; size against
+   the viewport with the same constant instead. The constant must match the nav
+   exactly: 56px here against a 52px nav left a 4px white strip below the card. */
 :global(.wrapper) .page {
-  height: calc(100vh - 56px);
-  max-height: calc(100vh - 56px);
+  height: calc(100vh - 52px);
+  max-height: calc(100vh - 52px);
+  height: calc(100dvh - 52px);
+  max-height: calc(100dvh - 52px);
 }
 
 /* The host app globally forces `color: #454551` on span/div/p/table cells
@@ -195,15 +204,22 @@ html :where(.page) td {
   color: var(--tesseract-on-dark) !important;
 }
 
-/* Kebab dropdown trigger: icon-only, no chrome, no focus/open stroke. */
+/* Kebab dropdown trigger: icon-only, no chrome, no focus/open stroke. Keeps the
+   38px height so it lines up with the date/filter controls beside it, but hugs
+   the icon horizontally rather than padding out to a full square, so it doesn't
+   carry dead space around the glyph. */
 :global(.tpKebabMenu [class*="_trigger_"]) {
   border: none !important;
   background: none !important;
   box-shadow: none !important;
   outline: none !important;
-  padding: 6px !important;
+  padding: 0 4px !important;
   min-width: 0 !important;
   width: auto !important;
+  height: 38px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   border-radius: var(--tesseract-radius-8) !important;
   color: var(--tesseract-fg-tertiary);
 }
@@ -231,6 +247,18 @@ html :where(.page) td {
 :global(.tpKebabMenu [class*="_trigger_"][data-state="open"]),
 :global(.tpKebabMenu [class*="_trigger_"][data-open]) {
   background: var(--tesseract-slate-100) !important;
+}
+
+/* The seamless dropdown draws its open/focus ring and blue tint on the root's
+   own ::before/::after. The tpKebabMenu class sits on that root element itself,
+   so these target it directly (no descendant combinator) to kill both, leaving
+   the grey trigger background as the only open-state feedback. */
+:global(.tpKebabMenu::before),
+:global(.tpKebabMenu::after) {
+  box-shadow: none !important;
+  background: none !important;
+  border: none !important;
+  outline: none !important;
 }
 
 
@@ -413,6 +441,7 @@ html :where(.page) td {
   padding: 20px 18px 16px;
 }
 
+
 .searchLabel {
   min-width: 160px;
   width: 100%;
@@ -441,14 +470,14 @@ html :where(.page) td {
 }
 
 
-/* Page-level overflow menu, pinned to the right end of the tab row. It
-   centres on the tab labels rather than sitting on the row's baseline: the
-   glyph is the same kind of thing as a tab, so it lines up with them. */
-.tabRowMenu {
+/* Page-level overflow menu, now trailing the toolbar's control cluster (after
+   the filters, at the very right end) rather than up in the tab row: its Queue
+   export follows the date filter, so it belongs beside the filters, below the
+   counts they move. */
+.toolbarMenu {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  align-self: center;
 }
 
 /* ── View toggle (list / calendar) ── */

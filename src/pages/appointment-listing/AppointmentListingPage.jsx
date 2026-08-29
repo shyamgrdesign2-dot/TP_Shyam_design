@@ -1125,35 +1125,6 @@ export default function AppointmentListingPage() {
                 countByTab={countByTab}
                 onSelect={selectTab}
               />
-              <div className={styles.tabRowMenu}>
-                {showQueueExportMenu && (
-                  <Dropdown
-                    className="tpKebabMenu"
-                    options={[
-                      {
-                        value: "export-queue-ics",
-                        label: exporting ? "Preparing…" : `Download Queue (.ics)${countByTab[TAB_IDS.QUEUE] ? ` · ${countByTab[TAB_IDS.QUEUE]}` : ""}`,
-                      },
-                    ]}
-                    value={null}
-                    onChange={(v) => v === "export-queue-ics" && exportQueueIcs()}
-                    chevron={false}
-                    variant="seamless"
-                    placeholder=""
-                    leadingIcon={<KebabIcon size={16} />}
-                    ariaLabel="More options"
-                    width={240}
-                    renderOption={(o) => (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0" }}>
-                        <TPLibraryIcon name="document-download" size={16} color="var(--tesseract-slate-500)" />
-                        <span style={{ flex: 1, fontSize: 14, color: "var(--tesseract-slate-700)", whiteSpace: "nowrap" }}>
-                          {o.label}
-                        </span>
-                      </div>
-                    )}
-                  />
-                )}
-              </div>
             </div>
 
             <div className={styles.toolbar}>
@@ -1198,10 +1169,13 @@ export default function AppointmentListingPage() {
                       }}
                     >
                       <DateRangePicker
+                        /* In a calendar view the view already fixes the window
+                           size, so the picker never offers a free range: week
+                           and day both pick a single date (week snaps to the
+                           Mon–Sun week around it, the way Teams does), and month
+                           picks a month. Only the table view spans a real range. */
                         mode={
                           !renderCalendar
-                            ? "range"
-                            : calendarWindowLabel?.mode === "week"
                             ? "range"
                             : calendarWindowLabel?.mode === "month"
                             ? "month"
@@ -1214,14 +1188,23 @@ export default function AppointmentListingPage() {
                         value={
                           isWorklistTab
                             ? null
-                            : renderCalendar
+                            : !renderCalendar
+                            ? dateRange
+                            : calendarWindowLabel?.mode === "month"
                             ? calendarWindowLabel?.value ?? dateRange?.start ?? null
-                            : dateRange
+                            : dateRange?.start ?? null
                         }
                         onChange={(v) => {
                           if (!renderCalendar) return setDateRange(v);
                           const d = pickedDate(v) || (v?.start ? new Date(v.start) : null);
-                          return setDateRange(d ? { start: d, end: d } : null);
+                          if (d) return setDateRange({ start: d, end: d });
+                          /* Clear snaps the calendar back to today: drop any
+                             week/day window so the grid re-anchors on today
+                             rather than sitting on the window it was showing. */
+                          setCalendarWindow(null);
+                          setCalendarWindowLabel(null);
+                          const today = new Date();
+                          return setDateRange({ start: today, end: today });
                         }}
                         placeholder={
                           isWorklistTab ? "Till date" : calendarWindowLabel?.label || "Today"
@@ -1279,6 +1262,87 @@ export default function AppointmentListingPage() {
                       onChange={setFilters}
                       mode="live"
                       icon={<TPLibraryIcon name="sort" size={15} />}
+                    />
+                  </div>
+                )}
+                {/* Overflow menu sits at the very right end of the toolbar, after
+                    the filters, rather than up in the tab row: its Queue export
+                    follows the date filter, so it belongs with the controls,
+                    below the counts they change, and trailing the row as an
+                    overflow menu conventionally does. */}
+                {showQueueExportMenu && (
+                  <div className={styles.toolbarMenu}>
+                    <Dropdown
+                      className="tpKebabMenu"
+                      options={[
+                        {
+                          value: "export-queue-ics",
+                          label: exporting ? "Preparing…" : "Download Queue Calendar",
+                        },
+                      ]}
+                      value={null}
+                      onChange={(v) => v === "export-queue-ics" && exportQueueIcs()}
+                      chevron={false}
+                      variant="seamless"
+                      placeholder=""
+                      leadingIcon={<KebabIcon size={18} />}
+                      ariaLabel="More options"
+                      width={280}
+                      renderOption={(o) => (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                            <TPLibraryIcon name="download-arrow" family="arrow" size={16} color="var(--tesseract-slate-500)" />
+                            <span style={{ fontSize: 14, color: "var(--tesseract-slate-700)", whiteSpace: "nowrap" }}>
+                              {o.label}
+                            </span>
+                            {/* Queue count as a grey soft tag, sitting right beside the
+                                label. Always shown, including 0, so the menu always
+                                states how many appointments the export covers. Uses
+                                slate-200/700 so it stays legible against the slate-100
+                                the option row takes on hover. */}
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                height: "var(--tesseract-size-20)",
+                                minWidth: "var(--tesseract-size-20)",
+                                padding: "0 var(--tesseract-space-2)",
+                                borderRadius: "var(--tesseract-radius-full)",
+                                background: "var(--tesseract-slate-200)",
+                                color: "var(--tesseract-slate-700)",
+                                fontSize: "var(--tesseract-text-micro)",
+                                fontWeight: "var(--tesseract-weight-semibold)",
+                                letterSpacing: "0.02em",
+                              }}
+                            >
+                              {countByTab[TAB_IDS.QUEUE] || 0}
+                            </span>
+                          </div>
+                          {/* What the download is for: a note, not an action. Violet
+                              tint keeps it clearly a hint rather than a second row. */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 8,
+                              padding: "8px 10px",
+                              borderRadius: "var(--tesseract-radius-8)",
+                              background: "var(--tesseract-violet-50)",
+                            }}
+                          >
+                            <TPLibraryIcon
+                              name="info-circle"
+                              size={14}
+                              color="var(--tesseract-violet-600)"
+                              style={{ flexShrink: 0, marginTop: 1 }}
+                            />
+                            <span style={{ fontSize: 12, lineHeight: 1.4, color: "var(--tesseract-violet-700)", whiteSpace: "normal" }}>
+                              Download and add this to Google, Apple, Microsoft, or any other calendar on your phone or desktop.
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     />
                   </div>
                 )}

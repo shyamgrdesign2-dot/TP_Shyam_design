@@ -145,13 +145,19 @@
   margin-left: -1px;
 }
 
+/* Square the inner edges so the salutation dropdown and the name input read as
+   one control. Target the trigger button by class as well as the aria hooks:
+   the design system rounds the trigger at a specificity the attribute-only
+   selector was tying with and losing, leaving a rounded bump mid-field. */
+.nameSalutation button[class*="_trigger_"],
 .nameSalutation [id^="tp-drp-trigger"],
 .nameSalutation [aria-haspopup="listbox"] {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
 }
 
-.nameInput [class*="_fieldRow_"] {
+.nameInput [class*="_fieldRow_"],
+.nameInput [class*="_wrap_"] {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
 }
@@ -169,8 +175,8 @@
 /* ── Patient photo upload ─────────────────────────────────────────── */
 .avatarCircle {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 104px;
+  height: 104px;
   border-radius: 50%;
   background: var(--tesseract-slate-200);
   display: flex;
@@ -326,16 +332,21 @@
   gap: 0;
 }
 
-.agePair > div:first-child [class*="_fieldRow_"] {
+/* Joined as one control for any number of segments: only the two outer ends
+   keep a radius. Every segment but the last squares its right corners, every
+   segment but the first squares its left corners and pulls back a pixel to sit
+   on its neighbour's border, so the middle segment (Months) is square on both
+   sides and the pair reads as one field. */
+.agePair > div:not(:last-child) [class*="_fieldRow_"] {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
 }
 
-.agePair > div:last-child {
+.agePair > div:not(:first-child) {
   margin-left: -1px;
 }
 
-.agePair > div:last-child [class*="_fieldRow_"] {
+.agePair > div:not(:first-child) [class*="_fieldRow_"] {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
 }
@@ -350,11 +361,14 @@
   z-index: 1;
 }
 
-/* Unit suffixes are chrome, not data: they sit at placeholder weight so the
-   number the doctor types is the only thing in the field with full ink. */
+/* Unit suffixes (yrs / mth / day) are fixed labels, not editable text, so they
+   sit a step darker than the grey placeholder beside them — otherwise "Years"
+   and "yrs" read as the same faint grey and the field looks like two
+   placeholders. Still lighter than a typed value, which keeps the number the
+   thing with full ink. */
 .agePair [class*="_unit_"] {
-  font-weight: 400;
-  color: var(--tesseract-slate-400);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-slate-500);
 }
 
 /* ── Error text ──────────────────────────────────────────────────────

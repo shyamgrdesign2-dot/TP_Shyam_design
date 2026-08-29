@@ -108,7 +108,7 @@ function TabHeader({ flag, mode = ADD, title, loading, onClick }) {
                         >
                             <button className='btn d-flex align-items-center btn-text me-10 tutorial'>
                                 {/* onClick={showHideVideoListPopover} */}
-                                <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
+                                <span className='text-decoration-none rounded-5 bg-white shadow2'><img height={42} src={tutorial} alt="Tutorial" /></span>
                             </button>
                         </Popover>
                         {flag === 1 ? (

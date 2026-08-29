@@ -36,7 +36,12 @@ import styles from "./AppointmentCalendarView.module.css";
 // keeps four 15-min slots per hour readable (96px/h → 24px each).
 const HOUR_PX_MIN = 96;
 const HOUR_PX_MAX = 280;
-const HOUR_PX_DEFAULT = HOUR_PX_MAX;
+/* Open at a denser default so more of the day is legible in one view without a
+   pinch: at the old max (280px/hour) barely four hours fit, which reads as an
+   empty screen on a tablet or a laptop. 180px keeps a 15-minute slot at a
+   comfortable 45px tap target while showing ~50% more of the day; zoom still
+   reaches 280 for anyone who wants the room. */
+const HOUR_PX_DEFAULT = 180;
 /* Dragging pulls the grid in so more of the day is reachable without a long
    scroll, but only a little: dropping straight to HOUR_PX_MIN shrank an hour
    to a third of its size mid-gesture, and aiming a 15-minute slot that is
@@ -441,19 +446,8 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
                 </span>
               </Tooltip>
             )}
-            {row.hasVideo && (
-              <Tooltip content="Teleconsultation" side="top">
-                <span className={styles.popoverNameGlyph}>
-                  <TPLibraryIcon
-                    name="video"
-                    variant="bulk"
-                    family="video-audio-image"
-                    size={16}
-                    color="var(--tesseract-blue-500)"
-                  />
-                </span>
-              </Tooltip>
-            )}
+            {/* The consultation mode is stated on its own row below (In-clinic /
+                Teleconsultation), so it no longer rides beside the name too. */}
           </p>
           {/* Sex/age abbreviated so the patient ID keeps its room; the pair
               stays on one line and truncates rather than wrapping. */}
@@ -508,6 +502,18 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
               </>
             )}
           </span>
+        </p>
+        {/* How the visit happens, stated the same way as everywhere else:
+            hospital glyph for in-clinic, video for a teleconsult. */}
+        <p className={styles.popoverRow}>
+          <TPLibraryIcon
+            name={row.hasVideo ? "video" : "hospital"}
+            family={row.hasVideo ? "video-audio-image" : "building"}
+            variant="bulk"
+            size={18}
+            color="var(--tesseract-slate-600)"
+          />
+          <span className={styles.popoverValue}>{row.hasVideo ? "Teleconsultation" : "In-clinic Consultation"}</span>
         </p>
         {row.contact && row.contact !== "--" && (
           <p className={styles.popoverRow}>
@@ -814,7 +820,14 @@ export default function AppointmentCalendarView({
     if (d?.moved) zoomTo(d.prevHourPx || HOUR_PX_DEFAULT);
   };
   const [nowTick, setNowTick] = useState(() => Date.now());
-  const [hourPx, setHourPx] = useState(HOUR_PX_DEFAULT);
+  // The chosen density sticks across reloads: a doctor who pinches to their
+  // preferred zoom does not have to redo it every time the page loads.
+  const [hourPx, setHourPx] = useState(() => {
+    const saved = Number(readPreference("calendarHourPx", ""));
+    return Number.isFinite(saved) && saved >= HOUR_PX_MIN && saved <= HOUR_PX_MAX
+      ? saved
+      : HOUR_PX_DEFAULT;
+  });
   // Sticky-header depth cue: shadow only while grid content is scrolled
   // underneath (React bails out when the boolean doesn't change).
   const [scrolled, setScrolled] = useState(false);
@@ -835,6 +848,9 @@ export default function AppointmentCalendarView({
     const el = scrollRef.current;
     const clamped = Math.max(HOUR_PX_MIN, Math.min(HOUR_PX_MAX, next));
     const prev = hourPxRef.current;
+    // Remember the density. A drag temporarily zooms then restores, so this
+    // lands on the pre-drag value either way — the doctor's real choice.
+    writePreference("calendarHourPx", String(clamped));
     if (clamped === prev || !el) {
       setHourPx(clamped);
       return;
@@ -1535,8 +1551,8 @@ export default function AppointmentCalendarView({
           onMouseLeave={showAllSlots ? undefined : () => setHoverSlotKey(null)}
           onScroll={(e) => {
             const el = e.currentTarget;
-            setScrolled(el.scrollTop > 2);
             syncViewport(el);
+            setScrolled(el.scrollTop > 2);
             // Hover tooltips re-anchor; a pinned card on a coarse pointer is
             // dismissed instead — the fullscreen layer no longer traps scroll,
             // so moving the day must close the card rather than leave it
@@ -1688,6 +1704,27 @@ export default function AppointmentCalendarView({
                         }
                       : undefined;
                     const isTele = chip.bookMode === "teleconsult";
+                    /* The mode marker rides every slot in every state, so an
+                       in-clinic slot reads as in-clinic whether it is open,
+                       past or blocked. It is blue on a bookable slot and muted
+                       on a disabled one, matching the rest of the chip. Its size
+                       tracks the zoom: on a zoomed-out (short) slot a full-size
+                       glyph dwarfs the row, so it steps down with the density. */
+                    const modeIconSize = hourPx >= 160 ? 14 : hourPx >= 120 ? 12 : 11;
+                    const modeIconEl = (
+                      <TPLibraryIcon
+                        name={isTele ? "video" : "hospital"}
+                        variant="bulk"
+                        family={isTele ? "video-audio-image" : "building"}
+                        size={modeIconSize}
+                        color={chip.bookable ? "var(--tesseract-blue-400)" : "var(--tesseract-slate-400)"}
+                      />
+                    );
+                    /* A week column is too narrow to carry the meridiem next to
+                       the "+" and the mode glyph; the hour gutter already tells
+                       morning from evening, so week slots show the bare time. */
+                    const slotTime =
+                      mode === "week" ? chip.label12.replace(/\s*[AP]M$/i, "") : chip.label12;
                     return (
                       <button
                         key={chip.chipKey}
@@ -1715,29 +1752,19 @@ export default function AppointmentCalendarView({
                           {chip.bookable ? (
                             <>
                               <TPLibraryIcon name="add" family="essential" size={19} />
-                              {chip.label12}
-                              {isTele ? (
-                                <TPLibraryIcon
-                                  name="video"
-                                  variant="bulk"
-                                  family="video-audio-image"
-                                  size={14}
-                                  color="var(--tesseract-blue-400)"
-                                />
-                              ) : (
-                                <TPLibraryIcon
-                                  name="hospital-building-4"
-                                  variant="bulk"
-                                  family="medical"
-                                  size={14}
-                                  color="var(--tesseract-blue-400)"
-                                />
-                              )}
+                              {slotTime}
+                              {modeIconEl}
                             </>
                           ) : chip.blocked ? (
-                            "Blocked"
+                            <>
+                              {modeIconEl}
+                              {isTele ? "Teleconsultation slots blocked" : "In-clinic slots blocked"}
+                            </>
                           ) : (
-                            chip.label12
+                            <>
+                              {slotTime}
+                              {modeIconEl}
+                            </>
                           )}
                         </span>
                       </button>
@@ -1823,6 +1850,7 @@ export default function AppointmentCalendarView({
                         width={cardWidth}
                         height={heightPx}
                         onRowAction={onRowAction}
+                        onActionInteract={closePopup}
                         selected={popup?.row?.id === row.id}
                         dragging={isDragging}
                         style={

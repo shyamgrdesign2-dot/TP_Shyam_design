@@ -11,6 +11,7 @@
   --tesseract-sc-radius: var(--tesseract-radius-8);
 }
 
+
 /* Two facts, two rows, each shaped like the form's own fields in their
    disabled state: the filled slate ground says "read only" on its own, so
    no stroke is needed to box them in. They line up with the controls below
