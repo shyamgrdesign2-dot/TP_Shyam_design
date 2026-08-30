@@ -937,8 +937,6 @@ export default function BookAppointmentDrawer({
                   <InputBox
                     ref={searchInputRef}
                     fullWidth
-                    showLabel={false}
-                    showHelper={false}
                     leftIcon={<TPLibraryIcon name="search-normal" size={20} />}
                     placeholder="Search by Patient's Name, Phone number or Id"
                     value={query}

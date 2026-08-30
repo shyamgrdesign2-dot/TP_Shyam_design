@@ -829,6 +829,13 @@ export default function AppointmentCalendarView({
   // Sticky-header depth cue: shadow only while grid content is scrolled
   // underneath (React bails out when the boolean doesn't change).
   const [scrolled, setScrolled] = useState(false);
+  // Horizontal-scroll edges: days hidden off to the left (scrolled away from the
+   // start) and off to the right (more to come). Each drives an edge fade so the
+   // grid reads as scrollable, and the right one squares the card's top-right
+   // corner. Two, not one, because the week auto-scrolls to today: on a late day
+   // it opens scrolled to the right end, where the hidden days are to the LEFT.
+  const [overflowStart, setOverflowStart] = useState(false);
+  const [overflowEnd, setOverflowEnd] = useState(false);
   // Floating "Now" chip: appears only while today's now-line is scrolled out
   // of the viewport; direction tells which way it went.
   const [nowChip, setNowChip] = useState(null); // null | "up" | "down"
@@ -1013,14 +1020,42 @@ export default function AppointmentCalendarView({
   // Measure a day column so each card knows whether it has room for a CTA, a
   // kebab, or only its time and name.
   useEffect(() => {
-    const el = gridBodyRef.current;
-    if (!el || mode === "month") return undefined;
-    const ro = new ResizeObserver(([entry]) => {
-      setColWidth(Math.max(0, (entry.contentRect.width - 72) / Math.max(1, days.length)));
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [mode, days.length]);
+    if (mode === "month") return undefined;
+    let raf = 0;
+    const recompute = () => {
+      // Edge fades are pseudo-elements, so setting these does not relay out the
+      // observed grid — read and set them synchronously (no rAF, which is paused
+      // when the tab is unfocused and would leave the initial state unseeded).
+      const sc = scrollRef.current;
+      if (sc) {
+        setOverflowStart(sc.scrollLeft > 1);
+        setOverflowEnd(sc.scrollWidth - sc.clientWidth - sc.scrollLeft > 1);
+      }
+      // colWidth DOES drive layout, so defer it a frame to avoid the
+      // "ResizeObserver loop completed with undelivered notifications" warning a
+      // synchronous relayout-in-observer trips.
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const gb = gridBodyRef.current;
+        if (gb) setColWidth(Math.max(0, (gb.getBoundingClientRect().width - 72) / Math.max(1, days.length)));
+      });
+    };
+    // Refs are attached by the time useEffect runs, so set up synchronously and
+    // watch BOTH: the grid body (per-day column width) and the scroller (the body
+    // sits at its min-width and does not resize when the card narrows, so only the
+    // scroller catches that). Seed once so a grid that opens already overflowing
+    // shows its fade without waiting for a resize or a scroll.
+    const gb = gridBodyRef.current;
+    const sc = scrollRef.current;
+    const ro = new ResizeObserver(recompute);
+    if (gb) ro.observe(gb);
+    if (sc) ro.observe(sc);
+    recompute();
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [mode, days.length, hourPx, showAllSlots]);
 
   /* Availability for the visible day(s); the toggle only controls the
      highlight, clicks work either way.
@@ -1078,7 +1113,9 @@ export default function AppointmentCalendarView({
         if (cell) setMonthRowH(cell.getBoundingClientRect().height);
       };
       measure();
-      ro = new ResizeObserver(measure);
+      // rAF so the height read + state set don't relay out the observed grid in
+      // the same frame (the "ResizeObserver loop" dev-overlay warning).
+      ro = new ResizeObserver(() => requestAnimationFrame(measure));
       ro.observe(el);
     });
     return () => {
@@ -1423,7 +1460,11 @@ export default function AppointmentCalendarView({
   };
 
   return (
-    <div className={styles.root}>
+    <div
+      className={styles.root}
+      data-overflow-start={overflowStart || undefined}
+      data-overflow-end={overflowEnd || undefined}
+    >
       {/* No chrome row of its own any more: Day/Week lives in the page toolbar
           beside the date stepper, and Show Slots has moved down to the legend
           bar, so the grid starts straight under the toolbar. */}
@@ -1465,6 +1506,8 @@ export default function AppointmentCalendarView({
             const el = e.currentTarget;
             syncViewport(el);
             setScrolled(el.scrollTop > 2);
+            setOverflowStart(el.scrollLeft > 1);
+            setOverflowEnd(el.scrollWidth - el.clientWidth - el.scrollLeft > 1);
             // Hover tooltips re-anchor; a pinned card on a coarse pointer is
             // dismissed instead — the fullscreen layer no longer traps scroll,
             // so moving the day must close the card rather than leave it
@@ -1637,11 +1680,13 @@ export default function AppointmentCalendarView({
                         color={chip.bookable ? "var(--tesseract-blue-400)" : "var(--tesseract-slate-400)"}
                       />
                     );
-                    /* A week column is too narrow to carry the meridiem next to
-                       the "+" and the mode glyph; the hour gutter already tells
-                       morning from evening, so week slots show the bare time. */
-                    const slotTime =
-                      mode === "week" ? chip.label12.replace(/\s*[AP]M$/i, "") : chip.label12;
+                    /* Time carries its meridiem (AM/PM). The mode glyph
+                       (clinic / video) is the type differentiator and rides
+                       every slot; as a column narrows it is the TIME that gives
+                       way to the hour gutter, never the glyph (see the container
+                       queries in the CSS). The time is wrapped so it can be hidden
+                       on narrow columns while the glyph stays. */
+                    const slotTime = chip.label12;
                     return (
                       <button
                         key={chip.chipKey}
@@ -1668,20 +1713,22 @@ export default function AppointmentCalendarView({
                         <span className={styles.slotBlockLabel}>
                           {chip.bookable ? (
                             <>
-                              <TPLibraryIcon name="add" family="essential" size={19} />
-                              {slotTime}
+                              {/* Open slot: the time, plus the clinic / video glyph
+                                  that says which kind of visit this slot books. The
+                                  "+" leads a roomy full-width slot; a split half has
+                                  no room for it and the dashed blue outline already
+                                  reads as "open, tap to book". */}
+                              {!split && <TPLibraryIcon name="add" family="essential" size={19} />}
+                              <span className={styles.slotTimeText}>{slotTime}</span>
                               {modeIconEl}
                             </>
                           ) : chip.blocked ? (
-                            <>
-                              {modeIconEl}
-                              {isTele ? "Teleconsultation slots blocked" : "In-clinic slots blocked"}
-                            </>
+                            /* Blocked / past carry no mode glyph — the marker is
+                               for choosing an OPEN slot's visit type. Just the
+                               time (blocked lanes say so via their striped fill). */
+                            <span className={styles.slotTimeText}>{slotTime}</span>
                           ) : (
-                            <>
-                              {slotTime}
-                              {modeIconEl}
-                            </>
+                            <span className={styles.slotTimeText}>{slotTime}</span>
                           )}
                         </span>
                       </button>

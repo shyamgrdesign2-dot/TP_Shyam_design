@@ -497,6 +497,25 @@ export default function AppointmentListingPage() {
       ro?.disconnect();
     };
   }, [activeTab]);
+
+  // "ResizeObserver loop completed with undelivered notifications" is a benign
+  // browser notice (a resize handler laid out again within the same frame; the
+  // browser just defers the extra notifications). It changes nothing at runtime,
+  // but react-scripts' dev overlay treats every window error as fatal and pops a
+  // full-screen "Uncaught runtime errors" panel. Swallow only this exact message
+  // so the overlay stops firing; real errors pass through untouched.
+  useEffect(() => {
+    const onError = (e) => {
+      if (typeof e.message === "string" && e.message.startsWith("ResizeObserver loop")) {
+        e.stopImmediatePropagation();
+        const overlay = document.getElementById("webpack-dev-server-client-overlay");
+        if (overlay) overlay.style.display = "none";
+      }
+    };
+    window.addEventListener("error", onError, true);
+    return () => window.removeEventListener("error", onError, true);
+  }, []);
+
   const pendingUploadRef = useRef(null);
   const dispatch = useDispatch();
   const isVoiceRxNewUi = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
@@ -1381,8 +1400,6 @@ export default function AppointmentListingPage() {
               <div className={styles.searchLabel}>
                 <InputBox
                   fullWidth
-                  showLabel={false}
-                  showHelper={false}
                   clearable
                   leftIcon={<TPLibraryIcon name="search-normal" size={20} />}
                     placeholder={

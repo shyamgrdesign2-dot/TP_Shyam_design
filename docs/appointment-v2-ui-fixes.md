@@ -35,6 +35,70 @@ The bulk sits in five files (the page, its two views, and their stylesheets). Th
 one- to three-line ripple changes across shared components (a global "Tutorial" label tidy,
 a banner icon tint) that rode along with the same branch.
 
+## Follow-up fixes (responsive polish)
+
+A later pass on smaller-screen behaviour and one CTA consistency bug:
+
+- **The week fits its seven columns in the card — it shrinks, it does not scroll.**
+  The earlier build gave the slot chip a 120px minimum width, so narrow week columns
+  overflowed and clipped the time + mode icon. Now each week day column is a CSS
+  size container, and the slot chip sheds detail in tiers keyed on its own column
+  width (not the viewport). The **time is kept longest** — it is what a doctor most
+  needs — and the clinic/video mode glyph is dropped first, because the lane already
+  implies the type and every slot carries a native tooltip ("Book in-clinic 10:15 AM")
+  that names it exactly on hover / long-press. Order of loss as a column narrows:
+  mode glyph → "+" → time-to-tooltip. Tablet and desktop show all seven columns with
+  no horizontal scroll; only a phone-width week scrolls sideways (a 520px floor), with
+  slots degraded to their dashed "open" outline plus the tooltip.
+- **AM/PM always shows on a slot time.** The meridiem is never stripped — a bare
+  "10:15" on a 24h-ambiguous grid is a booking hazard.
+- **Week header "+N" chip no longer collides with the date.** The count of
+  appointments outside the visible hours sat absolutely over the date numeral, which
+  on a phone-width column (~64px) landed on top of it. The header column is now a size
+  container too, and the chip drops at phone width (content-box < 58px) while tablet
+  (~91px columns) keeps it; tapping the day header still drills into Day view where
+  those appointments show in full.
+- **Calendar chrome.** Top corner radius eased 16 → 12; edge scroll-fades on both
+  sides of the week grid (it auto-scrolls to today, so hidden days can be to the left
+  or right) that square the card's top corners when days are off-screen; the calendar
+  scrollbar is hidden (it still scrolls, the bar just doesn't reserve a gutter).
+- **ResizeObserver dev-overlay noise silenced.** The benign "ResizeObserver loop
+  completed with undelivered notifications" browser warning (which CRA's dev overlay
+  treats as fatal) is suppressed, and the grid's own observers set up synchronously so
+  the edge fades seed correctly even when the tab is unfocused (rAF is paused there).
+- **Tab bar bleeds to the card edge.** When the tabs overflow, the right padding is
+  dropped so the last tab runs to the very edge of the card (no white gutter cutting
+  it short), and the fade sits flush at that edge.
+- **Tab fade is now a white dissolve**, not a grey shadow — the last tab fades into the
+  card's own white, a cleaner "scroll for more" cue than a shadow smudged over the text.
+- **Hero CTA weight fixed.** "Book Appointment" / "Start Walk-In" hard-coded
+  `font-weight: 600`, which diverged from the app-wide button weight after it was
+  changed centrally. They now inherit the design system button weight (semibold token),
+  so they match the same button on every other page.
+
+## Pre-ship QA pass (code quality + responsive audit)
+
+A final review before the production build, driven live at desktop, tablet and mobile:
+
+- **Memo-defeat in `useListingAccess` fixed (real perf bug).** `finishedData` was
+  `useSelector(...) || []`, minting a fresh `[]` every render. That changed the
+  `finishedEncounterIds` memo's dependency identity each render, which re-minted the
+  *entire access object* the hook returns — and that hook runs on the page, every row,
+  and the calendar popover. It now falls back to a stable `EMPTY_FINISHED` constant, the
+  same fix already applied to `AppointmentListView`'s `EMPTY_ROWS`.
+- **Dead `showLabel` / `showHelper` props removed.** They were passed to the design
+  system `InputBox` (page toolbar search + booking-drawer search) but the component has
+  no such props, so React forwarded them to the DOM `<input>` and logged a repeating
+  "React does not recognize the prop" warning on every render. Removed; the field is
+  unchanged (it never rendered a label anyway).
+- **Responsive audit.** Desktop / tablet / mobile checked in both list and calendar
+  views: no page-level horizontal overflow, no ResizeObserver overlay, the week header
+  overlap above is the one defect it surfaced (now fixed). One **pre-existing** item is
+  left for a separate change: on a 375px phone the two banner CTAs ("Book Appt" +
+  "Start Walk-In") total wider than the viewport and clip at the right edge (an ancestor
+  clips them, so the page itself never scrolls sideways). It lives in shared banner
+  layout and is unrelated to this work.
+
 ## What changed, in plain terms
 
 **The date control.** One pill, `‹ date ›`, with the arrows living inside the same box as the

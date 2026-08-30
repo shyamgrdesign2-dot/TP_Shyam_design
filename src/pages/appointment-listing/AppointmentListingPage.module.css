@@ -324,7 +324,9 @@ html :where(.page) td {
   border-radius: var(--tesseract-radius-10) !important;
   gap: 6px !important;
   font-size: var(--tesseract-text-body-sm) !important;
-  font-weight: 600 !important;
+  /* Weight is left to the design system button, so this CTA matches the same
+     button on every other page (a hard-coded 600 here diverged from the app-wide
+     weight after it was changed centrally). */
   background-color: color-mix(in srgb, var(--tesseract-slate-0) 7%, transparent) !important;
   border: 1.5px solid color-mix(in srgb, var(--tesseract-slate-0) 34%, transparent) !important;
   color: var(--tesseract-on-dark) !important;
@@ -337,7 +339,7 @@ html :where(.page) td {
   border-radius: var(--tesseract-radius-10) !important;
   gap: 6px !important;
   font-size: var(--tesseract-text-body-sm) !important;
-  font-weight: 600 !important;
+  /* Weight left to the design system button, matching every other page. */
   background-color: var(--tesseract-slate-0) !important;
   border: none !important;
   color: var(--tesseract-blue-900) !important;
@@ -370,7 +372,9 @@ html :where(.page) td {
   flex-direction: column;
   min-height: 0;
   border: none;
-  border-radius: var(--tesseract-radius-16);
+  /* A restrained 12px, not 16: the card reads as a crisp surface rather than a
+     soft, heavily rounded panel. */
+  border-radius: var(--tesseract-radius-12);
   background: var(--tesseract-bg-surface);
   overflow: visible;
 }
@@ -397,24 +401,32 @@ html :where(.page) td {
   position: relative;
 }
 
+/* When the tabs overflow, the strip should run to the very edge of the card, so
+   the last tab reads as continuing off-screen rather than being cut short with a
+   gutter of white beside it. Drop the right padding while overflowing. */
+.tabRow[data-overflow-x] {
+  padding-right: 0;
+}
+
 /* Right-edge fade, shown only while the tab strip has tabs scrolled off to the
-   right (data-overflow-x, set in JS and cleared at the end of the scroll). A
-   soft neutral gradient over the last visible tab, the "there is more" cue the
-   hidden scrollbar can't give. Sits at the strip's right edge (inside the 18px
-   gutter) and lets clicks through. */
+   right (data-overflow-x, set in JS and cleared at the end of the scroll). The
+   last tab dissolves into the card's own white rather than getting a grey
+   shadow smudged over its text — a cleaner "there is more, scroll" cue for a tab
+   strip. Sits flush at the card's right edge (right:0, padding removed above)
+   and lets clicks through. */
 .tabRow[data-overflow-x]::after {
   content: "";
   position: absolute;
   top: 8px;
   bottom: 1px;
-  right: 18px;
-  width: 40px;
+  right: 0;
+  width: 56px;
   pointer-events: none;
   z-index: 2;
   background: linear-gradient(
     to right,
     transparent,
-    color-mix(in srgb, var(--tesseract-slate-900) 9%, transparent)
+    var(--tesseract-bg-surface) 75%
   );
 }
 
@@ -924,15 +936,34 @@ html :where(.page) td {
    claim the day ends there. Its own corners and stroke make it a panel, so
    nothing inside it needs a second inset. */
 .body[data-view="calendar"] {
+  /* 18px both sides, aligned with the toolbar and tabs. The week fits its seven
+     columns inside this (it no longer needs to scroll on tablet), so the panel
+     sits contained in the card rather than running to the edge. */
   padding: 0 18px 0;
 }
 
 /* The calendar panel ends flush with the card's foot, so the card squares off
    there to meet it. Rounded corners under a full-bleed legend bar showed as
-   two slivers of page tint at the bottom ends. */
+   two slivers of page tint at the bottom ends. `clip` keeps the horizontally
+   scrolling week contained inside the card's rounded shape instead of spilling
+   past its corners. */
 .card:has(> .body[data-view="calendar"]) {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+  overflow: clip;
+}
+
+/* Scrolled so days run off an edge: square that top corner so the grid reads as
+   cut off and continuing, rather than tucked behind a rounded edge. Driven by
+   data-overflow-start / -end on the calendar root (set in JS). The root lives in
+   another CSS module, so match by the data attribute under the calendar body,
+   not by `.root` (which would resolve to this module's class). */
+.card:has(.body[data-view="calendar"] [data-overflow-end]) {
+  border-top-right-radius: 0;
+}
+
+.card:has(.body[data-view="calendar"] [data-overflow-start]) {
+  border-top-left-radius: 0;
 }
 
 .body > * {

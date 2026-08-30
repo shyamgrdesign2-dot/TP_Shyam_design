@@ -17,14 +17,48 @@
      at a line, which is the cue that there is more day below. */
   border: 0.5px solid var(--tesseract-slate-200);
   border-bottom: none;
-  /* Rounded at the top, square at the bottom. The legend is a full-bleed bar
-     across the panel's foot, and a rounded corner behind a square bar leaves
-     two slivers of card showing through at the ends. The panel runs straight
-     off the bottom of the card instead. */
-  border-radius: var(--tesseract-radius-16) var(--tesseract-radius-16) 0 0;
+  /* Rounded at the top, square at the bottom. A restrained top radius (12, not
+     16) so the panel reads as a crisp grid rather than a soft card. The legend
+     is a full-bleed bar across the foot, so the bottom runs straight. */
+  border-radius: var(--tesseract-radius-12) var(--tesseract-radius-12) 0 0;
   background: var(--tesseract-bg-surface);
   overflow: hidden;
   font-family: var(--tesseract-font-body);
+}
+
+/* Edge scroll fades: while the week is wider than the card, a soft shadow hugs
+   whichever edge still hides days — right when there are more days to come, left
+   when earlier days are scrolled off (the week opens scrolled to today, so on a
+   late day the hidden days are to the left). They ride on the panel (not the
+   scroller) so they stay pinned to the edges, stop above the legend bar, and let
+   clicks fall through to the grid. */
+.root[data-overflow-end]::after,
+.root[data-overflow-start]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 30px;
+  width: 44px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.root[data-overflow-end]::after {
+  right: 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent)
+  );
+}
+
+.root[data-overflow-start]::before {
+  left: 0;
+  background: linear-gradient(
+    to left,
+    transparent,
+    color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent)
+  );
 }
 
 /* Header strip mirrors the table thead: slate-100 fill, 12px end radii,
@@ -822,6 +856,84 @@ button.colHeadStack:hover {
   width: 14px !important;
   height: 14px !important;
   flex-shrink: 0;
+}
+
+/* The week fits its seven columns in the card — it shrinks, it does not scroll.
+   The floor is low (phones only): below it the grid scrolls sideways rather than
+   crushing columns to unusable slivers. As a column narrows the slot chips shed
+   detail instead (container queries below), so the grid stays legible at every
+   width without a horizontal scroll on tablet or desktop. */
+.gridHeader[data-mode="week"],
+.gridBody[data-mode="week"] {
+  min-width: 520px;
+}
+
+/* Each day column is a size container, so a slot chip adapts to the real width
+   of its own column — not the viewport — which is what makes this scale. */
+.gridBody[data-mode="week"] .dayCol {
+  container: daycol / inline-size;
+}
+
+/* The week header column is a size container too, so its "+N" overflow chip can
+   step aside on the same terms the slots do. On a phone-width week (the grid is
+   scrolling below its 520px floor) a column is ~64px — too narrow to hold the
+   chip beside the stacked weekday + date, so the chip lands on top of the
+   numeral. A tablet column (~91px) still holds both comfortably, so the chip
+   stays there; only a phone-width column drops it, since the count is a
+   supplementary cue and tapping the day header still drills into Day view where
+   those appointments show in full.
+
+   The threshold is a CONTENT-box width: an inline-size container is queried on
+   its content box, and .colHead carries 10px of side padding, so the queryable
+   width is the column minus 20px (~71px at a 91px tablet column, ~44px at a 64px
+   phone column). 58px cleanly separates the two. */
+.gridHeader[data-mode="week"] .colHead {
+  container: colhead / inline-size;
+}
+
+@container colhead (max-width: 58px) {
+  .overflowChip {
+    display: none;
+  }
+}
+
+/* Crunch tiers, keyed on the column's own width. The TIME is kept as long as it
+   fits — it is what a doctor most needs — and the clinic/video glyph is dropped
+   first (the lane already implies the type, and the slot's native tooltip names
+   it exactly on hover/long-press). Order of loss: mode glyph → "+" → time.
+   !important on the icons: the design system icon carries an inline display.
+     ≤120: full-width open slots drop the mode glyph, keeping "+ time". A split
+           half is too small for a time, so it shows only its mode glyph (the
+           type) with the tooltip carrying the exact time.
+     ≤92:  full-width open slots drop the "+" too, leaving just the time.
+     ≤68:  even the time falls to the native tooltip; the block stays tappable. */
+@container daycol (max-width: 120px) {
+  .slotBlock:not([data-split])[data-state="free"] .slotBlockLabel [data-tp-icon]:last-child {
+    display: none !important;
+  }
+  .slotBlock[data-split] .slotTimeText {
+    display: none;
+  }
+  .slotBlock[data-split] .slotBlockLabel {
+    justify-content: center;
+    gap: 0;
+  }
+}
+
+@container daycol (max-width: 92px) {
+  .slotBlock:not([data-split])[data-state="free"] .slotBlockLabel [data-tp-icon]:first-child {
+    display: none !important;
+  }
+  .slotBlockLabel {
+    justify-content: center;
+    gap: 0;
+  }
+}
+
+@container daycol (max-width: 68px) {
+  .slotTimeText {
+    display: none;
+  }
 }
 
 /* The mode marker stays one size and one place in every state: 14px, sitting
@@ -1649,23 +1761,8 @@ button.colHeadStack:hover {
     gap: 6px 12px;
   }
 
-  .dayCol {
-    min-width: 96px;
-  }
 }
 
-/* Portrait tablet: the week grid stops pretending it can show seven readable
-   columns in this width and scrolls sideways instead of crushing them. */
-@media (max-width: 834px) {
-  .gridBody,
-  .gridHeader {
-    min-width: 720px;
-  }
-
-  .timeGridWrap {
-    overflow-x: auto;
-  }
-}
 
 
 /* ── Month: what is still open ────────────────────────────────────────
