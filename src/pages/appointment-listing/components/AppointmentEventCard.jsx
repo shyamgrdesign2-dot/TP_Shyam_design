@@ -2,7 +2,7 @@ import React from "react";
 import { TableActions, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 
 import { ASSETS } from "../../../assets";
-import { statusMeta, shortGenderAge, videoTint } from "../data/appointmentStates";
+import { statusMeta, shortGenderAge, videoTint, CONDITION_COLORS } from "../data/appointmentStates";
 import { rowPrimaryAction, primaryKebabOption, RowKebabMenu } from "./rowActions";
 import QueueRxSplitButton from "./QueueRxSplitButton";
 import BillingTag from "./BillingTag";
@@ -114,6 +114,12 @@ export default function AppointmentEventCard({
   const primary = rowPrimaryAction(cardTab, row, onRowAction, access);
   const v = cardVariant(width, height, row);
 
+  const canShowAbha = Boolean(
+    (row.abhaAddress || row.raw?.abhaAddress) && access.hipId && access.abhaEnable
+  );
+  const conditionId = row.patientConditionId || row.raw?.patient_condition_id;
+  const condition = CONDITION_COLORS[conditionId];
+
   const genderAge = v.showGenderAge && row.genderAge ? `(${shortGenderAge(row.genderAge)})` : "";
   // The salutation lives in its own backend column, so the short form is the
   // first token of the full name, never a guess at what is a title.
@@ -170,6 +176,11 @@ export default function AppointmentEventCard({
           {/* The glyphs the time earns: how the consult came about, and how
               it happens. A walk-in can in principle also be a teleconsult, so
               neither excludes the other. */}
+          {canShowAbha && (
+            <span className={styles.glyph} title="ABHA linked">
+              <img src={ASSETS.images.abhaSvg} alt="ABHA" width={14} height={14} />
+            </span>
+          )}
           {row.symptomsGathered && (
             <span className={styles.glyph} title="Symptoms collected before the visit">
               <img src={ASSETS.images.symptomsGreen} alt="" width={14} height={14} />
@@ -195,6 +206,21 @@ export default function AppointmentEventCard({
               <span className={styles.name}>
                 {displayName}
                 {genderAge && <span className={styles.genderAge}>{genderAge}</span>}
+                {condition && (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      backgroundColor: condition.color,
+                      marginLeft: 3,
+                      verticalAlign: "middle",
+                      flexShrink: 0,
+                    }}
+                    title={condition.name}
+                  />
+                )}
               </span>
             </>
           )}
@@ -204,6 +230,21 @@ export default function AppointmentEventCard({
           <span className={styles.name}>
             {displayName}
             {genderAge && <span className={styles.genderAge}>{genderAge}</span>}
+            {condition && (
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  backgroundColor: condition.color,
+                  marginLeft: 3,
+                  verticalAlign: "middle",
+                  flexShrink: 0,
+                }}
+                title={condition.name}
+              />
+            )}
           </span>
         )}
 
