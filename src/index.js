@@ -204,6 +204,17 @@ Sentry.init({
   enableLogs: true
 });
 
+// Most pageloads here can never produce paint vitals: the Kea hospital dashboard embeds
+// /billing-dashboard, /lims and /pharmacy in display:none iframes (~70% of pageload
+// volume), and doctors' own tabs are often restored hidden at browser startup. The
+// browser never paints those documents, so missing FCP/LCP is correct, not a bug.
+// This tag separates the two populations so capture rate can be judged only on loads
+// where paint was possible ("visible"), instead of the misleading all-loads number.
+Sentry.setTag(
+  "boot_visibility",
+  document.prerendering ? "prerender" : document.visibilityState
+);
+
 // Fix for stale lazy-loaded chunks after a new deployment.
 // Bounded retries prevent infinite reload loops while allowing transient recovery.
 
