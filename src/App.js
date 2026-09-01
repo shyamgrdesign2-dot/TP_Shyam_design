@@ -31,6 +31,7 @@ import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
 import useRouteTracking from "./hooks/useRouteTracking";
+import useAppReady from "./hooks/useAppReady";
 import { isProdEnv } from "./utils/environment";
 import {
   getNormalizedPhoneNumber,
@@ -305,6 +306,7 @@ function App() {
   }, [isLoginPage]);
 
   useRouteTracking();
+  useAppReady();
   const { updateAvailable } = useVersionCheck();
 
   useEffect(() => {
@@ -453,16 +455,6 @@ function App() {
 
     authToken && !isReceptionist && isUserLocked();
   }, [location.pathname, navigate, authToken, isReceptionist]);
-
-  // FCP/LCP cannot exist for pageloads the browser never paints — the hidden Kea
-  // dashboard iframes (~70% of pageload volume) and tabs restored in the background.
-  // JS still runs there, so this records how long the document took to reach a mounted
-  // App as measurements.app_ready on the pageload span: one load-time number that
-  // exists for every load, visible or not. App mounts well inside the 5s idleTimeout
-  // (src/index.js), so the pageload span is still open when this runs.
-  useEffect(() => {
-    Sentry.setMeasurement("app_ready", performance.now(), "millisecond");
-  }, []);
 
   useEffect(() => {
     if (isReceptionist) return;
