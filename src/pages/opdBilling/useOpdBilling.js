@@ -1,9 +1,30 @@
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { useEffect } from "react";
+import { checkToShowOpdBilling } from "./service";
+import { setShouldShowOpdBilling } from "../../redux/billingSlice";
 
 export const useOpdBilling = () => {
-  const { shouldShowOpdBilling } = useSelector((state) => state.billing);
+  const dispatch = useDispatch();
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
+  const { shouldShowOpdBilling, isOpdBillChecked } = useSelector(
+    (state) => state.billing
+  );
   const { profile } = useSelector((state) => state.doctors);
+
+  useEffect(() => {
+    if (!isOpdBillChecked && !isReceptionist) {
+      checkToShowOpdBilling()
+        .then((res) => {
+          dispatch(setShouldShowOpdBilling(Boolean(res)));
+        })
+        .catch((err) => {
+          console.error("Error fetching checkToShowOpdBilling:", err);
+          dispatch(setShouldShowOpdBilling(false));
+        });
+    }
+  }, [isOpdBillChecked, dispatch]);
 
   const isOpdBillingAccessableFromGB = useFeatureIsOn("new-opd-billing");
 
@@ -12,8 +33,9 @@ export const useOpdBilling = () => {
   );
 
   return {
-    isOpdBillingAccessable:
+    isOpdBillingAccessable: Boolean(
       (isOpdBillingAccessableFromGB || shouldShowOpdBilling) &&
-      isOpdBillingEnabledInPhp,
+        isOpdBillingEnabledInPhp
+    ),
   };
 };

@@ -18,6 +18,9 @@ const initialState = {
   cancelledCount: 0,
   zydusEncounterCount: 0,
   zydusAappointmentCount: 0,
+  /* ICT consultations include cancelled rows; active encounter tab filters
+     them out, and this count drives the Zydus Cancelled tab badge. */
+  zydusCancelledEncounterCount: 0,
   draftRxCount: 0,
   referralCount: 0,
   setOnLoad: true,
@@ -317,7 +320,7 @@ export const zydusConsultAppoint = createAsyncThunk(
         throw Error(result.error);
       }
     } catch (error) {
-      if (error.response.status === 401) {
+      if (error?.response?.status === 401) {
         const action = await dispatch(ictAuthToken());
         if (action.meta.requestStatus === "fulfilled") {
           await localStorage.setItem(
@@ -620,7 +623,11 @@ const appointmentsSlice = createSlice({
 
         let modifiedData = [];
         if (action.meta.arg.apStatue === TAB_ZYDUS_ENCOUNTER) {
-          modifiedData = (action.payload || [])
+          const rawEncounters = action.payload || [];
+          state.zydusCancelledEncounterCount = rawEncounters.filter(
+            (e) => e.isCancelled
+          ).length;
+          modifiedData = rawEncounters
             .filter((e) => !e.isCancelled)
             .map((e) => {
             const age = calculateAge(

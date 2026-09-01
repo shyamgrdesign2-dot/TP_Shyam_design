@@ -75,6 +75,8 @@ import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
 import { ASSETS } from "../../assets";
+import PageHeroBanner, { pageHeroBannerStyles } from "../../common/PageHeroBanner";
+import { Button as TessButton, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 const {
   alerticon: alertIcon,
   endVisit: successIcon,
@@ -1001,46 +1003,40 @@ const AllPatients = () => {
         <SidebarDoctor activeItem={"opd-billing"} />
         <div className="w-100 bg-body wrapper">
           <>
-            <div className="welcomesection position-relative mb-3">
-              <div className="bg-welcome d-flex justify-content-between align-items-center">
-                <div className="d-flex align-items-center">
-                  <>
-                    <div>
-                      <h1>All Patients </h1>
-                    </div>
-                    <img
-                      src={ASSETS.images.bgWelcome}
-                      className="welcomeig d-inline-block align-top"
-                      alt="Welcome"
-                    />
-                  </>
-                </div>
-                <div className="d-flex gap-3 btn-manage-bill-all-patients">
+            <PageHeroBanner
+              title="All Patients"
+              actions={
+                <>
                   {!isZydusAccount &&
                     dischargeSummery &&
                     Object.keys(dischargeSummery)?.length > 0 && (
-                      <Button
-                        className="btn-manage-bill"
+                      <TessButton
+                        variant="outline"
+                        theme="primary"
+                        surface="dark"
+                        className={pageHeroBannerStyles.outlineBtn}
                         onClick={() => clickOldModule(dischargeSummery?.type)}
                       >
                         <span style={{ textTransform: "capitalize" }}>
                           {dischargeSummery?.title}
                         </span>
-                      </Button>
+                      </TessButton>
                     )}
                   {!isZydusAccount && (
-                    <Button
-                      className="btn-create-bill gap-1"
+                    <TessButton
+                      variant="solid"
+                      theme="primary"
+                      surface="dark"
+                      className={pageHeroBannerStyles.solidBtn}
+                      leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
                       onClick={handleAddPatient}
-                      icon={<i className="icon-Add" style={{ fontSize: 20 }} />}
                     >
-                      <span>Add New Patient</span>
-                    </Button>
+                      Add New Patient
+                    </TessButton>
                   )}
-                </div>
-              </div>
-              <div className="pb-5">&nbsp;</div>
-            </div>
+                </>
+              }
+            />
           </>
 
           <div className="border rounded-4 appointment-wrap dateborder mb-4 all-patients">

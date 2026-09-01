@@ -58,6 +58,7 @@ import HeaderPrescription from "../common/HeaderPrescription";
 import VitalsBox from "../components/VitalsBox";
 import TabVitalsList from "../components/tab_design/TabVitalsList";
 import MedicalHistoryBox from "../components/MedicalHistoryBox";
+import MedicalHistoryDrawer from "../components/MedicalHistoryDrawer";
 import TabMedicalHistoryList from "../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../components/PrivateNotesBox";
 import TabPrivateNotesList from "../components/tab_design/TabPrivateNotesList";
@@ -2135,6 +2136,7 @@ function ConsultationLayout({ children, headerProps }) {
     }
   }, [
     allUploadedDocs.length,
+    handleAddClick,
     handleAddLabParamsDrawer,
     handleDentalPlanDrawer,
     handleDrawerGrowth,
@@ -2849,6 +2851,15 @@ function ConsultationLayout({ children, headerProps }) {
       <RxPadSyncProvider>
         <ConsultationRxPadCopyListener />
         <>
+          <input
+            type="file"
+            multiple
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
+            style={{ display: "none" }}
+            aria-hidden="true"
+          />
           <HeaderPrescription
             isVaccinationEnabled={isVaccinationAccessable}
             isGrowthChartEnabled={isGrowthChartAccessable}
@@ -3020,13 +3031,14 @@ function ConsultationLayout({ children, headerProps }) {
             />
           </Drawer>
         )}
-        <Drawer
+        <MedicalHistoryDrawer
           className="scroll-y-hidden"
           closeIcon={false}
           placement="right"
           onClose={handleDrawerMedicalHistory}
           open={medicalHistoryDrawer}
-          width="75%"
+          legacyWidth="75%"
+          newWidth="85%"
           zIndex={1100}
         >
           <MedicalHistoryBox
@@ -3046,7 +3058,7 @@ function ConsultationLayout({ children, headerProps }) {
             }
             showVoiceRxModule={canUseVoiceRxModuleUi}
           />
-        </Drawer>
+        </MedicalHistoryDrawer>
         <Drawer
           closeIcon={false}
           placement="right"

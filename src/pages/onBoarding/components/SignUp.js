@@ -10,7 +10,7 @@ import {
   aisensybotInjection,
   detectOperatingSystem,
 } from "../../../utils/loginUtils";
-import { GB_DISABLE_MSG91_OTP_FLOW } from "../../../utils/constants";
+import { GB_DISABLE_MSG91_OTP_FLOW, SUPPORT_PHONE_NUMBER } from "../../../utils/constants";
 import { AISENSY_SCRIPT_CONTAINER,AISENSY_SCRIPT_ID,AISENSY_SCRIPT_SRC } from "../../../utils/constants";
 import { ASSETS } from "../../../assets";
 import { isProdEnv, isZyPreprodOrZyProdEnv } from "../../../utils/environment";
@@ -237,7 +237,7 @@ useEffect(() => {
 
         case "Doctor is inactive":
           setError(
-            "Your account has been locked by Admin. Please contact support@tatvacare.in/9974042363"
+            `Your account has been locked by Admin. Please contact support@tatvacare.in/${SUPPORT_PHONE_NUMBER}`
           );
           setErrorType("inputFiled");
           break;
@@ -664,7 +664,7 @@ useEffect(() => {
 
         case "Doctor is inactive":
           setError(
-            "Your account has been locked by Admin. Please contact support@tatvacare.in/9974042363"
+            `Your account has been locked by Admin. Please contact support@tatvacare.in/${SUPPORT_PHONE_NUMBER}`
           );
           setErrorType("inputFiled");
           break;
@@ -748,7 +748,7 @@ useEffect(() => {
       } else{
         // case "Doctor is inactive":
         setError(
-          "Your account has been locked by Admin. Please contact support@tatvacare.in/9974042363"
+          `Your account has been locked by Admin. Please contact support@tatvacare.in/${SUPPORT_PHONE_NUMBER}`
         );
         setErrorType("inputFiled");
           // break;

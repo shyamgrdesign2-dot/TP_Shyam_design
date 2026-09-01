@@ -123,16 +123,20 @@
     flex: 1;
     min-height: 0; /* Critical: allows scroll container to shrink below content size */
     overflow-y: auto;
-    overflow-x: hidden;
+    /* Allow horizontal pan when zoomed canvas is wider than the viewport (e.g. tablet portrait) */
+    overflow-x: auto;
     padding: 24px 0;
     /* Extra bottom space: second/last page bottom + add/delete must clear chrome & internal padding */
     padding-bottom: calc(24px + 10rem + max(18vh, 100px) + env(safe-area-inset-bottom, 0px));
-    display: flex;
-    justify-content: center;
+    /* Block layout + margin:auto on child: centers when content fits; when zoomed wider,
+       margins collapse to 0 so overflow starts at the left edge and both sides stay scrollable.
+       (flex + justify-content:center clips the left side and can make it unreachable) */
+    display: block;
     -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
     background: #e5e5e5;
     /* Android + iPad Safari: reduce scroll chaining and rubber-band at scroll edges */
     overscroll-behavior-y: none;
+    overscroll-behavior-x: contain;
   }
 
   .canvas-pages-content {
@@ -142,6 +146,10 @@
     gap: 24px;
     padding: 0 2px;
     flex-shrink: 0; /* Prevent content from shrinking */
+    width: max-content;
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
 
     /* Scroll tail so the last page’s bottom (incl. floating buttons) can sit above the fold */
     &::after {
