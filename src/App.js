@@ -642,6 +642,41 @@ function App() {
       return;
     }
 
+    // Every branch below can resolve to the path we are already on — an
+    // authenticated Chrome user landing on "/" falls through to redirectPath
+    // "/". React Router still treats that as a location change, so Sentry opens
+    // a navigation span, which ends the pageload span and closes the web-vital
+    // measurement window for the whole session. FCP and LCP arrive after it and
+    // are dropped; the standalone LCP/CLS spans ship their initialiser value of
+    // 0. Measured in prod: 81,751 pageloads on "/" against 225,630 navigation
+    // spans, and 0.4% of pageloads carrying an FCP.
+    //
+    // Sentry has its own suppression for this (REDIRECT_THRESHOLD, 1.5s) but it
+    // never fires here: reactRouterV6BrowserTracingIntegration calls
+    // startBrowserTracingNavigationSpan without the options argument, so
+    // isRedirect is always undefined. span.op:navigation.redirect is 0 in prod.
+    //
+    // The mobile branch below already guarded this case; the others did not.
+    // A target without a query string means "be on this path", so being on it
+    // already satisfies the call whatever the current search is — matching what
+    // the mobile branch did before, and avoiding a navigation that would drop
+    // the query params the caller never asked to change.
+    const navigateIfChanged = (path, options) => {
+      if (!path) return;
+      const [targetPath, targetSearch] = String(path).split("?");
+      if (targetPath !== location.pathname) {
+        navigate(path, options);
+        return;
+      }
+      if (
+        targetSearch === undefined ||
+        targetSearch === location.search.replace(/^\?/, "")
+      ) {
+        return;
+      }
+      navigate(path, options);
+    };
+
     // Check authentication and get stored redirect path
     const hasAuth = token || authToken;
     const localRedirectTo = localStorage.getItem("redirectTo");
@@ -669,27 +704,25 @@ function App() {
       const loginUrl =
         "/login" + (utmParams.toString() ? "?" + utmParams.toString() : "");
 
-      navigate(loginUrl);
+      navigateIfChanged(loginUrl);
       return;
     }
 
     if (isMobileOrPWA) {
       if (localRedirectTo && localRedirectTo !== "/" && localRedirectTo !== "") {
         if (localRedirectTo === "profile") {
-          navigate("/doctor_profile");
+          navigateIfChanged("/doctor_profile");
           localStorage.removeItem("redirectTo");
           setRedirectReady(false);
         } else if (redirectReady && localRedirectTo) {
-          navigate(localRedirectTo);
+          navigateIfChanged(localRedirectTo);
           localStorage.removeItem("redirectTo");
           setRedirectReady(false);
         } else {
-          navigate("/");
+          navigateIfChanged("/");
         }
       } else {
-        if (location.pathname !== "/") {
-          navigate("/");
-        }
+        navigateIfChanged("/");
       }
       return;
     }
@@ -709,9 +742,9 @@ function App() {
         setRedirectReady(false);
       }
 
-      navigate(redirectPath);
+      navigateIfChanged(redirectPath);
     }
-  }, [isRootPath, token, authToken, navigate, redirectTo, redirectReady, isMobileOrPWA, location.pathname]);
+  }, [isRootPath, token, authToken, navigate, redirectTo, redirectReady, isMobileOrPWA, location.pathname, location.search]);
 
   //Upgraded Services Modal
   const upgrade_services = searchParams.get("upgrade_services");

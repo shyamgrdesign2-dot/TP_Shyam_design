@@ -243,7 +243,7 @@ export const REPORTS = [
       return {
         ...base,
         reportType: "general",
-        ...(f?.clinicalData ? { clinicalData: f.clinicalData } : {}),
+        clinicalData: f?.clinicalData || "no",
       };
     },
   },

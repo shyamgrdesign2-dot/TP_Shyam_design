@@ -106,21 +106,22 @@ Sentry.init({
       createRoutesFromChildren,
       matchRoutes,
 
-      // Web vitals were almost never recorded. Measured over 7d in prod (spans dataset):
-      //   pageload spans 285,081 | TTFB 206,161 (72%) | FCP 1,570 (0.55%)
-      //                          | LCP 420 (0.15%)    | CLS 0
-      // The capture rate falls off exactly in the order the metrics become available,
-      // because the pageload span had already been sent: its p50 duration was 430ms
-      // (p95 2131ms). TTFB exists immediately so it survives; FCP/LCP land later and
-      // CLS is only final at page-hide, so they were all dropped.
+      // Keeps the pageload span open past FCP (p75 on this bundle is ~1.1s), which the
+      // SDK default of 1000ms does not.
       //
-      // Root cause: idleTimeout was never set, so it used the SDK default of 1000ms.
-      // Raised so the span stays open long enough for FCP/LCP on this bundle.
+      // This value alone fixes nothing, and the earlier claim in this file that span
+      // lifetime was the root cause of the missing web vitals was wrong. Raising it
+      // from 1000ms to 5000ms moved FCP capture on pageload spans from 0.62% to 0.42%
+      // — i.e. not at all. The span was never reaching its idle timeout: App.js was
+      // ending it with a boot navigation. See the navigateIfChanged comment there.
       idleTimeout: 5000,
 
-      // CLS can only be known when the page is hidden, which no idleTimeout can wait for.
-      // These emit LCP and CLS as their own spans at page-hide, decoupled from the
-      // pageload span's lifetime — the only way to capture CLS at all.
+      // CLS can only be known once the page is hidden, which no idleTimeout can wait
+      // for, so these emit LCP and CLS as their own spans decoupled from the pageload
+      // span's lifetime. Note the SDK also closes the measurement window on the first
+      // real navigation, not only at page-hide — with the boot navigation in place
+      // this shipped 359,290 spans carrying a hardcoded 0 and buried the ~730 genuine
+      // readings. Correct only in combination with the App.js fix.
       // Still under _experiments in SDK 10.9.0; revisit on upgrade.
       _experiments: {
         enableStandaloneLcpSpans: true,
