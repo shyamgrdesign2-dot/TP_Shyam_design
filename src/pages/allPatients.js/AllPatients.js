@@ -77,6 +77,7 @@ import { saveAs } from "file-saver";
 import { ASSETS } from "../../assets";
 import PageHeroBanner, { pageHeroBannerStyles } from "../../common/PageHeroBanner";
 import { Button as TessButton, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
+import useRouteReady from "../../hooks/useRouteReady";
 const {
   alerticon: alertIcon,
   endVisit: successIcon,
@@ -90,6 +91,8 @@ const dateFormat = "YYYY-MM-DD";
 const showDateFormat = "DD MMM YYYY";
 
 const AllPatients = () => {
+  useRouteReady();
+
   const dispatch = useDispatch();
   const isChikitsalayAccessable = useChikitsalay();
   const navigate = useNavigate();

@@ -37,6 +37,7 @@ import { EVENTS } from "../../utils/events";
 import { ASSETS } from "../../assets";
 import PageHeroBanner, { pageHeroBannerStyles } from "../../common/PageHeroBanner";
 import { Button as TessButton, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
+import useRouteReady from "../../hooks/useRouteReady";
 const {
   tutorialIcon: tutorial,
   greenRoundedCheck: greenRightIcon,
@@ -349,6 +350,8 @@ const TimeSlotContainer = ({
 };
 
 function AddAppointment() {
+  useRouteReady();
+
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [dateChips, setDateChips] = useState([]);

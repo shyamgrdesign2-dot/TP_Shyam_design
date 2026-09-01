@@ -194,6 +194,7 @@ import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { buildSoapIndividualPrintPayload } from "../utils/soapPrintPayload";
 import { hasMeaningfulVoicePayloadData } from "../utils/voiceSoapPayload";
 import { printBlobInNewTab } from "./opdBilling/utils/helper";
+import useRouteReady from "../hooks/useRouteReady";
 import {
   OBSTETRIC_HOST_DRAWER_Z_INDEX,
   OBSTETRIC_NESTED_DRAWER_Z_INDEX,
@@ -704,6 +705,8 @@ function PrescriptionNewRxPadCopyListener() {
 }
 
 function PrescriptionNew() {
+  useRouteReady();
+
   const {
     userId,
     customizedPadLeftList,
