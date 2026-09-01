@@ -18,7 +18,7 @@ import {
   mergeLabResultRowMeta,
 } from '../utils/labResultsUtils';
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
-import { getCustomInvestigations } from '../api/services/ApiCustomInvestigation';
+import { getCustomInvestigations, CUSTOM_INVESTIGATIONS_CHANGED_EVENT } from '../api/services/ApiCustomInvestigation';
 import InlineInvestigationPanel from './InlineInvestigationPanel';
 import { InvestigationSettingsPanel } from '../pages/lims/InvestigationSettingsPage';
 import { isMobile } from "react-device-detect";
@@ -235,7 +235,11 @@ const LabResultsTable = ({
 
     useEffect(() => {
       window.addEventListener("focus", fetchAndMergeCustomInvestigations);
-      return () => window.removeEventListener("focus", fetchAndMergeCustomInvestigations);
+      window.addEventListener(CUSTOM_INVESTIGATIONS_CHANGED_EVENT, fetchAndMergeCustomInvestigations);
+      return () => {
+        window.removeEventListener("focus", fetchAndMergeCustomInvestigations);
+        window.removeEventListener(CUSTOM_INVESTIGATIONS_CHANGED_EVENT, fetchAndMergeCustomInvestigations);
+      };
     }, [fetchAndMergeCustomInvestigations]);
 
     const currentDate = new Date().toISOString().split("T")[0];
