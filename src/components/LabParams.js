@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Card, DatePicker, Input, Popover, Tooltip, message, Spin } from 'antd';
-import { EllipsisOutlined, DeleteOutlined, CaretRightOutlined, CaretDownOutlined } from "@ant-design/icons";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Button, Card, DatePicker, Input, Popover, Tooltip, message, Spin, Select, Radio } from 'antd';
+import { EllipsisOutlined, DeleteOutlined, CaretRightOutlined, CaretDownOutlined, SettingOutlined } from "@ant-design/icons";
 import axios from 'axios';
 import moment from "moment";
 import { jwtDecode } from 'jwt-decode';
@@ -18,11 +18,15 @@ import {
   mergeLabResultRowMeta,
 } from '../utils/labResultsUtils';
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
+import { getCustomInvestigations, CUSTOM_INVESTIGATIONS_CHANGED_EVENT } from '../api/services/ApiCustomInvestigation';
+import InlineInvestigationPanel from './InlineInvestigationPanel';
+import { InvestigationSettingsPanel } from '../pages/lims/InvestigationSettingsPage';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import CheckableTag from 'antd/es/tag/CheckableTag';
 import CommonModal from '../common/CommonModal';
+import "./LabParamsCustomInvestigation.css";
 
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import _ from 'lodash';
@@ -31,6 +35,90 @@ const {
   alerticon: alertIcon,
   edit: editIcon,
 } = ASSETS.images;
+
+const REMARKS_TEST_NAME = "Remarks";
+
+function applyCustomRowsToInputValues(prev, customRows, targetDates) {
+  const next = { ...prev };
+
+  customRows.forEach((row) => {
+    const report = { ...(next[row.reportName] || {}) };
+    const test = { ...(report[row.testName] || {}) };
+    targetDates.forEach((date) => {
+      if (!test[date]) {
+        test[date] = { ...row, date };
+      }
+    });
+    report[row.testName] = test;
+    if (!report[REMARKS_TEST_NAME]) {
+      report[REMARKS_TEST_NAME] = {};
+      targetDates.forEach((date) => {
+        report[REMARKS_TEST_NAME][date] = {
+          reportName: row.reportName,
+          testName: REMARKS_TEST_NAME,
+          value: "",
+          units: "",
+          arrowDirection: "",
+          refRange: "",
+          date,
+        };
+      });
+    }
+    next[row.reportName] = report;
+  });
+
+  Object.keys(next).forEach((reportName) => {
+    const report = { ...next[reportName] };
+    let mutated = false;
+    Object.keys(report).forEach((testName) => {
+      if (testName === REMARKS_TEST_NAME) return;
+      const sample = Object.values(report[testName] || {})[0];
+      if (
+        sample?.isCustom &&
+        !customRows.some((row) => row.reportName === reportName && row.testName === testName)
+      ) {
+        delete report[testName];
+        mutated = true;
+      }
+    });
+    const remaining = Object.keys(report).filter((testName) => testName !== REMARKS_TEST_NAME);
+    const isCatalogReport = DEFAULT_TESTS_DATA.some((row) => row.reportName === reportName);
+    if (remaining.length === 0 && !isCatalogReport) {
+      delete next[reportName];
+    } else if (mutated) {
+      next[reportName] = report;
+    }
+  });
+
+  return next;
+}
+
+function filterInputValuesBySearch(values, searchQuery) {
+  const q = searchQuery.trim().toLowerCase();
+  if (!q) return values;
+  const filtered = {};
+  Object.keys(values).forEach((reportName) => {
+    const tests = values[reportName] || {};
+    if (reportName.toLowerCase().includes(q)) {
+      filtered[reportName] = tests;
+      return;
+    }
+    const matchingTests = {};
+    Object.keys(tests).forEach((testName) => {
+      if (testName === REMARKS_TEST_NAME) return;
+      if (testName.toLowerCase().includes(q)) {
+        matchingTests[testName] = tests[testName];
+      }
+    });
+    if (Object.keys(matchingTests).length > 0) {
+      if (tests[REMARKS_TEST_NAME]) {
+        matchingTests[REMARKS_TEST_NAME] = tests[REMARKS_TEST_NAME];
+      }
+      filtered[reportName] = matchingTests;
+    }
+  });
+  return filtered;
+}
 
 const LabResultsTable = ({
     handleAddLabParamsDrawer,
@@ -52,6 +140,10 @@ const LabResultsTable = ({
      * when lastVisitDoctor um_id is available.
      */
     isReceptionistSession,
+    /** LIMS header Save proxies the inner button; notify when settings replaces that header. */
+    onInvestigationSettingsChange,
+    /** When set (LIMS drawer), settings open state is owned by the parent header. */
+    investigationSettingsOpen: investigationSettingsOpenProp,
 }) => {
 
     const [token, setToken] = useState(null);
@@ -77,10 +169,78 @@ const LabResultsTable = ({
     const remarksRef = useRef(null);
     const scrollRef = useRef(null);
     const [defaultTestData, setDefaultTestData] = useState([]);
+    const [customGroups, setCustomGroups] = useState([]);
+    const [isCreateInvestigationOpen, setIsCreateInvestigationOpen] = useState(false);
+    const [internalInvestigationSettingsOpen, setInternalInvestigationSettingsOpen] = useState(false);
+    const isSettingsControlled = investigationSettingsOpenProp !== undefined;
+    const isInvestigationSettingsOpen = isSettingsControlled
+      ? investigationSettingsOpenProp
+      : internalInvestigationSettingsOpen;
+    const setInvestigationSettingsOpen = useCallback(
+      (next) => {
+        if (!isSettingsControlled) setInternalInvestigationSettingsOpen(next);
+        onInvestigationSettingsChange?.(next);
+      },
+      [isSettingsControlled, onInvestigationSettingsChange]
+    );
 
     useEffect(() => {
       setDefaultTestData(JSON.parse(JSON.stringify(DEFAULT_TESTS_DATA)));
     }, [])
+
+    // Hospital-scoped custom investigations (PRD: Custom Investigation Groups/Investigations)
+    // merge into the same master rows LabParams already renders from. Also
+    // re-fetched on window focus so investigations created via the full
+    // management page (src/pages/lims/InvestigationSettingsPage.jsx, reachable
+    // separately from LIMS) show up here without a manual reload. hm_id is
+    // derived server-side from the auth token — GET /custom-report-groups takes
+    // no params. Inactive (isActive: false) items still appear here so they can
+    // be used in result entry; settings badges/actions use the API flag.
+    const fetchAndMergeCustomInvestigations = useCallback(async () => {
+      if (!tokenData) return;
+      try {
+        const groups = await getCustomInvestigations();
+        setCustomGroups(groups);
+        const rows = groups.flatMap((group) =>
+          (group.investigations || []).map((inv) => ({
+            reportName: group.name,
+            testName: inv.name,
+            value: "",
+            units: inv.unit || "",
+            arrowDirection: "",
+            resultType: inv.resultType || "numeric",
+            dropdownOptions: inv.dropdownOptions || null,
+            isCustom: true,
+            customTestId: inv.id,
+            refRange: {
+              isConditional: (inv.referenceRanges || []).some((r) => r.gender && r.gender !== "all"),
+              ranges: inv.referenceRanges || [],
+            },
+          }))
+        );
+        // Replace only the previously-merged custom rows so refetching never duplicates.
+        setDefaultTestData((prev) => [...prev.filter((r) => !r.isCustom), ...rows]);
+        const targetDates = dates.length > 0 ? dates : [new Date().toISOString().split("T")[0]];
+        setInputValues((prev) => applyCustomRowsToInputValues(prev, rows, targetDates));
+      } catch (error) {
+        // Custom groups are additive. A missing/failed endpoint must not take down
+        // catalog lab-result entry (DEFAULT_TESTS_DATA + existing results).
+        console.error("Failed to load custom investigations", error);
+      }
+    }, [tokenData, dates]);
+
+    useEffect(() => {
+      fetchAndMergeCustomInvestigations();
+    }, [fetchAndMergeCustomInvestigations]);
+
+    useEffect(() => {
+      window.addEventListener("focus", fetchAndMergeCustomInvestigations);
+      window.addEventListener(CUSTOM_INVESTIGATIONS_CHANGED_EVENT, fetchAndMergeCustomInvestigations);
+      return () => {
+        window.removeEventListener("focus", fetchAndMergeCustomInvestigations);
+        window.removeEventListener(CUSTOM_INVESTIGATIONS_CHANGED_EVENT, fetchAndMergeCustomInvestigations);
+      };
+    }, [fetchAndMergeCustomInvestigations]);
 
     const currentDate = new Date().toISOString().split("T")[0];
     const dateFormat = 'YYYY-MM-DD';
@@ -263,7 +423,29 @@ const LabResultsTable = ({
         }, 1000);
     
         return () => clearTimeout(timeOutId);
-    }, [labParamsResults, existingResults, searchQuery, dates]);
+    }, [labParamsResults, existingResults, searchQuery, dates, defaultTestData]);
+
+    // Custom investigations (and defaultTestData generally) never come back from
+    // searchLabParams's backend call, so they were never part of the auto-expand
+    // logic above — searching for one by name would never reveal its group. Layer
+    // a case-insensitive local match on top, merging (not replacing) whatever the
+    // backend-driven effect set, and running after it via the labParamsResults
+    // dependency so this can't be clobbered by that effect's later resolution.
+    useEffect(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return;
+        const localMatchNames = defaultTestData
+          .filter((row) =>
+            row.testName?.toLowerCase().includes(q) || row.reportName?.toLowerCase().includes(q)
+          )
+          .map((row) => row.reportName);
+        if (localMatchNames.length === 0) return;
+        setExpandedReports((prev) => {
+          const next = { ...prev };
+          localMatchNames.forEach((reportName) => { next[reportName] = true; });
+          return next;
+        });
+    }, [searchQuery, labParamsResults, defaultTestData]);
 
     const combineData = (currentFilledData, filledData) => {
         const combinedResults = [...filledData];
@@ -470,23 +652,41 @@ const LabResultsTable = ({
         handleCloseModal();
     };
 
-    const calculateArrowDirection = (value, refRange, gender) => {
+    // resultType is only meaningful for custom investigations; existing/default
+    // rows have no resultType and keep today's numeric behaviour (PRD §7: only
+    // numeric results ever get Low/Normal/High).
+    const calculateArrowDirection = (value, refRange, gender, resultType, patientAge) => {
+        if (resultType && resultType !== "numeric") {
+            return "";
+        }
         if (!value || isNaN(parseFloat(value))) {
             return "";
         }
-    
+
         let selectedRange;
         const ranges = refRange?.ranges;
-    
+        const age = patientAge != null && patientAge !== "" ? Number(patientAge) : undefined;
+        const isAgeInRange = (range) => {
+            const ageFrom = range?.ageFrom != null && range.ageFrom !== "" ? Number(range.ageFrom) : undefined;
+            const ageTo = range?.ageTo != null && range.ageTo !== "" ? Number(range.ageTo) : undefined;
+            if (ageFrom == null && ageTo == null) return true; // no age constraint on this range
+            if (age == null) return true; // patient age unknown — don't exclude on age
+            if (ageFrom != null && age < ageFrom) return false;
+            if (ageTo != null && age > ageTo) return false;
+            return true;
+        };
+        const byGender = (range) => range?.gender?.toLowerCase() === gender?.toLowerCase();
+
         // Check if refRange has conditional ranges
         if (refRange?.gender?.toLowerCase() === "all") {
           selectedRange = Array.isArray(ranges) ? ranges[0] : undefined;
-        } else {
-          selectedRange = Array.isArray(ranges)
-            ? (ranges.find(range => range?.gender?.toLowerCase() === gender?.toLowerCase()) ?? ranges[0])
-            : undefined;
+        } else if (Array.isArray(ranges)) {
+          selectedRange =
+            ranges.find((range) => byGender(range) && isAgeInRange(range)) ??
+            ranges.find((range) => byGender(range)) ??
+            ranges[0];
         }
-    
+
         if (selectedRange) {
             const numericValue = parseFloat(value);
             const min = parseFloat(selectedRange.min);
@@ -504,16 +704,36 @@ const LabResultsTable = ({
 
     const mergeSearchResults = (existingResults, labParamsResults, searchQuery) => {
         const tempResults = [];
+        const q = (searchQuery || "").trim().toLowerCase();
+        const matchingLocalRows = q
+          ? defaultTestData.filter(
+              (row) =>
+                row.testName?.toLowerCase().includes(q) ||
+                row.reportName?.toLowerCase().includes(q)
+            )
+          : [];
+        const searchRows = q
+          ? [
+              ...labParamsResults,
+              ...matchingLocalRows.filter(
+                (local) =>
+                  !labParamsResults.some(
+                    (lab) =>
+                      lab.testName === local.testName && lab.reportName === local.reportName
+                  )
+              ),
+            ]
+          : labParamsResults;
     
         const currentFilledData = assemblePayload(inputValues);
         const data = combineData(currentFilledData, filledData);
     
         setFilledData(data);
         existingResults = data?.length > 0 ? data : existingResults; // Use the combined data
-    
+
         // Case 1: No existing results
         if (existingResults.length === 0) {
-          if (labParamsResults.length === 0) {
+          if (searchRows.length === 0) {
 
               // No labParamsResults: create entries for all dates using default data
               const allDates = dates.length > 0 ? dates : [new Date().toISOString().split('T')[0]];
@@ -536,13 +756,17 @@ const LabResultsTable = ({
               allDates.forEach((date) => {
                   const newEntry = {
                       date,
-                      inputs: labParamsResults.map((lab) => ({
+                      inputs: searchRows.map((lab) => ({
                           reportName: lab.reportName || "",
                           testName: lab.testName || "",
                           value: "",
                           units: lab.units || "",
                           arrowDirection: "",
                           refRange: lab.refRange || "",
+                          resultType: lab.resultType,
+                          dropdownOptions: lab.dropdownOptions,
+                          isCustom: lab.isCustom,
+                          customTestId: lab.customTestId,
                       })),
                   };
 
@@ -559,13 +783,13 @@ const LabResultsTable = ({
         if (existingResults.length > 0) {
 
           // Iterate over all existing results
-          if (labParamsResults.length > 0) {
+          if (searchRows.length > 0) {
               dates.forEach((currentDate) => {
                   const existingEntry = existingResults.find((entry) => entry.date === currentDate);
 
                   const newEntry = {
                       date: currentDate, // Use the current date from the loop
-                      inputs: labParamsResults.map((lab) => {
+                      inputs: searchRows.map((lab) => {
                           const existingInput = existingEntry?.inputs.find(
                               (input) =>
                                   input.testName === lab.testName &&
@@ -579,6 +803,10 @@ const LabResultsTable = ({
                               units: lab.units || "",
                               arrowDirection: existingInput ? existingInput.arrowDirection : "",
                               refRange: lab.refRange || "",
+                              resultType: lab.resultType,
+                              dropdownOptions: lab.dropdownOptions,
+                              isCustom: lab.isCustom,
+                              customTestId: lab.customTestId,
                           };
                       }),
                   };
@@ -591,8 +819,10 @@ const LabResultsTable = ({
               return tempResults;
           }
 
-          // Append predefined lab parameters if not already present
-          if (defaultTestData?.length > 0) {
+          // When searching with no local/backend hits, keep the full list in
+          // state (the listing still filters via visibleInputValues). When not
+          // searching, append any missing catalog/custom rows.
+          if (defaultTestData?.length > 0 && !q) {
               dates.forEach((currentDate) => {
                   const existingEntry = existingResults.find((entry) => entry.date === currentDate);
 
@@ -616,6 +846,10 @@ const LabResultsTable = ({
                               units: lab.units || "",
                               arrowDirection: "",
                               refRange: lab.refRange || "",
+                              resultType: lab.resultType,
+                              dropdownOptions: lab.dropdownOptions,
+                              isCustom: lab.isCustom,
+                              customTestId: lab.customTestId,
                               recentlyUpdated: true, // Mark predefined data as newly added
                           });
                       }
@@ -764,15 +998,19 @@ const LabResultsTable = ({
                   arrowDirection: "",
                   refRange: "",
                   units: getUnitForTest(reportName, testName),
+                  resultType: getResultTypeForTest(reportName, testName),
+                  dropdownOptions: getDropdownOptionsForTest(reportName, testName),
+                  ...getCustomTestIdForTest(reportName, testName),
               };
           }
-  
+
           // Update value and calculate arrow direction using existing refRange if available
           const existingRefRange = updatedData[reportName][testName][date].refRange;
           const gender = patientGender || "Male"; // Assuming `patientGender` is available globally or passed in
-  
+          const resultType = updatedData[reportName][testName][date].resultType;
+
           updatedData[reportName][testName][date].value = value;
-          updatedData[reportName][testName][date].arrowDirection = calculateArrowDirection(value, existingRefRange, gender);
+          updatedData[reportName][testName][date].arrowDirection = calculateArrowDirection(value, existingRefRange, gender, resultType);
   
           // Fetch refRange if not already available
           if (!existingRefRange) {
@@ -797,7 +1035,8 @@ const LabResultsTable = ({
                 updatedData[reportName][testName][date].arrowDirection = calculateArrowDirection(
                     updatedData[reportName][testName][date].value,
                     refRange,
-                    patientGender || "Male"
+                    patientGender || "Male",
+                    updatedData[reportName][testName][date].resultType
                 );
             }
             return updatedData;
@@ -814,21 +1053,62 @@ const LabResultsTable = ({
         return "";
     };
 
+    const getResultTypeForTest = (reportName, testName) => {
+        for (const date of dates) {
+            const resultType = inputValues[reportName]?.[testName]?.[date]?.resultType;
+            if (resultType) {
+                return resultType;
+            }
+        }
+        // Fall back to the merged master list — a brand-new cell (first edit for
+        // this test/date) has no inputValues entry yet to read resultType from.
+        // Match on testName alone: search-matched rows set reportName to the
+        // test's own name, not its real group name (see the info-icon fix above).
+        const defaultRow = defaultTestData.find((row) => row.testName === testName);
+        return defaultRow?.resultType || "numeric";
+    };
+
+    const getCustomTestIdForTest = (reportName, testName) => {
+        for (const date of dates) {
+            const cell = inputValues[reportName]?.[testName]?.[date];
+            if (cell?.isCustom) {
+                return { isCustom: true, customTestId: cell.customTestId };
+            }
+        }
+        return { isCustom: false, customTestId: undefined };
+    };
+
+    const getDropdownOptionsForTest = (reportName, testName) => {
+        for (const date of dates) {
+            const options = inputValues[reportName]?.[testName]?.[date]?.dropdownOptions;
+            if (options) {
+                return options;
+            }
+        }
+        const defaultRow = defaultTestData.find((row) => row.testName === testName);
+        return defaultRow?.dropdownOptions || null;
+    };
+
     const assemblePayload = () => {
         const results = dates.map((date) => {
                 const inputs = Object.keys(inputValues)
                     .flatMap((reportName) =>
                         Object.keys(inputValues[reportName])
                             .map((testName) => {
-                                const testValue = inputValues[reportName][testName][date]?.value || "";
+                                const cell = inputValues[reportName][testName][date];
+                                const testValue = cell?.value || "";
                                 if (testValue) {
                                     return {
                                         reportName,
                                         testName: testName,
                                         value: testValue,
-                                        arrowDirection: inputValues[reportName][testName][date]?.arrowDirection || "",
-                                        refRange: inputValues[reportName][testName][date]?.refRange,
-                                        units: inputValues[reportName][testName][date]?.units || getUnitForTest(reportName, testName),
+                                        arrowDirection: cell?.arrowDirection || "",
+                                        refRange: cell?.refRange,
+                                        units: cell?.units || getUnitForTest(reportName, testName),
+                                        // Backend contract §10: custom-investigation results need
+                                        // isCustom + customTestId so they save against the right
+                                        // hospital-scoped investigation record.
+                                        ...(cell?.isCustom ? { isCustom: true, customTestId: cell.customTestId } : {}),
                                     };
                                 } else {
                                     return null; // Exclude tests without a value
@@ -994,6 +1274,48 @@ const LabResultsTable = ({
       showHideBackModal();
     }
 
+    // Search expands matching backend groups and filters the listing to
+    // matching catalog/custom rows. "no matches" means the query hits neither.
+    const queryMatchesExisting = useMemo(() => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      const hits = (row) =>
+        row?.testName?.toLowerCase().includes(q) || row?.reportName?.toLowerCase().includes(q);
+      return defaultTestData.some(hits) || labParamsResults.some(hits);
+    }, [searchQuery, defaultTestData, labParamsResults]);
+
+    const visibleInputValues = useMemo(
+      () => filterInputValuesBySearch(inputValues, searchQuery),
+      [inputValues, searchQuery]
+    );
+
+    const handleCustomInvestigationCreated = (newRow) => {
+      setDefaultTestData((prev) => [...prev, newRow]);
+      setInputValues((prev) => {
+        const updatedData = { ...prev };
+        const targetDates = dates.length > 0 ? dates : [currentDate];
+        targetDates.forEach((date) => {
+          if (!updatedData[newRow.reportName]) updatedData[newRow.reportName] = {};
+          if (!updatedData[newRow.reportName][newRow.testName]) {
+            updatedData[newRow.reportName][newRow.testName] = {};
+          }
+          updatedData[newRow.reportName][newRow.testName][date] = { ...newRow, date };
+        });
+        return updatedData;
+      });
+      setExpandedReports((prev) => ({ ...prev, [newRow.reportName]: true }));
+      setIsCreateInvestigationOpen(false);
+      // Refresh customGroups so the "existing group" picker includes what was
+      // just created, next time the panel opens (it was only fetched on mount
+      // and window focus, so without this it'd stay stale within the session).
+      fetchAndMergeCustomInvestigations();
+    };
+
+    const closeInvestigationSettings = useCallback(async () => {
+      await fetchAndMergeCustomInvestigations();
+      setInvestigationSettingsOpen(false);
+    }, [fetchAndMergeCustomInvestigations, setInvestigationSettingsOpen]);
+
     const tooltipTitle = (notes, reportName, testName, date) => {
       return (
         <div
@@ -1013,7 +1335,11 @@ const LabResultsTable = ({
     };
     
     return (
-      <div style={{background:"#fff"}}>
+      <div style={{background:"#fff", position: "relative", minHeight: "100vh"}}>
+        {isInvestigationSettingsOpen ? (
+          <InvestigationSettingsPanel onClose={closeInvestigationSettings} />
+        ) : (
+        <>
         <div
           className="modalCard-header h-60 align-items-center justify-content-between d-flex"
           style={{ position: "sticky", top: "0", zIndex: "5" }}
@@ -1061,14 +1387,25 @@ const LabResultsTable = ({
                 </>
               }
             />
-            <div className="modal-title">Add Lab Results</div>
+            <div className="modal-title">Add Investigation Results</div>
           </div>
-          <Button
-            className="btn btn-primary3 btn-41 px-4 me-20"
-            onClick={handleSave}
-          >
-            Save
-          </Button>
+          <div className="align-items-center d-flex">
+            <Button
+              type="text"
+              className="btn btn-41 px-2 me-2 focus-none d-flex align-items-center justify-content-center"
+              title="Investigation Settings"
+              aria-label="Investigation Settings"
+              onClick={() => setInvestigationSettingsOpen(true)}
+            >
+              <SettingOutlined style={{ fontSize: "18px" }} />
+            </Button>
+            <Button
+              className="btn btn-primary3 btn-41 px-4 me-20"
+              onClick={handleSave}
+            >
+              Save
+            </Button>
+          </div>
         </div>
         <div
           className="align-items-center d-flex justify-content-between px-20 py-3 gap-4"
@@ -1107,6 +1444,72 @@ const LabResultsTable = ({
             </div>
           )}
         </div>
+
+        {searchQuery.trim() !== "" && !queryMatchesExisting && (
+          <div
+            className="lab-params-create-banner"
+            role="status"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              margin: "8px 16px",
+              padding: "12px 16px",
+              background: "#eef2ff",
+              border: "1px solid #c7d2fe",
+              borderRadius: 10,
+              color: "#1e1b4b",
+              fontFamily:
+                'Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+          >
+            <div className="lab-params-create-banner-copy" style={{ minWidth: 0 }}>
+              <div
+                className="lab-params-create-banner-title"
+                style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, color: "#1e1b4b" }}
+              >
+                {`Can't find "${searchQuery.trim()}"?`}
+              </div>
+              <div
+                className="lab-params-create-banner-body"
+                style={{ fontSize: 13, lineHeight: 1.45, color: "#3730a3" }}
+              >
+                Create a hospital-scoped custom investigation to use in result entry.
+              </div>
+            </div>
+            <button
+              type="button"
+              className="lab-params-create-banner-cta"
+              onClick={() => setIsCreateInvestigationOpen(true)}
+              style={{
+                flexShrink: 0,
+                border: "1px solid #4b4ad5",
+                background: "#fff",
+                color: "#4b4ad5",
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1.2,
+                padding: "6px 12px",
+                borderRadius: 8,
+                cursor: "pointer",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Create custom investigation
+            </button>
+          </div>
+        )}
+
+        <InlineInvestigationPanel
+          open={isCreateInvestigationOpen}
+          onClose={() => setIsCreateInvestigationOpen(false)}
+          initialName={searchQuery.trim()}
+          existingGroups={customGroups}
+          defaultGroupMode={customGroups.length > 0 ? "existing" : "new"}
+          onCreated={handleCustomInvestigationCreated}
+        />
 
         <div style={{ overflowX: "auto", margin: "8px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1244,11 +1647,11 @@ const LabResultsTable = ({
                         <Spin />
                       </div>
                     </div>  
-                  ) : labParamsResults?.length > 0 || searchQuery === "" ? (
+                  ) : labParamsResults?.length > 0 || searchQuery === "" || queryMatchesExisting ? (
                     <>
                       <div style={{ height: "15px" }}></div>
                       <tbody>
-                        {Object.keys(inputValues).map((reportName) => (
+                        {Object.keys(visibleInputValues).map((reportName) => (
                           <>
                             {/* Report Name Row */}
                             <tr
@@ -1343,9 +1746,28 @@ const LabResultsTable = ({
                             {expandedReports[reportName] && (
                               <>
                                 {/* Main Loop: Exclude "Remarks" */}
-                                {Object.keys(inputValues[reportName])
+                                {Object.keys(visibleInputValues[reportName] || {})
                                   .filter((testName) => testName !== "Remarks") // Exclude "Remarks"
-                                  .map((testName, index) => (
+                                  .map((testName, index) => {
+                                    // Text/Positive-Negative/Dropdown investigations never carry
+                                    // reference ranges (see toPayload), and only numeric ones show
+                                    // the free-text input — the other two need their own widget.
+                                    // Read from defaultTestData (always freshly populated by
+                                    // fetchAndMergeCustomInvestigations) rather than trusting any one
+                                    // date's inputValues cell — the merge/cache pipeline
+                                    // (assemblePayload/combineData) can settle on a cell that dropped
+                                    // resultType/dropdownOptions from an earlier pass, and a search-
+                                    // matched row's "reportName" is the test's own name (each match
+                                    // renders as its own one-item group), not its real group name in
+                                    // defaultTestData — so match on testName alone.
+                                    const defaultRow = defaultTestData.find((row) => row.testName === testName);
+                                    const cellWithResultType = Object.values(
+                                      inputValues[reportName][testName] || {}
+                                    ).find((cell) => cell?.resultType);
+                                    const effectiveResultType = defaultRow?.resultType || cellWithResultType?.resultType;
+                                    const effectiveDropdownOptions =
+                                      defaultRow?.dropdownOptions || cellWithResultType?.dropdownOptions;
+                                    return (
                                     <tr key={testName} style={{ background: "#fff" }}>
                                     {/* Test Name Column */}
                                     <td
@@ -1361,7 +1783,8 @@ const LabResultsTable = ({
                                       }}
                                     >
                                       {testName}
-                                      {testName !== "Remarks" && (
+                                      {testName !== "Remarks" &&
+                                        (!effectiveResultType || effectiveResultType === "numeric") && (
                                         <Tooltip
                                           placement="bottom"
                                           title={
@@ -1369,6 +1792,20 @@ const LabResultsTable = ({
                                               {/* Logic for rendering the reference range */}
                                               {(() => {
                                                 let hasRenderedRefRange = false;
+                                                const GENDER_LABEL = { all: "All", male: "Male", female: "Female" };
+                                                const GENDER_ORDER = { all: 0, male: 1, female: 2 };
+                                                // 0-120 is the "applies to everyone" default band (see
+                                                // useInvestigationFieldsState's toPayload) — omit it from the
+                                                // label so only genuinely age-restricted rows show an age band.
+                                                const formatAgeBand = (range) => {
+                                                  const from = range.ageFrom ?? 0;
+                                                  const to = range.ageTo ?? 120;
+                                                  if (from <= 0 && to >= 120) return "";
+                                                  // Age To left blank defaults to 120 (see toPayload) — with
+                                                  // an actual Age From, that reads as "no upper bound".
+                                                  if (from > 0 && to >= 120) return ` (${from}+ years)`;
+                                                  return ` (${from}-${to}y)`;
+                                                };
                                                 return inputValues[reportName][testName] &&
                                                   Object.keys(inputValues[reportName][testName]).map((date, index) => {
                                                     const testData = inputValues[reportName][testName][date];
@@ -1380,42 +1817,35 @@ const LabResultsTable = ({
                                                       !hasRenderedRefRange
                                                     ) {
                                                       hasRenderedRefRange = true;
-                                                      if (refRange) {
-                                                        const maleRange = refRange.ranges.find(
-                                                          (range) => range.gender.toLowerCase() === "male"
-                                                        );
-                                                        const femaleRange = refRange.ranges.find(
-                                                          (range) => range.gender.toLowerCase() === "female"
-                                                        );
-                                                        const allRange = refRange.ranges.find(
-                                                          (range) => range.gender.toLowerCase() === "all"
-                                                        );
-                                                        return (
-                                                          <div key={index}>
-                                                            <strong>Reference Range:</strong>
-                                                            {maleRange && femaleRange ? (
-                                                              <div>
-                                                                Male: {`${maleRange.min} - ${maleRange.max} ${maleRange.unit}`} <br />
-                                                                Female: {`${femaleRange.min} - ${femaleRange.max} ${femaleRange.unit}`}
-                                                              </div>
-                                                            ) : maleRange ? (
-                                                              <div>
-                                                                Male: {`${maleRange.min} - ${maleRange.max} ${maleRange.unit}`}
-                                                              </div>
-                                                            ) : femaleRange ? (
-                                                              <div>
-                                                                Female: {`${femaleRange.min} - ${femaleRange.max} ${femaleRange.unit}`}
-                                                              </div>
-                                                            ) : allRange ? (
-                                                              <div>
-                                                                All: {`${allRange.min} - ${allRange.max} ${allRange.unit}`}
-                                                              </div>
-                                                            ) : (
-                                                              <div>No reference range available</div>
-                                                            )}
-                                                          </div>
-                                                        );
-                                                      }
+                                                      // Every configured gender + age-band row, not just the
+                                                      // first match per gender — a gender can have several
+                                                      // rows (e.g. Male 0-10 and Male 10+) and all of them
+                                                      // need to show up here.
+                                                      const sortedRanges = [...refRange.ranges].sort((a, b) => {
+                                                        const genderDiff =
+                                                          (GENDER_ORDER[a.gender?.toLowerCase()] ?? 3) -
+                                                          (GENDER_ORDER[b.gender?.toLowerCase()] ?? 3);
+                                                        if (genderDiff !== 0) return genderDiff;
+                                                        return (a.ageFrom ?? 0) - (b.ageFrom ?? 0);
+                                                      });
+                                                      return (
+                                                        <div key={index}>
+                                                          <strong>Reference Range:</strong>
+                                                          {sortedRanges.length > 0 ? (
+                                                            <div>
+                                                              {sortedRanges.map((range, rangeIndex) => (
+                                                                <div key={rangeIndex}>
+                                                                  {(GENDER_LABEL[range.gender?.toLowerCase()] || range.gender) +
+                                                                    formatAgeBand(range)}
+                                                                  : {range.min} - {range.max} {range.unit}
+                                                                </div>
+                                                              ))}
+                                                            </div>
+                                                          ) : (
+                                                            <div>No reference range available</div>
+                                                          )}
+                                                        </div>
+                                                      );
                                                     }
                                                     return null;
                                                   });
@@ -1468,7 +1898,37 @@ const LabResultsTable = ({
                                             <div key={inputIndex} className="test-values-container">
                                               {/* Test Values Rendering */}
                                               {/* Use your test values rendering logic here */}
-                                              {testName !== "Remarks" && (
+                                              {testName !== "Remarks" && ["dropdown", "positive_negative"].includes(
+                                                effectiveResultType
+                                              ) && (
+                                                <div style={{ width: "180px" }}>
+                                                  {effectiveResultType === "dropdown" ? (
+                                                    <Select
+                                                      style={{ width: "100%" }}
+                                                      placeholder="Select"
+                                                      allowClear
+                                                      value={inputValues[reportName][testName][date]?.value || undefined}
+                                                      options={(effectiveDropdownOptions || []).map(
+                                                        (opt) => ({ value: opt, label: opt })
+                                                      )}
+                                                      onChange={(value) => handleInputChange(reportName, testName, date, value || "")}
+                                                    />
+                                                  ) : (
+                                                    <Radio.Group
+                                                      size="small"
+                                                      style={{ display: "flex", width: "100%" }}
+                                                      value={inputValues[reportName][testName][date]?.value || undefined}
+                                                      onChange={(e) => handleInputChange(reportName, testName, date, e.target.value)}
+                                                    >
+                                                      <Radio.Button value="Positive" style={{ flex: 1, textAlign: "center" }}>Positive</Radio.Button>
+                                                      <Radio.Button value="Negative" style={{ flex: 1, textAlign: "center" }}>Negative</Radio.Button>
+                                                    </Radio.Group>
+                                                  )}
+                                                </div>
+                                              )}
+                                              {testName !== "Remarks" && !["dropdown", "positive_negative"].includes(
+                                                effectiveResultType
+                                              ) && (
                                                 <div style={{ width: "180px" }}>
                                                 <Input
                                                   style={{
@@ -1485,7 +1945,7 @@ const LabResultsTable = ({
                                                   type="text"
                                                   inputMode={(() => {
                                                     const refRange = inputValues[reportName][testName][date]?.refRange;
-                                                    const hasRanges = refRange?.ranges?.some((range) => range.min?.trim() || range.max?.trim());
+                                                    const hasRanges = refRange?.ranges?.some((range) => String(range.min ?? '').trim() || String(range.max ?? '').trim());
                                                     return hasRanges ? "numeric" : "text";
                                                   })()}
                                                   className={`lab-params-input
@@ -1539,7 +1999,7 @@ const LabResultsTable = ({
                                                   
                                                     // Check if any range in the ranges array has a non-empty min or max
                                                     const hasMinOrMax = refRange?.ranges?.some(
-                                                      (range) => range.min?.trim() || range.max?.trim()
+                                                      (range) => String(range.min ?? '').trim() || String(range.max ?? '').trim()
                                                     );
                                                   
                                                     handleInputChange(
@@ -1557,10 +2017,11 @@ const LabResultsTable = ({
                                       </div>
                                     </td>
                                   </tr>
-                                  ))}
+                                    );
+                                  })}
 
                                 {/* Render Remarks row at the end */}
-                                {Object.keys(inputValues[reportName])
+                                {Object.keys(visibleInputValues[reportName] || {})
                                   .filter((testName) => testName === "Remarks")
                                   .map((testName, index) => (
                                     <tr key={testName} style={{ background: "#fff" }}>
@@ -1736,6 +2197,8 @@ const LabResultsTable = ({
               </>
             }
         />}
+        </>
+        )}
       </div>
     );
 };

@@ -1839,9 +1839,9 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
             {summaryData.labResults.length > 0 && (
               <div className={styles.detailedCard}>
                 <div className={styles.cardHeader}>
-                  <img src={labIcon} alt="Lab Results" className={styles.headerIcon} />
+                  <img src={labIcon} alt="Investigation Results" className={styles.headerIcon} />
                   <div className={styles.cardHeaderWithAction}>
-                    <h3 className={styles.cardTitle}>Lab Results</h3>
+                    <h3 className={styles.cardTitle}>Investigation Results</h3>
                     <span className={styles.viewAllLink} onClick={handleViewLabParamsDrawer}>View All &gt;</span>
                   </div>
                 </div>
