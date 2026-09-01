@@ -21,7 +21,6 @@ import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { getCustomInvestigations } from '../api/services/ApiCustomInvestigation';
 import InlineInvestigationPanel from './InlineInvestigationPanel';
 import { InvestigationSettingsPanel } from '../pages/lims/InvestigationSettingsPage';
-import { useLimsAccess } from '../pages/lims/useLimsAccess';
 import { Alert, Button as TesseractButton } from '@dhspl-tatvacare/tesseract-ui';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
@@ -36,6 +35,90 @@ const {
   alerticon: alertIcon,
   edit: editIcon,
 } = ASSETS.images;
+
+const REMARKS_TEST_NAME = "Remarks";
+
+function applyCustomRowsToInputValues(prev, customRows, targetDates) {
+  const next = { ...prev };
+
+  customRows.forEach((row) => {
+    const report = { ...(next[row.reportName] || {}) };
+    const test = { ...(report[row.testName] || {}) };
+    targetDates.forEach((date) => {
+      if (!test[date]) {
+        test[date] = { ...row, date };
+      }
+    });
+    report[row.testName] = test;
+    if (!report[REMARKS_TEST_NAME]) {
+      report[REMARKS_TEST_NAME] = {};
+      targetDates.forEach((date) => {
+        report[REMARKS_TEST_NAME][date] = {
+          reportName: row.reportName,
+          testName: REMARKS_TEST_NAME,
+          value: "",
+          units: "",
+          arrowDirection: "",
+          refRange: "",
+          date,
+        };
+      });
+    }
+    next[row.reportName] = report;
+  });
+
+  Object.keys(next).forEach((reportName) => {
+    const report = { ...next[reportName] };
+    let mutated = false;
+    Object.keys(report).forEach((testName) => {
+      if (testName === REMARKS_TEST_NAME) return;
+      const sample = Object.values(report[testName] || {})[0];
+      if (
+        sample?.isCustom &&
+        !customRows.some((row) => row.reportName === reportName && row.testName === testName)
+      ) {
+        delete report[testName];
+        mutated = true;
+      }
+    });
+    const remaining = Object.keys(report).filter((testName) => testName !== REMARKS_TEST_NAME);
+    const isCatalogReport = DEFAULT_TESTS_DATA.some((row) => row.reportName === reportName);
+    if (remaining.length === 0 && !isCatalogReport) {
+      delete next[reportName];
+    } else if (mutated) {
+      next[reportName] = report;
+    }
+  });
+
+  return next;
+}
+
+function filterInputValuesBySearch(values, searchQuery) {
+  const q = searchQuery.trim().toLowerCase();
+  if (!q) return values;
+  const filtered = {};
+  Object.keys(values).forEach((reportName) => {
+    const tests = values[reportName] || {};
+    if (reportName.toLowerCase().includes(q)) {
+      filtered[reportName] = tests;
+      return;
+    }
+    const matchingTests = {};
+    Object.keys(tests).forEach((testName) => {
+      if (testName === REMARKS_TEST_NAME) return;
+      if (testName.toLowerCase().includes(q)) {
+        matchingTests[testName] = tests[testName];
+      }
+    });
+    if (Object.keys(matchingTests).length > 0) {
+      if (tests[REMARKS_TEST_NAME]) {
+        matchingTests[REMARKS_TEST_NAME] = tests[REMARKS_TEST_NAME];
+      }
+      filtered[reportName] = matchingTests;
+    }
+  });
+  return filtered;
+}
 
 const LabResultsTable = ({
     handleAddLabParamsDrawer,
@@ -87,8 +170,6 @@ const LabResultsTable = ({
     const [customGroups, setCustomGroups] = useState([]);
     const [isCreateInvestigationOpen, setIsCreateInvestigationOpen] = useState(false);
     const [isInvestigationSettingsOpen, setIsInvestigationSettingsOpen] = useState(false);
-    const { isLoading: isLimsAccessLoading, hasAccess: hasLimsAccess } = useLimsAccess();
-    const canOpenInvestigationSettings = hasLimsAccess && !isLimsAccessLoading;
 
     useEffect(() => {
       setDefaultTestData(JSON.parse(JSON.stringify(DEFAULT_TESTS_DATA)));
@@ -100,8 +181,8 @@ const LabResultsTable = ({
     // management page (src/pages/lims/InvestigationSettingsPage.jsx, reachable
     // separately from LIMS) show up here without a manual reload. hm_id is
     // derived server-side from the auth token — GET /custom-report-groups takes
-    // no params. There is no activate/deactivate on the real backend (isActive
-    // is always true), so no filtering by that here.
+    // no params. Inactive (isActive: false) items still appear here so they can
+    // be used in result entry; settings badges/actions use the API flag.
     const fetchAndMergeCustomInvestigations = useCallback(async () => {
       if (!tokenData) return;
       try {
@@ -126,12 +207,25 @@ const LabResultsTable = ({
         );
         // Replace only the previously-merged custom rows so refetching never duplicates.
         setDefaultTestData((prev) => [...prev.filter((r) => !r.isCustom), ...rows]);
+        const targetDates = dates.length > 0 ? dates : [new Date().toISOString().split("T")[0]];
+        setInputValues((prev) => applyCustomRowsToInputValues(prev, rows, targetDates));
       } catch (error) {
         // Custom groups are additive. A missing/failed endpoint must not take down
         // catalog lab-result entry (DEFAULT_TESTS_DATA + existing results).
         console.error("Failed to load custom investigations", error);
       }
-    }, [tokenData]);
+    }, [tokenData, dates]);
+
+    const ownedCustomGroups = useMemo(
+      () =>
+        (customGroups || []).filter(
+          (group) =>
+            tokenData?.user_id != null &&
+            group?.createdBy != null &&
+            String(group.createdBy) === String(tokenData.user_id)
+        ),
+      [customGroups, tokenData?.user_id]
+    );
 
     useEffect(() => {
       fetchAndMergeCustomInvestigations();
@@ -145,12 +239,6 @@ const LabResultsTable = ({
     useEffect(() => {
       onInvestigationSettingsChange?.(isInvestigationSettingsOpen);
     }, [isInvestigationSettingsOpen, onInvestigationSettingsChange]);
-
-    useEffect(() => {
-      if (!canOpenInvestigationSettings && isInvestigationSettingsOpen) {
-        setIsInvestigationSettingsOpen(false);
-      }
-    }, [canOpenInvestigationSettings, isInvestigationSettingsOpen]);
 
     const currentDate = new Date().toISOString().split("T")[0];
     const dateFormat = 'YYYY-MM-DD';
@@ -333,7 +421,7 @@ const LabResultsTable = ({
         }, 1000);
     
         return () => clearTimeout(timeOutId);
-    }, [labParamsResults, existingResults, searchQuery, dates]);
+    }, [labParamsResults, existingResults, searchQuery, dates, defaultTestData]);
 
     // Custom investigations (and defaultTestData generally) never come back from
     // searchLabParams's backend call, so they were never part of the auto-expand
@@ -614,6 +702,26 @@ const LabResultsTable = ({
 
     const mergeSearchResults = (existingResults, labParamsResults, searchQuery) => {
         const tempResults = [];
+        const q = (searchQuery || "").trim().toLowerCase();
+        const matchingLocalRows = q
+          ? defaultTestData.filter(
+              (row) =>
+                row.testName?.toLowerCase().includes(q) ||
+                row.reportName?.toLowerCase().includes(q)
+            )
+          : [];
+        const searchRows = q
+          ? [
+              ...labParamsResults,
+              ...matchingLocalRows.filter(
+                (local) =>
+                  !labParamsResults.some(
+                    (lab) =>
+                      lab.testName === local.testName && lab.reportName === local.reportName
+                  )
+              ),
+            ]
+          : labParamsResults;
     
         const currentFilledData = assemblePayload(inputValues);
         const data = combineData(currentFilledData, filledData);
@@ -623,7 +731,7 @@ const LabResultsTable = ({
 
         // Case 1: No existing results
         if (existingResults.length === 0) {
-          if (labParamsResults.length === 0) {
+          if (searchRows.length === 0) {
 
               // No labParamsResults: create entries for all dates using default data
               const allDates = dates.length > 0 ? dates : [new Date().toISOString().split('T')[0]];
@@ -646,7 +754,7 @@ const LabResultsTable = ({
               allDates.forEach((date) => {
                   const newEntry = {
                       date,
-                      inputs: labParamsResults.map((lab) => ({
+                      inputs: searchRows.map((lab) => ({
                           reportName: lab.reportName || "",
                           testName: lab.testName || "",
                           value: "",
@@ -673,13 +781,13 @@ const LabResultsTable = ({
         if (existingResults.length > 0) {
 
           // Iterate over all existing results
-          if (labParamsResults.length > 0) {
+          if (searchRows.length > 0) {
               dates.forEach((currentDate) => {
                   const existingEntry = existingResults.find((entry) => entry.date === currentDate);
 
                   const newEntry = {
                       date: currentDate, // Use the current date from the loop
-                      inputs: labParamsResults.map((lab) => {
+                      inputs: searchRows.map((lab) => {
                           const existingInput = existingEntry?.inputs.find(
                               (input) =>
                                   input.testName === lab.testName &&
@@ -709,8 +817,10 @@ const LabResultsTable = ({
               return tempResults;
           }
 
-          // Append predefined lab parameters if not already present
-          if (defaultTestData?.length > 0) {
+          // When searching with no local/backend hits, keep the full list in
+          // state (the listing still filters via visibleInputValues). When not
+          // searching, append any missing catalog/custom rows.
+          if (defaultTestData?.length > 0 && !q) {
               dates.forEach((currentDate) => {
                   const existingEntry = existingResults.find((entry) => entry.date === currentDate);
 
@@ -1162,9 +1272,8 @@ const LabResultsTable = ({
       showHideBackModal();
     }
 
-    // Search here only jumps to/expands matching backend groups (searchLabParams)
-    // and defaultTestData/custom investigations are always shown regardless of
-    // query — so "no matches" means the query hits neither source.
+    // Search expands matching backend groups and filters the listing to
+    // matching catalog/custom rows. "no matches" means the query hits neither.
     const queryMatchesExisting = useMemo(() => {
       const q = searchQuery.trim().toLowerCase();
       if (!q) return true;
@@ -1172,6 +1281,11 @@ const LabResultsTable = ({
         row?.testName?.toLowerCase().includes(q) || row?.reportName?.toLowerCase().includes(q);
       return defaultTestData.some(hits) || labParamsResults.some(hits);
     }, [searchQuery, defaultTestData, labParamsResults]);
+
+    const visibleInputValues = useMemo(
+      () => filterInputValuesBySearch(inputValues, searchQuery),
+      [inputValues, searchQuery]
+    );
 
     const handleCustomInvestigationCreated = (newRow) => {
       setDefaultTestData((prev) => [...prev, newRow]);
@@ -1195,9 +1309,9 @@ const LabResultsTable = ({
       fetchAndMergeCustomInvestigations();
     };
 
-    const closeInvestigationSettings = useCallback(() => {
+    const closeInvestigationSettings = useCallback(async () => {
+      await fetchAndMergeCustomInvestigations();
       setIsInvestigationSettingsOpen(false);
-      fetchAndMergeCustomInvestigations();
     }, [fetchAndMergeCustomInvestigations]);
 
     const tooltipTitle = (notes, reportName, testName, date) => {
@@ -1274,7 +1388,6 @@ const LabResultsTable = ({
             <div className="modal-title">Add Investigation Results</div>
           </div>
           <div className="align-items-center d-flex">
-            {canOpenInvestigationSettings && (
             <Button
               type="text"
               className="btn btn-41 px-2 me-2 focus-none d-flex align-items-center justify-content-center"
@@ -1284,7 +1397,6 @@ const LabResultsTable = ({
             >
               <SettingOutlined style={{ fontSize: "18px" }} />
             </Button>
-            )}
             <Button
               className="btn btn-primary3 btn-41 px-4 me-20"
               onClick={handleSave}
@@ -1358,8 +1470,8 @@ const LabResultsTable = ({
           open={isCreateInvestigationOpen}
           onClose={() => setIsCreateInvestigationOpen(false)}
           initialName={searchQuery.trim()}
-          existingGroups={customGroups}
-          defaultGroupMode={customGroups.length > 0 ? "existing" : "new"}
+          existingGroups={ownedCustomGroups}
+          defaultGroupMode={ownedCustomGroups.length > 0 ? "existing" : "new"}
           onCreated={handleCustomInvestigationCreated}
         />
 
@@ -1503,7 +1615,7 @@ const LabResultsTable = ({
                     <>
                       <div style={{ height: "15px" }}></div>
                       <tbody>
-                        {Object.keys(inputValues).map((reportName) => (
+                        {Object.keys(visibleInputValues).map((reportName) => (
                           <>
                             {/* Report Name Row */}
                             <tr
@@ -1598,7 +1710,7 @@ const LabResultsTable = ({
                             {expandedReports[reportName] && (
                               <>
                                 {/* Main Loop: Exclude "Remarks" */}
-                                {Object.keys(inputValues[reportName])
+                                {Object.keys(visibleInputValues[reportName] || {})
                                   .filter((testName) => testName !== "Remarks") // Exclude "Remarks"
                                   .map((testName, index) => {
                                     // Text/Positive-Negative/Dropdown investigations never carry
@@ -1873,7 +1985,7 @@ const LabResultsTable = ({
                                   })}
 
                                 {/* Render Remarks row at the end */}
-                                {Object.keys(inputValues[reportName])
+                                {Object.keys(visibleInputValues[reportName] || {})
                                   .filter((testName) => testName === "Remarks")
                                   .map((testName, index) => (
                                     <tr key={testName} style={{ background: "#fff" }}>

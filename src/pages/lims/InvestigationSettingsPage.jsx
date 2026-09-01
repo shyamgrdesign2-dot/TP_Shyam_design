@@ -11,7 +11,6 @@ import {
   Chip,
 } from "@dhspl-tatvacare/tesseract-ui";
 import LimsAccessBoundary from "./LimsAccessBoundary";
-import { useLimsAccess } from "./useLimsAccess";
 import {
   getCustomInvestigations,
   deleteCustomInvestigationGroup,
@@ -134,10 +133,23 @@ function InvestigationSettingsPageInner({ onClose }) {
     load();
   }, []);
 
-  const isOwnItem = (item) => String(item.createdBy) === String(umid);
+  const isOwnItem = (item) =>
+    umid != null &&
+    umid !== "" &&
+    item?.createdBy != null &&
+    item.createdBy !== "" &&
+    String(item.createdBy) === String(umid);
   const isLocked = (id) => lockedIds.has(id);
-  const isGroupLocked = (group) =>
-    isLocked(group.id) || (group.investigations || []).some((inv) => isLocked(inv.id));
+  const isItemActive = (item) => Boolean(item?.isActive) || isLocked(item?.id);
+  const ownGroups = groups.filter(isOwnItem);
+  const canDeleteOwnedInactiveGroup = (group) => {
+    const investigations = group.investigations || [];
+    return (
+      isOwnItem(group) &&
+      !isItemActive(group) &&
+      investigations.every((inv) => isOwnItem(inv) && !isItemActive(inv))
+    );
+  };
 
   const q = searchQuery.trim().toLowerCase();
   const filteredGroups = !q
@@ -309,7 +321,8 @@ function InvestigationSettingsPageInner({ onClose }) {
               {filteredGroups.map((group) => {
                 const groupInvestigations = group.investigations || [];
                 const isExpanded = expandedGroupId === group.id;
-                const groupLocked = isGroupLocked(group);
+                const groupActive = isItemActive(group);
+                const canManageGroup = isOwnItem(group);
                 const hasInvestigations = groupInvestigations.length > 0;
                 const lastUpdated = [group.updatedAt, ...groupInvestigations.map((i) => i.updatedAt)]
                   .filter(Boolean)
@@ -317,7 +330,9 @@ function InvestigationSettingsPageInner({ onClose }) {
                   .pop();
                 const previewChips = groupInvestigations.slice(0, 3);
                 const overflowCount = groupInvestigations.length - previewChips.length;
-                const canDeleteGroup = isOwnItem(group) && !hasInvestigations && !groupLocked;
+                const foreignInvestigation = groupInvestigations.some((inv) => !isOwnItem(inv));
+                const activeInvestigation = groupInvestigations.some(isItemActive);
+                const canDeleteGroup = canDeleteOwnedInactiveGroup(group);
 
                 return (
                   <SectionCard
@@ -328,10 +343,10 @@ function InvestigationSettingsPageInner({ onClose }) {
                         <span className={styles.groupTitleName}>{group.name}</span>
                         <Badge
                           variant="soft"
-                          color={groupLocked ? "neutral" : "success"}
+                          color={groupActive ? "success" : "neutral"}
                           size="sm"
                         >
-                          {groupLocked ? "In use" : "Active"}
+                          {groupActive ? "Active" : "Inactive"}
                         </Badge>
                       </span>
                     }
@@ -358,18 +373,18 @@ function InvestigationSettingsPageInner({ onClose }) {
                       setExpandedGroupId(nowCollapsed ? null : group.id)
                     }
                     headerActions={
-                      <div className={styles.groupHeaderActions} onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          theme="primary"
-                          aria-label="Add investigation"
-                          title="Add investigation"
-                          onClick={() => openCreateInvestigation(group)}
-                        >
-                          <PlusGlyph />
-                        </Button>
-                        {!groupLocked && (
+                      canManageGroup ? (
+                        <div className={styles.groupHeaderActions} onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            theme="primary"
+                            aria-label="Add investigation"
+                            title="Add investigation"
+                            onClick={() => openCreateInvestigation(group)}
+                          >
+                            <PlusGlyph />
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -378,98 +393,126 @@ function InvestigationSettingsPageInner({ onClose }) {
                             title={
                               canDeleteGroup
                                 ? "Delete group"
-                                : "A group with investigations cannot be deleted"
+                                : groupActive
+                                ? "Active groups cannot be deleted"
+                                : foreignInvestigation
+                                ? "Cannot delete a group that contains investigations created by another user"
+                                : activeInvestigation
+                                ? "Cannot delete a group while an investigation inside it is active"
+                                : "Delete group"
                             }
                             disabled={!canDeleteGroup}
                             onClick={() => setConfirmDelete({ type: "group", item: group })}
                           >
                             <DeleteGlyph />
                           </Button>
-                        )}
-                      </div>
+                        </div>
+                      ) : null
                     }
                   >
                     {groupInvestigations.length === 0 ? (
                       <div className={styles.emptyGroupBox}>
-                        No investigations yet — add one to activate this group.
+                        {canManageGroup
+                          ? "No investigations yet — add one to activate this group."
+                          : "No investigations yet."}
                       </div>
                     ) : (
-                      <div className={styles.investigationTable}>
-                        <div className={styles.investigationTableHeader}>
-                          <span>Investigation</span>
-                          <span>Result type</span>
-                          <span>Unit</span>
-                          <span>Status</span>
-                          <span />
-                        </div>
-                        {groupInvestigations.map((inv) => {
-                          const editable = isOwnItem(inv);
-                          const invLocked = isLocked(inv.id);
-                          const invActive = !invLocked;
-                          const actionsDisabled = !editable || invActive;
-                          return (
-                            <div key={inv.id} className={styles.investigationTableRow}>
-                              <span className={styles.investigationName}>{inv.name}</span>
-                              <span className={styles.investigationCell}>
-                                {RESULT_TYPE_LABEL[inv.resultType] || inv.resultType}
-                              </span>
-                              <span className={styles.investigationCell}>{inv.unit || "—"}</span>
-                              <span>
-                                <Badge
-                                  variant="soft"
-                                  color={invLocked ? "neutral" : "success"}
-                                  size="sm"
-                                >
-                                  {invLocked ? "In use" : "Active"}
-                                </Badge>
-                              </span>
-                              <div className={styles.investigationActions}>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  theme="neutral"
-                                  aria-label="Edit investigation"
-                                  disabled={actionsDisabled}
-                                  title={
-                                    invActive ? "Active investigations cannot be edited" : undefined
-                                  }
-                                  onClick={() => openEditInvestigation(group, inv)}
-                                >
-                                  <EditGlyph />
-                                </Button>
-                                {!invLocked && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    theme="error"
-                                    aria-label="Delete investigation"
-                                    disabled={actionsDisabled}
-                                    title={
-                                      invActive
-                                        ? "Active investigations cannot be deleted"
-                                        : undefined
-                                    }
-                                    onClick={() =>
-                                      setConfirmDelete({ type: "investigation", item: inv })
-                                    }
-                                  >
-                                    <DeleteGlyph />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          theme="primary"
-                          fullWidth
-                          className={styles.addAnotherCta}
-                          onClick={() => openCreateInvestigation(group)}
-                        >
-                          + Add another investigation to this group
-                        </Button>
+                      <div className={styles.investigationTableWrap}>
+                        <table className={styles.investigationTable}>
+                          <colgroup>
+                            <col className={styles.colName} />
+                            <col className={styles.colType} />
+                            <col className={styles.colUnit} />
+                            <col className={styles.colStatus} />
+                            <col className={styles.colActions} />
+                          </colgroup>
+                          <thead>
+                            <tr>
+                              <th scope="col">Investigation</th>
+                              <th scope="col">Result type</th>
+                              <th scope="col">Unit</th>
+                              <th scope="col">Status</th>
+                              <th scope="col">
+                                <span className={styles.srOnly}>Actions</span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupInvestigations.map((inv) => {
+                              const canManageInv = isOwnItem(inv);
+                              const invActive = isItemActive(inv);
+                              const canDeleteInv = canManageInv && !invActive;
+                              return (
+                                <tr key={inv.id}>
+                                  <td className={styles.investigationName}>{inv.name}</td>
+                                  <td className={styles.investigationCell}>
+                                    {RESULT_TYPE_LABEL[inv.resultType] || inv.resultType}
+                                  </td>
+                                  <td className={styles.investigationCell}>{inv.unit || "—"}</td>
+                                  <td>
+                                    <Badge
+                                      variant="soft"
+                                      color={invActive ? "success" : "neutral"}
+                                      size="sm"
+                                    >
+                                      {invActive ? "Active" : "Inactive"}
+                                    </Badge>
+                                  </td>
+                                  <td>
+                                    {canManageInv && (
+                                      <div className={styles.investigationActions}>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          theme="neutral"
+                                          aria-label="Edit investigation"
+                                          disabled={invActive}
+                                          title={
+                                            invActive
+                                              ? "Active investigations cannot be edited"
+                                              : "Edit investigation"
+                                          }
+                                          onClick={() => openEditInvestigation(group, inv)}
+                                        >
+                                          <EditGlyph />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          theme="error"
+                                          aria-label="Delete investigation"
+                                          disabled={!canDeleteInv}
+                                          title={
+                                            invActive
+                                              ? "Active investigations cannot be deleted"
+                                              : "Delete investigation"
+                                          }
+                                          onClick={() =>
+                                            setConfirmDelete({ type: "investigation", item: inv })
+                                          }
+                                        >
+                                          <DeleteGlyph />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {canManageGroup && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            theme="primary"
+                            fullWidth
+                            className={styles.addAnotherCta}
+                            onClick={() => openCreateInvestigation(group)}
+                          >
+                            + Add another investigation to this group
+                          </Button>
+                        )}
                       </div>
                     )}
                   </SectionCard>
@@ -484,7 +527,7 @@ function InvestigationSettingsPageInner({ onClose }) {
         key={drawerKey}
         open={!!investigationDrawer}
         onClose={closeInvestigationDrawer}
-        existingGroups={groups}
+        existingGroups={ownGroups}
         initialName={prefillName}
         defaultGroupMode={investigationDrawer?.mode === "new-group" ? "new" : "existing"}
         fixedGroupId={
@@ -507,7 +550,7 @@ function InvestigationSettingsPageInner({ onClose }) {
         title={`Delete "${confirmDelete?.item?.name}"?`}
         description={
           confirmDelete?.type === "group"
-            ? "This cannot be undone. A group can only be deleted while every investigation inside it is still unused — if any one of them has a patient result recorded against it, the delete will be rejected."
+            ? "This cannot be undone. The group and every unused investigation inside it will be deleted. If any investigation has a patient result recorded against it, the delete will be rejected."
             : "This cannot be undone. An investigation can only be deleted while it's still unused — once a patient result has been recorded against it, the delete will be rejected."
         }
         onConfirm={() =>
@@ -529,17 +572,11 @@ export default function InvestigationSettingsPage() {
 }
 
 /**
- * For embedding inside LabParams — same list, gated by GB_LIMS without the
- * full-page no-access UI. `onClose` closes the panel instead of history.back.
+ * For embedding inside LabParams — same list, without the full-page
+ * no-access UI. `onClose` closes the panel instead of history.back.
+ * Not gated by GB_LIMS: any account that can enter investigation results
+ * can manage hospital custom groups they created.
  */
 export function InvestigationSettingsPanel({ onClose }) {
-  const { isLoading, hasAccess } = useLimsAccess();
-
-  useEffect(() => {
-    if (!isLoading && !hasAccess) {
-      onClose?.();
-    }
-  }, [isLoading, hasAccess, onClose]);
-
   return <InvestigationSettingsPageInner onClose={onClose} />;
 }
