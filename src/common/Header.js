@@ -1528,7 +1528,7 @@ function Header({ locationPath }) {
                 >
                   <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'>
                     {/* onClick={showHideVideoListPopover} */}
-                    <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
+                    <span className='text-decoration-none rounded-5 bg-white shadow2'><img height={42} src={tutorial} alt="Tutorial" /></span>
                   </button>
                 </Popover>
               ))

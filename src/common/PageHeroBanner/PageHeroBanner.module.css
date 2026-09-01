@@ -39,7 +39,7 @@ html :where(.wrap) p {
   border-radius: var(--tesseract-radius-10, 10px) !important;
   gap: 6px !important;
   font-size: var(--tesseract-text-body-sm, 14px) !important;
-  font-weight: 600 !important;
+  font-weight: var(--tesseract-weight-medium, 500) !important;
   background-color: color-mix(in srgb, var(--tesseract-slate-0, #fff) 7%, transparent) !important;
   border: 1.5px solid color-mix(in srgb, var(--tesseract-slate-0, #fff) 34%, transparent) !important;
   color: var(--tesseract-on-dark, #fff) !important;
@@ -53,7 +53,7 @@ html :where(.wrap) p {
   border-radius: var(--tesseract-radius-10, 10px) !important;
   gap: 6px !important;
   font-size: var(--tesseract-text-body-sm, 14px) !important;
-  font-weight: 600 !important;
+  font-weight: var(--tesseract-weight-medium, 500) !important;
   background-color: var(--tesseract-slate-0, #fff) !important;
   border: none !important;
   color: var(--tesseract-blue-900, #1e3a5f) !important;
@@ -70,7 +70,7 @@ html :where(.wrap) p {
   padding: 0 18px !important;
   border-radius: 10px !important;
   font-size: 14px !important;
-  font-weight: 600 !important;
+  font-weight: var(--tesseract-weight-medium, 500) !important;
   background-color: #fff !important;
   border: none !important;
   color: #1e3a5f !important;
@@ -87,7 +87,7 @@ html :where(.wrap) p {
   padding: 0 18px !important;
   border-radius: 10px !important;
   font-size: 14px !important;
-  font-weight: 600 !important;
+  font-weight: var(--tesseract-weight-medium, 500) !important;
   background-color: rgba(255, 255, 255, 0.07) !important;
   border: 1.5px solid rgba(255, 255, 255, 0.34) !important;
   color: #fff !important;

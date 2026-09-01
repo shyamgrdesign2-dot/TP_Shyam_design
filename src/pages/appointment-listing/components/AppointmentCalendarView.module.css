@@ -17,14 +17,48 @@
      at a line, which is the cue that there is more day below. */
   border: 0.5px solid var(--tesseract-slate-200);
   border-bottom: none;
-  /* Rounded at the top, square at the bottom. The legend is a full-bleed bar
-     across the panel's foot, and a rounded corner behind a square bar leaves
-     two slivers of card showing through at the ends. The panel runs straight
-     off the bottom of the card instead. */
-  border-radius: var(--tesseract-radius-16) var(--tesseract-radius-16) 0 0;
+  /* Rounded at the top, square at the bottom. A restrained top radius (12, not
+     16) so the panel reads as a crisp grid rather than a soft card. The legend
+     is a full-bleed bar across the foot, so the bottom runs straight. */
+  border-radius: var(--tesseract-radius-12) var(--tesseract-radius-12) 0 0;
   background: var(--tesseract-bg-surface);
   overflow: hidden;
   font-family: var(--tesseract-font-body);
+}
+
+/* Edge scroll fades: while the week is wider than the card, a soft shadow hugs
+   whichever edge still hides days — right when there are more days to come, left
+   when earlier days are scrolled off (the week opens scrolled to today, so on a
+   late day the hidden days are to the left). They ride on the panel (not the
+   scroller) so they stay pinned to the edges, stop above the legend bar, and let
+   clicks fall through to the grid. */
+.root[data-overflow-end]::after,
+.root[data-overflow-start]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 30px;
+  width: 44px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.root[data-overflow-end]::after {
+  right: 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent)
+  );
+}
+
+.root[data-overflow-start]::before {
+  left: 0;
+  background: linear-gradient(
+    to left,
+    transparent,
+    color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent)
+  );
 }
 
 /* Header strip mirrors the table thead: slate-100 fill, 12px end radii,
@@ -40,10 +74,11 @@
   flex-wrap: wrap;
   flex-shrink: 0;
   margin: 0;
-  /* 52px gives the 34px segmented control an even 9px above and below; at
-     42px it sat with 4px and read as pinned to the top of the band. */
-  height: 52px;
-  min-height: 52px;
+  /* 42px band: the date control has moved to the page toolbar, so this row
+     carries only the Day/Week and Show Slots pills and can be tighter, giving
+     the grid below more room. The ~30px pills leave an even 6px above/below. */
+  height: 42px;
+  min-height: 42px;
   padding: 0 12px;
   /* Flush band across the full width of the card. */
   border-radius: 0;
@@ -53,6 +88,11 @@
   background: var(--tesseract-slate-100);
   border-bottom: 1px solid color-mix(in srgb, var(--tesseract-slate-200) 55%, transparent);
   transition: box-shadow 150ms;
+  /* The DS radius hook and the shared pill ground, declared once here (the old
+     .headerRight wrapper is gone) so the Day/Week control and the Show Slots
+     switch resolve the same corner and track. */
+  --tesseract-sc-radius: var(--tesseract-radius-12);
+  --header-pill-bg: color-mix(in srgb, var(--tesseract-slate-200) 55%, var(--tesseract-slate-100));
 }
 
 /* No depth cue here. The band already sits on its own slate ground with a
@@ -106,47 +146,28 @@
    matching pills side by side read as one row of view controls, which is
    what they are, so the hairline that used to sit between them is gone. The
    label leads and the switch closes the pill, both on the centre line. */
-/* Faded at both ends, carrying its weight only through the middle: the same
-   hairline the tab bar and the gender control use, so every divider on this
-   screen is one object. Drawn on the switch rather than as an element of its
-   own so the two pills stay a single flex pair. */
-.availabilityToggle::after {
-  content: "";
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  right: -9px;
-  width: 1px;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    var(--tesseract-slate-300) 42%,
-    var(--tesseract-slate-300) 58%,
-    transparent 100%
-  );
-}
-
+/* In the legend bar it is a plain inline label + switch (no pill), the compact
+   "shorter format" the doctor asked for — it sits on the left of the bar. */
 .availabilityToggle {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  height: 36px;
-  padding: 0 12px;
-  margin-right: 18px;
-  /* Literally the design system's own declaration for a segmented track, so
-     this pill and the one beside it round identically by construction rather
-     than by two numbers that happen to agree today. */
-  border-radius: var(--tesseract-sc-radius, var(--tesseract-btn-radius, var(--tesseract-radius-10)));
-  background: var(--header-pill-bg);
+  gap: 6px;
   cursor: pointer;
   user-select: none;
+}
+
+/* A touch smaller than the design system's own small switch, to sit lightly in
+   the 24px foot. */
+.availabilityToggle button[role="switch"] {
+  transform: scale(0.82);
+  transform-origin: left center;
 }
 
 /* Label weight, not control weight: it names the switch beside it rather
    than competing with the Day/Week/Month items. */
 .availabilityLabel {
-  font-size: var(--tesseract-text-caption-lg);
+  font-size: var(--tesseract-text-caption-sm);
   font-weight: var(--tesseract-weight-medium);
   line-height: 1;
   color: var(--tesseract-fg-secondary);
@@ -348,8 +369,17 @@
    only needs a darker track so it doesn't disappear into slate-100. The
    radius comes from the DS hook set on .headerRight, not a hand-rolled
    override. */
+/* Compact in the 42px band: the root is trimmed to 30px and the label a step
+   smaller, but the design system keeps ownership of the sliding indicator and
+   the item boxes so nothing drifts out of alignment. */
 .granularity {
   background-color: var(--header-pill-bg);
+  height: 30px;
+  min-height: 30px;
+}
+
+.granularity [role="radio"] [class*="_label_"] {
+  font-size: var(--tesseract-text-caption-sm);
 }
 
 /* Floating "back to now" chip: subtle dark pill pinned over the grid,
@@ -420,7 +450,11 @@
   position: sticky;
   top: 0;
   z-index: 6;
-  height: 60px;
+  /* A fixed 48px band across every view (day, week, month) — a calm, uniform
+     date rail with room to breathe around the weekday + date, so it doesn't
+     read as crunched. It does not resize on scroll: a moving header height is
+     more motion than it is worth. */
+  height: 48px;
   /* White, like the grid it sits over. One edge, never two: at rest the rail
      closes with a hairline; once the grid is scrolling underneath, the shadow
      takes over and the hairline withdraws, because a rule and a shadow
@@ -429,7 +463,10 @@
 
      Longhand, not the `border-bottom` shorthand: a color-mix() inside the
      shorthand was dropped outright, which is why the rule never appeared. */
-  background: var(--tesseract-bg-surface);
+  /* Grey rail, the same neutral slate the table's own column header runs at,
+     so the two views share one header treatment. The selected day's column
+     lifts out of it in a light blue wash (below). */
+  background: var(--tesseract-slate-100);
   border-bottom-width: 1px;
   border-bottom-style: solid;
   border-bottom-color: color-mix(in srgb, var(--tesseract-slate-200) 70%, transparent);
@@ -440,9 +477,13 @@
   transition: box-shadow 150ms, border-bottom-color 150ms;
 }
 
-/* Scrolling: the shadow replaces the rule rather than joining it. */
+
+/* Scrolling: the shadow replaces the rule rather than joining it. The height
+   stays put. */
+/* The bottom stroke stays even while scrolling (the shadow deepens under it),
+   so the header always reads as a bounded band the way the card's own edge
+   does, rather than dissolving into the grid. */
 .gridHeader[data-scrolled] {
-  border-bottom-color: transparent;
   box-shadow: 0 6px 12px -10px color-mix(in srgb, var(--tesseract-slate-900) 22%, transparent);
 }
 
@@ -453,7 +494,10 @@
   justify-content: center;
   min-width: 0;
   padding: 0 10px;
-  border-left: 1px solid var(--tesseract-slate-100);
+  /* slate-200, not slate-100: the grey header rail is itself slate-100, so a
+     slate-100 divider would vanish into it. This one reads, so each day column
+     is bounded left and right the way the month cells are. */
+  border-left: 1px solid var(--tesseract-slate-200);
 }
 
 /* Week: the date stacks over its column and the whole block is the target
@@ -467,7 +511,10 @@
   align-items: center;
   gap: 1px;
   min-width: 0;
-  padding: 6px 14px;
+  /* Sits inside the 48px rail with a little air above and below the weekday +
+     date stack, so the selected column's blue fill reads as a calm block
+     rather than a tight one. */
+  padding: 5px 14px;
   border: none;
   border-radius: var(--tesseract-radius-10);
   background: none;
@@ -491,15 +538,16 @@
    semibold keeps it reading as the head of the column rather than as a
    caption floating above it. */
 .dayTitleText {
-  font-size: var(--tesseract-text-body-sm);
-  font-weight: var(--tesseract-weight-semibold);
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: var(--tesseract-weight-medium);
   color: var(--tesseract-fg-secondary);
   white-space: nowrap;
 }
 
-/* Month: weekday caption only — the date numerals live in the cells. */
+/* Month: weekday caption only — the date numerals live in the cells. Matches
+   the 48px Day/Week rail so the header band is the same across every view. */
 .colHead[data-compact] {
-  height: 40px;
+  height: 48px;
 }
 
 /* Quiet caption over a confident numeral: the weekday is the label, the
@@ -514,7 +562,10 @@
 }
 
 .colHeadNum {
-  font-size: var(--tesseract-text-h5);
+  /* body-sm: the date is the head of a column, not a headline. At body-lg it
+     dominated the rail and read as cognitively heavy; a quiet semibold at
+     body-sm names the day without shouting. */
+  font-size: var(--tesseract-text-body-sm);
   font-weight: 600;
   line-height: 1.1;
   color: var(--tesseract-slate-800);
@@ -527,12 +578,12 @@
    badge sitting inside it. */
 .gridHeader[data-mode="week"] .colHead[data-today],
 .monthHeader .colHead[data-today] {
-  background: color-mix(in srgb, var(--tesseract-blue-50) 65%, var(--tesseract-slate-0));
+  background: var(--tesseract-slate-100);
 }
 
 .colHead[data-today] .colHeadWeekday,
 .colHead[data-today] .colHeadNum {
-  color: var(--tesseract-blue-700);
+  color: var(--tesseract-fg-heading);
   font-weight: var(--tesseract-weight-semibold);
 }
 
@@ -559,7 +610,25 @@ button.colHeadStack:hover {
 }
 
 .colHead[data-today] .colHeadAccent {
-  background: var(--tesseract-blue-400);
+  background: var(--tesseract-slate-400);
+}
+
+/* The selected day is the one blue column in the grey rail: a light blue wash,
+   blue ink on its date, and a blue cap. It sits after the "today" rules so that
+   when today is the selected day, blue wins. */
+.gridHeader[data-mode="week"] .colHead[data-selected],
+.monthHeader .colHead[data-selected] {
+  background: var(--tesseract-blue-50);
+}
+
+.colHead[data-selected] .colHeadWeekday,
+.colHead[data-selected] .colHeadNum {
+  color: var(--tesseract-blue-700);
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+.colHead[data-selected] .colHeadAccent {
+  background: var(--tesseract-blue-500);
 }
 
 /* Day has a single column, so there is nothing for the rule to pick out —
@@ -756,40 +825,121 @@ button.colHeadStack:hover {
   max-width: none;
 }
 
-.slotBlock[data-book-mode="teleconsult"][data-state="free"] {
-  border-color: color-mix(in srgb, var(--tesseract-blue-300) 80%, transparent);
-  background: color-mix(in srgb, var(--tesseract-blue-100) 55%, transparent);
-}
+/* In-clinic and teleconsult free slots share one colour: the mode is told by
+   the glyph on the chip, not by the chip's tint, so the two lanes read as one
+   pool of open time rather than two differently coloured kinds of slot. */
 
 .gridBody[data-mode="week"] .slotBlock[data-split] {
   padding: 0 4px;
 }
 
-/* A week column has room for the time and one glyph, no more. The plus
-   drops to the size of the text it sits beside, the gap halves, and the
-   video marker is pinned so it can never be the thing that gets clipped. */
+/* A week column is narrow, and a split slot is half of that again — room for
+   the time and the mode glyph, and little else. So the type steps down to micro
+   and the gap tightens, buying the width the mode marker needs to stay on
+   screen rather than being clipped off the right edge. */
 .gridBody[data-mode="week"] .slotBlockLabel {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
   width: 100%;
   overflow: hidden;
   white-space: nowrap;
-  font-size: var(--tesseract-text-caption-sm);
+  font-size: var(--tesseract-text-micro);
 }
 
-.gridBody[data-mode="week"] .slotBlockLabel > span[aria-hidden]:first-child {
-  width: 18px !important;
-  height: 18px !important;
+/* The "+" shrinks to the size of the mode glyph it shares the row with, so on a
+   split week slot the time sits between two small, equal markers and nothing
+   spills. Scoped to the free state so it never touches a past slot's mode glyph
+   (that slot's first element child). */
+.gridBody[data-mode="week"] .slotBlock[data-state="free"] .slotBlockLabel > span[aria-hidden]:first-child {
+  width: 14px !important;
+  height: 14px !important;
   flex-shrink: 0;
 }
 
-/* The video marker is pinned right — but only when there is one. On a slot
-   with no glyph the plus is both the first and the last element child, so
-   an unqualified :last-child pushed the plus and its time to the right. */
-.gridBody[data-mode="week"] .slotBlockLabel > span[aria-hidden]:last-child:not(:first-child) {
-  margin-left: auto;
+/* The week fits its seven columns in the card — it shrinks, it does not scroll.
+   The floor is low (phones only): below it the grid scrolls sideways rather than
+   crushing columns to unusable slivers. As a column narrows the slot chips shed
+   detail instead (container queries below), so the grid stays legible at every
+   width without a horizontal scroll on tablet or desktop. */
+.gridHeader[data-mode="week"],
+.gridBody[data-mode="week"] {
+  min-width: 520px;
+}
+
+/* Each day column is a size container, so a slot chip adapts to the real width
+   of its own column — not the viewport — which is what makes this scale. */
+.gridBody[data-mode="week"] .dayCol {
+  container: daycol / inline-size;
+}
+
+/* The week header column is a size container too, so its "+N" overflow chip can
+   step aside on the same terms the slots do. On a phone-width week (the grid is
+   scrolling below its 520px floor) a column is ~64px — too narrow to hold the
+   chip beside the stacked weekday + date, so the chip lands on top of the
+   numeral. A tablet column (~91px) still holds both comfortably, so the chip
+   stays there; only a phone-width column drops it, since the count is a
+   supplementary cue and tapping the day header still drills into Day view where
+   those appointments show in full.
+
+   The threshold is a CONTENT-box width: an inline-size container is queried on
+   its content box, and .colHead carries 10px of side padding, so the queryable
+   width is the column minus 20px (~71px at a 91px tablet column, ~44px at a 64px
+   phone column). 58px cleanly separates the two. */
+.gridHeader[data-mode="week"] .colHead {
+  container: colhead / inline-size;
+}
+
+@container colhead (max-width: 58px) {
+  .overflowChip {
+    display: none;
+  }
+}
+
+/* Crunch tiers, keyed on the column's own width. The TIME is kept as long as it
+   fits — it is what a doctor most needs — and the clinic/video glyph is dropped
+   first (the lane already implies the type, and the slot's native tooltip names
+   it exactly on hover/long-press). Order of loss: mode glyph → "+" → time.
+   !important on the icons: the design system icon carries an inline display.
+     ≤120: full-width open slots drop the mode glyph, keeping "+ time". A split
+           half is too small for a time, so it shows only its mode glyph (the
+           type) with the tooltip carrying the exact time.
+     ≤92:  full-width open slots drop the "+" too, leaving just the time.
+     ≤68:  even the time falls to the native tooltip; the block stays tappable. */
+@container daycol (max-width: 120px) {
+  .slotBlock:not([data-split])[data-state="free"] .slotBlockLabel [data-tp-icon]:last-child {
+    display: none !important;
+  }
+  .slotBlock[data-split] .slotTimeText {
+    display: none;
+  }
+  .slotBlock[data-split] .slotBlockLabel {
+    justify-content: center;
+    gap: 0;
+  }
+}
+
+@container daycol (max-width: 92px) {
+  .slotBlock:not([data-split])[data-state="free"] .slotBlockLabel [data-tp-icon]:first-child {
+    display: none !important;
+  }
+  .slotBlockLabel {
+    justify-content: center;
+    gap: 0;
+  }
+}
+
+@container daycol (max-width: 68px) {
+  .slotTimeText {
+    display: none;
+  }
+}
+
+/* The mode marker stays one size and one place in every state: 14px, sitting
+   just after the time, never shrunk and never pinned to the far edge, so a
+   bookable slot and a past slot read the same. */
+.slotBlockLabel > span[aria-hidden] {
   flex-shrink: 0;
 }
 
@@ -1067,7 +1217,8 @@ button.colHeadStack:hover {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--tesseract-bg-surface);
+  /* Same grey rail and persistent bottom stroke as the Day/Week header. */
+  background: var(--tesseract-slate-100);
   border-bottom-width: 1px;
   border-bottom-style: solid;
   border-bottom-color: color-mix(in srgb, var(--tesseract-slate-200) 70%, transparent);
@@ -1075,9 +1226,7 @@ button.colHeadStack:hover {
   transition: box-shadow 150ms, border-bottom-color 150ms;
 }
 
-/* Same swap on the month rail. */
 .monthHeader[data-scrolled] {
-  border-bottom-color: transparent;
   box-shadow: 0 6px 12px -10px color-mix(in srgb, var(--tesseract-slate-900) 22%, transparent);
 }
 
@@ -1147,6 +1296,17 @@ button.colHeadStack:hover {
 }
 
 .monthCell[data-today] .monthDate {
+  background: var(--tesseract-blue-600);
+  color: var(--tesseract-fg-inverse);
+}
+
+/* The selected day is the one blue cell in the month — a light blue wash and a
+   blue date disc, the same way the selected day reads in the Day/Week header. */
+.monthCell[data-selected] {
+  background: var(--tesseract-blue-50);
+}
+
+.monthCell[data-selected] .monthDate {
   background: var(--tesseract-blue-600);
   color: var(--tesseract-fg-inverse);
 }
@@ -1465,11 +1625,9 @@ button.colHeadStack:hover {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px 16px;
-  /* 30px, the same slim band the date-head rail runs at, so the panel is
-     bracketed by two matching strips rather than a heavy header and a light
-     foot. */
+  /* 30px foot: slim, but tall enough that the toggle and key read comfortably. */
   height: 30px;
   min-height: 30px;
   padding: 0 18px;
@@ -1483,6 +1641,16 @@ button.colHeadStack:hover {
      same surface. */
   background: var(--tesseract-slate-100);
   box-shadow: 0 -3px 8px -6px color-mix(in srgb, var(--tesseract-slate-900) 14%, transparent);
+}
+
+/* The colour key + refresh, pushed to the far right of the bar with Show Slots
+   holding the left. */
+.legendKey {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
 .legendItem {
@@ -1505,7 +1673,6 @@ button.colHeadStack:hover {
 /* Refresh, at the far end of the same bar. Ghost by default so it belongs to
    the legend's register rather than competing with the toolbar above. */
 .legendRefresh {
-  margin-left: auto;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -1594,23 +1761,8 @@ button.colHeadStack:hover {
     gap: 6px 12px;
   }
 
-  .dayCol {
-    min-width: 96px;
-  }
 }
 
-/* Portrait tablet: the week grid stops pretending it can show seven readable
-   columns in this width and scrolls sideways instead of crushing them. */
-@media (max-width: 834px) {
-  .gridBody,
-  .gridHeader {
-    min-width: 720px;
-  }
-
-  .timeGridWrap {
-    overflow-x: auto;
-  }
-}
 
 
 /* ── Month: what is still open ────────────────────────────────────────
@@ -1704,4 +1856,17 @@ button.colHeadStack:hover {
   .monthFreeSkeleton {
     animation: none;
   }
+}
+
+/* No visible scrollbar in the calendar view. The grid still scrolls; the bar
+   is hidden so the day/week and month grids read clean, with no reserved
+   gutter. Table view keeps its own scrollbar. */
+.timeGridWrap,
+.monthWrap {
+  scrollbar-width: none;
+}
+
+.timeGridWrap::-webkit-scrollbar,
+.monthWrap::-webkit-scrollbar {
+  display: none;
 }

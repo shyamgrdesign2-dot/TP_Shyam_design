@@ -42,7 +42,7 @@ export function apStatueForTab(tabId, isChikitsalay = false) {
 // Statuses merged into the calendar's "All" view — the doctor's/receptionist's
 // complete schedule on one grid (Pending Digitisation is an all-time worklist,
 // not a schedule concept, so it stays out of the calendar).
-export const ALL_MERGED_TABS = [TAB_IDS.QUEUE, TAB_IDS.FINISHED, TAB_IDS.CANCELLED, TAB_IDS.DRAFT];
+export const ALL_MERGED_TABS = [TAB_IDS.QUEUE, TAB_IDS.DRAFT, TAB_IDS.FINISHED, TAB_IDS.CANCELLED];
 
 const TAB_META = {
   [TAB_IDS.ALL]: { id: TAB_IDS.ALL, label: "All", icon: "document-favorite", iconFamily: "content-edit" },
@@ -64,9 +64,9 @@ const TAB_META = {
 // leaving it restores the calendar (see AppointmentListingPage).
 export const LIST_TABS = [
   TAB_IDS.QUEUE,
+  TAB_IDS.DRAFT,
   TAB_IDS.FINISHED,
   TAB_IDS.CANCELLED,
-  TAB_IDS.DRAFT,
   TAB_IDS.PENDING,
   TAB_IDS.REFERRAL,
 ].map((id) => TAB_META[id]);

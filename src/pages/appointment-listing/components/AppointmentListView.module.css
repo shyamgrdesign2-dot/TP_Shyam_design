@@ -59,6 +59,25 @@
   min-width: 0 !important;
 }
 
+/* And let the empty state fill the whole body and centre in it, rather than
+   sitting at the design system's fixed cell height near the top. The scroller
+   stops capping its height, the table stretches to fill it, and the empty cell
+   centres its message vertically. Applies to every status tab's empty state. */
+.refTable [class*="_scrollerWrap_"]:has(td[class*="_empty_"]),
+.refTable [class*="_scroller_"]:has(td[class*="_empty_"]) {
+  flex: 1 1 auto;
+  max-height: none !important;
+}
+
+.refTable table:has(td[class*="_empty_"]) {
+  height: 100%;
+}
+
+.refTable td[class*="_empty_"] {
+  height: 100%;
+  vertical-align: middle;
+}
+
 .refTable thead tr {
   background: var(--tesseract-slate-100);
 }
@@ -198,13 +217,16 @@
   vertical-align: middle;
 }
 
+/* The line under the name is a subtext, set exactly like the date under the
+   slot time: one size smaller than the primary cell text and a lighter slate,
+   so every "heading + subtext" pair in the table reads the same way. */
 .patientMeta {
   display: flex;
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: var(--tesseract-text-body-sm);
-  color: var(--tesseract-fg-primary);
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-tertiary);
 }
 
 /* Symptom-collector marker: the patient answered the agent's questions
@@ -244,7 +266,7 @@
 .specialty {
   margin: 0;
   font-size: var(--tesseract-text-body-xs);
-  color: var(--tesseract-fg-secondary);
+  color: var(--tesseract-fg-tertiary);
   white-space: nowrap;
 }
 
@@ -271,17 +293,16 @@
   align-items: center;
   gap: 4px;
   font-size: var(--tesseract-text-body-sm);
-  /* The time is the appointment's own anchor and is blue everywhere else on
-     this screen; body ink here made the one column that is a schedule read
-     like plain text. */
-  color: var(--tesseract-blue-700);
+  /* The time reads as primary cell text (near-black), the same ink as the
+     contact and visit-type columns, with its date below as the subtext. */
+  color: var(--tesseract-fg-primary);
   white-space: nowrap;
 }
 
 .slotDate {
   margin: 0;
   font-size: var(--tesseract-text-body-xs);
-  color: var(--tesseract-fg-secondary);
+  color: var(--tesseract-fg-tertiary);
   white-space: nowrap;
 }
 
