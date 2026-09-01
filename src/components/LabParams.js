@@ -21,12 +21,12 @@ import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { getCustomInvestigations } from '../api/services/ApiCustomInvestigation';
 import InlineInvestigationPanel from './InlineInvestigationPanel';
 import { InvestigationSettingsPanel } from '../pages/lims/InvestigationSettingsPage';
-import { Alert, Button as TesseractButton } from '@dhspl-tatvacare/tesseract-ui';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import CheckableTag from 'antd/es/tag/CheckableTag';
 import CommonModal from '../common/CommonModal';
+import "./LabParamsCustomInvestigation.css";
 
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import _ from 'lodash';
@@ -142,6 +142,8 @@ const LabResultsTable = ({
     isReceptionistSession,
     /** LIMS header Save proxies the inner button; notify when settings replaces that header. */
     onInvestigationSettingsChange,
+    /** When set (LIMS drawer), settings open state is owned by the parent header. */
+    investigationSettingsOpen: investigationSettingsOpenProp,
 }) => {
 
     const [token, setToken] = useState(null);
@@ -169,7 +171,18 @@ const LabResultsTable = ({
     const [defaultTestData, setDefaultTestData] = useState([]);
     const [customGroups, setCustomGroups] = useState([]);
     const [isCreateInvestigationOpen, setIsCreateInvestigationOpen] = useState(false);
-    const [isInvestigationSettingsOpen, setIsInvestigationSettingsOpen] = useState(false);
+    const [internalInvestigationSettingsOpen, setInternalInvestigationSettingsOpen] = useState(false);
+    const isSettingsControlled = investigationSettingsOpenProp !== undefined;
+    const isInvestigationSettingsOpen = isSettingsControlled
+      ? investigationSettingsOpenProp
+      : internalInvestigationSettingsOpen;
+    const setInvestigationSettingsOpen = useCallback(
+      (next) => {
+        if (!isSettingsControlled) setInternalInvestigationSettingsOpen(next);
+        onInvestigationSettingsChange?.(next);
+      },
+      [isSettingsControlled, onInvestigationSettingsChange]
+    );
 
     useEffect(() => {
       setDefaultTestData(JSON.parse(JSON.stringify(DEFAULT_TESTS_DATA)));
@@ -216,17 +229,6 @@ const LabResultsTable = ({
       }
     }, [tokenData, dates]);
 
-    const ownedCustomGroups = useMemo(
-      () =>
-        (customGroups || []).filter(
-          (group) =>
-            tokenData?.user_id != null &&
-            group?.createdBy != null &&
-            String(group.createdBy) === String(tokenData.user_id)
-        ),
-      [customGroups, tokenData?.user_id]
-    );
-
     useEffect(() => {
       fetchAndMergeCustomInvestigations();
     }, [fetchAndMergeCustomInvestigations]);
@@ -235,10 +237,6 @@ const LabResultsTable = ({
       window.addEventListener("focus", fetchAndMergeCustomInvestigations);
       return () => window.removeEventListener("focus", fetchAndMergeCustomInvestigations);
     }, [fetchAndMergeCustomInvestigations]);
-
-    useEffect(() => {
-      onInvestigationSettingsChange?.(isInvestigationSettingsOpen);
-    }, [isInvestigationSettingsOpen, onInvestigationSettingsChange]);
 
     const currentDate = new Date().toISOString().split("T")[0];
     const dateFormat = 'YYYY-MM-DD';
@@ -1311,8 +1309,8 @@ const LabResultsTable = ({
 
     const closeInvestigationSettings = useCallback(async () => {
       await fetchAndMergeCustomInvestigations();
-      setIsInvestigationSettingsOpen(false);
-    }, [fetchAndMergeCustomInvestigations]);
+      setInvestigationSettingsOpen(false);
+    }, [fetchAndMergeCustomInvestigations, setInvestigationSettingsOpen]);
 
     const tooltipTitle = (notes, reportName, testName, date) => {
       return (
@@ -1393,7 +1391,7 @@ const LabResultsTable = ({
               className="btn btn-41 px-2 me-2 focus-none d-flex align-items-center justify-content-center"
               title="Investigation Settings"
               aria-label="Investigation Settings"
-              onClick={() => setIsInvestigationSettingsOpen(true)}
+              onClick={() => setInvestigationSettingsOpen(true)}
             >
               <SettingOutlined style={{ fontSize: "18px" }} />
             </Button>
@@ -1444,25 +1442,59 @@ const LabResultsTable = ({
         </div>
 
         {searchQuery.trim() !== "" && !queryMatchesExisting && (
-          <div style={{ margin: "var(--tesseract-space-2) var(--tesseract-space-4)" }}>
-            <Alert
-              status="info"
-              variant="soft"
-              title={`Can't find "${searchQuery.trim()}"?`}
-              action={
-                <TesseractButton
-                  size="sm"
-                  variant="outline"
-                  theme="primary"
-                  className="create-custom-investigation-cta"
-                  onClick={() => setIsCreateInvestigationOpen(true)}
-                >
-                  Create custom investigation
-                </TesseractButton>
-              }
+          <div
+            className="lab-params-create-banner"
+            role="status"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              margin: "8px 16px",
+              padding: "12px 16px",
+              background: "#eef2ff",
+              border: "1px solid #c7d2fe",
+              borderRadius: 10,
+              color: "#1e1b4b",
+              fontFamily:
+                'Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+          >
+            <div className="lab-params-create-banner-copy" style={{ minWidth: 0 }}>
+              <div
+                className="lab-params-create-banner-title"
+                style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, color: "#1e1b4b" }}
+              >
+                {`Can't find "${searchQuery.trim()}"?`}
+              </div>
+              <div
+                className="lab-params-create-banner-body"
+                style={{ fontSize: 13, lineHeight: 1.45, color: "#3730a3" }}
+              >
+                Create a hospital-scoped custom investigation to use in result entry.
+              </div>
+            </div>
+            <button
+              type="button"
+              className="lab-params-create-banner-cta"
+              onClick={() => setIsCreateInvestigationOpen(true)}
+              style={{
+                flexShrink: 0,
+                border: "1px solid #4b4ad5",
+                background: "#fff",
+                color: "#4b4ad5",
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1.2,
+                padding: "6px 12px",
+                borderRadius: 8,
+                cursor: "pointer",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
             >
-              Create a hospital-scoped custom investigation to use in result entry.
-            </Alert>
+              Create custom investigation
+            </button>
           </div>
         )}
 
@@ -1470,8 +1502,8 @@ const LabResultsTable = ({
           open={isCreateInvestigationOpen}
           onClose={() => setIsCreateInvestigationOpen(false)}
           initialName={searchQuery.trim()}
-          existingGroups={ownedCustomGroups}
-          defaultGroupMode={ownedCustomGroups.length > 0 ? "existing" : "new"}
+          existingGroups={customGroups}
+          defaultGroupMode={customGroups.length > 0 ? "existing" : "new"}
           onCreated={handleCustomInvestigationCreated}
         />
 

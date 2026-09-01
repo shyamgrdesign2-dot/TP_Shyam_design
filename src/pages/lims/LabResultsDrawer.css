@@ -60,7 +60,44 @@
   flex-shrink: 0;
 }
 
-/* ── Hide the original LabParams sticky header ──────────────────── */
+.lims-drawer-settings {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  color: #44444f;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: none;
+  /* Tesseract's global `[data-tp-theme] button { background: 0 }` must not hide this. */
+  opacity: 1;
+  visibility: visible;
+}
+
+.lims-drawer-settings svg {
+  color: inherit;
+}
+
+.lims-drawer-settings:hover:not(:disabled) {
+  color: #171725;
+  background: #f1f1f5;
+}
+
+.lims-drawer-settings:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/*
+ * LIMS owns the drawer chrome (title + Save). LabParams still renders its own
+ * sticky header with the custom-investigation settings gear; hide that duplicate
+ * bar and surface the gear on `.lims-drawer-header` instead.
+ */
 .lims-lab-drawer .modalCard-header {
   display: none !important;
 }

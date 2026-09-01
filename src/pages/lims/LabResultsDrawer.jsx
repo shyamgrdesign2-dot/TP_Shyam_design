@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Drawer } from "antd";
-import { CloseOutlined, PrinterOutlined } from "@ant-design/icons";
+import { CloseOutlined, SettingOutlined } from "@ant-design/icons";
 import LabParams from "../../components/LabParams";
 import { getPatientLastVisitDoctorUmId } from "../../utils/labResultsUtils";
 import { printPatientResults } from "./limsPrint";
@@ -58,6 +58,16 @@ export default function LabResultsDrawer({
           {/* <Button onClick={handlePrint} icon={<PrinterOutlined />}>
             Print
           </Button> */}
+          <button
+            type="button"
+            className="lims-drawer-settings"
+            aria-label="Investigation Settings"
+            title="Investigation Settings"
+            onClick={() => setIsInvestigationSettingsOpen(true)}
+            disabled={isInvestigationSettingsOpen}
+          >
+            <SettingOutlined style={{ fontSize: 18 }} />
+          </button>
           <Button
             type="primary"
             className="btn btn-primary3 px-4"
@@ -84,6 +94,7 @@ export default function LabResultsDrawer({
           onSave={() => onSaved?.()}
           attendingDoctorUmId={attendingDoctorUmId}
           isReceptionistSession={isReceptionistSession}
+          investigationSettingsOpen={isInvestigationSettingsOpen}
           onInvestigationSettingsChange={setIsInvestigationSettingsOpen}
         />
       </div>
