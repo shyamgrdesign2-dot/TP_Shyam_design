@@ -983,9 +983,8 @@ function AddAppointment() {
               placement="bottom"
             >
               <button className="btn d-flex align-items-center btn-text tutorial p-0" type="button">
-                <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
-                  <img height={42} src={tutorial} alt="" />
-                  Tutorial
+                <span className="text-decoration-none rounded-5 bg-white shadow2">
+                  <img height={42} src={tutorial} alt="Tutorial" />
                 </span>
               </button>
             </Popover>

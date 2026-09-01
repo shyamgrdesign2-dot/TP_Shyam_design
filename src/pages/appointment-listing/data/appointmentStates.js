@@ -56,7 +56,7 @@ export const STATUS_META = {
  * can extend at will. One glyph covers every value and the wording carries
  * the difference, so a new visit type never needs a new icon.
  */
-export const VISIT_ICON = { icon: "calendar", family: "time" };
+export const VISIT_ICON = { icon: "user-tag", family: "users" };
 
 export function visitMeta(visitType) {
   const v = String(visitType || "").toLowerCase();

@@ -153,6 +153,34 @@ const shiftDays = (d, n) => {
   x.setDate(x.getDate() + n);
   return x;
 };
+const sameDayLocal = (a, b) =>
+  !!a && !!b && startOfDayLocal(a).getTime() === startOfDayLocal(b).getTime();
+/* One compact universal date vocabulary, used by the pill in both views so the
+   doctor never learns two formats. Title case, short weekday/month, no year:
+   a single day is "Sat, 29 Aug", a span is "24 – 30 Aug" (or "28 Aug – 3 Sep"
+   across a month boundary), and a whole month is "August". The year is dropped
+   throughout — the schedule is always the current period. */
+const formatPillDate = (d) => {
+  const day = startOfDayLocal(d);
+  const diff = Math.round((day.getTime() - startOfDayLocal(new Date()).getTime()) / 86400000);
+  if (diff === 0) return "Today";
+  if (diff === -1) return "Yesterday";
+  if (diff === 1) return "Tomorrow";
+  const wd = day.toLocaleDateString("en-US", { weekday: "short" });
+  const dm = day.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return `${wd}, ${dm}`;
+};
+const formatPillRange = (r) => {
+  if (!r?.start) return "";
+  const s = startOfDayLocal(r.start);
+  const e = startOfDayLocal(r.end || r.start);
+  const sMon = s.toLocaleDateString("en-US", { month: "short" });
+  const eMon = e.toLocaleDateString("en-US", { month: "short" });
+  if (sameDayLocal(s, e)) return formatPillDate(s);
+  return sMon === eMon
+    ? `${s.getDate()} – ${e.getDate()} ${eMon}`
+    : `${s.getDate()} ${sMon} – ${e.getDate()} ${eMon}`;
+};
 const RANGE_PRESETS = [
   { id: "today", label: "Today", getRange: () => ({ start: startOfDayLocal(new Date()), end: startOfDayLocal(new Date()) }) },
   {
@@ -292,6 +320,20 @@ export default function AppointmentListingPage() {
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
   const [view, setView] = useState(() => readPreference("view", "list"));
+  /* Day/Week now lives in the page toolbar, so the page owns the calendar's
+     grain. It drives the grid through the calendar's modeOverride, and the
+     calendar publishes back through onModeChange (e.g. drilling into a day from
+     week view) so the toolbar toggle stays in step. */
+  const [calendarMode, setCalendarMode] = useState(() => {
+    const saved = readPreference("calendarMode", "day");
+    // Month is hidden from the toggle, so never start the grid in it.
+    return saved === "week" ? "week" : "day";
+  });
+  const pickCalendarMode = useCallback((m) => {
+    if (m !== "day" && m !== "week" && m !== "month") return;
+    setCalendarMode(m);
+    writePreference("calendarMode", m);
+  }, []);
   const [activeTab, setActiveTab] = useState(() => {
     // Zydus defaults to Encounter tab on first load; non-Zydus defaults to Queue.
     // Calendar preference restores "All" only for non-Zydus (Zydus has no All tab).
@@ -327,6 +369,46 @@ export default function AppointmentListingPage() {
      without moving the view toggle, and leaving it puts the grid straight back. */
   const isWorklistTab = isAllTimeWorklistTab(activeTab);
   const renderCalendar = isCalendar && !isWorklistTab;
+  /* Greet the doctor by their first name: strip any leading "Dr"/"Dr." the
+     backend may already carry, take the first token, and cap the length so a
+     long name can never crowd the banner CTAs. Falls back to a plain greeting
+     when the profile has not loaded yet. */
+  const doctorFirstName = useMemo(() => {
+    const raw = (profile?.um_name || "").trim();
+    if (!raw) return "";
+    const first = raw
+      .replace(/^dr\.?\s+/i, "")
+      .split(/\s+/)[0] || "";
+    // Cap the name so it can never crowd the banner CTAs; the h1 also
+    // ellipsis-truncates, so on a narrow screen the greeting degrades to
+    // "Good morning, Dr. Sh…" rather than wrapping or pushing the buttons.
+    return first.length > 16 ? `${first.slice(0, 16)}…` : first;
+  }, [profile?.um_name]);
+  /* Below ~900px the banner CTAs get tight, so the primary button shortens to
+     "Book Appt". The greeting itself always stays (the h1 truncates its tail);
+     this flag only governs that button label now. */
+  const [compactHeader, setCompactHeader] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.("(max-width: 900px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 900px)");
+    const sync = () => setCompactHeader(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  /* A daily landing page reads warmer with a time-of-day greeting than a flat
+     "Welcome", and it changes through the day so the screen never feels static.
+     Falls back to a plain title before the profile loads. */
+  const bannerTitle = useMemo(() => {
+    if (!doctorFirstName) return "Appointments";
+    // The greeting always stays; only the name gives way. When the banner is
+    // narrow the h1 ellipsis-truncates the tail ("Good evening, Dr. Sh…"),
+    // which the doctor reads as their own screen far better than a bare name.
+    const h = new Date().getHours();
+    const part = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+    return `${part}, Dr. ${doctorFirstName}`;
+  }, [doctorFirstName]);
   // Single-day prev/next is for Zydus list tabs only; calendar uses the
   // shared day picker like every other account.
   const useZydusSingleDayNav =
@@ -388,7 +470,52 @@ export default function AppointmentListingPage() {
     }, 180);
   };
   const dateWrapRef = useRef(null);
+  const tabRowRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Right-edge fade on the tab strip. When the tabs are wider than the card
+  // (narrow screens / many tabs) the strip scrolls horizontally with its
+  // scrollbar hidden, so a soft gradient at the right edge is the only cue that
+  // more tabs sit off-screen. It clears once the strip is scrolled to the end.
+  useEffect(() => {
+    const wrap = tabRowRef.current;
+    if (!wrap) return undefined;
+    // The horizontally scrolling element is the design system's TabsList, not
+    // the Tabs root wrapper.
+    const scroller = wrap.querySelector('[role="tablist"]') || wrap;
+    const sync = () => {
+      const more = scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft > 1;
+      if (more) wrap.setAttribute("data-overflow-x", "");
+      else wrap.removeAttribute("data-overflow-x");
+    };
+    sync();
+    scroller.addEventListener("scroll", sync, { passive: true });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : null;
+    ro?.observe(scroller);
+    return () => {
+      scroller.removeEventListener("scroll", sync);
+      ro?.disconnect();
+    };
+  }, [activeTab]);
+
+  // "ResizeObserver loop completed with undelivered notifications" is a benign
+  // browser notice (a resize handler laid out again within the same frame; the
+  // browser just defers the extra notifications). It changes nothing at runtime,
+  // but react-scripts' dev overlay treats every window error as fatal and pops a
+  // full-screen "Uncaught runtime errors" panel. Swallow only this exact message
+  // so the overlay stops firing; real errors pass through untouched.
+  useEffect(() => {
+    const onError = (e) => {
+      if (typeof e.message === "string" && e.message.startsWith("ResizeObserver loop")) {
+        e.stopImmediatePropagation();
+        const overlay = document.getElementById("webpack-dev-server-client-overlay");
+        if (overlay) overlay.style.display = "none";
+      }
+    };
+    window.addEventListener("error", onError, true);
+    return () => window.removeEventListener("error", onError, true);
+  }, []);
+
   const pendingUploadRef = useRef(null);
   const dispatch = useDispatch();
   const isVoiceRxNewUi = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
@@ -486,6 +613,146 @@ export default function AppointmentListingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset on tab change only
   }, [allowFutureDates]);
 
+  /* Instant quick-select. The design system's date picker only commits on Apply
+     (or a click outside), but a doctor tapping "Today" or a single day on the
+     grid wants it applied and the popover gone in one click — Apply should be
+     left for a hand-drawn custom range only. So we watch clicks inside the
+     picker's popover: a preset always commits instantly, and a single day
+     commits instantly in the calendar's single-date picker (in the table, day
+     clicks are the two ends of a range and still go through Apply). We set our
+     own date state and dismiss the popover through its Cancel control; the
+     controlled value we just set is what the trigger then shows. */
+  const ownPopover = useCallback(() => {
+    const id = dateWrapRef.current
+      ?.querySelector('[class*="_trigger_"]')
+      ?.getAttribute("aria-controls");
+    return id ? document.getElementById(id) : null;
+  }, []);
+  // Mark our popover so the calendar footer restyle (see .dayPopover in the CSS)
+  // is scoped to this one picker. rAF because the popover mounts a tick after
+  // the trigger click that opens it.
+  const tagOwnPopover = useCallback(() => {
+    requestAnimationFrame(() => ownPopover()?.classList.add(styles.dayPopover));
+  }, [ownPopover]);
+
+  useEffect(() => {
+    const onClick = (e) => {
+      const popover = e.target.closest?.('[id^="tp-drp-popover-"]');
+      if (!popover) return;
+      // Only our toolbar date picker's popover — never another date picker that
+      // happens to be open on the page (e.g. the add-patient Date of Birth
+      // field in a drawer over this screen), which this would otherwise hijack.
+      const ourPopoverId = dateWrapRef.current
+        ?.querySelector('[class*="_trigger_"]')
+        ?.getAttribute("aria-controls");
+      if (!ourPopoverId || popover.id !== ourPopoverId) return;
+      const close = () =>
+        popover.querySelector('[class*="_actionsRight_"] button')?.click();
+      // "Today": the single picker's one footer action (the relabelled Clear).
+      // Jump the selection to today and close, rather than clearing the value.
+      if (renderCalendar && e.target.closest('[class*="_actions_"] [data-theme="warning"]')) {
+        setTimeout(() => {
+          setCalendarWindow(null);
+          setCalendarWindowLabel(null);
+          const today = new Date();
+          setDateRange({ start: startOfDayLocal(today), end: startOfDayLocal(today) });
+          close();
+        }, 0);
+        return;
+      }
+      const presetBtn = e.target.closest('[class*="_preset_"]');
+      const dayBtn = e.target.closest('[class*="_day_"]');
+      if (!presetBtn && !dayBtn) return;
+      if (dayBtn && !renderCalendar) return; // table: day clicks build a range
+      let next = null;
+      if (presetBtn) {
+        const p = RANGE_PRESETS.find((x) => x.label === presetBtn.textContent.trim());
+        if (p) next = p.getRange();
+      } else if (dayBtn) {
+        const d = new Date(dayBtn.getAttribute("aria-label"));
+        if (!Number.isNaN(d.getTime())) next = { start: startOfDayLocal(d), end: startOfDayLocal(d) };
+      }
+      if (!next) return;
+      // Let the design system register the click, then apply ours and close.
+      setTimeout(() => {
+        if (renderCalendar) {
+          setCalendarWindow(null);
+          setCalendarWindowLabel(null);
+        }
+        setDateRange(next);
+        close();
+      }, 0);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [renderCalendar]);
+
+  /* ── Toolbar date stepper ───────────────────────────────────────────────
+     Both views share one control in the toolbar: [‹ date ›], the arrows inside
+     a single pill. In the table the arrows walk one day and only make sense on
+     a single day, so a multi-day span (a preset or a hand-picked range)
+     disables them. In the calendar they walk the visible window — a day in Day
+     view, a week in Week view — and the calendar re-anchors from the date set
+     here, so its own header no longer needs a second date control.
+
+     The label is derived, not stored: when the table span equals a quick preset
+     we hand the picker the preset id (a bare string the design system resolves
+     back to its own label) so the trigger reads "Today"/"Past 7 days" rather
+     than a raw range; the calendar publishes its own window label to show. */
+  // No explicit selection means "today", which is a single day — so the arrows
+  // work from the default view too, not just after the doctor picks a date.
+  const effDateStart = dateRange?.start ? new Date(dateRange.start) : new Date();
+  const dateIsSingleDay = !dateRange?.start
+    ? true
+    : !!dateRange?.end && sameDayLocal(dateRange.start, dateRange.end);
+  const dateArrowsDisabled = renderCalendar ? false : isWorklistTab || !dateIsSingleDay;
+  const dateNextDisabled =
+    (renderCalendar ? false : dateArrowsDisabled) ||
+    (!allowFutureDates && sameDayLocal(effDateStart, new Date()));
+  const stepDate = (dir) => () => {
+    // Always a single day: the selected date moves by one, and the calendar's
+    // week/month view just re-centres on it when it crosses a boundary.
+    const next = shiftDays(startOfDayLocal(effDateStart), dir);
+    if (!renderCalendar) {
+      setCalendarWindow(null);
+      setCalendarWindowLabel(null);
+    }
+    setDateRange({ start: next, end: next });
+  };
+  const activePresetId = useMemo(() => {
+    if (renderCalendar || isWorklistTab || !dateRange?.start || !dateRange?.end) return null;
+    const match = RANGE_PRESETS.find((p) => {
+      const r = p.getRange();
+      return sameDayLocal(r.start, dateRange.start) && sameDayLocal(r.end, dateRange.end);
+    });
+    return match?.id ?? null;
+  }, [dateRange, isWorklistTab, renderCalendar]);
+  /* The table picker runs in range mode so the multi-day presets keep working,
+     but range mode always writes "30 Aug 2026 – 30 Aug 2026" for a single day
+     and ignores formatDate. So for a plain single day that is not itself a
+     preset (the arrow-stepped case) we overlay our own short label — "Monday",
+     "29 Aug", "Tomorrow" — over the trigger text. Today/Yesterday already read
+     as words through the preset path, and the calendar's day view is single
+     mode where formatDate works, so neither needs the overlay. */
+  /* The pill label is drawn by us, over the design system's trigger, in every
+     state — so a single day always reads as "Saturday, 27 August" (table and
+     calendar day view alike), a calendar week/month shows the grid's own window
+     label, and only a hand-picked multi-day table range falls back to the DS's
+     own range text. Driving it here rather than through the DS's value/format
+     means it never flickers to a placeholder or a raw "29 Aug 2026". */
+  const activePreset = RANGE_PRESETS.find((p) => p.id === activePresetId);
+  const pillOverlay = isWorklistTab
+    ? null
+    : renderCalendar
+    ? // The calendar always has one selected day; Day/Week/Month only change how
+      // much context is drawn around it, so the pill names that day, not a range.
+      formatPillDate(effDateStart)
+    : dateIsSingleDay
+    ? formatPillDate(effDateStart)
+    : activePreset
+    ? activePreset.label
+    : formatPillRange(dateRange);
+
   // Visit-type filter options are the clinic's configured case types (same
   // source as the legacy screen: getCaseTypes → toct_id values sent as the
   // filterVisitType csv).
@@ -556,10 +823,12 @@ export default function AppointmentListingPage() {
     isChikitsalay: isChikitsalayAccessable && !isZydusAccount,
   });
 
-  // Legacy AppointmentData.js: Pending Digitisation only when digitisation
-  // GB flags are on AND there is at least one undigitised/unreviewed id.
+  // Pending Digitisation is an all-time worklist, independent of the Slot /
+  // Visit-Type filters. Those filters can drive its visible count to 0, which
+  // must not make the tab vanish — so it also stays while any filter is active.
   const showPendingTab =
-    digitisationWorklistEnabled && (countByTab[TAB_IDS.PENDING] || 0) > 0;
+    digitisationWorklistEnabled &&
+    ((countByTab[TAB_IDS.PENDING] || 0) > 0 || activeFilterCount > 0);
   const visibleTabs = useMemo(
     () => tabsForView.filter((t) => t.id !== TAB_IDS.PENDING || showPendingTab),
     [tabsForView, showPendingTab]
@@ -1054,9 +1323,9 @@ export default function AppointmentListingPage() {
       <div className={styles.page}>
         <HeroBanner
           size="lg"
-          align="center"
+          align="left"
           tone="violet"
-          title="Your Appointments"
+          title={bannerTitle}
           actions={
             <>
               {/* List vs calendar is a page-level mode, so it sits with the
@@ -1094,7 +1363,7 @@ export default function AppointmentListingPage() {
                   leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
                   onClick={() => navigate("/add-appointment")}
                 >
-                  Add Appointment
+                  {compactHeader ? "Book Appt" : "Book Appointment"}
                 </Button>
               )}
               {showWalkIn && (
@@ -1118,50 +1387,19 @@ export default function AppointmentListingPage() {
         {/* Card overlaps the banner, RxPad-style */}
         <div className={styles.cardWrap}>
           <div className={styles.card}>
-            <div className={styles.tabRow}>
+            <div className={styles.tabRow} ref={tabRowRef}>
               <TabBar
                 tabs={visibleTabs}
                 activeTab={activeTab}
                 countByTab={countByTab}
                 onSelect={selectTab}
               />
-              <div className={styles.tabRowMenu}>
-                {showQueueExportMenu && (
-                  <Dropdown
-                    className="tpKebabMenu"
-                    options={[
-                      {
-                        value: "export-queue-ics",
-                        label: exporting ? "Preparing…" : `Download Queue (.ics)${countByTab[TAB_IDS.QUEUE] ? ` · ${countByTab[TAB_IDS.QUEUE]}` : ""}`,
-                      },
-                    ]}
-                    value={null}
-                    onChange={(v) => v === "export-queue-ics" && exportQueueIcs()}
-                    chevron={false}
-                    variant="seamless"
-                    placeholder=""
-                    leadingIcon={<KebabIcon size={16} />}
-                    ariaLabel="More options"
-                    width={240}
-                    renderOption={(o) => (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0" }}>
-                        <TPLibraryIcon name="document-download" size={16} color="var(--tesseract-slate-500)" />
-                        <span style={{ flex: 1, fontSize: 14, color: "var(--tesseract-slate-700)", whiteSpace: "nowrap" }}>
-                          {o.label}
-                        </span>
-                      </div>
-                    )}
-                  />
-                )}
-              </div>
             </div>
 
             <div className={styles.toolbar}>
               <div className={styles.searchLabel}>
                 <InputBox
                   fullWidth
-                  showLabel={false}
-                  showHelper={false}
                   clearable
                   leftIcon={<TPLibraryIcon name="search-normal" size={20} />}
                     placeholder={
@@ -1172,69 +1410,31 @@ export default function AppointmentListingPage() {
                 />
               </div>
               <div className={styles.toolbarRight}>
-                {/* One date control for both views, in the same place.
-                    The table filters over a range; the calendar is anchored
-                    to a single day and its own Day/Week toggle decides
-                    how much of it you see, so the picker drops to single
-                    mode there rather than making the user express a span
-                    twice. */}
-                {!useZydusSingleDayNav ? (
-                  <>
-                    <div
-                      className={styles.dateWrap}
-                      ref={dateWrapRef}
-                      /* The picker is disabled on the digitisation worklist, and a
-                         disabled control explains nothing on its own. */
-                      onClickCapture={() => {
-                        if (isWorklistTab) {
-                          setToast({
-                            status: "error",
-                            title:
-                              activeTab === TAB_IDS.REFERRAL
-                                ? "Referral covers all dates."
-                                : "Digitisation covers all dates.",
-                          });
-                        }
-                      }}
-                    >
-                      <DateRangePicker
-                        mode={
-                          !renderCalendar
-                            ? "range"
-                            : calendarWindowLabel?.mode === "week"
-                            ? "range"
-                            : calendarWindowLabel?.mode === "month"
-                            ? "month"
-                            : "single"
-                        }
-                        months={1}
-                        showPresets={!renderCalendar}
-                        presets={RANGE_PRESETS}
-                        commitMode={renderCalendar ? "apply" : "outside-click"}
-                        value={
-                          isWorklistTab
-                            ? null
-                            : renderCalendar
-                            ? calendarWindowLabel?.value ?? dateRange?.start ?? null
-                            : dateRange
-                        }
-                        onChange={(v) => {
-                          if (!renderCalendar) return setDateRange(v);
-                          const d = pickedDate(v) || (v?.start ? new Date(v.start) : null);
-                          return setDateRange(d ? { start: d, end: d } : null);
-                        }}
-                        placeholder={
-                          isWorklistTab ? "Till date" : calendarWindowLabel?.label || "Today"
-                        }
-                        {...(calendarWindowLabel ? { formatDate: () => calendarWindowLabel.label } : {})}
-                        size="sm"
-                        fullWidth={false}
-                        maxDate={allowFutureDates ? undefined : new Date()}
-                        disabled={isWorklistTab}
-                      />
-                    </div>
-                  </>
-                ) : (
+                {/* Day/Week lives here now, ahead of the date stepper, so the
+                    calendar's grain and its navigation read as one control group
+                    and the grid keeps its own header for nothing but the grid. */}
+                {renderCalendar && !isZydusAccount && (
+                  <SegmentedControl
+                    className={styles.grainSeg}
+                    size="sm"
+                    variant="block"
+                    /* Month view is built and working, but hidden from the
+                       toggle for prod parity (matching the legacy screen); the
+                       rendering path stays so it can be switched on later by
+                       adding the option back here. */
+                    options={[
+                      { value: "day", label: "Day" },
+                      { value: "week", label: "Week" },
+                    ]}
+                    value={calendarMode === "month" ? "day" : calendarMode}
+                    onValueChange={pickCalendarMode}
+                  />
+                )}
+                {/* One date control for both views, in one place: a [‹ date ›]
+                    stepper here in the toolbar. In the table it spans a range;
+                    in the calendar it walks the window and re-anchors the grid.
+                    Zydus keeps its own single-day nav. */}
+                {useZydusSingleDayNav ? (
                   <div className={styles.zydusDateNav}>
                     <Button
                       variant="outline"
@@ -1270,6 +1470,124 @@ export default function AppointmentListingPage() {
                       leftIcon={<TPLibraryIcon name="chevron-right" size={16} />}
                     />
                   </div>
+                ) : (
+                  <div className={styles.dateNav}>
+                    <Button
+                      variant="outline"
+                      theme="neutral"
+                      size="sm"
+                      surface="light"
+                      className={styles.dateNavBtn}
+                      onClick={stepDate(-1)}
+                      disabled={dateArrowsDisabled}
+                      aria-label="Previous"
+                      leftIcon={<TPLibraryIcon name="chevron-left" size={16} />}
+                    />
+                    <div
+                      className={styles.dateWrap}
+                      ref={dateWrapRef}
+                      data-overlay={pillOverlay ? "" : undefined}
+                      /* The picker is disabled on the digitisation worklist, and a
+                         disabled control explains nothing on its own. */
+                      onClickCapture={() => {
+                        if (isWorklistTab) {
+                          setToast({
+                            status: "error",
+                            title:
+                              activeTab === TAB_IDS.REFERRAL
+                                ? "Referral covers all dates."
+                                : "Digitisation covers all dates.",
+                          });
+                        }
+                        // Tag our popover the moment it opens so the calendar
+                        // footer restyle (Today-only) is scoped to this picker
+                        // and never touches the add-patient DOB field's popover.
+                        if (renderCalendar) tagOwnPopover();
+                      }}
+                    >
+                      <DateRangePicker
+                        /* The table spans a real range with quick presets; the
+                           calendar always picks one day (its Day/Week/Month view
+                           only changes how much context is drawn around it), so
+                           the picker there is a single-date calendar. */
+                        mode={renderCalendar ? "single" : "range"}
+                        months={1}
+                        showPresets={!renderCalendar}
+                        presets={RANGE_PRESETS}
+                        commitMode={renderCalendar ? "apply" : "outside-click"}
+                        value={
+                          isWorklistTab
+                            ? null
+                            : !renderCalendar
+                            ? activePresetId ?? dateRange
+                            : dateRange?.start ?? null
+                        }
+                        onChange={(v) => {
+                          if (renderCalendar) {
+                            const d = pickedDate(v) || (v?.start ? new Date(v.start) : null);
+                            if (d) return setDateRange({ start: d, end: d });
+                            setCalendarWindow(null);
+                            setCalendarWindowLabel(null);
+                            const today = new Date();
+                            return setDateRange({ start: today, end: today });
+                          }
+                          const start = v?.start ?? v?.range?.start ?? null;
+                          const end = v?.end ?? v?.range?.end ?? start;
+                          if (!start && !end) {
+                            const today = new Date();
+                            return setDateRange({ start: today, end: today });
+                          }
+                          return setDateRange({ start: start || end, end: end || start });
+                        }}
+                        placeholder={
+                          isWorklistTab
+                            ? "Till date"
+                            : renderCalendar
+                            ? calendarWindowLabel?.label || "Today"
+                            : "Today"
+                        }
+                        size="sm"
+                        fullWidth={false}
+                        /* Both pickers keep a footer, but they carry different
+                           actions. The table (range) footer is the design
+                           system's Clear / Cancel / Apply, for hand-drawn custom
+                           ranges. The calendar (single) footer is stripped down to
+                           ONE action: "Today" (the design system's Clear slot,
+                           relabelled), which jumps the selection to today. Cancel
+                           and Apply are hidden by CSS on the tagged popover, since
+                           a day click already commits and closes on its own. */
+                        showFooter
+                        clearLabel={renderCalendar ? "Today" : "Clear"}
+                        maxDate={allowFutureDates ? undefined : new Date()}
+                        disabled={isWorklistTab}
+                      />
+                      {/* Our own pill label, in flow so the pill wraps to it, in
+                          every state (see pillOverlay). The design system's own
+                          trigger text is collapsed; clicking this forwards to the
+                          trigger so the picker still opens. */}
+                      {pillOverlay && (
+                        <span
+                          className={styles.dateSingleLabel}
+                          onClick={() =>
+                            dateWrapRef.current?.querySelector('[class*="_trigger_"]')?.click()
+                          }
+                        >
+                          {pillOverlay}
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      theme="neutral"
+                      size="sm"
+                      surface="light"
+                      className={styles.dateNavBtn}
+                      onClick={stepDate(1)}
+                      disabled={dateNextDisabled}
+                      aria-label="Next"
+                      leftIcon={<TPLibraryIcon name="chevron-right" size={16} />}
+                    />
+                  </div>
                 )}
                 {!isCvtExtHos && filterGroups.length > 0 && (
                   <div className={styles.filterWrap} data-active={activeFilterCount > 0 || undefined}>
@@ -1278,7 +1596,96 @@ export default function AppointmentListingPage() {
                       value={filters}
                       onChange={setFilters}
                       mode="live"
-                      icon={<TPLibraryIcon name="sort" size={15} />}
+                      icon={<TPLibraryIcon name="filter-2" family="essential" size={16} />}
+                    />
+                    {/* How many filters are on, as a soft count tag on the icon —
+                        the same grey badge the tabs use — so the icon-only control
+                        still says whether it is doing anything. */}
+                    {activeFilterCount > 0 && (
+                      <span className={styles.filterCount} aria-hidden="true">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {/* Overflow menu sits at the very right end of the toolbar, after
+                    the filters, rather than up in the tab row: its Queue export
+                    follows the date filter, so it belongs with the controls,
+                    below the counts they change, and trailing the row as an
+                    overflow menu conventionally does. */}
+                {showQueueExportMenu && (
+                  <div className={styles.toolbarMenu}>
+                    <Dropdown
+                      className="tpKebabMenu"
+                      options={[
+                        {
+                          value: "export-queue-ics",
+                          label: exporting ? "Preparing…" : "Download Queue Calendar",
+                        },
+                      ]}
+                      value={null}
+                      onChange={(v) => v === "export-queue-ics" && exportQueueIcs()}
+                      chevron={false}
+                      variant="seamless"
+                      placeholder=""
+                      leadingIcon={<KebabIcon size={18} />}
+                      ariaLabel="More options"
+                      width={280}
+                      renderOption={(o) => (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                            <TPLibraryIcon name="download-arrow" family="arrow" size={16} color="var(--tesseract-slate-500)" />
+                            <span style={{ fontSize: 14, color: "var(--tesseract-slate-700)", whiteSpace: "nowrap" }}>
+                              {o.label}
+                            </span>
+                            {/* Queue count as a grey soft tag, sitting right beside the
+                                label. Always shown, including 0, so the menu always
+                                states how many appointments the export covers. Uses
+                                slate-200/700 so it stays legible against the slate-100
+                                the option row takes on hover. */}
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                height: "var(--tesseract-size-20)",
+                                minWidth: "var(--tesseract-size-20)",
+                                padding: "0 var(--tesseract-space-2)",
+                                borderRadius: "var(--tesseract-radius-full)",
+                                background: "var(--tesseract-slate-200)",
+                                color: "var(--tesseract-slate-700)",
+                                fontSize: "var(--tesseract-text-micro)",
+                                fontWeight: "var(--tesseract-weight-semibold)",
+                                letterSpacing: "0.02em",
+                              }}
+                            >
+                              {countByTab[TAB_IDS.QUEUE] || 0}
+                            </span>
+                          </div>
+                          {/* What the download is for: a note, not an action. Violet
+                              tint keeps it clearly a hint rather than a second row. */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 8,
+                              padding: "8px 10px",
+                              borderRadius: "var(--tesseract-radius-8)",
+                              background: "var(--tesseract-violet-50)",
+                            }}
+                          >
+                            <TPLibraryIcon
+                              name="info-circle"
+                              size={14}
+                              color="var(--tesseract-violet-600)"
+                              style={{ flexShrink: 0, marginTop: 1 }}
+                            />
+                            <span style={{ fontSize: 12, lineHeight: 1.4, color: "var(--tesseract-violet-700)", whiteSpace: "normal" }}>
+                              Download and add this to Google, Apple, Microsoft, or any other calendar on your phone or desktop.
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     />
                   </div>
                 )}
@@ -1367,9 +1774,12 @@ export default function AppointmentListingPage() {
                   }}
                   slotsVersion={slotsVersion}
                   allowBook={showBookActions}
-                  modeOverride={isZydusAccount ? "day" : null}
+                  /* The page owns the grain now (Day/Week toggle in the toolbar):
+                     it drives the grid here and receives internal changes back. */
+                  modeOverride={isZydusAccount ? "day" : calendarMode}
+                  onModeChange={setCalendarMode}
                   disableAvailabilityLayer={isZydusAccount}
-                  hideModeToggle={isZydusAccount}
+                  hideModeToggle
                 />
               )}
             </div>

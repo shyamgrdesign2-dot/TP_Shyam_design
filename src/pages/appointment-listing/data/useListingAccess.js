@@ -23,6 +23,13 @@ import {
 import { getDecodedToken } from "../../../utils/localStorage";
 import { env } from "../../../EnvironmentConfig";
 
+/* Stable empty fallback for the finishedData selector. `useSelector(...) || []`
+   would mint a fresh array every render when the slice is empty, changing the
+   finishedEncounterIds memo's dependency identity each render — which in turn
+   re-mints the whole access object this hook returns (finishedEncounterIds is
+   one of its memo deps). One shared constant keeps that identity stable. */
+const EMPTY_FINISHED = [];
+
 /**
  * iPad desktop mode reports as Macintosh UA — detect via touch points, not
  * viewport width (same as PrimaryActionButton).
@@ -77,7 +84,7 @@ export function useListingAccess() {
   const showReferral = useCrossConsult();
   const profile = useSelector((state) => state.doctors?.profile);
   // Legacy hide Encounter Consult once finishedData already has pam_ref_id.
-  const finishedData = useSelector((state) => state.records?.finishedData) || [];
+  const finishedData = useSelector((state) => state.records?.finishedData) || EMPTY_FINISHED;
 
   // Zydus: business_id check + GrowthBook flag, matching AppointmentData.js
   const tokenData = getDecodedToken()?.result;

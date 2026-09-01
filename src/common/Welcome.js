@@ -162,7 +162,7 @@ function Welcome(props) {
             theme="primary"
             surface="dark"
             className={pageHeroBannerStyles.outlineBtn}
-            leftIcon={<img src={CreditImg} width={19} alt="" />}
+            leftIcon={<img src={CreditImg} width={19} alt="" style={{ filter: "brightness(0) invert(1)" }} />}
             onClick={handleAvailableCredit}
           >
             {`Available Credits: ${userCreditObj?.userCredit}`}

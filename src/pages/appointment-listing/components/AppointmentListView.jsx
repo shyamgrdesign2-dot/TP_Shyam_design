@@ -42,6 +42,10 @@ function ConditionDot({ conditionId }) {
   );
 }
 
+// Stable empty fallback: a fresh `[]` on every render would change the columns
+// useMemo's dependency identity each time and defeat the memo.
+const EMPTY_ROWS = [];
+
 export default function AppointmentListView({
   tabId,
   rows,
@@ -61,7 +65,7 @@ export default function AppointmentListView({
   const wrapRef = useRef(null);
   const access = useListingAccess();
   const { showBilling, showBookActions, isZydusAccount, isChikitsalay } = access;
-  const zydusAppointmentData = useSelector((state) => state.records?.zydusAappointmentData) || [];
+  const zydusAppointmentData = useSelector((state) => state.records?.zydusAappointmentData) || EMPTY_ROWS;
   const actionCtx = access;
 
   // Legacy UAT: name is not clickable on Zydus Appointment or Cancelled tabs.
@@ -389,7 +393,7 @@ export default function AppointmentListView({
                 leftIcon={<TPLibraryIcon name="add" family="essential" size={16} />}
                 onClick={onAddAppointment}
               >
-                Add Appointment
+                Book Appointment
               </Button>
             ) : undefined
           }
