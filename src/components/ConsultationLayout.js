@@ -1847,7 +1847,7 @@ function ConsultationLayout({ children, headerProps }) {
   const handleDDxDrawer = (field) => {
     setDDxDrawer((prev) => !prev);
     if (!ddxDrawer) {
-      window.Moengage.track_event("TP_CDSS_Ddx_reviewed", {
+      window.Moengage?.track_event?.("TP_CDSS_Ddx_reviewed", {
         clinic_name: getClinicName(profile?.hospital_data),
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,
@@ -1919,7 +1919,7 @@ function ConsultationLayout({ children, headerProps }) {
           } else {
             setIsDDxLoading(true);
             setIsDDxGenerated(true);
-            window.Moengage.track_event("TP_CDSS_Ack_GenDx", {
+            window.Moengage?.track_event?.("TP_CDSS_Ack_GenDx", {
               clinic_name: getClinicName(profile?.hospital_data),
               doctor_id: profile?.doctor_unique_id,
               patient_number: patient_data?.pm_contact_no,
@@ -1968,7 +1968,7 @@ function ConsultationLayout({ children, headerProps }) {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_GenerateDDX", {
+    window.Moengage?.track_event?.("TP_Monetization_GenerateDDX", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -2023,7 +2023,7 @@ function ConsultationLayout({ children, headerProps }) {
   const handleApexAI = () => {
     dispatch(setIsApexAISelected(true));
     handleDDxDrawer();
-    window.Moengage.track_event("TP_Apex_AI_Ack", {
+    window.Moengage?.track_event?.("TP_Apex_AI_Ack", {
       clinic_name: getClinicName(profile?.hospital_data),
       doctor_id: profile?.doctor_unique_id,
       patient_number: patient_data?.pm_contact_no,
@@ -2045,7 +2045,7 @@ function ConsultationLayout({ children, headerProps }) {
       if (currentTcmId == 0) {
         const tokenDataLocal = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_VoiceRx", {
+        window.Moengage?.track_event?.("TP_VoiceRx", {
           doctor_name: profile?.um_name,
           doctor_number: profile?.um_contact,
           doctor_unique_id: profile?.doctor_unique_id,
@@ -2809,7 +2809,7 @@ function ConsultationLayout({ children, headerProps }) {
           dispatch(setActiveTeleconsultConsultationId(data.consultationId));
         }
 
-        window.Moengage.track_event("TP_TC_StartCall", {
+        window.Moengage?.track_event?.("TP_TC_StartCall", {
           doctor_name: profile?.um_name,
           doctor_number: profile?.um_contact,
           doctor_specialty: profile?.dp_name,

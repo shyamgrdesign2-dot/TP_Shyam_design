@@ -83,7 +83,7 @@ function UpgradeServicesModal({ isUpgradeModal, upgradeList, handleUpgradeModal 
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_StartExploring", {
+        window.Moengage?.track_event?.("TP_Monetization_StartExploring", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -162,7 +162,7 @@ function UpgradeServicesModal({ isUpgradeModal, upgradeList, handleUpgradeModal 
     const handleTatvaAi = async () => {
         try {
             setLoading(true);
-            window.Moengage.track_event("TP_TatvaAI_Open", {
+            window.Moengage?.track_event?.("TP_TatvaAI_Open", {
                 Doctor_Name: profile?.um_name,
                 Doctor_Number: profile?.um_contact,
                 Doctor_Unique_Id: profile?.doctor_unique_id,

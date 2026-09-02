@@ -365,7 +365,7 @@ function SidebarDoctor() {
   const handleTatvaAi = async () => {
     try {
       setLoading(true);
-      window.Moengage.track_event("TP_TatvaAI_Open", {
+      window.Moengage?.track_event?.("TP_TatvaAI_Open", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
         Doctor_Unique_Id: profile?.doctor_unique_id,

@@ -36,7 +36,7 @@ const AddCustomModuleV2 = ({ onOpenDrawer }) => {
         sub_doctor: profile?.is_sub_doctor ? 1 : 0,
         hospital_id: clinic?.hm_id || decodedToken?.result?.clinic_id || "",
       };
-      window.Moengage.track_event("TP_CMV2_AddModuleCTA", moeData);
+      window.Moengage?.track_event?.("TP_CMV2_AddModuleCTA", moeData);
     }
     
     if (onOpenDrawer) {

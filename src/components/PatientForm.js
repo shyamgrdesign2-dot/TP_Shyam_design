@@ -159,7 +159,7 @@ function PatientForm({ mode = ADD, patient_data }) {
             const action = mode === EDIT ? await dispatch(editPatient(finalValues)) : await dispatch(addPatient(finalValues));
             if (action.meta.requestStatus === "fulfilled") {
                 const clinic_name = getClinicName(profile?.hospital_data);
-                window.Moengage.track_event("TP_Patient_added", {
+                window.Moengage?.track_event?.("TP_Patient_added", {
                     clinic_name,
                     "patient_number": patient_data?.pm_contact_no,
                     "patient_id": patient_data?.patient_unique_id
@@ -366,7 +366,7 @@ function PatientForm({ mode = ADD, patient_data }) {
 
     const onVoiceRxClick = (patient) => {
         const clinic = getClinic(profile?.hospital_data);
-        window.Moengage.track_event("TP_AV_Entry", {
+        window.Moengage?.track_event?.("TP_AV_Entry", {
             patient_id: patient?.patient_unique_id || "",
             patient_name: patient?.pm_fullname || "",
             patient_mobile_number: patient?.pm_contact_no || "",
@@ -554,7 +554,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                                                     <Button
                                                         className="btn btn-primary3 btn-text-white px-5 m-2 btn-41"
                                                         onClick={() => {
-                                                            window.Moengage.track_event("start_new_visit_click", {
+                                                            window.Moengage?.track_event?.("start_new_visit_click", {
                                                             doctor_id: profile?.doctor_unique_id,
                                                             patient_id:
                                                                 patientData !== undefined

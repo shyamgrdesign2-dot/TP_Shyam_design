@@ -31,7 +31,7 @@ const SetPassword = ({ number, data }) => {
     setUtm_medium(params.get("utm_medium") ?? 'NA');
     setUtm_content(params.get("utm_content") ?? 'NA');
 
-    window.Moengage.track_event('TP_SetNewPassword_landing_page', {
+    window.Moengage?.track_event?.('TP_SetNewPassword_landing_page', {
       utm_campaign, utm_source, utm_medium, utm_content
     });
   }, []);
@@ -89,7 +89,7 @@ const SetPassword = ({ number, data }) => {
       // Call the setPassword API to set the password
       await setPassword(data?.doctor_unique_id, newPassword);
       setMessage("Password set successfully, logging in...");
-      window.Moengage.track_event('TP_ResetPassword_Success', {
+      window.Moengage?.track_event?.('TP_ResetPassword_Success', {
         mobile: "91"+ data?.mobileNumber,  utm_campaign, utm_source, utm_medium, utm_content
       });
 

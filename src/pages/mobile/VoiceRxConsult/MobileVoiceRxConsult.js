@@ -124,7 +124,7 @@ function MobileVoiceRxConsult() {
     setIsSubModalOpen((prev) => !prev);
     const deviceSdkData = getDeviceSdkData();
     if (window.Moengage && profile && clinicName) {
-      window.Moengage.track_event('TP_App_voiceRx_FreeTrailInfo', {
+      window.Moengage?.track_event?.('TP_App_voiceRx_FreeTrailInfo', {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -159,7 +159,7 @@ function MobileVoiceRxConsult() {
 
   const handleDictationMode = () => {
     if (window.Moengage && profile && clinic) {
-      window.Moengage.track_event('TP_App_AV_StartDictate', {
+      window.Moengage?.track_event?.('TP_App_AV_StartDictate', {
         ...getVoiceRxMoengageBasePayload({
           profile,
           userId,
@@ -184,7 +184,7 @@ function MobileVoiceRxConsult() {
       return;
     }
     if (window.Moengage && profile && clinic) {
-      window.Moengage.track_event('TP_App_AV_StartConversation', {
+      window.Moengage?.track_event?.('TP_App_AV_StartConversation', {
         ...getVoiceRxMoengageBasePayload({
           profile,
           userId,
@@ -412,7 +412,7 @@ function MobileVoiceRxConsult() {
                     onClick={() => {
                       setConsentChecked(!consentChecked);
                       if (window.Moengage && profile && clinic) {
-                        window.Moengage.track_event('TP_App_AV_StartDictate', {
+                        window.Moengage?.track_event?.('TP_App_AV_StartDictate', {
                           ...getVoiceRxMoengageBasePayload({
                             profile,
                             userId,

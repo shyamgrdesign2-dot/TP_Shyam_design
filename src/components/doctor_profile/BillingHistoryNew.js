@@ -37,7 +37,7 @@ const BillingHistoryNew = ({ show, setShow, billingHistoryList }) => {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_InvoiceExplore", {
+    window.Moengage?.track_event?.("TP_Monetization_InvoiceExplore", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -64,7 +64,7 @@ const BillingHistoryNew = ({ show, setShow, billingHistoryList }) => {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_ReceiptExplore", {
+    window.Moengage?.track_event?.("TP_Monetization_ReceiptExplore", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,

@@ -169,7 +169,7 @@ function TabSymptomsBox({ handleDDxDrawer, generatedDDx }) {
 
     const onSelectParent = useCallback(
         (e) => {
-            window.Moengage.track_event("symptom_select", {
+            window.Moengage?.track_event?.("symptom_select", {
                 "value": e.symptom_name
             });
             symptomsData.push({
@@ -226,7 +226,7 @@ function TabSymptomsBox({ handleDDxDrawer, generatedDDx }) {
     };
 
     const onTemplateSelected = async (template) => {
-        window.Moengage.track_event("symptom_template_used", {
+        window.Moengage?.track_event?.("symptom_template_used", {
             "template_name": template.tst_template_name
         });
         const action = await dispatch(singleTemplateDetails(template.tst_id));

@@ -66,7 +66,7 @@ const DDxList = ({
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData(); 
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_VoiceRx_GetUnlimitedRx", {
+    window.Moengage?.track_event?.("TP_Monetization_VoiceRx_GetUnlimitedRx", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -93,7 +93,7 @@ const DDxList = ({
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData(); 
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_RequestACallback", {
+    window.Moengage?.track_event?.("TP_Monetization_RequestACallback", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -358,7 +358,7 @@ const DDxList = ({
                                 note: "",
                               });
                               setDiagnosisData((prev) => [...prev]);
-                              window.Moengage.track_event("TP_CDSS_Ddx_selected", {
+                              window.Moengage?.track_event?.("TP_CDSS_Ddx_selected", {
                                 clinic_name: getClinicName(profile?.hospital_data),
                                 doctor_id: profile?.doctor_unique_id,
                                 patient_number: patient_data?.pm_contact_no,

@@ -134,7 +134,7 @@ const SubscriptionTable = () => {
           <div
             onClick={() => {
               const clinic_name = getClinicName(profile?.hospital_data);
-              window.Moengage.track_event("DownloadInvoice_Click", {
+              window.Moengage?.track_event?.("DownloadInvoice_Click", {
                 doctor_id: profile?.doctor_unique_id,
                 clinic_name,
                 txId: record?.txId,

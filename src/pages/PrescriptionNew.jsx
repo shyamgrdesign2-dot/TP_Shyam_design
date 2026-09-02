@@ -1676,7 +1676,7 @@ function PrescriptionNew() {
           dispatch(setActiveTeleconsultConsultationId(data.consultationId));
         }
 
-        window.Moengage.track_event("TP_TC_StartCall", {
+        window.Moengage?.track_event?.("TP_TC_StartCall", {
           doctor_name: profile?.um_name,
           doctor_number: profile?.um_contact,
           doctor_specialty: profile?.dp_name,
@@ -1729,8 +1729,8 @@ function PrescriptionNew() {
       doctor_um_id: tokenData?.user_id,
     };
     isNewConsultation
-      ? window.Moengage.track_event("TP_Consultation_Started", consultationEventPayload)
-      : window.Moengage.track_event("TP_Consultation_edit_started", {
+      ? window.Moengage?.track_event?.("TP_Consultation_Started", consultationEventPayload)
+      : window.Moengage?.track_event?.("TP_Consultation_edit_started", {
           ...consultationEventPayload,
           tcm_id: tcmId,
         });
@@ -2525,7 +2525,7 @@ function PrescriptionNew() {
   const handleDDxDrawer = (field) => {
     setDDxDrawer((prev) => !prev);
     if (!ddxDrawer) {
-      window.Moengage.track_event("TP_CDSS_Ddx_reviewed", {
+      window.Moengage?.track_event?.("TP_CDSS_Ddx_reviewed", {
         clinic_name: getClinicName(profile?.hospital_data),
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,
@@ -2559,7 +2559,7 @@ function PrescriptionNew() {
           } else {
             setIsDDxLoading(true);
             setIsDDxGenerated(true);
-            window.Moengage.track_event("TP_CDSS_Ack_GenDx", {
+            window.Moengage?.track_event?.("TP_CDSS_Ack_GenDx", {
               clinic_name: getClinicName(profile?.hospital_data),
               doctor_id: profile?.doctor_unique_id,
               patient_number: patient_data?.pm_contact_no,
@@ -2611,7 +2611,7 @@ function PrescriptionNew() {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData(); 
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_GenerateDDX", {
+    window.Moengage?.track_event?.("TP_Monetization_GenerateDDX", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -3030,7 +3030,7 @@ function PrescriptionNew() {
     if (tcmId == 0) {
       const tokenData = getTokenData();
       const deviceSdkData = getDeviceSdkData();
-      window.Moengage.track_event("TP_VoiceRx", {
+      window.Moengage?.track_event?.("TP_VoiceRx", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,

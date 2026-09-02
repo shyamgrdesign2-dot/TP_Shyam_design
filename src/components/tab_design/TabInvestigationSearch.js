@@ -102,7 +102,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
 
     const onSelectParent = useCallback(
         (e) => {
-            window.Moengage.track_event("investigation_select", {
+            window.Moengage?.track_event?.("investigation_select", {
                 "value": e.investigation_name
             });
             investigationData.push({
@@ -352,7 +352,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                     className="btn-41 btn ant-btn-text btn-input d-flex align-items-center justify-content-between test-name-btn"
                                                     onClick={() => {
                                                         onSelectParent({ ...item });
-                                                        window.Moengage.track_event("TP_CDSS_addtoRx", {
+                                                        window.Moengage?.track_event?.("TP_CDSS_addtoRx", {
                                                             clinic_name: getClinicName(profile?.hospital_data),
                                                             doctor_id: profile?.doctor_unique_id,
                                                             patient_number: patient_data?.pm_contact_no,

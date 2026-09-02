@@ -173,7 +173,7 @@ function PatientDetails() {
                 }
                 try {
                     if (window.Moengage && typeof window.Moengage.track_event === 'function') {
-                        window.Moengage.track_event("TP_Patient_details", {
+                        window.Moengage?.track_event?.("TP_Patient_details", {
                             patient_number: record?.mobilenumber,
                             patient_id: result?.patient_unique_id
                         });
@@ -251,7 +251,7 @@ function PatientDetails() {
     useEffect(() => {
         if (currentConsultation?.tcm_id && patient_data?.patient_unique_id) {
             const clinic_name = getClinicName(profile?.hospital_data);
-            window.Moengage.track_event("TP_Patient_detail_landing", {
+            window.Moengage?.track_event?.("TP_Patient_detail_landing", {
                 clinic_name,
                 patient_number: patient_data?.pm_contact_no,
                 patient_id: patient_data?.patient_unique_id,
@@ -419,7 +419,7 @@ function PatientDetails() {
     };
 
     const nextPress = () => {
-        window.Moengage.track_event("patient_detail_next", {
+        window.Moengage?.track_event?.("patient_detail_next", {
             "doctor_id": profile?.doctor_unique_id,
             "patient_id": patient_data?.patient_unique_id || 0
         });
@@ -427,7 +427,7 @@ function PatientDetails() {
     }
 
     const prevPress = () => {
-        window.Moengage.track_event("patient_detail_prev", {
+        window.Moengage?.track_event?.("patient_detail_prev", {
             "doctor_id": profile?.doctor_unique_id,
             "patient_id": patient_data?.patient_unique_id || 0
         });

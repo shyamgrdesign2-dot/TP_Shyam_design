@@ -545,7 +545,7 @@ const RxTemplateUploadDrawer = ({ visible, onClose, onSave, source }) => {
       })
     );
 
-    window.Moengage.track_event("TP_CC_Submit_canvas", {
+    window.Moengage?.track_event?.("TP_CC_Submit_canvas", {
       "Doctor_specialty": profile?.dp_name,
       "Doctor_unique_id": profile?.doctor_unique_id,
       "Doctor_Name": profile?.um_name,
@@ -1117,7 +1117,7 @@ const RxTemplateUploadDrawer = ({ visible, onClose, onSave, source }) => {
                 className="rx-upload-area" 
                 onClick={() => {
                   inputFileRef.current?.click()
-                  window.Moengage.track_event("TP_CC_Click to Upload", {
+                  window.Moengage?.track_event?.("TP_CC_Click to Upload", {
                     "Doctor_specialty": profile?.dp_name,
                     "Doctor_unique_id": profile?.doctor_unique_id,
                     "Doctor_Name": profile?.um_name,

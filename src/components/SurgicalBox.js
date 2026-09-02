@@ -334,7 +334,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
       });
       setSurgeriesData((prev) => [...prev]);
       setSearchParentQuery("");
-      window.Moengage.track_event("TP_Surgery_added", {
+      window.Moengage?.track_event?.("TP_Surgery_added", {
         clinic_name: getClinicName(profile?.hospital_data),
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,
@@ -475,7 +475,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
           ...surgeriesUpdatedData,
           masterId: masterId,
         };
-        window.Moengage.track_event("TP_Surgery_added", {
+        window.Moengage?.track_event?.("TP_Surgery_added", {
           clinic_name: getClinicName(profile?.hospital_data),
           doctor_id: profile?.doctor_unique_id,
           patient_number: patient_data?.pm_contact_no,

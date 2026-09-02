@@ -305,7 +305,7 @@ function AppointmentAgent() {
     setTriggerValidation(false);
     const clinic = getClinic(profile?.hospital_data);
     if (currentStep === 0) {
-      window.Moengage.track_event("TP_AG_AgentSetup", {
+      window.Moengage?.track_event?.("TP_AG_AgentSetup", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -315,7 +315,7 @@ function AppointmentAgent() {
       });
       setCurrentStep(1);
     } else if (currentStep === 1) {
-      window.Moengage.track_event("TP_AG_ClinicDetails", {
+      window.Moengage?.track_event?.("TP_AG_ClinicDetails", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -337,7 +337,7 @@ function AppointmentAgent() {
       try {
         const response = await setupReceptionist(setupData);
         if (response) {
-          window.Moengage.track_event("TP_AG_Receptionist_Setup_Complete", {
+          window.Moengage?.track_event?.("TP_AG_Receptionist_Setup_Complete", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,

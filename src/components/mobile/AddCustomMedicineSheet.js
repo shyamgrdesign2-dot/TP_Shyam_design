@@ -108,7 +108,7 @@ function AddCustomMedicineSheet({ visible, onClose, initialData = null, onSucces
       try {
         const clinic = getClinic(profile?.hospital_data);
         if (window.Moengage && window.Moengage.track_event) {
-          window.Moengage.track_event('TP_GD_AddMedoutofAI', {
+          window.Moengage?.track_event?.('TP_GD_AddMedoutofAI', {
             patient_id: patient_data?.patient_unique_id || '',
             patient_name: patient_data?.pm_fullname || '',
             doctor_id: profile?.doctor_unique_id,

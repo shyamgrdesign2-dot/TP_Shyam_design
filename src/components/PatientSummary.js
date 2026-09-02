@@ -1339,7 +1339,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                 <span 
                   className={styles.repeatRxLink} 
                   onClick={async () => {
-                    window.Moengage?.track_event("repeat_rx_click", {
+                    window.Moengage?.track_event?.("repeat_rx_click", {
                       "doctor_id": viewCaseManagerData?.doctor_data?.um_id,
                       "patient_id": patient_data?.patient_unique_id || 0,
                       "rx_date": lastPrescriptionData.consultation_date

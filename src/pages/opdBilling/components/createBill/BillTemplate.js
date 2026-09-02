@@ -140,7 +140,7 @@ const BillTemplate = ({ setDataSource, dataSource, totalBillAmount }) => {
   );
 
   const onPackageSelected = async (pkg) => {
-    window.Moengage?.track_event("billing_package_used", {
+    window.Moengage?.track_event?.("billing_package_used", {
       package_name: pkg.name,
     });
     // Use package data directly from the list (billItems are already included in API response)

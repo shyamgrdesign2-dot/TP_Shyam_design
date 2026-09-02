@@ -589,7 +589,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
   const onDeleteModule = async () => {
     // Track MoEngage event for delete module
     if (window.Moengage) {
-      window.Moengage.track_event("TP_CMV2_Del", getMoeData());
+      window.Moengage?.track_event?.("TP_CMV2_Del", getMoeData());
     }
 
     try {
@@ -639,7 +639,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
   const handleRemoveFromRxPad = async () => {
     // Track MoEngage event for remove from Rx pad
     if (window.Moengage) {
-      window.Moengage.track_event("TP_CMV2_Remove", getMoeData());
+      window.Moengage?.track_event?.("TP_CMV2_Remove", getMoeData());
     }
 
     try {
@@ -1313,7 +1313,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
         onClick={isModuleDisabled ? undefined : () => {
           // Track MoEngage event for edit module
           if (window.Moengage) {
-            window.Moengage.track_event("TP_CM2_Edit", getMoeData());
+            window.Moengage?.track_event?.("TP_CM2_Edit", getMoeData());
           }
           setCanEditName(true);
         }}

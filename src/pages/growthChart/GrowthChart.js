@@ -133,7 +133,7 @@ const GrowthChart = ({ handleDrawerVaccination, onGrowthUpdated }) => {
 
   const trackPrintEvent = () => {
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("TP_Growth_Chart_Print", {
+    window.Moengage?.track_event?.("TP_Growth_Chart_Print", {
       print_type: isTableprint ? "Table" : "Graph",
       clinic_name,
       doctor_id: profile?.doctor_unique_id,

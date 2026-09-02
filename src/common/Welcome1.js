@@ -152,7 +152,7 @@ function Welcome1(props) {
     const onSmartRxClick = async (patient) => {
         const tokenData = getTokenData();
         const clinic = getClinic(profile?.hospital_data);
-        window.Moengage.track_event("TP_SmartRx_Started", {
+        window.Moengage?.track_event?.("TP_SmartRx_Started", {
       patient_id: patient?.patient_unique_id || "",
       patient_name: patient?.pm_fullname,
       doctor_id: profile?.doctor_unique_id,
@@ -193,7 +193,7 @@ function Welcome1(props) {
 
     const onVoiceRxClick = async (patient) => {
         const clinic = getClinic(profile?.hospital_data);
-        window.Moengage.track_event("TP_AV_Entry", {
+        window.Moengage?.track_event?.("TP_AV_Entry", {
           patient_id: patient_data?.patient_unique_id || "",
           patient_name: patient_data?.pm_fullname || "",
           patient_mobile_number: patient_data?.pm_contact_no || "",
@@ -334,7 +334,7 @@ function Welcome1(props) {
                                         onClick={() => {
                                             setVideoLink(item1)
                                             const clinic_name = getClinicName(profile?.hospital_data);
-                                            window.Moengage.track_event("TP_Tutorial_Viewed", {
+                                            window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                                                 clinic_name,
                                                 tutorial_type: videoList[0]?.category,
                                             });
@@ -433,7 +433,7 @@ function Welcome1(props) {
                                         <Button 
                                             variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" 
                                             onClick={() => {
-                                                window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.resume, {
+                                                window?.Moengage?.track_event?.(EVENTS.SAVE_DRAFT.resume, {
                                                     ...getDraftMoengageDoctorAttributes(profile, userId),
                                                     tcm_id: viewCaseManagerData?.tcm_id || 0,
                                                     source: 0,
@@ -452,13 +452,13 @@ function Welcome1(props) {
                                                 handleRepeatVoiceAmbientRx();
                                             } else {
                                                 if (canRepeatDraftRx) {
-                                                    window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.repeatDraft, {
+                                                    window?.Moengage?.track_event?.(EVENTS.SAVE_DRAFT.repeatDraft, {
                                                         ...getDraftMoengageDoctorAttributes(profile, userId),
                                                         tcm_id: viewCaseManagerData?.tcm_id || 0,
                                                         owner_doctor_um_id: viewCaseManagerData?.doctor_data?.um_id || "",
                                                     });
                                                 }
-                                                window.Moengage.track_event("repeat_rx_click", {
+                                                window.Moengage?.track_event?.("repeat_rx_click", {
                                                     "doctor_id": profile?.doctor_unique_id,
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
                                                     "rx_date": viewCaseManagerData?.consultation_date
@@ -483,7 +483,7 @@ function Welcome1(props) {
                                     { ((viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !canRepeatVoiceRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && !isMobile) ||
                                        (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile)) &&
                                          <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={async () => {
-                                            window.Moengage.track_event("repeat_rx_click", {
+                                            window.Moengage?.track_event?.("repeat_rx_click", {
                                                 "doctor_id": profile?.doctor_unique_id,
                                                 "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
                                                 "rx_date": viewCaseManagerData?.consultation_date
@@ -550,7 +550,7 @@ function Welcome1(props) {
                                         <Button variant="primary"
                                             className='btn-41 px-4'
                                             onClick={() => {
-                                                window.Moengage.track_event("start_new_visit_click", {
+                                                window.Moengage?.track_event?.("start_new_visit_click", {
                                                     "doctor_id": profile?.doctor_unique_id,
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
                                                 });

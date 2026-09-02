@@ -351,7 +351,7 @@ function SmartRxPreview() {
     const handleDownload = async () => {
         try {
             if(showDigitalRx){
-                window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+                window.Moengage?.track_event?.("TP_Digitised_Prescription_Download", {
                     Doctor_Name: profile?.um_name,
                     Doctor_Number: profile?.um_contact,
                     Doctor_Unique_Id: profile?.doctor_unique_id,
@@ -372,7 +372,7 @@ function SmartRxPreview() {
 
     const handleInAppDownload = async () => {
         if(showDigitalRx){
-            window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+            window.Moengage?.track_event?.("TP_Digitised_Prescription_Download", {
                 Doctor_Name: profile?.um_name,
                 Doctor_Number: profile?.um_contact,
                 Doctor_Unique_Id: profile?.doctor_unique_id,
@@ -601,7 +601,7 @@ function SmartRxPreview() {
                             const tokenData = getTokenData();
                             const clinic = getClinic(profile?.hospital_data);
                             const type = isCustomSSRX ? 1 : 0;
-                            window.Moengage.track_event("TP_DigitizeSSRx", {
+                            window.Moengage?.track_event?.("TP_DigitizeSSRx", {
                                 patient_id: patient_data?.patient_unique_id || "",
                                 patient_name: patient_data?.pm_fullname || "",
                                   doctor_id: profile?.doctor_unique_id,

@@ -104,7 +104,7 @@ function AiSuite({ aiModal, handleAiSuite }) {
         }
         const clinic_name = getClinicName(profile?.hospital_data);
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_monetization_AISuite_Knowmore", {
+        window.Moengage?.track_event?.("TP_monetization_AISuite_Knowmore", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -153,7 +153,7 @@ function AiSuite({ aiModal, handleAiSuite }) {
     const handleTatvaAi = async () => {
         try {
             setLoading(true);
-            window.Moengage.track_event("TP_TatvaAI_Open", {
+            window.Moengage?.track_event?.("TP_TatvaAI_Open", {
                 Doctor_Name: profile?.um_name,
                 Doctor_Number: profile?.um_contact,
                 Doctor_Unique_Id: profile?.doctor_unique_id,

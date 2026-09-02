@@ -37,7 +37,7 @@ function MobileGynecHistoryEdit({
   const trackGynecUpdateEvent = () => {
     if (window.Moengage) {
       const clinic_name = getClinicName(profile?.hospital_data);
-      window.Moengage.track_event("TP_Gynec_history_updated", {
+      window.Moengage?.track_event?.("TP_Gynec_history_updated", {
         clinic_name,
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,

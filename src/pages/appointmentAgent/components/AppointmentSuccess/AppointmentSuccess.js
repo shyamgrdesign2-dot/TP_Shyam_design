@@ -51,7 +51,7 @@ const AppointmentSuccess = () => {
 
   const handleShare = async () => {
 
-    window.Moengage.track_event("TP_AG_ShareURL", {
+    window.Moengage?.track_event?.("TP_AG_ShareURL", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -94,7 +94,7 @@ const AppointmentSuccess = () => {
       return;
     }
 
-    window.Moengage.track_event("TP_AG_CopyURL", {
+    window.Moengage?.track_event?.("TP_AG_CopyURL", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -120,7 +120,7 @@ const AppointmentSuccess = () => {
 
   const handleConfigSettings = () => {
 
-    window.Moengage.track_event("TP_AG_ConfigSet", {
+    window.Moengage?.track_event?.("TP_AG_ConfigSet", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -141,7 +141,7 @@ const AppointmentSuccess = () => {
   };
 
   const handleBulkSmsClick = () => {
-    window.Moengage.track_event("TP_AG_AgentBC", {
+    window.Moengage?.track_event?.("TP_AG_AgentBC", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,

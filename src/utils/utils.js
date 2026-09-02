@@ -1006,7 +1006,7 @@ export const isValidMongoId = (id) => {
 
 export const trackEvent = (eventName, attributes) => {
   if (typeof window !== "undefined" && window.Moengage?.track_event) {
-    window.Moengage.track_event(eventName, {
+    window.Moengage?.track_event?.(eventName, {
       appEnv: process.env.REACT_APP_ENV || "prod",
       hostname: window.location?.hostname || "",
       ...attributes,
