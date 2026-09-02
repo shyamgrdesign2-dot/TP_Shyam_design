@@ -63,7 +63,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 
 let ppvMountCount = 0;
 function PrescriptionPrintView() {
-
     const divRef = useRef(null);
     const printRef = useRef();
     const sessionRxUrlRef = useRef(null);

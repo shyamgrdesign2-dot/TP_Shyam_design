@@ -71,7 +71,6 @@ const BillingDashboard = React.lazy(() =>
 const { Sider, Content } = Layout;
 
 function PatientDetails() {
-
     const { profile, userId } = useSelector((state) => state.doctors);
     const { isLoading } = useSelector((state) => state.uploadDoc);
     const {
