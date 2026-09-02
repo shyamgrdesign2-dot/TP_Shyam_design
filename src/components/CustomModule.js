@@ -50,6 +50,7 @@ import {
 import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { PrescriptionEmptyLineDragHandle } from "./PrescriptionEmptyLineUi";
 
 import TextArea from "antd/es/input/TextArea";
@@ -963,7 +964,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
                   {(provided) => (
                     <Row
                       ref={provided.innerRef}
-                      {...provided.draggableProps}
+                      {...guardDropAnimation(provided.draggableProps)}
                       key={index}
                       gutter={[0]}
                       className={[

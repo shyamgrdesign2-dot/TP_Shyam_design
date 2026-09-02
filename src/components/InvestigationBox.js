@@ -33,6 +33,7 @@ import {
 } from "../redux/investigationSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
@@ -941,7 +942,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule, use
                         {(provided) => (
                           <Row
                             ref={provided.innerRef}
-                            {...provided.draggableProps}
+                            {...guardDropAnimation(provided.draggableProps)}
                             key={rowKey}
                             gutter={[0]}
                             className={isNewEmptyLineUiEnabled ? [

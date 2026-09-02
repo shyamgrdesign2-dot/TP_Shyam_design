@@ -40,6 +40,7 @@ import {
 } from "../redux/adviceSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { PrescriptionEmptyLineDragHandle } from "./PrescriptionEmptyLineUi";
 import { classNames } from "@react-pdf-viewer/core";
 import { ASSETS } from "../assets";
@@ -493,7 +494,7 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
                     {(provided) => (
                       <Row
                         ref={provided.innerRef}
-                        {...provided.draggableProps}
+                        {...guardDropAnimation(provided.draggableProps)}
                         key={index}
                         gutter={[0]}
                         className="advicecheck-row align-items-center"

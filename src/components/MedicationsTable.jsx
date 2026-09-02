@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input, Button, Select } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { useLocation } from 'react-router-dom';
@@ -1228,7 +1229,7 @@ const MedicationsTable = ({
                         return (
                         <tr 
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           className={`${styles['medications-row']} taper-dose ${isContinuation ? styles['taper-row'] : ''}`}
                           style={{
                             ...provided.draggableProps.style,
