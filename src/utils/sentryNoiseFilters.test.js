@@ -1,4 +1,6 @@
 import {
+  isGoogleTagFrame,
+  isGoogleTagManagerEvent,
   isMetaInAppBrowserBridgeError,
   isTalkativeFrame,
   isTalkativeWidgetEvent,
@@ -298,5 +300,107 @@ describe("isMetaInAppBrowserBridgeError", () => {
 
     expect(isMetaInAppBrowserBridgeError(event)).toBe(true);
     expect(isUnactionableThirdPartyEvent(event)).toBe(true);
+  });
+});
+
+describe("isGoogleTagFrame", () => {
+  it("matches gtag.js and the GTM host", () => {
+    expect(isGoogleTagFrame("/gtag/js:832:225")).toBe(true);
+    expect(isGoogleTagFrame("https://www.googletagmanager.com/gtag/js")).toBe(
+      true
+    );
+  });
+
+  it("does not match first-party bundles", () => {
+    expect(isGoogleTagFrame("/static/js/main.818fe0ff.js")).toBe(false);
+    expect(isGoogleTagFrame("/static/js/1320.4ba70a88.chunk.js")).toBe(false);
+  });
+
+  it("does not match browser extensions", () => {
+    // Deliberate: an extension frame rides along on these stacks, but matching
+    // chrome-extension:// would hide every extension-injected error app-wide.
+    expect(
+      isGoogleTagFrame("chrome-extension://bkkbcggnhapdmkeljlodobbkopceiche/injectScriptAdjust.js")
+    ).toBe(false);
+  });
+
+  it("tolerates a missing filename", () => {
+    expect(isGoogleTagFrame(undefined)).toBe(false);
+    expect(isGoogleTagFrame(null)).toBe(false);
+  });
+});
+
+describe("isGoogleTagManagerEvent", () => {
+  it("matches the real captured stack shape of TATVAPRACTICE-18R", () => {
+    // Frames trimmed from the real event: gtag's own fetch call, an extension
+    // frame, and Sentry's fetch instrumentation in the first-party bundle
+    // underneath. The first-party frame is why this checks "any frame".
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Failed to fetch (www.google.com)",
+            stacktrace: {
+              frames: [
+                { filename: "/static/js/main.818fe0ff.js" },
+                { filename: "/gtag/js:406:34", function: "Ap.J" },
+                { filename: "/gtag/js:404:3175", function: "Ap.sendRequest" },
+                {
+                  filename:
+                    "chrome-extension://bkkbcggnhapdmkeljlodobbkopceiche/injectScriptAdjust.js",
+                },
+                { filename: "/static/js/main.818fe0ff.js" },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    expect(isGoogleTagManagerEvent(event)).toBe(true);
+    expect(isUnactionableThirdPartyEvent(event)).toBe(true);
+  });
+
+  it("matches on abs_path when filename is synthetic", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [
+                {
+                  filename: "<anonymous>",
+                  abs_path: "https://www.googletagmanager.com/gtag/js?id=GTM-N5GKPHK",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    expect(isGoogleTagManagerEvent(event)).toBe(true);
+  });
+
+  it("leaves a first-party 'Failed to fetch' alone", () => {
+    // The message is one of the most common real bugs in this codebase. Without
+    // a GTM frame it must keep reporting — this is the regression that proves
+    // the filter is matching frames, not message text.
+    const event = eventWithFrames(
+      ["/static/js/main.818fe0ff.js", "/static/js/1320.4ba70a88.chunk.js"],
+      "Failed to fetch"
+    );
+
+    expect(isGoogleTagManagerEvent(event)).toBe(false);
+    expect(isUnactionableThirdPartyEvent(event)).toBe(false);
+  });
+
+  it("does not match an extension frame on its own", () => {
+    const event = eventWithFrames([
+      "chrome-extension://bkkbcggnhapdmkeljlodobbkopceiche/injectScriptAdjust.js",
+    ]);
+
+    expect(isGoogleTagManagerEvent(event)).toBe(false);
   });
 });
