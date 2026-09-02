@@ -38,6 +38,7 @@ import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import DoseCalculator from "./dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import FreeBadge from "../common/FreeBadge";
@@ -1831,7 +1832,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                       {(provided) => (
                         <Row
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           key={rowKey}
                           gutter={[0]}
                           className={[

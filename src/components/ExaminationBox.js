@@ -32,6 +32,7 @@ import {
 } from "../redux/examinationSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
 import { ASSETS } from "../assets";
 import { Grid5, Trash } from "iconsax-reactjs";
@@ -611,7 +612,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
                       {(provided) => (
                         <Row
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           key={rowKey}
                           gutter={[0]}
                           className={isNewEmptyLineUiEnabled ? [

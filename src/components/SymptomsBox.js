@@ -31,6 +31,7 @@ import {
 } from "../redux/symptomsSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
 import TextArea from "antd/es/input/TextArea";
@@ -848,7 +849,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule, useTess
                       {(provided) => (
                         <Row
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           key={rowKey}
                           gutter={0}
                           className={[

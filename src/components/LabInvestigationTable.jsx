@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input, Button } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { v4 as uuidv4 } from 'uuid';
 import styles from './ConsultationDrawer.module.css';
 
@@ -741,7 +742,7 @@ const LabInvestigationTable = ({
                       {(provided, snapshot) => (
                         <tr 
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           key={item.id || index} 
                           className={styles['investigation-row']}
                           style={{
