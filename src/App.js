@@ -308,6 +308,11 @@ function App() {
     }
   }, [isLoginPage]);
 
+  // Order matters and is load-bearing: useRouteTracking's effect runs first and is what
+  // leaves the pageload span open on the initial mount (it skips starting a navigation
+  // span there). useAppReady only records onto a pageload root span, so if these two are
+  // swapped — or that guard is reverted — app_ready silently stops being emitted, with no
+  // error and no partial data. Keep useAppReady after useRouteTracking.
   useRouteTracking();
   useAppReady();
   const { updateAvailable } = useVersionCheck();
