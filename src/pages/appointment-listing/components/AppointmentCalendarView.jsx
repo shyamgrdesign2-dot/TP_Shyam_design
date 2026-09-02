@@ -14,7 +14,7 @@ import { ASSETS } from "../../../assets";
 import useDoctorSlots from "../data/useDoctorSlots";
 import useReceptionistDoctorSlots from "../../receptionist-appointment-listing/data/useReceptionistDoctorSlots";
 import { STATUS_META, statusMeta, visitMeta, shortGenderAge, CONDITION_COLORS } from "../data/appointmentStates";
-import { TAB_IDS } from "../data/appointmentsConfig";
+import { TAB_IDS, MONTH_CALENDAR_SIZE } from "../data/appointmentsConfig";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
 import { ReceptionistRowKebabMenu, receptionistRowPrimaryAction } from "../../receptionist-appointment-listing/components/receptionistRowActions";
 import QueueRxSplitButton from "./QueueRxSplitButton";
@@ -69,7 +69,7 @@ const MONTH_CELL_CHROME = 24 + 12 + 18;
 
 function initialCalendarMode() {
   const saved = readPreference("calendarMode", "day");
-  return saved === "week" ? "week" : "day";
+  return saved === "week" || saved === "month" ? saved : "day";
 }
 
 
@@ -595,6 +595,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
 
 export default function AppointmentCalendarView({
   rows,
+  dayTotals = {},
   tabId,
   onRowAction,
   onSlotPick,
@@ -1151,8 +1152,8 @@ export default function AppointmentCalendarView({
      a single line plus "+11 more" says almost nothing about the day, and the
      row floor in CSS guarantees room for two. */
   const monthChipCap = useMemo(() => {
-    if (!monthRowH) return 3;
-    return Math.max(2, Math.min(3, Math.floor((monthRowH - MONTH_CELL_CHROME) / MONTH_CHIP_H)));
+    if (!monthRowH) return MONTH_CALENDAR_SIZE;
+    return Math.max(2, Math.min(MONTH_CALENDAR_SIZE, Math.floor((monthRowH - MONTH_CELL_CHROME) / MONTH_CHIP_H)));
   }, [monthRowH]);
 
   const eventsByDay = useMemo(() => {
@@ -1290,9 +1291,8 @@ export default function AppointmentCalendarView({
     onAnchorChange?.(day);
   };
 
-  // Day / Week only changes how much of the anchor day is shown, so
+  // Day / Week / Month only changes how much of the anchor day is shown, so
   // the anchor itself survives the switch. The choice is remembered.
-  // Month is hidden for now (see MODE_OPTIONS).
   const pickMode = (m) => {
     if (m !== "day" && m !== "week" && m !== "month") return;
     setMode(m);
@@ -1903,15 +1903,18 @@ export default function AppointmentCalendarView({
           <div className={styles.monthGrid} ref={monthGridRef}>
             {monthCells.map((d) => {
               const inMonth = d.getMonth() === anchor.getMonth();
-              const events = eventsByDay[iso(d)] || [];
+              const dayISO = iso(d);
+              const events = eventsByDay[dayISO] || [];
+              const shown = events.slice(0, monthChipCap);
+              const total = dayTotals[dayISO] ?? events.length;
               return (
                 <button
-                  key={iso(d)}
+                  key={dayISO}
                   type="button"
                   className={styles.monthCell}
                   data-outside={!inMonth || undefined}
-                  data-today={iso(d) === todayISO || undefined}
-                  data-selected={iso(d) === iso(anchor) || undefined}
+                  data-today={dayISO === todayISO || undefined}
+                  data-selected={dayISO === iso(anchor) || undefined}
                   onClick={() => {
                     goToDate(d);
                     pickMode("day");
@@ -1933,10 +1936,10 @@ export default function AppointmentCalendarView({
                     inMonth &&
                     (() => {
                       if (startOfDay(d) < startOfDay(new Date())) return null;
-                      if (pendingDates.has(iso(d))) {
+                      if (pendingDates.has(dayISO)) {
                         return <span className={styles.monthFreeSkeleton} aria-hidden="true" />;
                       }
-                      const daySlots = slotsByDate[iso(d)];
+                      const daySlots = slotsByDate[dayISO];
                       if (!daySlots) return null;
                       const free = daySlots.filter((x) => x.status === "available" && !x.isPast).length;
                       /* No published slots at all is a closed day (a holiday,
@@ -1958,14 +1961,14 @@ export default function AppointmentCalendarView({
                     })()}
                   {/* One line each, status-coloured, so a month cell stays a
                       density read rather than a stack of little cards. */}
-                  {events.slice(0, monthChipCap).map((row) => (
+                  {shown.map((row) => (
                     <span key={row.id} className={styles.monthChip} data-status={row.status || tabId}>
                       <span className={styles.monthChipTime}>{row.slotTime}</span>
                       <span className={styles.monthChipName}>{row.name}</span>
                     </span>
                   ))}
-                  {events.length > monthChipCap && (
-                    <span className={styles.moreCount}>+{events.length - monthChipCap} more</span>
+                  {total > shown.length && (
+                    <span className={styles.moreCount}>+{total - shown.length} more</span>
                   )}
                 </button>
               );

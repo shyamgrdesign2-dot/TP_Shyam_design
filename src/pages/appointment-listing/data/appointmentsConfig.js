@@ -39,6 +39,39 @@ export function apStatueForTab(tabId, isChikitsalay = false) {
   return TAB_TO_AP_STATUS[tabId];
 }
 
+/* How many appointments the month cell shows before "+N more". Matches the
+   listAppointmentCalendar `size` param and the chip cap in the month grid. */
+export const MONTH_CALENDAR_SIZE = 3;
+
+/* pam_status codes the calendar API filters on: 0=Queue, 1=Arrived,
+   2=Engaged, 3=Finished, 4=Cancelled, 6=Draft, 7=Chikitsalay checked-in.
+   All uses 0–3 as the webservice default, plus cancelled/draft so the month
+   grid keeps the same buckets as day/week All. */
+export function calendarStatusCsvForTab(
+  tabId,
+  { includeDraft = true, isChikitsalay = false } = {}
+) {
+  if (tabId === TAB_IDS.ALL) {
+    const parts = ["0", "1", "2", "3", "4"];
+    if (includeDraft) parts.push("6");
+    if (isChikitsalay) parts.push(String(CLINIC_QUEUE_AP_STATUS));
+    return parts.join(",");
+  }
+  if (tabId === TAB_IDS.QUEUE && !isChikitsalay) return "0,1,2";
+  const status = apStatueForTab(tabId, isChikitsalay);
+  return status == null ? "0,1,2,3" : String(status);
+}
+
+export function tabIdFromPamStatus(status, isChikitsalay = false) {
+  const n = Number(status);
+  if (n === 3) return TAB_IDS.FINISHED;
+  if (n === 4) return TAB_IDS.CANCELLED;
+  if (n === 6) return TAB_IDS.DRAFT;
+  if (n === 8) return TAB_IDS.REFERRAL;
+  if (isChikitsalay && n === 0) return TAB_IDS.CLINIC_APPOINTMENT;
+  return TAB_IDS.QUEUE;
+}
+
 // Statuses merged into the calendar's "All" view — the doctor's/receptionist's
 // complete schedule on one grid (Pending Digitisation is an all-time worklist,
 // not a schedule concept, so it stays out of the calendar).

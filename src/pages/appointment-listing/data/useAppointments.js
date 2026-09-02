@@ -9,7 +9,16 @@ import { calculateAge } from "../../../utils/utils";
 import { buildZydusEncounterAppointmentRows } from "../../../utils/zydusEncounterAppointmentRows";
 import { matchesVisitTypeFilter } from "../../../utils/appointmentVisitTypeFilters";
 import { getCrossConsultFromRecord } from "../../../utils/crossConsultHelpers";
-import { TAB_IDS, ALL_MERGED_TABS, CHIKITSALAY_MERGED_TABS, apStatueForTab, isAllTimeWorklistTab } from "./appointmentsConfig";
+import {
+  TAB_IDS,
+  ALL_MERGED_TABS,
+  CHIKITSALAY_MERGED_TABS,
+  MONTH_CALENDAR_SIZE,
+  apStatueForTab,
+  calendarStatusCsvForTab,
+  isAllTimeWorklistTab,
+  tabIdFromPamStatus,
+} from "./appointmentsConfig";
 
 const DATE_FORMAT = "YYYY-MM-DD";
 // The legacy screen widens the window for the digitisation tab so old
@@ -134,6 +143,44 @@ function mapRecord(rec, tabId, index) {
   };
 }
 
+/* Slim row for the month cell chips. The calendar endpoint only returns
+   pam_id, time, status and patient name — enough to paint the chip and to
+   colour it by bucket. Clicking the cell drills into Day, which loads the
+   full listAppointment rows. */
+function mapCalendarAppointment(appt, dayISO, index, isChikitsalay) {
+  const timeText = appt?.appointment_time || "";
+  const timeMoment = moment(String(timeText).trim(), ["h:mm A", "hh:mm A", "HH:mm"], true);
+  const dateISO = appt?.appointment_date || dayISO || null;
+  const patientName = appt?.patient_name || "--";
+  const salutation = appt?.salutation;
+  return {
+    id: String(appt?.pam_id ?? `${dateISO || "day"}-${index}`),
+    raw: appt,
+    status: tabIdFromPamStatus(appt?.appointment_status, isChikitsalay),
+    name: salutation ? `${salutation} ${patientName}` : patientName,
+    firstName: String(patientName).trim().split(/\s+/)[0] || "",
+    genderAge: "",
+    contact: "--",
+    mrn: "",
+    visitType: "--",
+    specialty: "",
+    billStatus: "",
+    remark: "",
+    slotTime: String(timeText).trim().replace(/\s*([ap])\.?\s*m\.?$/i, (_, p) => ` ${p.toUpperCase()}M`),
+    slotDate: dateISO || "",
+    slotHour: timeMoment.isValid() ? timeMoment.hour() : 0,
+    slotMinute: timeMoment.isValid() ? timeMoment.minute() : 0,
+    dateISO,
+    symptomsGathered: false,
+    abhaAddress: "",
+    patientConditionId: null,
+    arrivedTime: "",
+    durationConsultation: "",
+    consultType: 0,
+    hasVideo: false,
+  };
+}
+
 /**
  * The queue for a given day, fetched on demand and independently of whatever
  * tab is on screen. The calendar export always ships the queue — the
@@ -163,9 +210,11 @@ export async function fetchQueueRows({ dateRange, query, visitTypeCsv, isChikits
  *
  * Table view (`fetchAllPages` false) matches the legacy infinite-scroll:
  * page 0 on input change, later pages only when `loadMore` is called.
- * Calendar view (`fetchAllPages` true) paints page 0 immediately, then
+ * Calendar day/week (`fetchAllPages` true) paints page 0 immediately, then
  * fills remaining pages in the background so the grid is complete without
  * blocking first paint on every page.
+ * Calendar month (`calendarMode === "month"`) uses listAppointmentCalendar
+ * instead: one request for the month, `size` chips per day plus total_count.
  *
  * Inputs must be referentially stable across renders (visitTypeCsv is a
  * string for exactly that reason); debouncing of fast-changing inputs
@@ -257,6 +306,9 @@ export default function useAppointments({
   zydusEmpNo,
   isZydusAccount = false,
   isChikitsalay = false,
+  /* Month grid uses listAppointmentCalendar (one call, size chips/day)
+     instead of paginating listAppointment across the window. */
+  calendarMode = "day",
 }) {
   const dispatch = useDispatch();
   // Zydus encounter/appointment counts + buckets are maintained in redux by
@@ -276,6 +328,7 @@ export default function useAppointments({
   const sortQueueBySequence = isGrowthBookFeatureOn(GB_APPT_SEQUENCE);
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
+  const [dayTotals, setDayTotals] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -367,6 +420,8 @@ export default function useAppointments({
     []
   );
 
+  const isMonthCalendar = calendarMode === "month" && !isZydusListing;
+
   const fetchRows = useCallback(async () => {
     const seq = ++requestSeq.current;
     pageRef.current = 0;
@@ -376,6 +431,40 @@ export default function useAppointments({
     setHasMore(false);
     setError(null);
     try {
+      /* One call paints the month: size chips per day plus total_count for
+         "+N more". Day/week keep paginating listAppointment. */
+      if (isMonthCalendar) {
+        const res = await ApiAppointments.listAppointmentCalendar({
+          startDate,
+          endDate,
+          size: MONTH_CALENDAR_SIZE,
+          appointmentStatus: calendarStatusCsvForTab(tabId, {
+            includeDraft,
+            isChikitsalay,
+          }),
+        });
+        if (seq !== requestSeq.current) return;
+        if (!res?.status) throw new Error(res?.error || "Could not load appointments.");
+        const days = Array.isArray(res?.data?.data) ? res.data.data : [];
+        const totals = {};
+        const mapped = [];
+        days.forEach((day) => {
+          const dateISO = day?.date || null;
+          if (dateISO) totals[dateISO] = Number(day?.total_count) || 0;
+          (day?.appointments || []).forEach((appt) => {
+            mapped.push(mapCalendarAppointment(appt, dateISO, mapped.length, isChikitsalay));
+          });
+        });
+        setDayTotals(totals);
+        setRows(mapped);
+        const monthTotal = Object.values(totals).reduce((sum, n) => sum + n, 0);
+        setCounts((prev) => ({ ...prev, [tabId]: monthTotal }));
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+
+      setDayTotals({});
       // Zydus Cancelled: ICT consultations include cancelled rows; filter
       // client-side (prod does not use GenX isCancel=true).
       if (isZydusListing && tabId === TAB_IDS.CANCELLED) {
@@ -604,6 +693,7 @@ export default function useAppointments({
       if (seq !== requestSeq.current) return;
       console.error("useAppointments:", e);
       setRows([]);
+      setDayTotals({});
       setHasMore(false);
       setError(e);
       setLoading(false);
@@ -620,6 +710,7 @@ export default function useAppointments({
     zydusSiteId,
     zydusEmpNo,
     isZydusListing,
+    isMonthCalendar,
     startDate,
     endDate,
     visitTypeCsv,
@@ -688,11 +779,14 @@ export default function useAppointments({
     if (prevTabRef.current !== tabId) {
       prevTabRef.current = tabId;
       setRows([]);
+      setDayTotals({});
     }
 
     const fetchKey = isZydusConsultTab
       ? `zydus|${tabId}|${startDate}|${zydusSiteId}|${zydusEmpNo}|${visitTypeCsv || ""}`
-      : `tp|${tabId}|${startDate}|${endDate}|${query}|${visitTypeCsv}|${fetchAllPages}|${includeDraft}`;
+      : isMonthCalendar
+        ? `tp-month|${tabId}|${startDate}|${endDate}|${includeDraft}`
+        : `tp|${tabId}|${startDate}|${endDate}|${query}|${visitTypeCsv}|${fetchAllPages}|${includeDraft}`;
 
     if (prevFetchKeyRef.current === fetchKey) {
       if (isZydusConsultTab) setLoading(false);
@@ -714,6 +808,7 @@ export default function useAppointments({
     zydusSiteId,
     zydusEmpNo,
     isZydusConsultTab,
+    isMonthCalendar,
   ]);
 
   // Zydus search is client-side only: apply the query filter over the
@@ -755,7 +850,16 @@ export default function useAppointments({
   // Keep Zydus tab counts synced with redux store values the thunks update.
   // The store is the source of truth; local counts are merged on top.
   const countByTab = useMemo(() => {
-    const base = tabId === TAB_IDS.ALL ? { ...counts, [TAB_IDS.ALL]: rows.length } : counts;
+    const monthTotal = isMonthCalendar
+      ? Object.values(dayTotals).reduce((sum, n) => sum + (Number(n) || 0), 0)
+      : null;
+    const allCount = monthTotal != null ? monthTotal : rows.length;
+    const base =
+      tabId === TAB_IDS.ALL
+        ? { ...counts, [TAB_IDS.ALL]: allCount }
+        : monthTotal != null
+          ? { ...counts, [tabId]: monthTotal }
+          : counts;
 
     // Only overwrite with Zydus redux buckets on a real Zydus listing.
     if (!isZydusListing) {
@@ -784,8 +888,10 @@ export default function useAppointments({
     };
   }, [
     counts,
+    dayTotals,
     rows.length,
     tabId,
+    isMonthCalendar,
     isZydusConsultTab,
     isZydusListing,
     queueCount,
@@ -797,5 +903,5 @@ export default function useAppointments({
     zydusCancelledEncounterCount,
   ]);
 
-  return { rows, counts: countByTab, loading, loadingMore, hasMore, error, refetch: fetchRows, loadMore };
+  return { rows, counts: countByTab, dayTotals, loading, loadingMore, hasMore, error, refetch: fetchRows, loadMore };
 }

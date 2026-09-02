@@ -320,14 +320,13 @@ export default function AppointmentListingPage() {
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
   const [view, setView] = useState(() => readPreference("view", "list"));
-  /* Day/Week now lives in the page toolbar, so the page owns the calendar's
+  /* Day/Week/Month now lives in the page toolbar, so the page owns the calendar's
      grain. It drives the grid through the calendar's modeOverride, and the
      calendar publishes back through onModeChange (e.g. drilling into a day from
-     week view) so the toolbar toggle stays in step. */
+     month view) so the toolbar toggle stays in step. */
   const [calendarMode, setCalendarMode] = useState(() => {
     const saved = readPreference("calendarMode", "day");
-    // Month is hidden from the toggle, so never start the grid in it.
-    return saved === "week" ? "week" : "day";
+    return saved === "week" || saved === "month" ? saved : "day";
   });
   const pickCalendarMode = useCallback((m) => {
     if (m !== "day" && m !== "week" && m !== "month") return;
@@ -803,24 +802,40 @@ export default function AppointmentListingPage() {
   // visitTypeCsv is a string so the hook's inputs stay referentially stable.
   const visitTypeCsv = (filters.visitType || []).join(",");
   // In the calendar the grid's own span wins; the table keeps the picker's.
-  const queryRange = useMemo(
-    () => (renderCalendar && calendarWindow ? calendarWindow : dateRange),
-    [renderCalendar, calendarWindow, dateRange]
-  );
-  const { rows: liveRows, counts: countByTab, loading, loadingMore, hasMore, error, refetch, loadMore } = useAppointments({
+  // Month is a single listAppointmentCalendar call over the displayed month
+  // (1st–last), not the 42-cell padded grid — so leaving month view cannot
+  // accidentally paginate listAppointment across six weeks.
+  const queryRange = useMemo(() => {
+    if (renderCalendar && calendarMode === "month") {
+      const d = dateRange?.start ? new Date(dateRange.start) : new Date();
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      return { start, end };
+    }
+    if (renderCalendar && calendarMode === "day") {
+      const start = dateRange?.start ? new Date(dateRange.start) : new Date();
+      return { start, end: start };
+    }
+    return renderCalendar && calendarWindow ? calendarWindow : dateRange;
+  }, [renderCalendar, calendarMode, calendarWindow, dateRange]);
+  const { rows: liveRows, counts: countByTab, dayTotals, loading, loadingMore, hasMore, error, refetch, loadMore } = useAppointments({
     tabId: activeTab,
     dateRange: queryRange,
     query: debouncedQuery,
     visitTypeCsv,
     /* Calendar must eventually show every appointment in the window. Table
-       uses the same 25-row infinite scroll as the legacy screen. */
-    fetchAllPages: renderCalendar,
+       uses the same 25-row infinite scroll as the legacy screen. Month uses
+       listAppointmentCalendar instead, so it must not paginate. */
+    fetchAllPages: renderCalendar && calendarMode !== "month",
     includeDraft: showDraft,
     includePendingDigitisation: digitisationWorklistEnabled,
     zydusSiteId,
     zydusEmpNo,
     isZydusAccount,
     isChikitsalay: isChikitsalayAccessable && !isZydusAccount,
+    calendarMode: renderCalendar ? calendarMode : "day",
   });
 
   // Pending Digitisation is an all-time worklist, independent of the Slot /
@@ -866,11 +881,14 @@ export default function AppointmentListingPage() {
 
   const rows = useMemo(() => {
     if (activeTab === TAB_IDS.REFERRAL) return liveRows;
+    /* Month chips have no visit-mode flag from listAppointmentCalendar, so
+       the in-clinic/video filter cannot be applied without emptying the grid. */
+    if (calendarMode === "month" && renderCalendar) return liveRows;
     const slotSel = filters.slot || [];
     if (slotSel.length !== 1) return liveRows;
     const wantVideo = slotSel[0] === "video";
     return liveRows.filter((row) => row.hasVideo === wantVideo);
-  }, [liveRows, filters.slot, activeTab]);
+  }, [liveRows, filters.slot, activeTab, calendarMode, renderCalendar]);
 
   // Zydus legacy date navigator: single day (prev/next + date picker),
   // with the legacy "can't go to next day when on today" rule.
@@ -1410,7 +1428,7 @@ export default function AppointmentListingPage() {
                 />
               </div>
               <div className={styles.toolbarRight}>
-                {/* Day/Week lives here now, ahead of the date stepper, so the
+                {/* Day/Week/Month lives here, ahead of the date stepper, so the
                     calendar's grain and its navigation read as one control group
                     and the grid keeps its own header for nothing but the grid. */}
                 {renderCalendar && !isZydusAccount && (
@@ -1418,15 +1436,12 @@ export default function AppointmentListingPage() {
                     className={styles.grainSeg}
                     size="sm"
                     variant="block"
-                    /* Month view is built and working, but hidden from the
-                       toggle for prod parity (matching the legacy screen); the
-                       rendering path stays so it can be switched on later by
-                       adding the option back here. */
                     options={[
                       { value: "day", label: "Day" },
                       { value: "week", label: "Week" },
+                      { value: "month", label: "Month" },
                     ]}
-                    value={calendarMode === "month" ? "day" : calendarMode}
+                    value={calendarMode}
                     onValueChange={pickCalendarMode}
                   />
                 )}
@@ -1721,6 +1736,7 @@ export default function AppointmentListingPage() {
               ) : (
                 <AppointmentCalendarView
                   rows={rows}
+                  dayTotals={dayTotals}
                   tabId={activeTab}
                   onRowAction={onRowAction}
                   /* In move mode the tapped slot is a proposal for the
@@ -1774,10 +1790,10 @@ export default function AppointmentListingPage() {
                   }}
                   slotsVersion={slotsVersion}
                   allowBook={showBookActions}
-                  /* The page owns the grain now (Day/Week toggle in the toolbar):
+                  /* The page owns the grain now (Day/Week/Month toggle in the toolbar):
                      it drives the grid here and receives internal changes back. */
                   modeOverride={isZydusAccount ? "day" : calendarMode}
-                  onModeChange={setCalendarMode}
+                  onModeChange={pickCalendarMode}
                   disableAvailabilityLayer={isZydusAccount}
                   hideModeToggle
                 />
