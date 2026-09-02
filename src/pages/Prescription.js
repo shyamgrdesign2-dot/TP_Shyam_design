@@ -2073,7 +2073,7 @@ function Prescription() {
                   alt="upload-document"
                   className="me-3"
                 />
-                <div className="title-common">Lab Results</div>
+                <div className="title-common">Investigation Results</div>
               </div>
               <button
                 className="btn d-flex align-items-center btn-text"

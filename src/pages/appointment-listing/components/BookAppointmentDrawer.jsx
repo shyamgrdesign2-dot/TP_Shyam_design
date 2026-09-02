@@ -505,6 +505,23 @@ export default function BookAppointmentDrawer({
     }
   };
 
+  const isTeleMode = mode === "teleconsult";
+  /* The mode glyph and word, used both in the title and in the summary band
+     once the mode is fixed. In-clinic wears the hospital glyph the calendar
+     chips use, so the two surfaces name the same thing the same way. */
+  const modeIcon = isTeleMode
+    ? { name: "video", family: "video-audio-image", variant: "bulk" }
+    : { name: "hospital", family: "building", variant: "bulk" };
+  const modeWord = isTeleMode ? "Teleconsultation" : "In-clinic";
+  /* When the slot fixes the mode, the heading names it: "Book In-clinic
+     Appointment" / "Book Teleconsultation Appointment". No glyph beside it,
+     the words carry the mode. */
+  const drawerTitle = isReschedule
+    ? "Reschedule Appointment"
+    : modeLocked
+    ? `Book ${modeWord} Appointment`
+    : "Book Appointment";
+
   return (
     <>
       <Drawer open={open} onOpenChange={onOpenChange}>
@@ -516,7 +533,7 @@ export default function BookAppointmentDrawer({
              "Book Appointment" button asks the doctor to confirm something
              before they have chosen it, and buries the irreversible step
              under the softest word on screen. */
-          title={isReschedule ? "Reschedule Appointment" : "Book Appointment"}
+          title={drawerTitle}
           action={
             <Button
               className={styles.bookCta}
@@ -534,41 +551,37 @@ export default function BookAppointmentDrawer({
           }
         >
           <div className={styles.form}>
-            {/* The first decision, and the one that filters everything
-                under it. A segmented control, not tabs: this switches a mode
-                within one form, it does not navigate between sections. */}
-            <SegmentedControl
-              className={`${styles.modeSwitch}${lockMode ? ` ${styles.modeLocked}` : ""}`}
-              size="md"
-              variant="block"
-              fullWidth
-              value={mode}
-              onValueChange={(v) => {
-                if (!lockMode) setMode(v);
-              }}
-              options={MODE_TABS.map((m) => ({
-                value: m.value,
-                label: m.label,
-                /* Filled when chosen, outlined when not: the mode you are in
-                   reads at a glance without comparing two labels. */
-                icon: (() => {
-                  const g = mode === m.value ? m.iconActive : m.icon;
-                  return <TPLibraryIcon name={g.name} family={g.family} variant={g.variant} size={18} />;
-                })(),
-                disabled:
-                  lockMode ||
-                  (!slotless && m.value === "teleconsult" && effectiveSlot?.teleAvailable === false),
-              }))}
-            />
+            {/* The mode is a control only while it is still open. A picked slot
+                (or a reschedule) fixes it, so the switch comes out and the mode
+                is stated in the title and the summary band instead. When it is
+                still a choice it stays a segmented control, not tabs: it
+                switches a mode within one form, it does not navigate. */}
+            {!lockMode && (
+              <SegmentedControl
+                className={styles.modeSwitch}
+                size="md"
+                variant="block"
+                fullWidth
+                value={mode}
+                onValueChange={setMode}
+                options={MODE_TABS.map((m) => ({
+                  value: m.value,
+                  label: m.label,
+                  /* Filled when chosen, outlined when not: the mode you are in
+                     reads at a glance without comparing two labels. */
+                  icon: (() => {
+                    const g = mode === m.value ? m.iconActive : m.icon;
+                    return <TPLibraryIcon name={g.name} family={g.family} variant={g.variant} size={18} />;
+                  })(),
+                  disabled:
+                    !slotless && m.value === "teleconsult" && effectiveSlot?.teleAvailable === false,
+                }))}
+              />
+            )}
             {isReschedule && (
               <p className={styles.fieldHint}>
                 Mode, visit type, category and remarks stay with this appointment. This
                 drawer only moves the slot.
-              </p>
-            )}
-            {!isReschedule && modeLocked && (
-              <p className={styles.fieldHint}>
-                Mode is set by the slot you picked and cannot be changed here.
               </p>
             )}
             {!slotless && !modeLocked && effectiveSlot?.teleAvailable === false && (
@@ -604,10 +617,27 @@ export default function BookAppointmentDrawer({
                 slotLine && (
                   <div className={styles.summaryRow}>
                     <TPLibraryIcon name="clock" variant="bulk" size={18} color="var(--tesseract-slate-500)" />
+                    {/* The mode rides on this same row as one more divider-parted
+                        fact, rather than a line of its own: time, date, then how
+                        the visit happens. */}
                     <span className={styles.summaryText}>
                       {slotLine.time}
                       <span className={styles.summaryDivider}>|</span>
                       {slotLine.date}
+                      {lockMode && (
+                        <>
+                          <span className={styles.summaryDivider}>|</span>
+                          <TPLibraryIcon
+                            name={modeIcon.name}
+                            variant={modeIcon.variant}
+                            family={modeIcon.family}
+                            size={15}
+                            color="var(--tesseract-slate-500)"
+                            style={{ verticalAlign: "-3px", marginRight: 4 }}
+                          />
+                          {modeWord}
+                        </>
+                      )}
                     </span>
                   </div>
                 )
@@ -907,8 +937,6 @@ export default function BookAppointmentDrawer({
                   <InputBox
                     ref={searchInputRef}
                     fullWidth
-                    showLabel={false}
-                    showHelper={false}
                     leftIcon={<TPLibraryIcon name="search-normal" size={20} />}
                     placeholder="Search by Patient's Name, Phone number or Id"
                     value={query}

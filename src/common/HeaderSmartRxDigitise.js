@@ -420,9 +420,8 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
                     placement="bottom"
                   >
                     <button className="btn d-flex align-items-center btn-text mx-3 tutorial p-0">
-                      <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
+                      <span className="text-decoration-none rounded-5 bg-white shadow2">
                         <img height={42} src={tutorial} alt="tutorial" />
-                        Tutorial
                       </span>
                     </button>
                   </Popover>

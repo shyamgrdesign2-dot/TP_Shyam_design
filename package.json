@@ -1,6 +1,6 @@
 {
   "name": "react-thyrocare",
-  "version": "4.8.22",
+  "version": "4.8.24",
   "apiCompatibilityVersion": 1.1,
   "private": true,
   "homepage": "/",
@@ -136,7 +136,8 @@
             "@radix-ui/react-select",
             "@radix-ui/react-popover",
             "@radix-ui/react-tabs",
-            "@ricky0123/vad-react"
+            "@ricky0123/vad-react",
+            "@dhspl-tatvacare/tesseract-ui"
           ]
         }
       ]

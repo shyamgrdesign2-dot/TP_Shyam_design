@@ -1,0 +1,49 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-5);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+
+.fieldLabel {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+}
+
+.fieldHint {
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.rangeRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-4);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--tesseract-bg-surface);
+}
+
+.rangeRowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-2);
+}
+
+.rangeInputs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--tesseract-space-3);
+}
+
+.duplicateWarningAction {
+  margin-top: var(--tesseract-space-2);
+}

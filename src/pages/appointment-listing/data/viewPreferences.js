@@ -12,9 +12,15 @@ const KEYS = {
   view: "tp.appointments.view",
   calendarMode: "tp.appointments.calendarMode",
   calendarFreeSlots: "tp.appointments.calendarFreeSlots",
+  calendarHourPx: "tp.appointments.calendarHourPx",
   patientSectionAdditional: "tp.addPatient.section.additional",
   patientSectionAddress: "tp.addPatient.section.address",
 };
+
+/* Preferences whose value is a number rather than one of a fixed set. They are
+   validated as finite numbers here; the calendar clamps to its own zoom bounds
+   on read, so a stale or out-of-range value can never break the grid. */
+const NUMERIC = new Set(["calendarHourPx"]);
 
 const ALLOWED = {
   view: ["list", "calendar"],
@@ -33,6 +39,7 @@ export function readPreference(name, fallback) {
     const v = window.localStorage.getItem(KEYS[name]);
     // Validate rather than trust: a stale or hand-edited value must not put
     // the page into a state it has no rendering path for.
+    if (NUMERIC.has(name)) return Number.isFinite(Number(v)) ? v : fallback;
     return ALLOWED[name]?.includes(v) ? v : fallback;
   } catch {
     return fallback;
@@ -41,6 +48,10 @@ export function readPreference(name, fallback) {
 
 export function writePreference(name, value) {
   try {
+    if (NUMERIC.has(name)) {
+      if (Number.isFinite(Number(value))) window.localStorage.setItem(KEYS[name], String(value));
+      return;
+    }
     if (ALLOWED[name]?.includes(value)) window.localStorage.setItem(KEYS[name], value);
   } catch {
     // Storage unavailable; the preference just won't survive this session.

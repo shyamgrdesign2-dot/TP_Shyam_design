@@ -75,7 +75,7 @@ const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabPara
   return (
     <div>
       <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
-        Lab Results
+        Investigation Results
         <Button
           type="text"
           className="btn p-0 btn-outline"
@@ -119,9 +119,9 @@ const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabPara
             </>
           ) : (
             <TabSiderEmptyState
-              title="No Lab Results!"
-              description="It looks like there are no lab results added for this patient yet."
-              actionLabel="Add Lab Results"
+              title="No Investigation Results!"
+              description="It looks like there are no investigation results added for this patient yet."
+              actionLabel="Add Investigation Results"
               onAction={handleAddLabParamsDrawer}
             />
           )}

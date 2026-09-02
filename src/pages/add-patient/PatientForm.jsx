@@ -96,11 +96,12 @@ function pickedDate(v) {
   return null;
 }
 
-function computeDob(years, months) {
+function computeDob(years, months, days) {
   const now = dayjs();
   let d = now;
   if (years) d = d.subtract(Number(years), "year");
   if (months) d = d.subtract(Number(months), "month");
+  if (days) d = d.subtract(Number(days), "day");
   return d.format("YYYY-MM-DD");
 }
 
@@ -119,6 +120,7 @@ function PatientForm({ onSaved, onClose, onInvalid, initialName = "", initialCon
     pm_gender: "",
     ageYears: "",
     ageMonths: "",
+    ageDays: "",
     pm_dob: null,
     pm_reference_id: "",
     pm_blood_group: "",
@@ -150,6 +152,64 @@ function PatientForm({ onSaved, onClose, onInvalid, initialName = "", initialCon
   const [pinLoading, setPinLoading] = useState(false);
   const [pinError, setPinError] = useState("");
   const fileInputRef = React.useRef(null);
+  const dobWrapRef = React.useRef(null);
+
+  // Date of Birth → the age fields. Pulled out of the picker's onChange so the
+  // day-click interception below can commit the same way the design system's
+  // own commit does.
+  const applyDob = useCallback((d) => {
+    if (!d || Number.isNaN(d.getTime())) return;
+    const now = dayjs();
+    const dob = dayjs(d);
+    const years = now.diff(dob, "year");
+    const months = now.diff(dob.add(years, "year"), "month");
+    const days = now.diff(dob.add(years, "year").add(months, "month"), "day");
+    setForm((f) => ({
+      ...f,
+      pm_dob: d,
+      ageYears: years > 0 ? String(years) : "",
+      ageMonths: months > 0 ? String(months) : "",
+      ageDays: days > 0 ? String(days) : "",
+    }));
+    setErrors((e) => ({ ...e, ageYears: undefined }));
+  }, []);
+
+  // Tag the DOB popover on open so the "one action" footer restyle (Clear only,
+  // no Cancel/Apply — see .dobPopover in the CSS) is scoped to this picker.
+  const tagDobPopover = useCallback(() => {
+    requestAnimationFrame(() => {
+      const id = dobWrapRef.current
+        ?.querySelector('[class*="_trigger_"]')
+        ?.getAttribute("aria-controls");
+      if (id) document.getElementById(id)?.classList.add(styles.dobPopover);
+    });
+  }, []);
+
+  // Clicking a day IS the decision, so commit it and close in one tap rather
+  // than making the doctor confirm a date they already picked. Scoped to this
+  // picker's own popover so it never touches the appointment date picker behind
+  // the drawer. Closes through the (hidden) Cancel; the controlled value we set
+  // is what the field then shows.
+  useEffect(() => {
+    const onClick = (e) => {
+      const popover = e.target.closest?.('[id^="tp-drp-popover-"]');
+      if (!popover) return;
+      const ourId = dobWrapRef.current
+        ?.querySelector('[class*="_trigger_"]')
+        ?.getAttribute("aria-controls");
+      if (!ourId || popover.id !== ourId) return;
+      const dayBtn = e.target.closest('[class*="_day_"]');
+      if (!dayBtn) return;
+      const d = new Date(dayBtn.getAttribute("aria-label"));
+      if (Number.isNaN(d.getTime())) return;
+      setTimeout(() => {
+        applyDob(d);
+        popover.querySelector('[class*="_actionsRight_"] button')?.click();
+      }, 0);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [applyDob]);
 
   const handleAvatarChange = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -316,7 +376,7 @@ function PatientForm({ onSaved, onClose, onInvalid, initialName = "", initialCon
           : "Add a 10-digit mobile number for appointment reminders",
     pm_gender: (f) => (f.pm_gender ? "" : "Pick one so the record is complete"),
     ageYears: (f) =>
-      f.ageYears || f.ageMonths || f.pm_dob
+      f.ageYears || f.ageMonths || f.ageDays || f.pm_dob
         ? ""
         : "Add an age or a date of birth. Either one is enough",
     /* Optional fields, but a half-entered one is worse than an empty one:
@@ -381,8 +441,8 @@ function PatientForm({ onSaved, onClose, onInvalid, initialName = "", initialCon
 
     const dob = form.pm_dob
       ? dayjs(form.pm_dob).format("YYYY-MM-DD")
-      : (form.ageYears || form.ageMonths)
-        ? computeDob(form.ageYears, form.ageMonths)
+      : (form.ageYears || form.ageMonths || form.ageDays)
+        ? computeDob(form.ageYears, form.ageMonths, form.ageDays)
         : "";
 
     const payload = {
@@ -612,6 +672,23 @@ function PatientForm({ onSaved, onClose, onInvalid, initialName = "", initialCon
                   status={errors.ageYears ? "error" : "default"}
                   fullWidth
                 />
+                {/* Days matters for newborns: a two-week-old baby has no whole
+                    month to show, so without this the age would round to zero. */}
+                <InputBox
+                  label="&nbsp;"
+                  placeholder="Days"
+                  unit="day"
+                  allow="numeric"
+                  maxLength={2}
+                  value={form.ageDays}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                    if (Number(v || 0) <= 31) setAge("ageDays", v);
+                  }}
+                  onBlur={() => checkField("ageYears")}
+                  status={errors.ageYears ? "error" : "default"}
+                  fullWidth
+                />
               </div>
               {/* The pair shares one message, so it sits under both rather
                   than being duplicated into each field's own helper slot. */}
@@ -619,37 +696,25 @@ function PatientForm({ onSaved, onClose, onInvalid, initialName = "", initialCon
             </div>
             <div className={styles.colThird}>
               {/* The DS picker. Its popover escapes the section card, which a
-                  popover rendered inside the body could not do. Clicking a
-                  day is the decision, so it commits on outside-click rather
-                  than making the user confirm a choice they already made.
+                  popover rendered inside the body could not do. Clicking a day
+                  commits and closes in one tap (see the day-click interception
+                  above); the footer keeps only Clear, with Cancel/Apply dropped.
                   Picking a date fills the age fields, since the two say the
                   same thing and a doctor should only state it once. */}
-              <DatePicker
-                label="Date of Birth"
-                mode="single"
-                size="md"
-                fullWidth
-                commitMode="outside-click"
-                value={form.pm_dob ? new Date(form.pm_dob) : null}
-                maxDate={new Date()}
-                placeholder="Select date"
-                formatDate={(d) => dayjs(d).format("DD MMM YYYY")}
-                onChange={(v) => {
-                  const d = pickedDate(v);
-                  if (!d || Number.isNaN(d.getTime())) return;
-                  const now = dayjs();
-                  const dob = dayjs(d);
-                  const years = now.diff(dob, "year");
-                  const months = now.diff(dob.add(years, "year"), "month");
-                  setForm((f) => ({
-                    ...f,
-                    pm_dob: d,
-                    ageYears: years > 0 ? String(years) : "",
-                    ageMonths: months > 0 ? String(months) : "",
-                  }));
-                  setErrors((e) => ({ ...e, ageYears: undefined }));
-                }}
-              />
+              <div ref={dobWrapRef} onClickCapture={tagDobPopover}>
+                <DatePicker
+                  label="Date of Birth"
+                  mode="single"
+                  size="md"
+                  fullWidth
+                  commitMode="outside-click"
+                  value={form.pm_dob ? new Date(form.pm_dob) : null}
+                  maxDate={new Date()}
+                  placeholder="Select date"
+                  formatDate={(d) => dayjs(d).format("DD MMM YYYY")}
+                  onChange={(v) => applyDob(pickedDate(v))}
+                />
+              </div>
             </div>
             <div className={styles.colThird}>
               <InputBox
