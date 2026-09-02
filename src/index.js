@@ -214,12 +214,30 @@ Sentry.init({
     /window\.webkit\.messageHandlers/i,
     /Error in getting sdk settings from localstorage/i,
   ],
-  // Standalone LCP/CLS span envelopes (enabled via _experiments below) bypass scope
-  // tags and event processors entirely, so the boot_visibility segmentation is attached
-  // here — this hook runs for every span-shaped item, transaction children and
-  // standalone vitals spans alike.
+  // Standalone LCP/CLS span envelopes (enabled via _experiments above) bypass scope
+  // tags and event processors entirely, so boot_visibility has to be attached here for
+  // them — this is the only path that reaches those spans, and LCP is the metric the
+  // whole segmentation exists to split.
+  //
+  // Restricted to the spans the segmentation is actually queried on. The SDK runs this
+  // callback for the root span AND every child span of every transaction
+  // (client.js "2. Process child spans"), and this app emits ~9.6M child spans a day
+  // against ~456k transactions: tagging http.client/resource.*/long-animation-frame
+  // would upload hundreds of MB a day of an attribute nobody filters on.
+  //
+  // KNOWN COST, measured: defining this callback at all drops `contexts.trace.links`
+  // from every transaction. The SDK round-trips the root span through
+  // convertTransactionEventToSpanJson (which does not carry `links`) and merges the
+  // result back over contexts.trace, so the loss happens no matter what this body does
+  // — narrowing the gate does not avoid it. Verified by A/B locally: links present with
+  // the callback removed, absent with it defined. Accepted because the SDK also writes
+  // `sentry.previous_trace` as a span attribute, which survives, so previous-trace
+  // information is degraded (no structured link in the trace UI) rather than lost.
   beforeSendSpan(span) {
-    span.data = { ...span.data, boot_visibility: BOOT_VISIBILITY };
+    const op = span.op || "";
+    if (op === "pageload" || op === "navigation" || op.startsWith("ui.webvital.")) {
+      span.data = { ...span.data, boot_visibility: BOOT_VISIBILITY };
+    }
     return span;
   },
 

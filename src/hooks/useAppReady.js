@@ -8,8 +8,7 @@ import * as Sentry from "@sentry/react";
  * restored in the background — because JS runs there regardless. See the
  * BOOT_VISIBILITY comment in src/index.js for that segmentation.
  *
- * Guards mirror src/hooks/useRouteReady.js, this metric's soft-navigation
- * sibling:
+ * Guards:
  * - records only onto a pageload root span. If something opened a navigation
  *   span before App mounted, recording a timeOrigin-relative value there would
  *   file boot time on a route change (the SDK's setMeasurement attaches to
