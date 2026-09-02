@@ -34,7 +34,13 @@ export default function useAppReady() {
       const activationStart = (navEntry && navEntry.activationStart) || 0;
       const elapsedMs = performance.now() - activationStart;
       if (elapsedMs < 0) return;
+      // setMeasurement makes it show in the trace UI with a unit, but Sentry's
+      // EAP/spans dataset stores custom measurements as string attributes, so
+      // avg()/p75() over them fail ("it's a string"). Also write a numeric span
+      // attribute so the value is aggregatable into a per-route p75 — the whole
+      // point of the metric. Rounded to an integer so it types as a number.
       Sentry.setMeasurement("app_ready", elapsedMs, "millisecond");
+      root.setAttribute("app_ready_ms", Math.round(elapsedMs));
     } catch (e) {
       // Telemetry only — never let measurement failures reach the page.
     }
