@@ -411,7 +411,7 @@ const TabRxNavPanel = ({
                                         <div className="icon-container">
                                             <span className={`lab-icon ${collapsedFlag === 8 ? "active" : ""}`} role="img" aria-label="Lab"></span>
                                         </div>  
-                                        <label className="item-label">Lab Results</label>
+                                        <label className="item-label">Investigation Results</label>
                                     </div>
                                 </button>
                             );

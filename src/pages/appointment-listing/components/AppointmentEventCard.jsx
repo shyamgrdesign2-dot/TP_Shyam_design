@@ -103,6 +103,9 @@ export default function AppointmentEventCard({
   selected,
   dragging,
   style,
+  // Engaging an action on the card itself dismisses the hover popover: its
+  // menu and the popover would otherwise stack, two of the same thing at once.
+  onActionInteract,
   ...handlers
 }) {
   // In the merged "All" view each card acts on its own status
@@ -130,7 +133,11 @@ export default function AppointmentEventCard({
      the name is the thing being looked up. The meridiem goes first: its
      position in the day grid already says morning or afternoon. */
   const compact = height <= 30;
-  const timeText = compact
+  // The narrow tiers drop the meridiem so the time and the mode glyph both fit
+  // without the glyph being clipped: on a 5-way-overlap chip "11:24 AM" alone
+  // eats the whole width. The grid position already says morning or afternoon.
+  const tightTime = compact || v.tier === "sm";
+  const timeText = tightTime
     ? String(row.slotTime || "").replace(/\s*[AP]M$/i, "").replace(/^0/, "")
     : row.slotTime;
 
@@ -186,20 +193,24 @@ export default function AppointmentEventCard({
               <img src={ASSETS.images.symptomsGreen} alt="" width={14} height={14} />
             </span>
           )}
-          {v.showVideo && (
-            <span className={styles.glyph} title="Teleconsultation">
-              <TPLibraryIcon
-                name="video"
-                variant="bulk"
-                family="video-audio-image"
-                size={15}
-                /* Same state colour the rest of the card wears, so a
-                   cancelled video visit does not advertise itself in the
-                   live-appointment blue. */
-                color={videoTint(row.status || tabId)}
-              />
-            </span>
-          )}
+          {/* The mode marker is constant: every card says whether it is a
+              teleconsult (video) or an in-clinic (hospital) visit, in every
+              state, so the indication never disappears when an appointment is
+              finished or cancelled. It wears the card's own state colour, so a
+              cancelled visit does not advertise itself in live-appointment
+              blue. */}
+          <span
+            className={styles.glyph}
+            title={row.hasVideo ? "Teleconsultation" : "In-clinic"}
+          >
+            <TPLibraryIcon
+              name={row.hasVideo ? "video" : "hospital"}
+              variant="bulk"
+              family={row.hasVideo ? "video-audio-image" : "building"}
+              size={15}
+              color={videoTint(row.status || tabId)}
+            />
+          </span>
           {!v.stacked && (
             <>
               <span className={styles.divider} aria-hidden="true" />
@@ -273,7 +284,12 @@ export default function AppointmentEventCard({
         <div
           className={styles.trail}
           onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            // Close the hover popover the moment an on-card action is pressed,
+            // so its menu opens on a clean card, not on top of the tooltip.
+            onActionInteract?.();
+          }}
         >
           {v.showCta && primary && (
             cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL ? (

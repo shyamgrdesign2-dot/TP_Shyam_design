@@ -233,6 +233,9 @@ const LimsPrintConfig = React.lazy(() =>
 const PharmacyNoAccessPage = React.lazy(() =>
   lazyRetry(() => import("./pages/pharmacy/PharmacyNoAccessPage"))
 );
+const InvestigationSettingsPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/InvestigationSettingsPage"))
+);
 
 function PrescriptionRouteElement() {
   const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
@@ -896,6 +899,7 @@ function App() {
           <Route path="lims/print/:patientId" element={<LimsPrintPage />} />
           <Route path="lims/print-settings" element={<LimsPrintConfig />} />
           <Route path="pharmacy" element={<PharmacyNoAccessPage />} />
+          <Route path="lims/investigation-settings" element={<InvestigationSettingsPage />} />
           {/* <Route path="dental-rx-pad" element={<DentalModuleShell />} /> */}
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
