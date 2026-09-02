@@ -88,10 +88,10 @@ const VisitLabParameters = ( {patient_unique_id, doc_id, onSave}) => {
                 <div className="d-flex align-items-center">
                   <img
                     src={labParamsImg}
-                    alt="lab-parameters"
+                    alt="investigation-results"
                     className="me-3"
                   />
-                  Lab Results
+                  Investigation Results
                 </div>
                 <Button
                   className="btn btn-input d-flex align-items-center gap-1"

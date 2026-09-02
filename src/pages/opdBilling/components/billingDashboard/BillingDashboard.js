@@ -4,7 +4,8 @@ import { isMobile } from "react-device-detect";
 
 import Header from "../../../../common/Header";
 import SidebarDoctor from "../../../../common/SidebarDoctor";
-import Welcome from "../../../../common/Welcome";
+import PageHeroBanner, { pageHeroBannerStyles } from "../../../../common/PageHeroBanner";
+import { Button as TessButton, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -311,119 +312,79 @@ function BillingDashboard({ patientData, fromPath }) {
         )}
         <div className="w-100 bg-body wrapper">
           <>
-            <div
-              className={`welcomesection position-relative mb-3 ${
-                isReceptionist ? "receptionist-welcome" : ""
-              }`}
-            >
-              <div className="bg-welcome d-flex justify-content-between align-items-center">
-                <div className="d-flex align-items-center">
-                  {patientData ? (
-                    <>
-                      <div>
-                        <h1>Billing History</h1>
-                      </div>
-                      <button
-                        className="advance-deposite-container mx-4"
-                        onClick={handleAddAdvanceDrawer}
-                      >
-                        <span className="text-lg">
-                          Advance Balance: ₹{totalAdvanceBalance || "0"}
-                        </span>
-                        <span className="add-advance-icon">
-                          <img src={addCircleIcon} alt="add-deposit" />
-                        </span>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <h1>OPD Billing</h1>
-                      </div>
-                      {!isReceptionist && (
-                        <img
-                          src={ASSETS.images.bgWelcome}
-                          className="welcomeig d-inline-block align-top"
-                          alt="Welcome"
-                        />
-                      )}
-                    </>
+            <PageHeroBanner
+              title={patientData ? "Billing History" : "OPD Billing"}
+              actions={
+                <>
+                  {patientData && (
+                    <button
+                      className="advance-deposite-container"
+                      onClick={handleAddAdvanceDrawer}
+                      type="button"
+                    >
+                      <span className="text-lg">
+                        Advance Balance: ₹{totalAdvanceBalance || "0"}
+                      </span>
+                      <span className="add-advance-icon">
+                        <img src={addCircleIcon} alt="add-deposit" />
+                      </span>
+                    </button>
                   )}
-                </div>
-                <div className="d-flex gap-1">
-                  {/* {patientData && (
-                    <div className="d-sm-flex d-block">
-                      <Popover
-                        open={popOverVideo}
-                        onOpenChange={showHideVideoListPopover}
-                        content={VIDEO_CONTENT}
-                        trigger="click"
-                        overlayClassName="pop-430 pp-0 videoTutorial"
-                        placement="bottom"
-                      >
-                        <button className="btn d-flex align-items-center btn-text mx-3 tutorial p-0">
-                          onClick={showHideVideoListPopover}
-                          <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
-                            <img height={42} src={tutorial} />
-                            Tutorial
-                          </span>
-                        </button>
-                      </Popover>
-                      {videoLink && (
-                        <VideoModal
-                          videoLink={videoLink}
-                          onCancel={() => setVideoLink(null)}
-                        />
-                      )}
-                    </div>
-                  )} */}
 
                   <button
-                    className="btn d-flex align-items-center btn-text mx-3 tutorial p-0"
+                    className="btn d-flex align-items-center btn-text tutorial p-0"
                     onClick={handleBillingKnowMore}
+                    type="button"
                   >
-                    <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
-                      <img height={42} src={tutorial} />
-                      Tutorial
+                    <span className="text-decoration-none rounded-5 bg-white shadow2">
+                      <img height={42} src={tutorial} alt="Tutorial" />
                     </span>
                   </button>
 
                   {selectedTab === "billingtable" &&
                     !patientData &&
                     !isReceptionist && (
-                      <Button
-                        className="btn-manage-bill"
+                      <TessButton
+                        variant="outline"
+                        theme="primary"
+                        surface="dark"
+                        className={pageHeroBannerStyles.outlineBtn}
                         onClick={handleManage3cBill}
                       >
-                        <span>Manage Form 3c Bills</span>
-                      </Button>
+                        Manage Form 3c Bills
+                      </TessButton>
                     )}
-                  {selectedTab !== "billingtable" && selectedTab !== "ipdbillingtable"   && !patientData && (
-                    <Button
-                      className={`btn-create-bill ${
-                        isReceptionist ? "receptionist-btn" : ""
-                      }`}
-                      onClick={handleAddAdvanceDrawer}
-                    >
-                      <span style={{ fontSize: "22px" }}>{"+"}</span>
-                      <span>{"Add Advance Deposit"}</span>
-                    </Button>
-                  )}
-                  {(selectedTab === "billingtable" || selectedTab === "ipdbillingtable" || patientData) && (
-                    <Button
-                      className={`btn-create-bill ${
-                        isReceptionist ? "receptionist-btn" : ""
-                      }`}
+                  {selectedTab !== "billingtable" &&
+                    selectedTab !== "ipdbillingtable" &&
+                    !patientData && (
+                      <TessButton
+                        variant="solid"
+                        theme="primary"
+                        surface="dark"
+                        className={pageHeroBannerStyles.solidBtn}
+                        leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
+                        onClick={handleAddAdvanceDrawer}
+                      >
+                        Add Advance Deposit
+                      </TessButton>
+                    )}
+                  {(selectedTab === "billingtable" ||
+                    selectedTab === "ipdbillingtable" ||
+                    patientData) && (
+                    <TessButton
+                      variant="solid"
+                      theme="primary"
+                      surface="dark"
+                      className={pageHeroBannerStyles.solidBtn}
+                      leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
                       onClick={handleCreateBillDrawer}
                     >
-                      <span style={{ fontSize: "22px" }}>+</span>
-                      <span>Create New OPD Bill</span>
-                    </Button>
+                      Create New OPD Bill
+                    </TessButton>
                   )}
-                </div>
-              </div>
-              <div className="pb-5">&nbsp;</div>
-            </div>
+                </>
+              }
+            />
           </>
           <TableBillingDashboard
             ref={billingTableRef}

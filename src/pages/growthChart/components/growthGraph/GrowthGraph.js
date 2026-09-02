@@ -16,7 +16,12 @@ import "./GrowthGraph.scss";
 import TooltipContent from "./TooltipContent";
 import { genderAge } from "../../../../common/ProfilePopover";
 import { useSelector } from "react-redux";
-import { UNITS, ageIntervals, getAgeInMonths } from "../../growthChartHelper";
+import {
+  UNITS,
+  ageIntervals,
+  getAgeInMonths,
+  getFinitePointPixels,
+} from "../../growthChartHelper";
 import { useLocation } from "react-router-dom";
 import moment from "moment";
 import { ASSETS } from "../../../../assets";
@@ -96,28 +101,22 @@ const GrowthGraph = ({
 
       if (!patientDataset || !patientDataset.data.length) return;
 
+      const points = getFinitePointPixels(patientDataset.data, xAxis, yAxis);
+
+      if (!points.length) return;
+
       ctx.save();
 
       ctx.beginPath();
-      patientDataset.data.forEach((point, index) => {
-        const x = xAxis.getPixelForValue(point.x);
-        const y = yAxis.getPixelForValue(point.y);
+      points.forEach(({ x, y }, index) => {
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {
           ctx.lineTo(x, y);
         }
       });
-      ctx.lineTo(
-        xAxis.getPixelForValue(
-          patientDataset.data[patientDataset.data.length - 1].x
-        ),
-        yAxis.bottom
-      );
-      ctx.lineTo(
-        xAxis.getPixelForValue(patientDataset.data[0].x),
-        yAxis.bottom
-      );
+      ctx.lineTo(points[points.length - 1].x, yAxis.bottom);
+      ctx.lineTo(points[0].x, yAxis.bottom);
       ctx.closePath();
 
       // Create gradient for green shadow
@@ -137,11 +136,8 @@ const GrowthGraph = ({
       ctx.fill();
 
       // Draw red shadows and points below the line chart path
-      patientDataset.data.forEach((point, index) => {
+      points.forEach(({ point, x, y }) => {
         if (point.isMalnutrition) {
-          const x = xAxis.getPixelForValue(point.x);
-          const y = yAxis.getPixelForValue(point.y);
-
           if (y <= yAxis.bottom) {
             ctx.save();
 
@@ -232,6 +228,10 @@ const GrowthGraph = ({
 
       // Find the pixel position of the x-axis value
       const xPixel = xAxis.getPixelForValue(xValue);
+
+      // Same guard as above: an unusable date of birth makes this NaN, and the
+      // marker would then be drawn at a meaningless position.
+      if (!Number.isFinite(xPixel)) return;
 
       ctx.save();
 

@@ -196,7 +196,7 @@ const LabResultsTable = ({
                     <Button type="text" className='btn btn-delete-prescription px-3 focus-none h-100' onClick={handleViewLabParamsDrawer} >
                         <i className='icon-Cross fs-3'></i>
                     </Button>
-                    <div className="modal-title">Lab Results</div>
+                    <div className="modal-title">Investigation Results</div>
                 </div>
                 {!isCvtExtHosAccessableFromGB && (
                     <Button className='btn btn-primary3 btn-41 px-4 me-20' onClick={handleSwitchToAddLabParams}>

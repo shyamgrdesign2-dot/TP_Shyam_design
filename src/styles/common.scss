@@ -1138,6 +1138,13 @@ body {
     color: #E54848 !important;
 }
 
+/* Tesseract outline/primary Button label stays slate unless forced —
+   match primary link colour used elsewhere in lab params. */
+.create-custom-investigation-cta span {
+    color: var(--tesseract-primary-600, #4B4AD5) !important;
+    font-weight: var(--tesseract-weight-medium, 500) !important;
+}
+
 .remarks-style {
     white-space: nowrap;
     overflow: hidden;

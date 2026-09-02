@@ -651,6 +651,7 @@ function WalkInConsultationZydus() {
                         open={autoCompleteFlag}
                         // defaultActiveFirstOption={true}
                         defaultOpen
+                        popupMatchSelectWidth
                         listHeight={isMobileOnly ? keyboardOpen ? window.innerHeight - 180 : window.innerHeight - 180 : 320}
                         autoFocus
                         popupClassName={`walkincomplete ${isMobileOnly && "walkincomplete-mobile"

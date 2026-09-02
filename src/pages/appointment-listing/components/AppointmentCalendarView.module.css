@@ -1,0 +1,1872 @@
+/* Card stroke with an open bottom: bordered on top/left/right only, so the
+   scrolling grid visually runs past the card edge (scroll cue). */
+/* One outer stroke wraps header AND grid (open bottom as the scroll cue).
+   The header sits flush against the stroke; only the grid below is inset. */
+/* The grid sits flush inside the page card: no outer stroke and no corner
+   radius of its own, because the card already provides both. A second
+   bordered box inset from the first reads as a frame inside a frame and
+   costs the day a strip of height on every edge. */
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* One stroke and one radius around the panel — header band, date rail
+     and grid alike, everything inside flush against it. The bottom edge is
+     left open so the scrolling grid runs off the card rather than stopping
+     at a line, which is the cue that there is more day below. */
+  border: 0.5px solid var(--tesseract-slate-200);
+  border-bottom: none;
+  /* Rounded at the top, square at the bottom. A restrained top radius (12, not
+     16) so the panel reads as a crisp grid rather than a soft card. The legend
+     is a full-bleed bar across the foot, so the bottom runs straight. */
+  border-radius: var(--tesseract-radius-12) var(--tesseract-radius-12) 0 0;
+  background: var(--tesseract-bg-surface);
+  overflow: hidden;
+  font-family: var(--tesseract-font-body);
+}
+
+/* Edge scroll fades: while the week is wider than the card, a soft shadow hugs
+   whichever edge still hides days — right when there are more days to come, left
+   when earlier days are scrolled off (the week opens scrolled to today, so on a
+   late day the hidden days are to the left). They ride on the panel (not the
+   scroller) so they stay pinned to the edges, stop above the legend bar, and let
+   clicks fall through to the grid. */
+.root[data-overflow-end]::after,
+.root[data-overflow-start]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 30px;
+  width: 44px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.root[data-overflow-end]::after {
+  right: 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent)
+  );
+}
+
+.root[data-overflow-start]::before {
+  left: 0;
+  background: linear-gradient(
+    to left,
+    transparent,
+    color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent)
+  );
+}
+
+/* Header strip mirrors the table thead: slate-100 fill, 12px end radii,
+   inset from the card edges, neutral text. Gains a soft bottom shadow only
+   while grid content is scrolled underneath. */
+.header {
+  position: relative;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  margin: 0;
+  /* 42px band: the date control has moved to the page toolbar, so this row
+     carries only the Day/Week and Show Slots pills and can be tighter, giving
+     the grid below more room. The ~30px pills leave an even 6px above/below. */
+  height: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  /* Flush band across the full width of the card. */
+  border-radius: 0;
+  /* Neutral, like every other toolbar on the page. The only thing keeping
+     it off the date-head rail below is a hairline, deliberately lighter
+     than a normal divider so it separates without drawing a line. */
+  background: var(--tesseract-slate-100);
+  border-bottom: 1px solid color-mix(in srgb, var(--tesseract-slate-200) 55%, transparent);
+  transition: box-shadow 150ms;
+  /* The DS radius hook and the shared pill ground, declared once here (the old
+     .headerRight wrapper is gone) so the Day/Week control and the Show Slots
+     switch resolve the same corner and track. */
+  --tesseract-sc-radius: var(--tesseract-radius-12);
+  --header-pill-bg: color-mix(in srgb, var(--tesseract-slate-200) 55%, var(--tesseract-slate-100));
+}
+
+/* No depth cue here. The band already sits on its own slate ground with a
+   hairline under it, and a second shadow on a header that is itself inside a
+   card read as a third stacked surface. */
+.header[data-scrolled] {
+  box-shadow: none;
+}
+
+.navGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* The design system's own hook, declared once for the whole header so the
+     switch and the segmented control can never drift apart: both read this,
+     and the DS resolves it through the same chain it uses everywhere
+     (--tesseract-sc-radius → --tesseract-btn-radius → --tesseract-radius-10). */
+  --tesseract-sc-radius: var(--tesseract-radius-12);
+  /* Both pills share one ground, declared once. Full slate-200 sat too hard
+     against the slate-100 band under it and made two grey slabs of the
+     header; a little over half that reads as a track without becoming a
+     second surface. */
+  --header-pill-bg: color-mix(in srgb, var(--tesseract-slate-200) 55%, var(--tesseract-slate-100));
+}
+
+/* Both header pills take the smooth corner rather than the circular one, so
+   they read as rounded instead of as rectangles with the corners cut off.
+   Same treatment the add-patient section cards use. */
+.availabilityToggle,
+.granularity,
+.granularity [class*="_indicator_"],
+.granularity [role="radio"] {
+  corner-shape: superellipse(1.6);
+}
+
+/* The sliding indicator is already a white block on a slate track, which is
+   contrast enough. Its drop shadow only muddied the two pills sitting side
+   by side on the header band. */
+.granularity [class*="_indicator_"] {
+  box-shadow: none;
+}
+
+/* The availability switch wears the segmented control's own track: same
+   slate-200 ground, same 8px radius, same 36px height and 4px inset. Two
+   matching pills side by side read as one row of view controls, which is
+   what they are, so the hairline that used to sit between them is gone. The
+   label leads and the switch closes the pill, both on the centre line. */
+/* In the legend bar it is a plain inline label + switch (no pill), the compact
+   "shorter format" the doctor asked for — it sits on the left of the bar. */
+.availabilityToggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* A touch smaller than the design system's own small switch, to sit lightly in
+   the 24px foot. */
+.availabilityToggle button[role="switch"] {
+  transform: scale(0.82);
+  transform-origin: left center;
+}
+
+/* Label weight, not control weight: it names the switch beside it rather
+   than competing with the Day/Week/Month items. */
+.availabilityLabel {
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: var(--tesseract-weight-medium);
+  line-height: 1;
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+/* On, the label comes up to the same ink as the chosen segment, so the pill
+   states its own condition without needing to read the switch. */
+.availabilityToggle:has([role="switch"][data-state="checked"]) .availabilityLabel {
+  color: var(--tesseract-fg-heading);
+}
+
+
+/* Google-lighter nav cluster: ghost chevrons either side of a ghost date
+   heading. Boxed chrome is reserved for the primary toolbar above; this
+   secondary row stays quiet so the date reads as the anchor. */
+/* Tonal chevrons on the gray strip: darker fill by default so they read
+   against slate-100, one step darker again on hover. Sized to sit calmly
+   inside the 42px band (30px controls, 6px breathing room). */
+/* Ghost chevrons: no resting fill, so the date between them reads as the
+   anchor and the cluster stays tight. */
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  width: 24px;
+  border: none;
+  border-radius: var(--tesseract-radius-6);
+  background: none;
+  color: var(--tesseract-fg-tertiary);
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
+}
+
+.navBtn:hover {
+  background: color-mix(in srgb, var(--tesseract-slate-900) 6%, transparent);
+  color: var(--tesseract-slate-800);
+}
+
+/* Compact date trigger between the chevrons */
+.datePick {
+  position: relative;
+}
+
+/* The DS picker in the calendar header wears a plain-text trigger: the date
+   itself is the control, so it drops the field box and the chevron and keeps
+   only a hover tint. */
+.datePick :global([class*="_trigger_"]) {
+  height: 28px;
+  min-height: 0;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  border-radius: var(--tesseract-radius-6);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 600;
+  color: var(--tesseract-fg-primary);
+  transition: background-color 150ms;
+}
+
+.datePick :global([class*="_trigger_"]:hover) {
+  background: color-mix(in srgb, var(--tesseract-slate-900) 6%, transparent);
+}
+
+.datePick :global([class*="_trigger_"][data-open="true"]) {
+  border: none;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--tesseract-slate-900) 8%, transparent);
+}
+
+/* Only the chevron goes; the calendar glyph stays as the affordance.
+   TPLibraryIcon writes an inline `display`, so hiding it has to win over the
+   element's own style attribute. */
+.datePick :global([class*="_chevron_"]) {
+  display: none !important;
+}
+
+
+/* ── Mini date popover (anchored under the trigger, overlay behind) ── */
+.miniLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.miniPop {
+  position: absolute;
+  top: 44px;
+  left: 0;
+  z-index: 1000;
+  width: 252px;
+  padding: 12px;
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--tesseract-slate-900) 16%, transparent);
+  font-family: var(--tesseract-font-body);
+}
+
+.miniHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.miniNavBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--tesseract-bg-surface);
+  color: var(--tesseract-fg-secondary);
+  cursor: pointer;
+}
+
+.miniTitle {
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: 600;
+  color: var(--tesseract-fg-heading);
+}
+
+.miniWeekRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+  text-align: center;
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: 600;
+  color: var(--tesseract-slate-400);
+}
+
+.miniGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.miniDay {
+  height: 28px;
+  border: none;
+  border-radius: var(--tesseract-radius-8);
+  background: none;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-primary);
+  cursor: pointer;
+}
+
+.miniDay:hover {
+  background: var(--tesseract-slate-100);
+}
+
+.miniDay[data-outside] {
+  color: var(--tesseract-fg-placeholder);
+}
+
+.miniDay[data-disabled] {
+  color: var(--tesseract-fg-placeholder);
+  cursor: default;
+  background: none;
+}
+
+.miniDay[data-today] {
+  color: var(--tesseract-blue-600);
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+.miniDay[data-selected] {
+  background: var(--tesseract-blue-500);
+  color: var(--tesseract-on-dark);
+  font-weight: 600;
+}
+
+.miniToday {
+  width: 100%;
+  margin-top: 8px;
+  height: 30px;
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--tesseract-bg-surface);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 600;
+  color: var(--tesseract-blue-600);
+  cursor: pointer;
+}
+
+.miniToday:hover {
+  background: var(--tesseract-blue-50);
+}
+
+
+/* Day / Week / Month is the DS SegmentedControl; on the slate header band it
+   only needs a darker track so it doesn't disappear into slate-100. The
+   radius comes from the DS hook set on .headerRight, not a hand-rolled
+   override. */
+/* Compact in the 42px band: the root is trimmed to 30px and the label a step
+   smaller, but the design system keeps ownership of the sliding indicator and
+   the item boxes so nothing drifts out of alignment. */
+.granularity {
+  background-color: var(--header-pill-bg);
+  height: 30px;
+  min-height: 30px;
+}
+
+.granularity [role="radio"] [class*="_label_"] {
+  font-size: var(--tesseract-text-caption-sm);
+}
+
+/* Floating "back to now" chip: subtle dark pill pinned over the grid,
+   shown only while today's now-line is out of the viewport. */
+/* Liquid-glass dark chip: translucent slate with blur, frosted hairline. */
+/* Back at the foot of the grid, clear of the 30px legend by the 14px of air
+   it always had. At the top it collided with the day header and read as part
+   of the chrome rather than as something floating over the schedule. */
+.nowChip {
+  position: absolute;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--tesseract-slate-0) 18%, transparent);
+  border-radius: var(--tesseract-radius-full);
+  background: color-mix(in srgb, var(--tesseract-slate-900) 55%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--tesseract-on-dark);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--tesseract-slate-900) 16%, transparent);
+  animation: nowChipIn 150ms ease-out;
+}
+
+.nowChip:hover {
+  background: color-mix(in srgb, var(--tesseract-slate-900) 70%, transparent);
+}
+
+@keyframes nowChipIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ── Day / Week time grid ──
+   Inset below the flush header; the stroke lives on the container. */
+.timeGridWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  /* Flush to the card: the grid's own gutter rule and column strokes are
+     the structure, so an inset margin only adds a second frame. */
+  margin: 0;
+}
+
+/* Pinned date-head row. Height is mirrored by GRID_HEAD_PX in the component,
+   which offsets every scroll calculation — keep the two in step. */
+/* ── Date head band: identical in Day, Week and Month ──
+   The three modes differ in what they draw underneath, never in their
+   chrome. One tinted rail, one weekday caption, one numeral treatment, one
+   way of saying "today". */
+.gridHeader {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  /* A fixed 48px band across every view (day, week, month) — a calm, uniform
+     date rail with room to breathe around the weekday + date, so it doesn't
+     read as crunched. It does not resize on scroll: a moving header height is
+     more motion than it is worth. */
+  height: 48px;
+  /* White, like the grid it sits over. One edge, never two: at rest the rail
+     closes with a hairline; once the grid is scrolling underneath, the shadow
+     takes over and the hairline withdraws, because a rule and a shadow
+     together read as a double border at exactly the moment the eye is already
+     busy.
+
+     Longhand, not the `border-bottom` shorthand: a color-mix() inside the
+     shorthand was dropped outright, which is why the rule never appeared. */
+  /* Grey rail, the same neutral slate the table's own column header runs at,
+     so the two views share one header treatment. The selected day's column
+     lifts out of it in a light blue wash (below). */
+  background: var(--tesseract-slate-100);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: color-mix(in srgb, var(--tesseract-slate-200) 70%, transparent);
+  /* Spans the card edge to edge, so it takes no corners of its own. */
+  border-radius: 0;
+  overflow: visible;
+  box-shadow: none;
+  transition: box-shadow 150ms, border-bottom-color 150ms;
+}
+
+
+/* Scrolling: the shadow replaces the rule rather than joining it. The height
+   stays put. */
+/* The bottom stroke stays even while scrolling (the shadow deepens under it),
+   so the header always reads as a bounded band the way the card's own edge
+   does, rather than dissolving into the grid. */
+.gridHeader[data-scrolled] {
+  box-shadow: 0 6px 12px -10px color-mix(in srgb, var(--tesseract-slate-900) 22%, transparent);
+}
+
+.colHead {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 10px;
+  /* slate-200, not slate-100: the grey header rail is itself slate-100, so a
+     slate-100 divider would vanish into it. This one reads, so each day column
+     is bounded left and right the way the month cells are. */
+  border-left: 1px solid var(--tesseract-slate-200);
+}
+
+/* Week: the date stacks over its column and the whole block is the target
+   for drilling into that day. The accent rule lives at its foot, hugging
+   the date rather than capping the column — the same underline the page's
+   tab bar uses, so "selected" reads the same wherever it appears. */
+.colHeadStack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  /* Sits inside the 48px rail with a little air above and below the weekday +
+     date stack, so the selected column's blue fill reads as a calm block
+     rather than a tight one. */
+  padding: 5px 14px;
+  border: none;
+  border-radius: var(--tesseract-radius-10);
+  background: none;
+  transition: background-color 150ms;
+  font-family: var(--tesseract-font-body);
+  cursor: pointer;
+}
+
+/* Day: the head is a title, not a cell. */
+.dayTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The day view's own column head. It names the column, the way "MON 10" does
+   in week view, so it is set like a label rather than like a page title: at
+   h5 it was the loudest thing on the screen and competed with the
+   appointments underneath it. Body size and secondary ink bring it down;
+   semibold keeps it reading as the head of the column rather than as a
+   caption floating above it. */
+.dayTitleText {
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+/* Month: weekday caption only — the date numerals live in the cells. Matches
+   the 48px Day/Week rail so the header band is the same across every view. */
+.colHead[data-compact] {
+  height: 48px;
+}
+
+/* Quiet caption over a confident numeral: the weekday is the label, the
+   date is the fact, and the gap between their weights is what stops the
+   head reading as one grey smear. */
+.colHeadWeekday {
+  font-size: var(--tesseract-text-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tesseract-slate-400);
+}
+
+.colHeadNum {
+  /* body-sm: the date is the head of a column, not a headline. At body-lg it
+     dominated the rail and read as cognitively heavy; a quiet semibold at
+     body-sm names the day without shouting. */
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--tesseract-slate-800);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Today is marked by tone alone: the column takes a light blue wash and
+   its date turns bold blue. No chip, no rule, nothing drawn on top — the
+   whole column shifts, which is both quieter and easier to find than a
+   badge sitting inside it. */
+.gridHeader[data-mode="week"] .colHead[data-today],
+.monthHeader .colHead[data-today] {
+  background: var(--tesseract-slate-100);
+}
+
+.colHead[data-today] .colHeadWeekday,
+.colHead[data-today] .colHeadNum {
+  color: var(--tesseract-fg-heading);
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+/* Hovering a day head hints that it is a way into that day. */
+button.colHeadStack:hover {
+  background: color-mix(in srgb, var(--tesseract-slate-900) 5%, transparent);
+}
+
+/* Selected day: a light rule capping the top of the head, above the wash.
+   Two pixels of blue-400 rather than a full-strength bar — enough to close
+   the column, not enough to shout over the date it sits on. */
+/* Full-bleed across the column it belongs to, at the TOP of the head. It
+   caps the column rather than underlining the date: at the foot it sat on
+   the boundary between the header and the grid and read as part of the
+   header's own edge. */
+.colHeadAccent {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.colHead[data-today] .colHeadAccent {
+  background: var(--tesseract-slate-400);
+}
+
+/* The selected day is the one blue column in the grey rail: a light blue wash,
+   blue ink on its date, and a blue cap. It sits after the "today" rules so that
+   when today is the selected day, blue wins. */
+.gridHeader[data-mode="week"] .colHead[data-selected],
+.monthHeader .colHead[data-selected] {
+  background: var(--tesseract-blue-50);
+}
+
+.colHead[data-selected] .colHeadWeekday,
+.colHead[data-selected] .colHeadNum {
+  color: var(--tesseract-blue-700);
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+.colHead[data-selected] .colHeadAccent {
+  background: var(--tesseract-blue-500);
+}
+
+/* Day has a single column, so there is nothing for the rule to pick out —
+   the date on screen is the only date there is. */
+.gridHeader[data-mode="day"] .colHeadAccent {
+  display: none;
+}
+
+/* Day view has a single column, so there is nothing for a wash or an
+   accent to distinguish it from. The head becomes the panel's title: the
+   full date left against the time axis, with a chip carrying the "today"
+   fact that the accent carries in the other two modes. */
+.gridHeader[data-mode="day"] .colHead {
+  justify-content: flex-start;
+  padding-left: 16px;
+}
+
+/* Count of appointments sitting outside the visible hours; click jumps to
+   the earliest of them. It sits in the corner so it never displaces the
+   date, which has to stay optically centred across all seven columns. */
+/* Pinned to the right of the column and centred on its middle, so it sits on
+   the same line as the date it belongs to instead of floating above it. Same
+   in day and week: one placement is easier to find than two. */
+.overflowChip {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border: none;
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-slate-200);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-micro);
+  font-weight: 600;
+  color: var(--tesseract-fg-secondary);
+  cursor: pointer;
+  transition: background-color 120ms, color 120ms;
+}
+
+.overflowChip:hover {
+  background: var(--tesseract-blue-100);
+  color: var(--tesseract-blue-700);
+}
+
+.gridBody {
+  display: grid;
+  position: relative;
+}
+
+/* Time axis. The gutter carries no right rule of its own: the first day
+   column already draws its left border there, and stacking the two made
+   the spine read twice as heavy as every other column line. */
+.hourGutter {
+  position: relative;
+  background: var(--tesseract-bg-surface);
+}
+
+/* Timezone caption for the time axis, bottom-aligned so it sits just above
+   the first hour line. */
+/* The timezone cell is the first cell of this rail, so it is drawn like one.
+   It used to close itself with a border on its RIGHT while every day column
+   opens with one on its LEFT, which put two rules back to back at the gutter
+   and left the boundary looking heavier there than anywhere else in the row.
+   It now carries no edge of its own; the Monday column's left border is the
+   single line between them, exactly as it is between Monday and Tuesday. */
+.gridHeaderGutter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-right: none;
+  font-size: var(--tesseract-text-micro);
+  font-weight: 500;
+  color: var(--tesseract-slate-400);
+  white-space: nowrap;
+}
+
+.hourGutter .hourLabel {
+  position: absolute;
+  right: 12px;
+  transform: translateY(-50%);
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+  background: var(--tesseract-bg-surface);
+  padding: 2px 4px;
+}
+
+.dayCol {
+  position: relative;
+  border-left: 1px solid var(--tesseract-slate-100);
+}
+
+.hourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--tesseract-slate-100);
+  pointer-events: none;
+}
+
+/* Half-hour hairline, dotted and lighter, so the eye can land on :30
+   without counting pixels. */
+.halfLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dotted color-mix(in srgb, var(--tesseract-slate-200) 70%, transparent);
+  pointer-events: none;
+}
+
+/* Availability blocks — bounded width so wide day columns stay tidy;
+   content sits on the block's centre line. */
+.slotBlock {
+  position: absolute;
+  /* Matches the vertical inset applied in the component, so a slot chip
+     sits with equal air on all four sides instead of butting into its
+     neighbours above and below. */
+  left: 5px;
+  width: calc(100% - 10px);
+  min-width: 120px;
+  max-width: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--tesseract-radius-6);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  z-index: 1;
+}
+
+/* A bookable slot announces itself: a dashed outline is the affordance the
+   old screen used, and it is what tells a doctor at a glance where the day
+   still has room. */
+.slotBlock[data-state="free"] {
+  border: 1px dashed var(--tesseract-blue-200);
+  background: color-mix(in srgb, var(--tesseract-blue-50) 45%, transparent);
+}
+
+/* Loading placeholder for a column still waiting on its availability. It
+   borrows the free-slot geometry so nothing shifts when the real slots land,
+   and sweeps rather than pulses so a column of them reads as one surface. */
+.slotSkeleton {
+  position: absolute;
+  left: 4px;
+  width: calc(100% - 8px);
+  border-radius: var(--tesseract-radius-6);
+  background: linear-gradient(
+    90deg,
+    var(--tesseract-slate-50) 25%,
+    var(--tesseract-slate-100) 37%,
+    var(--tesseract-slate-50) 63%
+  );
+  background-size: 400% 100%;
+  animation: slotShimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.gridBody[data-mode="week"] .slotSkeleton {
+  left: 2px;
+  width: calc(100% - 4px);
+}
+
+@keyframes slotShimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* Week columns are narrow: release the day-view min/max widths so slot
+   blocks never spill into the neighbouring day. */
+.gridBody[data-mode="week"] .slotBlock {
+  min-width: 0;
+  max-width: none;
+  left: 4px;
+  width: calc(100% - 8px);
+  padding: 0 6px;
+}
+
+/* Side-by-side clinic / tele chips: geometry comes from inline left/width.
+   Drop the day-view max-width so halves fill the column. */
+.slotBlock[data-split] {
+  min-width: 0;
+  max-width: none;
+}
+
+/* In-clinic and teleconsult free slots share one colour: the mode is told by
+   the glyph on the chip, not by the chip's tint, so the two lanes read as one
+   pool of open time rather than two differently coloured kinds of slot. */
+
+.gridBody[data-mode="week"] .slotBlock[data-split] {
+  padding: 0 4px;
+}
+
+/* A week column is narrow, and a split slot is half of that again — room for
+   the time and the mode glyph, and little else. So the type steps down to micro
+   and the gap tightens, buying the width the mode marker needs to stay on
+   screen rather than being clipped off the right edge. */
+.gridBody[data-mode="week"] .slotBlockLabel {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: var(--tesseract-text-micro);
+}
+
+/* The "+" shrinks to the size of the mode glyph it shares the row with, so on a
+   split week slot the time sits between two small, equal markers and nothing
+   spills. Scoped to the free state so it never touches a past slot's mode glyph
+   (that slot's first element child). */
+.gridBody[data-mode="week"] .slotBlock[data-state="free"] .slotBlockLabel > span[aria-hidden]:first-child {
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0;
+}
+
+/* The week fits its seven columns in the card — it shrinks, it does not scroll.
+   The floor is low (phones only): below it the grid scrolls sideways rather than
+   crushing columns to unusable slivers. As a column narrows the slot chips shed
+   detail instead (container queries below), so the grid stays legible at every
+   width without a horizontal scroll on tablet or desktop. */
+.gridHeader[data-mode="week"],
+.gridBody[data-mode="week"] {
+  min-width: 520px;
+}
+
+/* Each day column is a size container, so a slot chip adapts to the real width
+   of its own column — not the viewport — which is what makes this scale. */
+.gridBody[data-mode="week"] .dayCol {
+  container: daycol / inline-size;
+}
+
+/* The week header column is a size container too, so its "+N" overflow chip can
+   step aside on the same terms the slots do. On a phone-width week (the grid is
+   scrolling below its 520px floor) a column is ~64px — too narrow to hold the
+   chip beside the stacked weekday + date, so the chip lands on top of the
+   numeral. A tablet column (~91px) still holds both comfortably, so the chip
+   stays there; only a phone-width column drops it, since the count is a
+   supplementary cue and tapping the day header still drills into Day view where
+   those appointments show in full.
+
+   The threshold is a CONTENT-box width: an inline-size container is queried on
+   its content box, and .colHead carries 10px of side padding, so the queryable
+   width is the column minus 20px (~71px at a 91px tablet column, ~44px at a 64px
+   phone column). 58px cleanly separates the two. */
+.gridHeader[data-mode="week"] .colHead {
+  container: colhead / inline-size;
+}
+
+@container colhead (max-width: 58px) {
+  .overflowChip {
+    display: none;
+  }
+}
+
+/* Crunch tiers, keyed on the column's own width. The TIME is kept as long as it
+   fits — it is what a doctor most needs — and the clinic/video glyph is dropped
+   first (the lane already implies the type, and the slot's native tooltip names
+   it exactly on hover/long-press). Order of loss: mode glyph → "+" → time.
+   !important on the icons: the design system icon carries an inline display.
+     ≤120: full-width open slots drop the mode glyph, keeping "+ time". A split
+           half is too small for a time, so it shows only its mode glyph (the
+           type) with the tooltip carrying the exact time.
+     ≤92:  full-width open slots drop the "+" too, leaving just the time.
+     ≤68:  even the time falls to the native tooltip; the block stays tappable. */
+@container daycol (max-width: 120px) {
+  .slotBlock:not([data-split])[data-state="free"] .slotBlockLabel [data-tp-icon]:last-child {
+    display: none !important;
+  }
+  .slotBlock[data-split] .slotTimeText {
+    display: none;
+  }
+  .slotBlock[data-split] .slotBlockLabel {
+    justify-content: center;
+    gap: 0;
+  }
+}
+
+@container daycol (max-width: 92px) {
+  .slotBlock:not([data-split])[data-state="free"] .slotBlockLabel [data-tp-icon]:first-child {
+    display: none !important;
+  }
+  .slotBlockLabel {
+    justify-content: center;
+    gap: 0;
+  }
+}
+
+@container daycol (max-width: 68px) {
+  .slotTimeText {
+    display: none;
+  }
+}
+
+/* The mode marker stays one size and one place in every state: 14px, sitting
+   just after the time, never shrunk and never pinned to the far edge, so a
+   bookable slot and a past slot read the same. */
+.slotBlockLabel > span[aria-hidden] {
+  flex-shrink: 0;
+}
+
+/* Stacked-run cap: the same "+N" affordance the month cells use, taking a
+   whole row of the stack so it never overlaps a card. */
+.stackMore {
+  position: absolute;
+  left: 3px;
+  width: calc(100% - 6px);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--tesseract-radius-6);
+  /* A link, not a chip: the underline is the affordance, so a filled ground
+     would only make it read as one more card in the stack. */
+  background: none;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: 600;
+  color: var(--tesseract-blue-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  z-index: 3;
+  transition: color 120ms;
+}
+
+.stackMore:hover {
+  color: var(--tesseract-blue-700);
+}
+
+/* Dashed is what "open" looks like on this grid, so hover deepens it rather
+   than closing it into a solid box: going solid on hover made a bookable slot
+   momentarily look like a booked one. */
+.slotBlock[data-state="free"]:hover,
+.slotBlock[data-state="free"]:focus-visible {
+  border-color: var(--tesseract-blue-400);
+  border-style: dashed;
+  background: var(--tesseract-blue-50);
+}
+
+/* A block surfaced by the pointer while the layer is switched off. It wears
+   the resting slot's own clothes rather than a special outline: same dashed
+   stroke, same faint blue ground, because it IS that slot, just drawn on
+   demand. Only the stroke goes one step darker, which is what makes the one
+   block under the cursor read as "you are pointing here". Blocked and past
+   time keep their own muted treatment, so hovering an unavailable slot still
+   says "not this one" rather than offering it. */
+.slotBlock[data-peek] {
+  border-style: dashed !important;
+}
+
+.slotBlock[data-peek][data-state="free"] {
+  border-color: var(--tesseract-blue-300) !important;
+  background: color-mix(in srgb, var(--tesseract-blue-50) 70%, transparent) !important;
+}
+
+.slotBlock[data-peek][data-state="blocked"],
+.slotBlock[data-peek][data-state="past"] {
+  border-color: var(--tesseract-slate-300) !important;
+}
+
+/* The slot a dragged card would land on: the same blue the block already
+   wears, one step up in contrast. The dashed edge goes solid and takes a
+   stronger blue, and the wash deepens from 45% of blue-50 to a full blue-50.
+   That is the whole treatment. Nothing is recoloured, nothing lifts, nothing
+   rings: the block simply comes forward out of the dashed column it sits in,
+   which is all the answer a moving pointer needs. */
+.slotBlock[data-drop] {
+  border-style: solid !important;
+  border-color: var(--tesseract-blue-400) !important;
+  background: var(--tesseract-blue-50) !important;
+  z-index: 4;
+}
+
+/* The label comes to full strength with it, so the time being aimed at stays
+   legible under the ghost card. */
+.slotBlock[data-drop] .slotBlockLabel {
+  color: var(--tesseract-blue-800);
+  opacity: 1;
+}
+
+/* A caption on the lit slot, not the main signal: the wash below answers
+   "where", and this only spells out the time so a compressed grid never has
+   to be read off the hour gutter. Same translucent neutral pill as the
+   "Back to now" chip, so the two transient overlays on this grid are the
+   same object in two places. */
+.dropHint {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--tesseract-slate-0) 18%, transparent);
+  border-radius: var(--tesseract-radius-full);
+  background: color-mix(in srgb, var(--tesseract-slate-900) 55%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--tesseract-on-dark);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--tesseract-slate-900) 16%, transparent);
+}
+
+.dropHint span,
+.dropHint * {
+  color: inherit;
+}
+
+/* Blocked time reads as a faint wash rather than a hard hatch. */
+.slotBlock[data-state="blocked"] {
+  cursor: not-allowed;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--tesseract-slate-100) 55%, transparent),
+    color-mix(in srgb, var(--tesseract-slate-100) 55%, transparent) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+}
+
+/* Past time still shows, greyed and inert, so the day reads as a whole
+   rather than starting abruptly at the now-line. */
+.slotBlock[data-state="past"] {
+  cursor: not-allowed;
+  border: 1px dashed var(--tesseract-slate-200);
+  background: color-mix(in srgb, var(--tesseract-slate-100) 35%, transparent);
+}
+
+.slotBlockLabel {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 6px;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 600;
+  color: var(--tesseract-blue-600);
+  opacity: 0.85;
+  transition: opacity 120ms;
+}
+
+/* The plus is the call to action on an empty slot: a subtle blue, so it
+   reads as an action without shouting. */
+.slotBlock[data-state="free"] .slotBlockLabel > span[aria-hidden]:first-child {
+  color: var(--tesseract-blue-500);
+}
+
+.slotBlock:hover .slotBlockLabel,
+.slotBlock:focus-visible .slotBlockLabel {
+  opacity: 1;
+}
+
+/* Past and blocked labels stay quiet; they are context, not targets. */
+.slotBlock[data-state="past"] .slotBlockLabel,
+.slotBlock[data-state="blocked"] .slotBlockLabel {
+  opacity: 0.55;
+}
+
+.slotBlock[data-state="blocked"] .slotBlockLabel,
+.slotBlock[data-state="past"] .slotBlockLabel {
+  color: var(--tesseract-slate-400);
+}
+
+/* Picking a slot (booking or reschedule): every bookable block is spelled
+   out again, since finding one is the whole task. */
+.gridBody[data-picking] .slotBlock[data-state="free"] {
+  border: 1px dashed var(--tesseract-blue-200);
+  background: color-mix(in srgb, var(--tesseract-blue-50) 55%, transparent);
+}
+
+.gridBody[data-picking] .slotBlock[data-state="free"]:hover {
+  border-color: var(--tesseract-blue-400);
+  background: var(--tesseract-blue-50);
+}
+
+.gridBody[data-picking] .slotBlockLabel {
+  opacity: 1;
+}
+
+
+
+/* Now line: hairline across today's column with a dot pinned on the spine,
+   the way both reference calendars mark it. */
+.nowLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  border-top: 1.5px solid var(--tesseract-error-500);
+  pointer-events: none;
+}
+
+/* The current time, printed in the gutter on the now-line. */
+/* The live time reads as another gutter label, just the current one: same
+   size and position as the hour marks, tinted rather than boxed. */
+.hourGutter .nowLabel {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  z-index: 4;
+  padding: 0 2px;
+  background: var(--tesseract-bg-surface);
+  color: var(--tesseract-error-600);
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.nowDot {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-error-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tesseract-error-500) 16%, transparent);
+}
+
+/* ── Reschedule banner ── */
+.rescheduleBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--tesseract-blue-100);
+  background: var(--tesseract-blue-50);
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-fg-primary);
+}
+
+.rescheduleCancel {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 600;
+  color: var(--tesseract-blue-500);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* ── Month grid ── */
+/* The month fills the panel rather than sitting in the top of it. Six week
+   rows of a fixed 96px left a slab of empty card below the last week, which
+   read as the grid having stopped early. The wrap becomes the layout box and
+   the rows share whatever height it has, with 96px as the floor so a short
+   viewport scrolls instead of crushing the cells. */
+.monthWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Same rail as the Day/Week header, sharing .colHead for its cells. */
+/* Same rail, same treatment: white, no rule, a shadow that lets the month
+   grid read as passing beneath it. */
+.monthHeader {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Same grey rail and persistent bottom stroke as the Day/Week header. */
+  background: var(--tesseract-slate-100);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: color-mix(in srgb, var(--tesseract-slate-200) 70%, transparent);
+  box-shadow: none;
+  transition: box-shadow 150ms, border-bottom-color 150ms;
+}
+
+.monthHeader[data-scrolled] {
+  box-shadow: 0 6px 12px -10px color-mix(in srgb, var(--tesseract-slate-900) 22%, transparent);
+}
+
+.monthHeader .colHead:first-child {
+  border-left: none;
+}
+
+.monthGrid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* Rows divide the space evenly and never fall below the floor that two
+     chips plus the date and the "+N more" line actually need:
+     12 padding + 24 date + 2 x 22 chips + 18 overflow line. */
+  grid-auto-rows: minmax(98px, 1fr);
+}
+
+.monthCell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px;
+  border: none;
+  border-bottom: 1px solid var(--tesseract-slate-100);
+  border-left: 1px solid var(--tesseract-slate-100);
+  background: var(--tesseract-bg-surface);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--tesseract-font-body);
+}
+
+.monthCell:hover {
+  background: var(--tesseract-slate-50);
+}
+
+.monthCell:nth-child(7n + 1) {
+  border-left: none;
+}
+
+.monthCell[data-outside] .monthDate {
+  color: var(--tesseract-fg-disabled);
+}
+
+/* Today in Month uses the same soft wash + accent type as the header, so
+   "selected" looks the same wherever it appears in this calendar. */
+/* Today keeps the same white ground as every other cell. A tinted cell put
+   the emphasis on the whole day, including the appointments inside it, which
+   made those chips read as a different kind of thing from their neighbours.
+   The mark belongs on the date, so the date wears it: a filled blue disc,
+   the way a calendar has always said "you are here". */
+.monthDate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: var(--tesseract-radius-full);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 600;
+  color: var(--tesseract-fg-secondary);
+}
+
+.monthCell[data-today] .monthDate {
+  background: var(--tesseract-blue-600);
+  color: var(--tesseract-fg-inverse);
+}
+
+/* The selected day is the one blue cell in the month — a light blue wash and a
+   blue date disc, the same way the selected day reads in the Day/Week header. */
+.monthCell[data-selected] {
+  background: var(--tesseract-blue-50);
+}
+
+.monthCell[data-selected] .monthDate {
+  background: var(--tesseract-blue-600);
+  color: var(--tesseract-fg-inverse);
+}
+
+/* A month chip is one line: a status dot's worth of colour on the left, the
+   time, then as much of the name as fits. */
+/* A fixed height that never gives: a chip squeezed to fit is a chip that
+   cannot be read, and "+N more" was already counting it as shown. The cell's
+   capacity is measured against this in AppointmentCalendarView. */
+.monthChip {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--tesseract-radius-4);
+  border-left: 3px solid var(--tesseract-blue-500);
+  background: var(--tesseract-blue-50);
+  overflow: hidden;
+}
+
+.monthChipTime {
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: 600;
+  color: var(--tesseract-blue-700);
+}
+
+.monthChipName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: 500;
+  color: var(--tesseract-slate-800);
+}
+
+.monthChip[data-status="finished"] {
+  border-left-color: var(--tesseract-success-500);
+  background: var(--tesseract-success-50);
+}
+
+.monthChip[data-status="finished"] .monthChipTime {
+  color: var(--tesseract-success-700);
+}
+
+.monthChip[data-status="cancelled"] {
+  border-left-color: var(--tesseract-error-500);
+  background: var(--tesseract-error-50);
+}
+
+.monthChip[data-status="cancelled"] .monthChipTime {
+  color: var(--tesseract-error-700);
+}
+
+.monthChip[data-status="draft"] {
+  border-left-color: var(--tesseract-amber-500);
+  background: var(--tesseract-amber-50);
+}
+
+.monthChip[data-status="draft"] .monthChipTime {
+  color: var(--tesseract-amber-700);
+}
+
+/* Reads as the affordance it is: click the cell to see the rest of the day.
+   Link-coloured and underlined on hover, so it invites the click rather than
+   looking like another muted count. */
+/* Underlined at rest, not only on hover: it is a link into the rest of the
+   day, and a bare blue string gives no sign it can be clicked. */
+.monthCell .moreCount {
+  align-self: flex-start;
+  padding: 1px 4px;
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 600;
+  color: var(--tesseract-blue-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.monthCell:hover .moreCount {
+  color: var(--tesseract-blue-700);
+}
+
+/* ── Event popover ── */
+.popoverLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+/* On touch, a full-screen catcher blocks the calendar scroll after a tap
+   opens the card. Let gestures pass through the dim layer; the popover
+   itself still receives taps, and scroll dismisses the pin (see onScroll). */
+@media (pointer: coarse) {
+  .popoverLayer {
+    /* Outside-tap should still close the pinned popover (onClick on the
+       layer), but allow vertical panning so the tablet can scroll the day
+       grid while the overlay is present. */
+    pointer-events: auto;
+    touch-action: pan-y;
+  }
+
+  .popoverLayer .popoverWrap {
+    pointer-events: auto;
+  }
+}
+
+/* Outer box: positions the tooltip, carries the caret and the shadow. The
+   shadow is spread evenly on all sides rather than cast downwards, so the
+   tooltip reads as lifted whether it sits above or below its card. */
+.popoverWrap {
+  position: fixed;
+  z-index: 1001;
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent))
+    drop-shadow(0 0 32px color-mix(in srgb, var(--tesseract-slate-900) 14%, transparent));
+  animation: popIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Inner box: clips every child to the 12px radius so nothing leaks past the
+   corners. No stroke; the shadow above does the separating. */
+.popover {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  overflow: hidden;
+  font-family: var(--tesseract-font-body);
+}
+
+/* Same downward gesture as the toast: anything that appears over the page
+   arrives from above. */
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popoverWrap {
+    animation-duration: 1ms;
+  }
+
+  .slotSkeleton {
+    animation: none;
+  }
+}
+
+/* Caret pointing back at the card it describes; it tracks the card's centre
+   even when the box has been clamped to the viewport. */
+.popoverCaret {
+  position: absolute;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: var(--tesseract-radius-2);
+  background: var(--tesseract-bg-surface);
+  transform: rotate(45deg);
+}
+
+.popoverWrap[data-side="below"] .popoverCaret {
+  top: -5px;
+}
+
+.popoverWrap[data-side="above"] .popoverCaret {
+  bottom: -5px;
+}
+
+/* Identity block: the patient is the headline, age/sex and ID the
+   qualifiers. The kebab joins this row only when there's no footer. */
+.popoverHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 10px 0 16px;
+}
+
+.popoverHeadText {
+  min-width: 0;
+}
+
+.popoverName {
+  margin: 0;
+  font-size: var(--tesseract-text-body-base);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--tesseract-fg-heading);
+}
+
+/* Sex/age and patient ID share one line and never spill onto a second. */
+.popoverActionsLead {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.popoverNameGlyph {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.popoverMeta {
+  display: flex;
+  align-items: center;
+  margin: 2px 0 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* State reads after the facts, sitting just above the action footer. */
+.popoverTags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px 14px;
+}
+
+/* Facts as a label/value list so the eye can scan down one column. */
+.popoverBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 16px 12px;
+}
+
+/* The glyph names the field, so the value starts in one shared column. */
+.popoverRow {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.popoverRow[data-remark] {
+  align-items: start;
+}
+
+.popoverValue {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: 500;
+  color: var(--tesseract-slate-800);
+}
+
+/* Vertical rule between parts of a value, rather than a floating dot. */
+.popoverSep {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  width: 1px;
+  height: 11px;
+  margin: 0 8px;
+  background: var(--tesseract-slate-300);
+  font-size: 0;
+  color: transparent;
+}
+
+/* The card truncates a note; here it wraps and is read in full (capped at
+   four lines so the tooltip can't grow unbounded). */
+.popoverRow[data-remark] .popoverValue {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--tesseract-fg-secondary);
+}
+
+/* Footer stays on the card's own surface (a grey band blended into the page
+   behind it); only a hairline separates it. CTA leads, kebab closes. */
+/* The popover can't clip its children (the caret has to escape the box), so
+   the footer carries the matching bottom radius itself instead of leaking
+   its fill and divider past the rounded corners. */
+.popoverActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+  border-top: 1px solid var(--tesseract-slate-100);
+  background: var(--tesseract-bg-surface);
+  border-radius: 0 0 var(--tesseract-radius-12) var(--tesseract-radius-12);
+}
+
+/* Colour key for the event cards, pinned under the grid. Small, quiet and
+   out of the way: it answers a question you ask once, so it must not compete
+   with the schedule it explains. */
+.legend {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px 16px;
+  /* 30px foot: slim, but tall enough that the toggle and key read comfortably. */
+  height: 30px;
+  min-height: 30px;
+  padding: 0 18px;
+  /* A rule under the grid drew a line the eye had to cross. A tinted bar
+     with the grid's own shadow falling on it says the same thing better:
+     the schedule is behind this, and it scrolls under it. Square, because
+     it sits flush in the card's bottom edge. */
+  border-top: none;
+  border-radius: 0;
+  /* The header band's own slate, so the top and bottom of the panel are the
+     same surface. */
+  background: var(--tesseract-slate-100);
+  box-shadow: 0 -3px 8px -6px color-mix(in srgb, var(--tesseract-slate-900) 14%, transparent);
+}
+
+/* The colour key + refresh, pushed to the far right of the bar with Show Slots
+   holding the left. */
+.legendKey {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+  white-space: nowrap;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--tesseract-radius-full);
+  flex-shrink: 0;
+}
+
+/* Refresh, at the far end of the same bar. Ghost by default so it belongs to
+   the legend's register rather than competing with the toolbar above. */
+.legendRefresh {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--tesseract-radius-6);
+  background: none;
+  color: var(--tesseract-fg-tertiary);
+  cursor: pointer;
+  transition: background-color 120ms, color 120ms;
+}
+
+.legendRefresh:hover {
+  background: color-mix(in srgb, var(--tesseract-slate-900) 6%, transparent);
+  color: var(--tesseract-fg-primary);
+}
+
+/* Turning while the request is in flight: the only feedback a glyph can
+   give, and the reason the button holds its busy state for a beat. */
+.legendRefresh[data-busy] {
+  cursor: default;
+  color: var(--tesseract-blue-600);
+}
+
+.legendRefresh[data-busy] [data-tp-icon] {
+  animation: legendRefreshSpin 0.8s linear infinite;
+}
+
+@keyframes legendRefreshSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legendRefresh[data-busy] [data-tp-icon] {
+    animation: none;
+  }
+}
+
+
+/* ── Touch and tablet ─────────────────────────────────────────────────
+   Everything below is about a device that has no pointer to hover with, or
+   a screen between a phone and a desktop. None of it changes the desktop. */
+
+/* Hover states are a lie on touch: without a pointer to leave, whatever was
+   last tapped keeps them. Gated so they only exist where a pointer does. */
+@media (hover: none) {
+  .slotBlock[data-state="free"]:hover {
+    border-color: var(--tesseract-blue-200);
+    background: color-mix(in srgb, var(--tesseract-blue-50) 45%, transparent);
+  }
+
+  button.colHeadStack:hover {
+    background: none;
+  }
+}
+
+/* Coarse pointers need bigger targets than a mouse. The 24px floor is the
+   smallest a finger can reliably hit; slots keep their real duration above
+   that, so an hour still looks like an hour. */
+@media (pointer: coarse) {
+  .slotBlock {
+    min-height: 30px;
+  }
+
+  .navBtn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
+/* iPad mini portrait (744pt) up to a small landscape tablet. The grid keeps
+   its structure; only the chrome around it gives up room. */
+@media (max-width: 1024px) {
+  .header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .legend {
+    padding: 8px 12px;
+    gap: 6px 12px;
+  }
+
+}
+
+
+
+/* ── Month: what is still open ────────────────────────────────────────
+   The same dashed blue block the day and week grids use for a bookable slot,
+   drawn once per cell instead of ninety-six times. A month cell is a day seen
+   from further away, so the summary should look like what it summarises
+   rather than introduce a new shape. Sized like a month chip so a cell with a
+   bar and a cell with appointments have the same rhythm. */
+.monthFree {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+  /* Centred in what is left of the cell after the date, with equal air on
+     all four sides, so it reads as the cell's content rather than as a line
+     stuck under the number. */
+  margin: auto 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px dashed var(--tesseract-blue-200);
+  border-radius: var(--tesseract-radius-6);
+  background: color-mix(in srgb, var(--tesseract-blue-50) 40%, transparent);
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: 1;
+  /* Quieter than the slot chips it summarises: this is background information
+     about a day nobody has booked, not a call to action. */
+  color: var(--tesseract-blue-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 120ms, background-color 120ms, color 120ms;
+}
+
+/* The plus is the same affordance the day grid puts on a bookable slot, at
+   the size a summary can carry. */
+.monthFree [data-tp-icon] {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+/* Hovering the cell is asking about that day, so the bar answers a little
+   louder. Same one-step deepening the slot blocks take. */
+.monthCell:hover .monthFree[data-state="open"] {
+  border-color: var(--tesseract-blue-400);
+  background: var(--tesseract-blue-50);
+  color: var(--tesseract-blue-700);
+}
+
+.monthCell:hover .monthFree[data-state="open"] [data-tp-icon] {
+  opacity: 1;
+}
+
+/* Slots exist but none are left. Neutral and solid: a closed edge is what
+   "not open" looks like against the dashed "open". */
+.monthFree[data-state="full"] {
+  border-style: solid;
+  border-color: var(--tesseract-slate-200);
+  background: var(--tesseract-slate-50);
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* Nothing published at all: a holiday, or hours not set. It recedes furthest,
+   because there is nothing here to act on. */
+.monthFree[data-state="closed"] {
+  border-style: solid;
+  border-color: var(--tesseract-slate-100);
+  background: none;
+  color: var(--tesseract-fg-placeholder);
+}
+
+/* Holds the line's height while the day's availability is in flight, so the
+   cells do not jump as the month fills in. */
+.monthFreeSkeleton {
+  flex-shrink: 0;
+  margin: auto 0;
+  width: 100%;
+  height: 26px;
+  border-radius: var(--tesseract-radius-4);
+  background: linear-gradient(
+    90deg,
+    var(--tesseract-slate-50) 25%,
+    var(--tesseract-slate-100) 37%,
+    var(--tesseract-slate-50) 63%
+  );
+  background-size: 400% 100%;
+  animation: slotShimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monthFreeSkeleton {
+    animation: none;
+  }
+}
+
+/* No visible scrollbar in the calendar view. The grid still scrolls; the bar
+   is hidden so the day/week and month grids read clean, with no reserved
+   gutter. Table view keeps its own scrollbar. */
+.timeGridWrap,
+.monthWrap {
+  scrollbar-width: none;
+}
+
+.timeGridWrap::-webkit-scrollbar,
+.monthWrap::-webkit-scrollbar {
+  display: none;
+}

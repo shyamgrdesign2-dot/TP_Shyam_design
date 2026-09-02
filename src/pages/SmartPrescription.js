@@ -37,6 +37,7 @@ import VitalsBox from "../components/VitalsBox";
 import VitalsList from "../components/VitalsList";
 
 import MedicalHistoryBox from "../components/MedicalHistoryBox";
+import MedicalHistoryDrawer from "../components/MedicalHistoryDrawer";
 import MedicalHistoryList from "../components/MedicalHistoryList";
 
 import PrivateNotesBox from "../components/PrivateNotesBox";
@@ -2115,7 +2116,7 @@ function SmartPrescription() {
                   alt="upload-document"
                   className="me-3"
                 />
-                <div className="title-common">Lab Results</div>
+                <div className="title-common">Investigation Results</div>
               </div>
               <button
                 className="btn d-flex align-items-center btn-text"
@@ -4112,13 +4113,14 @@ function SmartPrescription() {
             />
           </Drawer>
         )}
-        <Drawer
+        <MedicalHistoryDrawer
           className="scroll-y-hidden"
           closeIcon={false}
           placement="right"
           onClose={handleDrawerMedicalHistory}
           open={medicalHistoryDrawer}
-          width="75%"
+          legacyWidth="75%"
+          newWidth="85%"
         >
           <MedicalHistoryBox
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
@@ -4127,7 +4129,7 @@ function SmartPrescription() {
             initialActiveKey={isGynaecHistoryAccessable ? "gynec" : "medical"}
             hideMenstrualHistoryTab={!isGynaecHistoryAccessable}
           />
-        </Drawer>
+        </MedicalHistoryDrawer>
         <Drawer
           closeIcon={false}
           placement="right"

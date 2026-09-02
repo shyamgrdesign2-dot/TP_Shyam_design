@@ -3,7 +3,7 @@ import { Button, Divider, Tabs } from "antd";
 import { isMobile, isTablet } from "react-device-detect";
 
 import VideoModal from "../../../../common/VideoModal";
-import { S_RECEPTIONIST_AGENT, S_TATVA_PRACTICE } from "../../../../utils/constants";
+import { S_RECEPTIONIST_AGENT, S_TATVA_PRACTICE, SUPPORT_PHONE_NUMBER } from "../../../../utils/constants";
 import { useNavigate } from "react-router-dom";
 
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData } from "../../../../utils/utils";
@@ -250,11 +250,11 @@ const ReceptionistKnowMore = ({ handleDDxKnowMore }) => {
             <i className="icon-phone fs-18 me-2"></i>
             <a
               className="text-main fw-medium fs-16"
-              href="tel:+91-9974042363"
+              href={`tel:+91-${SUPPORT_PHONE_NUMBER}`}
               style={{textDecoration:"underline"}}
               // onClick={contactNumberandEmail}
             >
-              +91-9974042363
+              {`+91-${SUPPORT_PHONE_NUMBER}`}
             </a>{" "}
             <div className="mx-2">|</div>
             <img className="me-2" width={19} height={19} src={SMS} />

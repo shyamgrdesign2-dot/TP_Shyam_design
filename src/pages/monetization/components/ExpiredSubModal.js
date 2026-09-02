@@ -9,7 +9,7 @@ import CampaignDiscount from "./CampaignDiscount";
 import { interest } from "../../../redux/monetizationSlice";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../../utils/utils";
 import { openModal } from "../../../redux/doctorModalSlice";
-import { FAILED_VERIFICATION, FREE, S_IPD, S_PHARMACY, S_TATVA_PRACTICE, TRIAL } from "../../../utils/constants";
+import { FAILED_VERIFICATION, FREE, S_IPD, S_PHARMACY, S_TATVA_PRACTICE, TRIAL, SUPPORT_PHONE_NUMBER } from "../../../utils/constants";
 import { isMonetizationPlanExpired } from "../../../utils/monetizationPlan";
 import { ASSETS } from "../../../assets";
 const {
@@ -163,8 +163,8 @@ function ExpiredSubModal({ title, styles, isSubModalOpen, showHideSubModal }) {
                     <div className="bg-white p-4 rounded-5 mt-4 text-start">
                         <div className="align-items-center my-3">
                             <i className="icon-phone fs-16 border p-1 rounded-2 me-1 text-secondary-custom"></i>
-                            <a className="text-main fw-medium fs-16 text-welcome" href="tel:+91-9974042363">
-                                +91-9974042363
+                            <a className="text-main fw-medium fs-16 text-welcome" href={`tel:+91-${SUPPORT_PHONE_NUMBER}`}>
+                                {`+91-${SUPPORT_PHONE_NUMBER}`}
                             </a>
                         </div>
                         <div className="align-items-center my-3">

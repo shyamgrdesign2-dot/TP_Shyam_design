@@ -187,13 +187,16 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
       >
         <Container fluid className={`gx-0 w-100 ${!isSnapRx ? "h-100" : ""}`}>
           <Row
-            className={`align-items-center w-100 justify-content-between ${
+            className={`align-items-center w-100 justify-content-between flex-nowrap ${
               isSnapRx ? "header-snap-rx" : "h-100"
             }`}
           >
-            <Col lg="auto" className="h-100 p-0">
+            <Col
+              xs="auto"
+              className={`h-100 p-0 ${isSnapRx ? "header-snap-rx-title-col" : ""}`}
+            >
               <div className="align-items-center d-flex h-100">
-                <div className="border-end h-100 text-center">
+                <div className="border-end h-100 text-center flex-shrink-0">
                   <div
                     onClick={showHideBackModal}
                     className="btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer"
@@ -247,11 +250,20 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
                     }
                   />
                 </div>
-                <div className="p-4">{`Review & Save ${patient_data?.pm_fullname}'s Digital Rx`}</div>
+                <div
+                  className={`p-4 ${isSnapRx ? "header-snap-rx-title" : ""}`}
+                >{`Review & Save ${patient_data?.pm_fullname}'s Digital Rx`}</div>
               </div>
             </Col>
-            <Col lg="auto">
-              <div className="align-items-center d-flex h-100">
+            <Col
+              xs="auto"
+              className={isSnapRx ? "header-snap-rx-actions-col" : ""}
+            >
+              <div
+                className={`align-items-center d-flex h-100 ${
+                  isSnapRx ? "header-snap-rx-actions" : ""
+                }`}
+              >
                 {!isSnapRx && !isSmartRx && (
                   <FreeTrialButton
                     title={S_RX_DIGITIZATION}
@@ -408,9 +420,8 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
                     placement="bottom"
                   >
                     <button className="btn d-flex align-items-center btn-text mx-3 tutorial p-0">
-                      <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
+                      <span className="text-decoration-none rounded-5 bg-white shadow2">
                         <img height={42} src={tutorial} alt="tutorial" />
-                        Tutorial
                       </span>
                     </button>
                   </Popover>

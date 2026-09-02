@@ -1420,7 +1420,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     orderAction?.meta?.requestStatus === "fulfilled" &&
                     orderAction?.payload?.status !== false;
                 if (requestSucceeded) {
-                    window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
+                    window?.Moengage?.track_event?.("TP_orderMedicineAndInvestigation_API_response", {
                         ...eventPayload,
                         status: "success",
                     });
@@ -1430,7 +1430,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                         orderAction?.payload?.error ||
                         orderAction?.error?.message ||
                         "request_rejected";
-                    window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
+                    window?.Moengage?.track_event?.("TP_orderMedicineAndInvestigation_API_response", {
                         ...eventPayload,
                         status: "failure",
                         reason: failureReason,
@@ -1444,7 +1444,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         (typeof rxDrawingCanvasIds === "string" && rxDrawingCanvasIds.split(",").filter(Boolean).length > 0);
 
     const trackSaveDraftEvent = useCallback(() => {
-        window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.save, {
+        window?.Moengage?.track_event?.(EVENTS.SAVE_DRAFT.save, {
             ...getDraftMoengageDoctorAttributes(profile),
         });
     }, [profile]);

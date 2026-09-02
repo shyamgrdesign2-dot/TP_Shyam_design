@@ -33,6 +33,7 @@ import { isProductionEnv } from "./utils/environment";
 import { getSentryRouteNameFromUrl } from "./utils/sentryRouteNames";
 import { reportBrowserOfflineToSentry } from "./utils/sentryNetwork";
 import { SENTRY_ENVIRONMENT, SENTRY_ENABLED } from "./utils/sentryEnvironment";
+import { isUnactionableThirdPartyEvent } from "./utils/sentryNoiseFilters";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -76,6 +77,38 @@ if (typeof window !== "undefined") {
 
 const appEnv = process.env.REACT_APP_ENV || "prod";
 const isProd = isProductionEnv(appEnv);
+
+// Where this document stood at boot, for segmenting telemetry by whether paint vitals
+// were ever possible. Buckets:
+//   iframe    — embedded document. The Kea hospital dashboard renders /billing-dashboard,
+//               /lims and /pharmacy inside display:none iframes (~70% of pageload
+//               volume). visibilityState alone cannot detect these: a nested document
+//               mirrors the top-level tab, so a hidden iframe in a focused tab still
+//               reads "visible".
+//   prerender — speculative load; paints only after activation, and its clock starts at
+//               prerender start (app_ready subtracts activationStart — see useAppReady).
+//   hidden    — tab restored in the background at browser startup or opened unfocused.
+//               The browser fires no FCP/LCP for a document that starts hidden.
+//   visible   — someone was plausibly watching; paint vitals should exist.
+// Missing FCP/LCP on iframe/hidden loads is correct browser behavior, not a bug.
+//
+// Stamped via addEventProcessor + the beforeSendSpan option below rather than
+// Sentry.setTag: a scope tag would be wiped wholesale by clearSentryContext() on /login
+// mounts (src/utils/sentryContext.js clears the whole isolation scope), and standalone
+// LCP/CLS span envelopes never read scope tags at all (createSpanEnvelope serializes
+// spans directly). Both paths below read this constant, so neither can be cleared.
+const BOOT_VISIBILITY = (() => {
+  try {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return "unknown";
+    }
+    if (window.self !== window.top) return "iframe";
+    if (document.prerendering) return "prerender";
+    return document.visibilityState || "unknown";
+  } catch (e) {
+    return "unknown";
+  }
+})();
 const tracesSampleRateValue =
   Number(
     process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE ??
@@ -105,21 +138,22 @@ Sentry.init({
       createRoutesFromChildren,
       matchRoutes,
 
-      // Web vitals were almost never recorded. Measured over 7d in prod (spans dataset):
-      //   pageload spans 285,081 | TTFB 206,161 (72%) | FCP 1,570 (0.55%)
-      //                          | LCP 420 (0.15%)    | CLS 0
-      // The capture rate falls off exactly in the order the metrics become available,
-      // because the pageload span had already been sent: its p50 duration was 430ms
-      // (p95 2131ms). TTFB exists immediately so it survives; FCP/LCP land later and
-      // CLS is only final at page-hide, so they were all dropped.
+      // Keeps the pageload span open past FCP (p75 on this bundle is ~1.1s), which the
+      // SDK default of 1000ms does not.
       //
-      // Root cause: idleTimeout was never set, so it used the SDK default of 1000ms.
-      // Raised so the span stays open long enough for FCP/LCP on this bundle.
+      // This value alone fixes nothing, and the earlier claim in this file that span
+      // lifetime was the root cause of the missing web vitals was wrong. Raising it
+      // from 1000ms to 5000ms moved FCP capture on pageload spans from 0.62% to 0.42%
+      // — i.e. not at all. The span was never reaching its idle timeout: App.js was
+      // ending it with a boot navigation. See the navigateIfChanged comment there.
       idleTimeout: 5000,
 
-      // CLS can only be known when the page is hidden, which no idleTimeout can wait for.
-      // These emit LCP and CLS as their own spans at page-hide, decoupled from the
-      // pageload span's lifetime — the only way to capture CLS at all.
+      // CLS can only be known once the page is hidden, which no idleTimeout can wait
+      // for, so these emit LCP and CLS as their own spans decoupled from the pageload
+      // span's lifetime. Note the SDK also closes the measurement window on the first
+      // real navigation, not only at page-hide — with the boot navigation in place
+      // this shipped 359,290 spans carrying a hardcoded 0 and buried the ~730 genuine
+      // readings. Correct only in combination with the App.js fix.
       // Still under _experiments in SDK 10.9.0; revisit on upgrade.
       _experiments: {
         enableStandaloneLcpSpans: true,
@@ -158,15 +192,61 @@ Sentry.init({
   // The iOS equivalent is window.webkit.messageHandlers being undefined — same shape,
   // same cause, a webview host that has torn down its bridge.
   //
+  // These two overlap on purpose with isMetaInAppBrowserBridgeError in
+  // utils/sentryNoiseFilters.js, which also matches Meta-browser bridge errors but
+  // requires a browser tag and a bridge frame first. Deleting either of these two
+  // entries on the assumption that function now covers it removes real coverage —
+  // see the comment above that function for a captured production event its frame
+  // patterns did not recognise.
+  //
+  // MoEngage's web SDK rejects with a bare string when it cannot read its own
+  // settings out of localStorage. Most of these arrive from in-app browsers
+  // (Instagram on iOS) where storage is partitioned or unavailable, so the SDK
+  // has nothing to read on a first visit. It is thrown inside the vendor bundle
+  // loaded from public/index.html, with no stack attached, so the message is the
+  // only thing available to match on. It is specific enough not to catch
+  // anything of ours.
+  //
   // Keep these patterns narrow. A broad filter hides real bugs, which costs far more
   // than the noise does.
   ignoreErrors: [
     /Java object is gone/i,
     /window\.webkit\.messageHandlers/i,
+    /Error in getting sdk settings from localstorage/i,
   ],
+  // Standalone LCP/CLS span envelopes (enabled via _experiments above) bypass scope
+  // tags and event processors entirely, so boot_visibility has to be attached here for
+  // them — this is the only path that reaches those spans, and LCP is the metric the
+  // whole segmentation exists to split.
+  //
+  // Restricted to the spans the segmentation is actually queried on. The SDK runs this
+  // callback for the root span AND every child span of every transaction
+  // (client.js "2. Process child spans"), and this app emits ~9.6M child spans a day
+  // against ~456k transactions: tagging http.client/resource.*/long-animation-frame
+  // would upload hundreds of MB a day of an attribute nobody filters on.
+  //
+  // KNOWN COST, measured: defining this callback at all drops `contexts.trace.links`
+  // from every transaction. The SDK round-trips the root span through
+  // convertTransactionEventToSpanJson (which does not carry `links`) and merges the
+  // result back over contexts.trace, so the loss happens no matter what this body does
+  // — narrowing the gate does not avoid it. Verified by A/B locally: links present with
+  // the callback removed, absent with it defined. Accepted because the SDK also writes
+  // `sentry.previous_trace` as a span attribute, which survives, so previous-trace
+  // information is degraded (no structured link in the trace UI) rather than lost.
+  beforeSendSpan(span) {
+    const op = span.op || "";
+    if (op === "pageload" || op === "navigation" || op.startsWith("ui.webvital.")) {
+      span.data = { ...span.data, boot_visibility: BOOT_VISIBILITY };
+    }
+    return span;
+  },
+
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;
+    // Unhandled rejections thrown inside vendor SDKs we inject but cannot fix.
+    // See utils/sentryNoiseFilters.js for why these cannot be handled at source.
+    if (isUnactionableThirdPartyEvent(event)) return null;
     return event;
   },
   beforeSendTransaction(event) {
@@ -181,6 +261,16 @@ Sentry.init({
     return event;
   },
   enableLogs: true
+});
+
+// Tag every event (errors and transactions) with the boot-time visibility computed
+// above. An event processor reads the constant at capture time, so unlike a scope tag
+// it survives clearSentryContext()'s isolation-scope wipe on /login. The value is
+// deliberately the state AT BOOT — a tab revealed hours later still reports how it
+// started, because that is what decides whether its pageload could carry paint vitals.
+Sentry.addEventProcessor((event) => {
+  event.tags = { ...event.tags, boot_visibility: BOOT_VISIBILITY };
+  return event;
 });
 
 // Fix for stale lazy-loaded chunks after a new deployment.

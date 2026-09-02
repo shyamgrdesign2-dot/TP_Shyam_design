@@ -10,6 +10,7 @@ import {
   getZydusProdLoginUrl,
   syncPhoneAndCheckZydusAccountUser,
 } from "../../../utils/zydusAccountRouting";
+import { SUPPORT_PHONE_NUMBER } from "../../../utils/constants";
 
 const LoginWithOTP = ({ reason, handleView, number }) => {
   const isSignupDisabled = isZyPreprodOrZyProdEnv();
@@ -235,7 +236,7 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
 
         case "Doctor is inactive":
           setError(
-            "Your account has been locked by Admin. Please contact support@tatvacare.in/9974042363"
+            `Your account has been locked by Admin. Please contact support@tatvacare.in/${SUPPORT_PHONE_NUMBER}`
           );
           setIsButtonDisabled(false);
           break;
@@ -411,7 +412,7 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
 
               case "Doctor is inactive":
                 setError(
-                  "Your account has been locked by Admin. Please contact support@tatvacare.in / 9974042363"
+                  `Your account has been locked by Admin. Please contact support@tatvacare.in / ${SUPPORT_PHONE_NUMBER}`
                 );
                 break;
 

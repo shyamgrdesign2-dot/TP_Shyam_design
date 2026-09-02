@@ -13,10 +13,11 @@ import MobileWalkInConsultation from "./mobile/WalkInConsultation/WalkInConsulta
 import MobileWalkInConsultationZydus from "./mobile/WalkInConsultationZydus/WalkInConsultationZydus";
 import MessagesData from "./MessagesData";
 import { useDeviceType } from "../utils/deviceDetection";
+import { isReceptionistSession } from "../utils/receptionistSession";
 
 import { useSelector, useDispatch } from "react-redux";
 import WalkInConsultationZydus from "./WalkInConsultationZydus";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, GB_CVT_EXT_HOS } from "../utils/constants";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, GB_CVT_EXT_HOS, APPOINTMENT_LISTING_V2_ENABLED } from "../utils/constants";
 import { jwtDecode } from "jwt-decode";
 import { setUserId } from "../redux/doctorsSlice";
 import ExtendTrialModal from "./monetization/components/ExtendTrialModal";
@@ -43,13 +44,26 @@ function EmbeddedMissionAnalytics() {
   );
 }
 
+const AppointmentListingPage = lazy(() =>
+  lazyRetry(() => import("./appointment-listing"))
+);
+
+function EmbeddedAppointmentListing() {
+  return (
+    <Suspense fallback={<FullPageLoader />}>
+      <AppointmentListingPage />
+    </Suspense>
+  );
+}
+
 function AppointmentList() {
   const dispatch = useDispatch();
   let location = useLocation();
   const [locationPath, setLocationPath] = useState("/");
   const { profile } = useSelector((state) => state.doctors);
-  const urlParams = new URLSearchParams(window.location.search);
-  const isReceptionist = urlParams.has("receptionist");
+  // Match App.js: URL ?receptionist OR tab sessionStorage (query can drop
+  // on internal navigations without ending the receptionist session).
+  const isReceptionist = isReceptionistSession(location.search);
   const {hospital_business_id} = getTokenData() || {};
   const isZydus = hospital_business_id === config.ZYDUS_BUSINESS_ID;
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
@@ -80,9 +94,16 @@ function AppointmentList() {
     }
   }, []);
 
+  // APPOINTMENT_LISTING_V2_ENABLED in constants.js is the deploy kill switch
+  // (no GrowthBook). Flip to false to keep legacy AppointmentData on `/`.
+  const useNewAppointmentListing =
+    APPOINTMENT_LISTING_V2_ENABLED &&
+    !shouldShowMobileDashboard &&
+    !analyticsOnlyHome &&
+    !isReceptionist;
+
   const fetchAgentsData = async () => {
     if (!isReceptionist) {
-      // setIsAgentsLoading(true);
       try {
         const decodedToken = getDecodedToken();
         const clinicId = String(decodedToken?.result?.clinic_id);
@@ -97,7 +118,10 @@ function AppointmentList() {
   };
 
   useEffect(() => {
-    if (!isReceptionist) {
+    // New listing: Header's useAiReceptionist owns the CTA + fetch (Welcome
+    // is hidden). Legacy / receptionist / mobile still need agents for
+    // AppointmentData + MessagesData.
+    if (!isReceptionist && !useNewAppointmentListing) {
       fetchAgentsData();
     }
   }, []);
@@ -105,6 +129,9 @@ function AppointmentList() {
   const hideWelcomeForMissionAnalytics =
     locationPath === "/mission-analytics" ||
     (analyticsOnlyHome && (locationPath === "/" || locationPath === ""));
+
+  const hideWelcomeForNewAppointmentListing =
+    useNewAppointmentListing && (locationPath === "/" || locationPath === "");
 
   return (
     <>
@@ -122,7 +149,7 @@ function AppointmentList() {
                   : "wrapper"
           }`}
         >
-          {!shouldShowMobileDashboard && !isReceptionist && !hideWelcomeForMissionAnalytics && (
+          {!shouldShowMobileDashboard && !isReceptionist && !hideWelcomeForMissionAnalytics && !hideWelcomeForNewAppointmentListing && (
             <Welcome
               locationPath={locationPath}
               appointmentAgentsData={agentsData}
@@ -137,6 +164,8 @@ function AppointmentList() {
                   <AppointmentDashboardMobile />
                 ) : analyticsOnlyHome ? (
                   <EmbeddedMissionAnalytics />
+                ) : useNewAppointmentListing ? (
+                  <EmbeddedAppointmentListing />
                 ) : (
                   <Appointment locationPath={locationPath} appointmentAgentsData={agentsData} />
                 )

@@ -27,6 +27,7 @@ import { verifyAndAddDentalModule, verifyAndAddDentalPrintOptions } from "../uti
 import { useLocalStorage, clearLocalStorage, getDecodedToken } from "../utils/localStorage";
 import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP, GB_CVT_EXT_HOS } from "../utils/constants";
 import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
+import { useAiReceptionist } from "../hooks/useAiReceptionist";
 import { errorMessage, getClinicName, makeDefaultLogo, shouldMonetizationDisabled, getTokenData, getDeviceSdkData } from "../utils/utils";
 import { createAbhaPrintHandlerConfig, createAbhaDownloadHandler } from "./abhaQrHelper";
 import { Modal, Card } from "antd";
@@ -65,6 +66,7 @@ const {
   goldCrown,
   crown: crownIcon,
   aiSuite: AISuite,
+  receptionisticon: receptionistIcon,
 } = ASSETS.images;
 const Notification = ASSETS.images.navbarIcons.notification;
 const ReceiptText = ASSETS.images.navbarIcons.receiptText;
@@ -97,6 +99,11 @@ function Header({ locationPath }) {
   const isDentalEnabled = useIsDentalEnabled();
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const tp_monetization_enable = !shouldMonetizationDisabled();
+  const {
+    canShow: canShowAiReceptionist,
+    menuLabel: aiReceptionistLabel,
+    openAiReceptionist,
+  } = useAiReceptionist();
 
   const decodedToken = getDecodedToken();
   const apiUrl = env.opd_encryption_url;
@@ -871,6 +878,29 @@ function Header({ locationPath }) {
         ),
         key: "1",
       },
+      ...(canShowAiReceptionist
+        ? [
+            {
+              label: (
+                <a onClick={openAiReceptionist}>
+                  <div className="title-common me-4 d-flex align-items-center">
+                    <img
+                      src={receptionistIcon}
+                      className="me-3"
+                      alt="AI Receptionist"
+                      width={24}
+                      height={24}
+                      style={{ filter: "grayscale(100%)" }}
+                    />
+                    {aiReceptionistLabel}
+                  </div>
+                  <i className="icon-right iconrotate180"></i>
+                </a>
+              ),
+              key: "ai-receptionist",
+            },
+          ]
+        : []),
       // {
       //   label: (
       //     <a onClick={handleAiSuite}>
@@ -1498,7 +1528,7 @@ function Header({ locationPath }) {
                 >
                   <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'>
                     {/* onClick={showHideVideoListPopover} */}
-                    <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
+                    <span className='text-decoration-none rounded-5 bg-white shadow2'><img height={42} src={tutorial} alt="Tutorial" /></span>
                   </button>
                 </Popover>
               ))

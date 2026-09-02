@@ -29,7 +29,7 @@ import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import { useGrounding } from "../hooks/useGrounding";
-import { getTokenData, getHmTypeIndicator, camelCaseToTitle, camelToSentence } from "../utils/utils";
+import { getTokenData, getHmTypeIndicator, getHmTypeBadgeColor, camelCaseToTitle, camelToSentence } from "../utils/utils";
 import { getNormalizedGynecHistory } from "../utils/gynecHistoryUtils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -947,10 +947,10 @@ const DigitisedPrescription = ({
         <div>
           <span className="fw-medium">{e.tmm_medicine_name}</span>,
           <span className="ms-1">{e.tmm_generic}</span>
-          {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2) && e?.um_id === 0 && (
+          {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2 || e?.tmm_hm_type == 21) && e?.um_id === 0 && (
             <span
               className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
-              style={{ width: 18, height: 18, background: "#c44ea2" }}
+              style={{ width: 18, height: 18, background: getHmTypeBadgeColor(getHmTypeIndicator(e)) }}
             >
               {getHmTypeIndicator(e)}
             </span>

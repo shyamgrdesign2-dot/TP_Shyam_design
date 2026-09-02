@@ -1,0 +1,275 @@
+.page {
+  position: relative;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 var(--tesseract-space-6) var(--tesseract-space-8);
+  background: var(--tesseract-bg-page);
+  min-height: 100vh;
+}
+
+/* Tesseract's solid/primary Button renders its label span in slate-700 at
+   weight 600 regardless of theme — visibly wrong on a filled primary
+   background. Force it to match the rest of the app's primary CTAs
+   (white, medium weight). */
+.primaryCta span {
+  color: #fff !important;
+  font-weight: var(--tesseract-weight-medium) !important;
+}
+
+/* Outline primary CTAs often keep a slate label — force primary text. */
+.addAnotherCta span {
+  color: var(--tesseract-primary-600, #4b4ad5) !important;
+  font-weight: var(--tesseract-weight-medium) !important;
+}
+
+/* Centered confirm dialog — plain, not Tesseract's ConfirmDialog, for the
+   same portal/z-index reason as nested LabParams. Above the group list;
+   create/edit uses the shared Tesseract Drawer at 1200+. */
+.confirmBackdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--tesseract-slate-900) 40%, transparent);
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirmDialog {
+  width: min(420px, calc(100% - var(--tesseract-space-8)));
+  background: var(--tesseract-bg-surface);
+  border-radius: var(--tesseract-radius-12);
+  box-shadow: var(--tesseract-shadow-xl);
+  z-index: 1003;
+  padding: var(--tesseract-space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-4);
+}
+
+.confirmTitle {
+  font-size: var(--tesseract-text-h5);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+}
+
+.confirmDescription {
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-fg-secondary);
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tesseract-space-3);
+}
+
+/* Drawer-style sticky header: Back + New group on one row, title + badge next. */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  margin: 0 calc(-1 * var(--tesseract-space-6)) var(--tesseract-space-6);
+  padding: var(--tesseract-space-4) var(--tesseract-space-6);
+  background: var(--tesseract-bg-page);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+}
+
+.headerTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-4);
+  min-height: 40px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-3);
+}
+
+.title {
+  font-size: var(--tesseract-text-h3);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.subtitle {
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-fg-secondary);
+  margin: 0;
+  max-width: 640px;
+}
+
+.prefillBanner {
+  margin-bottom: var(--tesseract-space-6);
+}
+
+.loading {
+  padding: var(--tesseract-space-12) 0;
+  text-align: center;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--tesseract-space-5);
+}
+
+.toolbar > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.groupList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+}
+
+/* Title row must span full card width so headerActions + chevron stay right. */
+.groupCard :global([class*="titleRow"]) {
+  width: 100%;
+}
+
+.groupTitleWithBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.groupTitleName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groupHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1);
+  flex-shrink: 0;
+}
+
+.groupChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1);
+}
+
+.emptyGroupBox {
+  padding: var(--tesseract-space-5);
+  text-align: center;
+  color: var(--tesseract-fg-tertiary);
+  font-size: var(--tesseract-text-body-sm);
+  border: 1px dashed var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-8);
+}
+
+.investigationTableWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+  width: 100%;
+  min-width: 0;
+}
+
+.investigationTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.colName {
+  width: 32%;
+}
+
+.colType {
+  width: 18%;
+}
+
+.colUnit {
+  width: 14%;
+}
+
+.colStatus {
+  width: 16%;
+}
+
+.colActions {
+  width: 20%;
+}
+
+.investigationTable th,
+.investigationTable td {
+  text-align: left;
+  vertical-align: middle;
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  overflow: hidden;
+}
+
+.investigationTable th {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--tesseract-border-soft);
+  padding-top: 0;
+}
+
+.investigationTable td {
+  border-bottom: 1px solid var(--tesseract-border-soft);
+  padding-top: var(--tesseract-space-3);
+  padding-bottom: var(--tesseract-space-3);
+}
+
+.investigationTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.investigationTable th:last-child,
+.investigationTable td:last-child {
+  text-align: right;
+  padding-right: 0;
+}
+
+.investigationName {
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-primary);
+  word-break: break-word;
+}
+
+.investigationCell {
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-fg-secondary);
+}
+
+.investigationActions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tesseract-space-1);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

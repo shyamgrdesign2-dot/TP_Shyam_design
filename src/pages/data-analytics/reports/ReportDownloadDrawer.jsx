@@ -101,7 +101,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const [threeCReportType, setThreeCReportType] = useState("summary");
   const [ipdReportType, setIpdReportType] = useState("admitting");
   const [billingOverallType, setBillingOverallType] = useState("revenue");
-  const [clinicalData, setClinicalData] = useState(undefined);
+  const [clinicalData, setClinicalData] = useState("no");
 
   useEffect(() => {
     if (open) {
@@ -125,7 +125,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       setThreeCReportType("summary");
       setIpdReportType("admitting");
       setBillingOverallType("revenue");
-      setClinicalData(undefined);
+      setClinicalData("no");
       setPaymentMode([]);
       setDeptIds([]);
       setIncentiveUserOptions([]);

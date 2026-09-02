@@ -8,6 +8,7 @@ import { EyeInvisibleOutlined } from "@ant-design/icons";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 import { detectOperatingSystem } from "../../../utils/loginUtils";
 import { ASSETS } from "../../../assets";
+import { SUPPORT_PHONE_NUMBER } from "../../../utils/constants";
 const {
   abdmLogo,
   nhaLogo,
@@ -46,7 +47,7 @@ const VerifyPassword = ({ onViewChange, mobileNumber }) => {
 
       switch (message) {
         case "Doctor is inactive":
-          setError("Your account has been locked by Admin. Please contact support@tatvacare.in/9974042363");
+          setError(`Your account has been locked by Admin. Please contact support@tatvacare.in/${SUPPORT_PHONE_NUMBER}`);
           setLoading(false);
           return;
 

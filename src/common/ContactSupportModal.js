@@ -3,6 +3,7 @@ import { Modal, Card } from "antd";
 import { useSelector } from "react-redux";
 import { ASSETS } from "../assets";
 import { getClinicName, getDeviceSdkData, getTokenData } from "../utils/utils";
+import { SUPPORT_PHONE_NUMBER } from "../utils/constants";
 
 const SMS = ASSETS.images.sms;
 
@@ -46,7 +47,7 @@ function ContactSupportModal({ isModalOpen, clickContactSupport }) {
         <div className="rounded-4 p-4 w-100" style={{ background: "#4B4AD514" }}>
           <div className="align-items-center">
             <i className="icon-phone fs-18"></i>
-            <a className="text-main fw-medium fs-16" href="tel:+91-9974042363" onClick={contactNumberandEmail}> +91-9974042363</a>
+            <a className="text-main fw-medium fs-16" href={`tel:+91-${SUPPORT_PHONE_NUMBER}`} onClick={contactNumberandEmail}> {`+91-${SUPPORT_PHONE_NUMBER}`}</a>
           </div>
           <div className="my-2">(Monday - Saturday | 9am to 8pm)</div>
           <div className="align-items-center">

@@ -3,6 +3,7 @@ import React from "react";
 import { getClinicName, getDeviceSdkData, getTokenData } from "../../../utils/utils";
 import { useSelector } from "react-redux";
 import { ASSETS } from "../../../assets";
+import { SUPPORT_PHONE_NUMBER } from "../../../utils/constants";
 const SMS = ASSETS.images.sms;
 
 function ContactSupport({ refs }) {
@@ -39,8 +40,8 @@ function ContactSupport({ refs }) {
         style={{ background: "#4B4AD514" }}
       >
         <i className="icon-phone fs-18"></i>
-        <a className="text-main fw-medium fs-16" href="tel:+91-9974042363" onClick={contactNumberandEmail}>
-          +91-9974042363
+        <a className="text-main fw-medium fs-16" href={`tel:+91-${SUPPORT_PHONE_NUMBER}`} onClick={contactNumberandEmail}>
+          {`+91-${SUPPORT_PHONE_NUMBER}`}
         </a>{" "}
         <div className="mx-2">|</div>
         <img width={19} height={19} src={SMS} />

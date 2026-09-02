@@ -11,6 +11,7 @@ import {
   getZydusProdLoginUrl,
   syncPhoneAndCheckZydusAccountUser,
 } from "../../../utils/zydusAccountRouting";
+import { SUPPORT_PHONE_NUMBER } from "../../../utils/constants";
 const tavaPracticeLogo = ASSETS.images.websiteImages.tatvacareLogoWithTag;
 
 const LoginWithPassword = ({ handleView, number }) => {
@@ -112,7 +113,7 @@ const LoginWithPassword = ({ handleView, number }) => {
 
         case "Doctor is inactive":
           setMessage(
-            "Your account has been locked by Admin. Please contact support@tatvacare.in/9974042363"
+            `Your account has been locked by Admin. Please contact support@tatvacare.in/${SUPPORT_PHONE_NUMBER}`
           );
           break;
 

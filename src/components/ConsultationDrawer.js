@@ -50,7 +50,7 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getHmTypeBadgeColor, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { vitalScalarString } from "../utils/symptomCollectorVitalsMerge";
 import {
   ensureLabInvestigationMetadataForRxSave,
@@ -60,6 +60,7 @@ import {
 } from "../utils/medicationRxPayload";
 
 import CommonModal from "../common/CommonModal";
+import LowStockBadge from "../common/LowStockBadge";
 import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import VoiceWaveVisualizer from "./WaveVisualizer";
@@ -3942,14 +3943,15 @@ const ConsultationDrawer = ({
           <div>
             <span className="fw-medium">{e.tmm_medicine_name}</span>,{" "}
             <span>{e.tmm_generic}</span>{" "}
-            {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2) && e?.um_id === 0 && (
+            {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2 || e?.tmm_hm_type == 21) && e?.um_id === 0 && (
               <span
                 className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
-                style={{ width: 18, height: 18, background: "#c44ea2" }}
+                style={{ width: 18, height: 18, background: getHmTypeBadgeColor(getHmTypeIndicator(e)) }}
               >
                 {getHmTypeIndicator(e)}
               </span>
             )}
+            <LowStockBadge show={e?.isLowStock} />
           </div>
         ),
       });
@@ -4508,9 +4510,8 @@ const ConsultationDrawer = ({
                 className="btn d-flex align-items-center btn-text me-10 tutorial"
                 onClick={() => setGenRxKnowMoreDrawer(true)}
               >
-                <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
+                <span className="text-decoration-none rounded-5 bg-white shadow2">
                   <img height={42} src={tutorialIcon} alt="Tutorial" />
-                  Tutorial
                 </span>
               </button>
 
