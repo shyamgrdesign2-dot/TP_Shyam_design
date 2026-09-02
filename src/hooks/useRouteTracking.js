@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { getSentryRouteName } from "../utils/sentryRouteNames";
+import { nowInSpanClockSeconds } from "../utils/spanTiming";
 
 /**
  * A navigation span younger than this belongs to the route change we are handling
@@ -37,17 +38,10 @@ function hasFreshNavigationSpan() {
     const json = Sentry.spanToJSON(root);
     if (json.op !== "navigation" || !json.start_timestamp) return false;
 
-    // Sentry stamps span timestamps from performance.timeOrigin + performance.now(),
-    // not the wall clock; comparing against Date.now() would drift on any OS clock
-    // adjustment, and tabs here stay open for days.
-    const nowSeconds =
-      typeof performance !== "undefined" &&
-      performance.timeOrigin &&
-      typeof performance.now === "function"
-        ? (performance.timeOrigin + performance.now()) / 1000
-        : Date.now() / 1000;
-
-    return (nowSeconds - json.start_timestamp) * 1000 < FRESH_NAVIGATION_SPAN_MS;
+    // nowInSpanClockSeconds keeps this in the SDK's own clock; comparing against
+    // Date.now() would drift on any OS clock adjustment, and tabs here stay open
+    // for days.
+    return (nowInSpanClockSeconds() - json.start_timestamp) * 1000 < FRESH_NAVIGATION_SPAN_MS;
   } catch (e) {
     return false;
   }
