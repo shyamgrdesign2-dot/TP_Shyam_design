@@ -42,7 +42,7 @@ function AvailableCredits({ handleAvailableCredit }) {
         (data, e) => {
             setSelectedState(JSON.parse(e.key));
             const clinic_city = getClinicCity(profile?.hospital_data);
-            window.Moengage.track_event("TP_State_Select", {
+            window.Moengage?.track_event?.("TP_State_Select", {
                 "Doctor_specialty": profile?.dp_name,
                 "Doctor_unique_id": profile?.doctor_unique_id,
                 clinic_city,
@@ -65,7 +65,7 @@ function AvailableCredits({ handleAvailableCredit }) {
         setCreditRadio(e.target.value);
         setCreditInput(null);
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_Package_Select", {
+        window.Moengage?.track_event?.("TP_Package_Select", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,
@@ -80,7 +80,7 @@ function AvailableCredits({ handleAvailableCredit }) {
         setCreditInput(value);
         setCreditRadio(null);
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_Package_Select", {
+        window.Moengage?.track_event?.("TP_Package_Select", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,
@@ -143,7 +143,7 @@ function AvailableCredits({ handleAvailableCredit }) {
 
     const initRazorPayPayment = (data) => {
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_Buy_credits", {
+        window.Moengage?.track_event?.("TP_Buy_credits", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,

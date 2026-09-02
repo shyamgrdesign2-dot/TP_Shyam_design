@@ -150,7 +150,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
 
     const onSelectParent = useCallback(
         (e) => {
-            window.Moengage.track_event("investigation_select", {
+            window.Moengage?.track_event?.("investigation_select", {
                 "value": e.investigation_name
             });
             investigationData.push({
@@ -204,7 +204,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
     };
 
     const onTemplateSelected = async (template) => {
-        window.Moengage.track_event("investigation_template_used", {
+        window.Moengage?.track_event?.("investigation_template_used", {
             "template_name": template.tit_template_name
         });
         const action = await dispatch(singleTemplateDetails(template.tit_id));

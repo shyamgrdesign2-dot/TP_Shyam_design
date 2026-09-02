@@ -130,7 +130,7 @@ function MobileMedicalHistoryManager({
 
     const clinic_name = getClinicName(profile?.hospital_data);
     if (window.Moengage) {
-      window.Moengage.track_event("TP_Medical_history_updated", {
+      window.Moengage?.track_event?.("TP_Medical_history_updated", {
         clinic_name,
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id

@@ -453,7 +453,7 @@ function TabRxHeaderV2({
 
     const onTemplateSelected = async (tmoc_id, tmoc_template_name) => {
         oneClickCosultationTemplateId = tmoc_id;
-        window.Moengage.track_event("one_click_template_select", {
+        window.Moengage?.track_event?.("one_click_template_select", {
             template_name: tmoc_template_name,
         });
         const action = await dispatch(
@@ -1840,13 +1840,13 @@ function TabRxHeaderV2({
 
             const clinic_name = getClinicName(profile?.hospital_data);
             tcmId == 0
-                ? window.Moengage.track_event("TP_Consultation_ended", {
+                ? window.Moengage?.track_event?.("TP_Consultation_ended", {
                     clinic_name,
                     patient_number: patient_data?.pm_contact_no,
                     patient_id: patient_data?.patient_unique_id,
                     tcm_id: tcmId,
                 })
-                : window.Moengage.track_event("TP_Consultation_edited", {
+                : window.Moengage?.track_event?.("TP_Consultation_edited", {
                     clinic_name,
                     patient_number: patient_data?.pm_contact_no,
                     patient_id: patient_data?.patient_unique_id,
@@ -2032,7 +2032,7 @@ function TabRxHeaderV2({
                                                 const clinic_name = getClinicName(
                                                     profile?.hospital_data,
                                                 );
-                                                window.Moengage.track_event("TP_Tutorial_Viewed", {
+                                                window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                                                     clinic_name,
                                                     tutorial_type: videoList[0]?.category,
                                                 });

@@ -171,7 +171,7 @@ function Measurements(props) {
       patient_number: patient_data?.pm_contact_no,
       patient_id: patient_data?.patient_unique_id,
     };
-    window.Moengage.track_event("TP_Growth_Chart_updated", attributes);
+    window.Moengage?.track_event?.("TP_Growth_Chart_updated", attributes);
   };
 
   const onAddGrowthData = async () => {

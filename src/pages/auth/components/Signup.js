@@ -25,7 +25,7 @@ const Signup = ({reason, handleView, number}) => {
         getSpecialityData();
         const params = new URLSearchParams(window.location.search);
 
-        window.Moengage.track_event('TP_Signup_landing_page', {
+        window.Moengage?.track_event?.('TP_Signup_landing_page', {
             utm_campaign: params.get("utm_campaign") ?? 'NA',
             utm_source: params.get("utm_source") ?? 'NA',
             utm_medium: params.get("utm_medium") ?? 'NA',
@@ -113,7 +113,7 @@ const Signup = ({reason, handleView, number}) => {
             setIsButtonDisabled(false);
             setLoading(false); // Hide loader
             const params = new URLSearchParams(window.location.search);
-            window.Moengage.track_event('TP_OTP_error', {
+            window.Moengage?.track_event?.('TP_OTP_error', {
                 mobile: "91" + mobileNumber,
                 utm_campaign: params.get("utm_campaign") ?? 'NA',
                 utm_source: params.get("utm_source") ?? 'NA',
@@ -136,7 +136,7 @@ const Signup = ({reason, handleView, number}) => {
             startTimer();
             setLoading(false); // Hide loader
             const params = new URLSearchParams(window.location.search);
-            window.Moengage.track_event('TP_OTP_Requested', {
+            window.Moengage?.track_event?.('TP_OTP_Requested', {
                 mobile: "91" + mobileNumber,
                 utm_campaign: params.get("utm_campaign") ?? 'NA',
                 utm_source: params.get("utm_source") ?? 'NA',
@@ -150,7 +150,7 @@ const Signup = ({reason, handleView, number}) => {
             setIsButtonDisabled(false);
             setLoading(false); // Hide loader
             const params = new URLSearchParams(window.location.search);
-            window.Moengage.track_event('TP_OTP_error', {
+            window.Moengage?.track_event?.('TP_OTP_error', {
                 mobile: "91" + mobileNumber,
                 utm_campaign: params.get("utm_campaign") ?? 'NA',
                 utm_source: params.get("utm_source") ?? 'NA',
@@ -183,7 +183,7 @@ const Signup = ({reason, handleView, number}) => {
             setIsButtonDisabled(false);
             setLoading(false); // Hide loader
             const params = new URLSearchParams(window.location.search);
-            window.Moengage.track_event('TP_OTP_error', {
+            window.Moengage?.track_event?.('TP_OTP_error', {
                 mobile: "91" + mobileNumber,
                 utm_campaign: params.get("utm_campaign") ?? 'NA',
                 utm_source: params.get("utm_source") ?? 'NA',
@@ -202,7 +202,7 @@ const Signup = ({reason, handleView, number}) => {
             startTimer(); // Restart the countdown timer
             setLoading(false); // Hide loader
             const params = new URLSearchParams(window.location.search);
-            window.Moengage.track_event('TP_OTP_Resend', {
+            window.Moengage?.track_event?.('TP_OTP_Resend', {
                 mobile: "91" + mobileNumber,
                 utm_campaign: params.get("utm_campaign") ?? 'NA',
                 utm_source: params.get("utm_source") ?? 'NA',
@@ -216,7 +216,7 @@ const Signup = ({reason, handleView, number}) => {
             setIsButtonDisabled(false);
             setLoading(false); // Hide loader
             const params = new URLSearchParams(window.location.search);
-            window.Moengage.track_event('TP_OTP_error', {
+            window.Moengage?.track_event?.('TP_OTP_error', {
                 mobile: "91" + mobileNumber,
                 utm_campaign: params.get("utm_campaign") ?? 'NA',
                 utm_source: params.get("utm_source") ?? 'NA',
@@ -246,7 +246,7 @@ const Signup = ({reason, handleView, number}) => {
                     setError("Invalid OTP. Please try again.");
                     setLoading(false); // Hide loader
 
-                    window.Moengage.track_event('TP_OTP_Incorrect', {
+                    window.Moengage?.track_event?.('TP_OTP_Incorrect', {
                         mobile: "91" + mobileNumber,
                         utm_campaign: params.get("utm_campaign") ?? 'NA',
                         utm_source: params.get("utm_source") ?? 'NA',
@@ -257,7 +257,7 @@ const Signup = ({reason, handleView, number}) => {
                     return;
                 }
 
-                window.Moengage.track_event('TP_OTP_Verified', {
+                window.Moengage?.track_event?.('TP_OTP_Verified', {
                     mobile: "91" + mobileNumber,
                     utm_campaign: params.get("utm_campaign") ?? 'NA',
                     utm_source: params.get("utm_source") ?? 'NA',
@@ -277,7 +277,7 @@ const Signup = ({reason, handleView, number}) => {
                 setError("Failed to verify OTP. Please try again.");
                 setLoading(false); // Hide loader
                 const params = new URLSearchParams(window.location.search);
-                window.Moengage.track_event('TP_OTP_Incorrect', {
+                window.Moengage?.track_event?.('TP_OTP_Incorrect', {
                     mobile: "91" + mobileNumber,
                     utm_campaign: params.get("utm_campaign") ?? 'NA',
                     utm_source: params.get("utm_source") ?? 'NA',
@@ -320,7 +320,7 @@ const Signup = ({reason, handleView, number}) => {
         // proceed with registration now.
         setSubmitDisabled(true);
         const params = new URLSearchParams(window.location.search);
-        window.Moengage.track_event('TP_Submit_Clicked', {
+        window.Moengage?.track_event?.('TP_Submit_Clicked', {
             mobile: "91" + mobileNumber,
             utm_campaign: params.get("utm_campaign") ?? 'NA',
             utm_source: params.get("utm_source") ?? 'NA',
@@ -346,13 +346,13 @@ const Signup = ({reason, handleView, number}) => {
 
         // onboard on moengage if b2c_id is not null
         if(userOnboard?.data?.body?.b2c_id) {
-            window.Moengage.add_first_name(fname);
-            window.Moengage.add_last_name(lname);
-            window.Moengage.add_mobile("+91" + mobileNumber);
-            window.Moengage.add_user_name("Dr. " + fname + " " + lname); // Full name for user
+            window.Moengage?.add_first_name?.(fname);
+            window.Moengage?.add_last_name?.(lname);
+            window.Moengage?.add_mobile?.("+91" + mobileNumber);
+            window.Moengage?.add_user_name?.("Dr. " + fname + " " + lname); // Full name for user
             window.Moengage?.add_unique_user_id?.(userOnboard?.data?.body?.b2c_id);
             const params = new URLSearchParams(window.location.search);
-            window.Moengage.track_event('TP_Signup_Success', {
+            window.Moengage?.track_event?.('TP_Signup_Success', {
                 first_name: fname,
                 last_name: lname,
                 mobile: "91" + mobileNumber,

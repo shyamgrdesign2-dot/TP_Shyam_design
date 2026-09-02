@@ -386,7 +386,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule, use
       )
     : [];
   const onChipAdd = useCallback((name) => {
-    window.Moengage.track_event("investigation_select", {
+    window.Moengage?.track_event?.("investigation_select", {
       "value": name
     });
     setInvestigationData((prev) => [
@@ -407,7 +407,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule, use
         return;
       }
 
-      window.Moengage.track_event("investigation_select", {
+      window.Moengage?.track_event?.("investigation_select", {
         "value": data
       });
       investigationData.push({
@@ -681,7 +681,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule, use
   };
 
   const onTemplateSelected = async (template) => {
-    window.Moengage.track_event("investigation_template_used", {
+    window.Moengage?.track_event?.("investigation_template_used", {
       "template_name": template.tit_template_name
     });
     const action = await dispatch(singleTemplateDetails(template.tit_id));

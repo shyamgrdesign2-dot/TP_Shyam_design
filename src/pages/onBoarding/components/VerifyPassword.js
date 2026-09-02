@@ -33,7 +33,7 @@ const VerifyPassword = ({ onViewChange, mobileNumber }) => {
       const { message, ssoUrl } = response;
 
       // moengage event for login success
-      window.Moengage.track_event('TP_NewLoginFlow_Login_Password_Success', {
+      window.Moengage?.track_event?.('TP_NewLoginFlow_Login_Password_Success', {
         mobile: "91" + mobileNumber,
         doc_status: message === "Doctor is inactive" ? "inactive" : "active",
         operating_system: detectOperatingSystem(),

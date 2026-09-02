@@ -76,7 +76,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           hospital_id: clinic?.hm_id || hospitalId || "",
           created_by: module?.userId || "", // UM_ID of the creator
         };
-        window.Moengage.track_event("TP_CMV2_AddtoRx", moeData);
+        window.Moengage?.track_event?.("TP_CMV2_AddtoRx", moeData);
       }
 
       if (!module || !module.module_id) {
@@ -340,7 +340,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           sub_doctor: profile?.is_sub_doctor ? 1 : 0,
           hospital_id: clinic?.hm_id || hospitalId || "",
         };
-        window.Moengage.track_event("TP_CMV2_Create&Add", moeData);
+        window.Moengage?.track_event?.("TP_CMV2_Create&Add", moeData);
       }
 
       setIsCreatingModule(true);

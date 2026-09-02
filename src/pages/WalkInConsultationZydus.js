@@ -136,7 +136,7 @@ function WalkInConsultationZydus() {
         const action = await dispatch(synczyduspatient(record));
         if (action.meta.requestStatus === "fulfilled") {
             const result = action.payload
-            window.Moengage.track_event("walkin_consult_start", {
+            window.Moengage?.track_event?.("walkin_consult_start", {
                 "doctor_id": profile?.doctor_unique_id,
                 "patient_type": 'Existing',
                 "patient_id": result?.patient_unique_id
@@ -151,7 +151,7 @@ function WalkInConsultationZydus() {
         const action = await dispatch(synczyduspatient(record));
         if (action.meta.requestStatus === "fulfilled") {
             const result = action.payload
-            // window.Moengage.track_event("patient_search_consult", {
+            // window.Moengage?.track_event?.("patient_search_consult", {
             //     doctor_id: profile?.doctor_unique_id,
             //     patient_id: result?.patient_unique_id,
             // });
@@ -173,7 +173,7 @@ function WalkInConsultationZydus() {
 
     const onVoiceRxClick = async (record) => {
         const clinic = getClinic(profile?.hospital_data);
-        window.Moengage.track_event("TP_AV_Entry", {
+        window.Moengage?.track_event?.("TP_AV_Entry", {
           patient_id: record?.patient_unique_id || "",
           patient_name: record?.pm_fullname || "",
           patient_mobile_number: record?.pm_contact_no || "",
@@ -608,7 +608,7 @@ function WalkInConsultationZydus() {
                 // Safe analytics tracking
                 try {
                     if (window.Moengage && typeof window.Moengage.track_event === 'function') {
-                        window.Moengage.track_event("TP_Patient_details", {
+                        window.Moengage?.track_event?.("TP_Patient_details", {
                             patient_number: record?.mobilenumber,
                             patient_id: result?.patient_unique_id
                         });

@@ -387,13 +387,13 @@ const Obstetric = ({
       patient_number: patient_data?.pm_contact_no,
       patient_id: patient_data?.patient_unique_id,
     };
-    window.Moengage.track_event("TP_Obs_history_updated", attributes);
+    window.Moengage?.track_event?.("TP_Obs_history_updated", attributes);
     if (isExaminationUpdated) {
-      window.Moengage.track_event("TP_obs_examination_updated", attributes);
+      window.Moengage?.track_event?.("TP_obs_examination_updated", attributes);
       setIsExaminationUpdated(false);
     }
     if (isPastPregnancyUpdated) {
-      window.Moengage.track_event("TP_Past_pregnancy_updated", attributes);
+      window.Moengage?.track_event?.("TP_Past_pregnancy_updated", attributes);
       setIsPastPregnancyUpdated(false);
     }
   };

@@ -34,7 +34,7 @@ const LoginWithPassword = ({ handleView, number }) => {
     setUtm_medium(params.get("utm_medium") ?? 'NA');
     setUtm_content(params.get("utm_content") ?? 'NA');
 
-    window.Moengage.track_event('TP_Login_landing_page', {
+    window.Moengage?.track_event?.('TP_Login_landing_page', {
       utm_campaign, utm_source, utm_medium, utm_content
     });
   },[]);
@@ -62,7 +62,7 @@ const LoginWithPassword = ({ handleView, number }) => {
       setLoading(false); // Hide loader
       return;
     }
-    window.Moengage.track_event('TP_Submit_Clicked', {
+    window.Moengage?.track_event?.('TP_Submit_Clicked', {
       utm_campaign, utm_source, utm_medium, utm_content
     });
 
@@ -84,7 +84,7 @@ const LoginWithPassword = ({ handleView, number }) => {
       }
 
       const response = await loginWithPassword(trimmedMobileNumber, trimmedPassword);
-      window.Moengage.track_event('TP_Login_Success', {
+      window.Moengage?.track_event?.('TP_Login_Success', {
         utm_campaign, utm_source, utm_medium, utm_content
       });
       // Step 3: Extract response fields

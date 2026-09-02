@@ -165,7 +165,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule, useTess
   }), []);
 
   const onEmptyLineSymptomCommit = useCallback((symptomName) => {
-    window.Moengage?.track_event("symptom_select", {
+    window.Moengage?.track_event?.("symptom_select", {
       value: symptomName,
     });
     dispatch(setIsDDxReadyToGenerate(true));
@@ -223,7 +223,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule, useTess
       )
     : [];
   const onChipAdd = useCallback((name) => {
-    window.Moengage?.track_event("symptom_select", { value: name });
+    window.Moengage?.track_event?.("symptom_select", { value: name });
     setSymptomsData((prev) => [
       ...prev,
       {
@@ -356,7 +356,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule, useTess
 
   const onSelectParent = useCallback(
     (data, e) => {
-      window.Moengage.track_event("symptom_select", {
+      window.Moengage?.track_event?.("symptom_select", {
         "value": data
       });
       symptomsData.push({
@@ -585,7 +585,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule, useTess
   };
 
   const onTemplateSelected = async (template) => {
-    window.Moengage.track_event("symptom_template_used", {
+    window.Moengage?.track_event?.("symptom_template_used", {
       "template_name": template.tst_template_name
     });
     const action = await dispatch(singleTemplateDetails(template.tst_id));

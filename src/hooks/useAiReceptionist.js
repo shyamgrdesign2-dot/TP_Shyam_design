@@ -104,7 +104,7 @@ export function useAiReceptionist() {
     const tokenData = getTokenData();
     const clinic = getClinic(profile?.hospital_data);
     if (agentsData) {
-      window.Moengage.track_event("TP_AG_YourAIReceptionist", {
+      window.Moengage?.track_event?.("TP_AG_YourAIReceptionist", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -147,7 +147,7 @@ export function useAiReceptionist() {
         },
       });
     } else {
-      window.Moengage.track_event("TP_AG_YourAIReceptionist", {
+      window.Moengage?.track_event?.("TP_AG_YourAIReceptionist", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,

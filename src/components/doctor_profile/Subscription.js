@@ -34,7 +34,7 @@ function Subscription() {
   const handleClick = () => {
     if (["TRIAL", "EXPIRED"].includes(currentPlanStatus) && !is_pm_renew_requested) {
       const clinic_name = getClinicName(profile?.hospital_data);
-      window.Moengage.track_event("BuyPlanNow_Click", {
+      window.Moengage?.track_event?.("BuyPlanNow_Click", {
         doctor_id: profile?.doctor_unique_id,
         clinic_name,
       });
@@ -67,7 +67,7 @@ function Subscription() {
             onClick={() => {
               setShowBillingHistory(true);
               const clinic_name = getClinicName(profile?.hospital_data);
-              window.Moengage.track_event("BillingHistory_Click", {
+              window.Moengage?.track_event?.("BillingHistory_Click", {
                 doctor_id: profile?.doctor_unique_id,
                 clinic_name,
               });

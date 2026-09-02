@@ -103,7 +103,7 @@ function TabSurgicalSearch({ passIndex, onClose }) {
       setSurgeriesData((prev) => [...prev]);
       setSelectedIndex(surgeriesData.length - 1);
       setSearchChildQuery("");
-      window.Moengage.track_event("TP_Surgery_added", {
+      window.Moengage?.track_event?.("TP_Surgery_added", {
         clinic_name: getClinicName(profile?.hospital_data),
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,

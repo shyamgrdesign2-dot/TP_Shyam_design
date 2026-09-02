@@ -349,7 +349,7 @@ function TabMedicationBox() {
     if (item.tmm_id === 0) {
       setAddCustom(item);
     } else {
-      window.Moengage.track_event("medicine_select", {
+      window.Moengage?.track_event?.("medicine_select", {
         "value": item.tmm_medicine_name
       });
 
@@ -583,7 +583,7 @@ function TabMedicationBox() {
   };
 
   const onTemplateSelected = async (tmtd_id) => {
-    window.Moengage.track_event("medication_template_used", {
+    window.Moengage?.track_event?.("medication_template_used", {
       "template_name": tmtd_id.tmtd_template_name
     });
     const action = await dispatch(

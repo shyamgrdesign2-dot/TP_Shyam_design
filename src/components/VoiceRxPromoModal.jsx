@@ -196,7 +196,7 @@ const VoiceRxPromoModal = () => {
   const handleExtendCredits = async () => {
     // Track MoEngage event for claim button click
     if (window.Moengage) {
-      window.Moengage.track_event("TP_VoiceRx_ClaimCredits", moeData);
+      window.Moengage?.track_event?.("TP_VoiceRx_ClaimCredits", moeData);
     }
 
     setIsLoading(true);
@@ -365,7 +365,7 @@ const VoiceRxPromoModal = () => {
               onClick={() => {
                 // Track MoEngage event for video click
                 if (window.Moengage) {
-                  window.Moengage.track_event("TP_VoiceRx_VideoClick", moeData);
+                  window.Moengage?.track_event?.("TP_VoiceRx_VideoClick", moeData);
                 }
                 setShowVideo(true);
               }}
@@ -378,7 +378,7 @@ const VoiceRxPromoModal = () => {
                   e.preventDefault();
                   // Track MoEngage event for know more click
                   if (window.Moengage) {
-                    window.Moengage.track_event(
+                    window.Moengage?.track_event?.(
                       "TP_VoiceRx_KnowMoreClick",
                       moeData
                     );

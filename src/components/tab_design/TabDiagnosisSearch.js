@@ -525,7 +525,7 @@ function TabDiagnosisSearch({ passIndex, onClose, ddxOptionsList }) {
                                                     }}
                                                     onClick={() => {
                                                         onSelectParent({ ...item });
-                                                        window.Moengage.track_event(
+                                                        window.Moengage?.track_event?.(
                                                         "TP_CDSS_Ddx_selected",
                                                         {
                                                             clinic_name: getClinicName(profile?.hospital_data),

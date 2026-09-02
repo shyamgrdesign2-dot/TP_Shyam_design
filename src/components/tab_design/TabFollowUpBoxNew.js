@@ -171,7 +171,7 @@ function TabFollowUpBoxNew() {
     };
 
     const onOptionPress = (e) => {
-        window.Moengage.track_event("followup_chip_select", {
+        window.Moengage?.track_event?.("followup_chip_select", {
             "value": e.label
         });
         setDateOptions([]);

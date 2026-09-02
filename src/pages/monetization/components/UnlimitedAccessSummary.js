@@ -188,7 +188,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                 const clinic_name = getClinicName(profile?.hospital_data);
                 const tokenData = getTokenData();
                 const deviceSdkData = getDeviceSdkData();
-                window.Moengage.track_event("TP_Monetization_ProceedtoPay", {
+                window.Moengage?.track_event?.("TP_Monetization_ProceedtoPay", {
                     doctor_name: profile?.um_name,
                     doctor_number: profile?.um_contact,
                     doctor_unique_id: profile?.doctor_unique_id,
@@ -292,7 +292,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         const action = await dispatch(verifyPayment(r_response));
         if (action.meta.requestStatus === "fulfilled") {
             if (action?.payload?.hasOwnProperty("id") && action?.payload?.status === 'captured') {
-                window.Moengage.track_event("TP_Monetization_Payment_Success", {
+                window.Moengage?.track_event?.("TP_Monetization_Payment_Success", {
                     doctor_name: profile?.um_name,
                     doctor_number: profile?.um_contact,
                     doctor_unique_id: profile?.doctor_unique_id,
@@ -347,7 +347,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                     errorMessage(actionPurchaseDetails.payload.message)
                 }
             } else {
-                window.Moengage.track_event("TP_Monetization_Payment_Failed", {
+                window.Moengage?.track_event?.("TP_Monetization_Payment_Failed", {
                     doctor_name: profile?.um_name,
                     doctor_number: profile?.um_contact,
                     doctor_unique_id: profile?.doctor_unique_id,
@@ -377,7 +377,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_GST_Tax_invoice", {
+        window.Moengage?.track_event?.("TP_Monetization_GST_Tax_invoice", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -473,7 +473,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
             const clinic_name = getClinicName(profile?.hospital_data);
             const tokenData = getTokenData();
             const deviceSdkData = getDeviceSdkData();
-            window.Moengage.track_event("TP_Monetization_RefferalCode", {
+            window.Moengage?.track_event?.("TP_Monetization_RefferalCode", {
                 doctor_name: profile?.um_name,
                 doctor_number: profile?.um_contact,
                 doctor_unique_id: profile?.doctor_unique_id,
@@ -520,7 +520,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_ContinueSalesRefferalStep1", {
+        window.Moengage?.track_event?.("TP_Monetization_ContinueSalesRefferalStep1", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -559,7 +559,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_SalesDiscountGiven", {
+        window.Moengage?.track_event?.("TP_Monetization_SalesDiscountGiven", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -578,7 +578,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_yearsofPruchaseValue", {
+        window.Moengage?.track_event?.("TP_Monetization_yearsofPruchaseValue", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
