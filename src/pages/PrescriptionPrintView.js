@@ -47,7 +47,6 @@ import { useZydusWhatsapp } from "../hooks/useZydusWhatsapp";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
 import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
-import useRouteReady from "../hooks/useRouteReady";
 const {
   messageSent,
   wtsp,
@@ -64,9 +63,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 
 let ppvMountCount = 0;
 function PrescriptionPrintView() {
-  useRouteReady();
-
-
     const divRef = useRef(null);
     const printRef = useRef();
     const sessionRxUrlRef = useRef(null);

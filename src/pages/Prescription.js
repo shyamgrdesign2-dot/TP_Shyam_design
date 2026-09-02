@@ -145,11 +145,8 @@ import {
 import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
 import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState, shouldUseVoiceRxNewUiNavigation } from "../utils/voiceRxNavigation";
-import useRouteReady from "../hooks/useRouteReady";
 
 function Prescription() {
-  useRouteReady();
-
   const {
     userId,
     customizedPadLeftList,

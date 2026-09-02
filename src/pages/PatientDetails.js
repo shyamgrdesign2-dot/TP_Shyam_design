@@ -61,7 +61,6 @@ import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
 import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
 import { TreatmentPlanEmbed } from "../components/dental/plan/TreatmentPlanPage";
-import useRouteReady from "../hooks/useRouteReady";
 
 const variables = ASSETS.scss.variables;
 const alertIcon = ASSETS.images.alerticon;
@@ -72,9 +71,6 @@ const BillingDashboard = React.lazy(() =>
 const { Sider, Content } = Layout;
 
 function PatientDetails() {
-  useRouteReady();
-
-
     const { profile, userId } = useSelector((state) => state.doctors);
     const { isLoading } = useSelector((state) => state.uploadDoc);
     const {

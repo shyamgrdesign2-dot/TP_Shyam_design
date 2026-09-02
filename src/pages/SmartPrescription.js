@@ -153,7 +153,6 @@ import {
   VITALS_ROW_DATE_FORMAT,
 } from "../utils/symptomCollectorVitalsMerge";
 import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
-import useRouteReady from "../hooks/useRouteReady";
 const {
   vitals,
   medicalHistory: MedicalHistory,
@@ -175,8 +174,6 @@ const {
 } = ASSETS.images;
 
 function SmartPrescription() {
-  useRouteReady();
-
   const {
     userId,
     profile,

@@ -32,6 +32,7 @@ import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
 import useRouteTracking from "./hooks/useRouteTracking";
 import useAppReady from "./hooks/useAppReady";
+import useRouteReady from "./hooks/useRouteReady";
 import { isProdEnv } from "./utils/environment";
 import {
   getNormalizedPhoneNumber,
@@ -315,6 +316,7 @@ function App() {
   // error and no partial data. Keep useAppReady after useRouteTracking.
   useRouteTracking();
   useAppReady();
+  useRouteReady();
   const { updateAvailable } = useVersionCheck();
 
   useEffect(() => {
