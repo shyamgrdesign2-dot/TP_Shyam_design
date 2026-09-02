@@ -30,7 +30,13 @@ export default function useRouteReady() {
       if (rootJson.op !== "navigation" || !rootJson.start_timestamp) return;
       const elapsedMs = Date.now() - rootJson.start_timestamp * 1000;
       if (elapsedMs < 0) return;
+      // setMeasurement shows in the trace UI, but Sentry's EAP dataset stores
+      // custom measurements as string attributes, so aggregation (p75 per route)
+      // fails on measurements.route_ready. Also write a numeric span attribute so
+      // p75(tags[route_ready_ms,number]) works — the per-route number this exists
+      // to produce.
       Sentry.setMeasurement("route_ready", elapsedMs, "millisecond");
+      root.setAttribute("route_ready_ms", Math.round(elapsedMs));
     } catch (e) {
       // Telemetry only — never let measurement failures reach the page.
     }
