@@ -161,5 +161,46 @@ export const isMetaInAppBrowserBridgeError = (event) => {
   return hasBridgeError && hasBridgeFrame;
 };
 
+// Google Tag Manager is injected from public/index.html (GTM-N5GKPHK). gtag.js
+// issues its own fetches to Google's analytics and ad endpoints — google.com,
+// www.google.com, ad.doubleclick.net — and does not catch the rejection when
+// one fails, so the browser reports an unhandled rejection and Sentry files it
+// against this project. Same shape as the Talkative case above: we hand the
+// browser a script tag and the vendor owns every promise after that.
+//
+// This was left unfiltered on purpose when it was first triaged in August 2026
+// (TATVAPRACTICE-1HX, resolved 2026-08-23): it was dormant, and the only
+// pattern broad enough to catch it looked like `chrome-extension://`, which
+// would have hidden every extension-injected error across the whole app. The
+// note written then said to add a narrow /gtag/js frame pattern here if it came
+// back. It came back — 1HX plus its sibling TATVAPRACTICE-18R accounted for 157
+// of 358 prod error events in the week to 2026-09-03, from two doctors whose
+// browser extensions block Google endpoints.
+//
+// Matching the frame rather than the message is what keeps this narrow. The
+// message ("Failed to fetch") is one of the most common real bugs in this
+// codebase and must keep reporting from our own code; a /gtag/js frame means
+// GTM's own bundle is in the call path. As with Talkative, these stacks also
+// carry one first-party frame — Sentry's own fetch instrumentation inside
+// main.js — underneath the vendor frames, so "any frame" is deliberate. It
+// stays safe because nothing here hands GTM a callback of ours to run, so a
+// first-party frame cannot appear for a reason other than instrumentation.
+//
+// chrome-extension:// is deliberately still NOT matched, per the original note.
+const GOOGLE_TAG_FRAME_PATTERNS = [/\/gtag\/js/i, /googletagmanager\.com/i];
+
+export const isGoogleTagFrame = (filename) =>
+  typeof filename === "string" &&
+  GOOGLE_TAG_FRAME_PATTERNS.some((pattern) => pattern.test(filename));
+
+/** True when any frame in the event comes from Google Tag Manager's bundle. */
+export const isGoogleTagManagerEvent = (event) =>
+  getEventFrames(event).some(
+    (frame) =>
+      isGoogleTagFrame(frame?.filename) || isGoogleTagFrame(frame?.abs_path)
+  );
+
 export const isUnactionableThirdPartyEvent = (event) =>
-  isTalkativeWidgetEvent(event) || isMetaInAppBrowserBridgeError(event);
+  isTalkativeWidgetEvent(event) ||
+  isMetaInAppBrowserBridgeError(event) ||
+  isGoogleTagManagerEvent(event);
