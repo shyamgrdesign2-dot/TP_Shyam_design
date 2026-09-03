@@ -1,11 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Button,
   TPLibraryIcon,
 } from "@dhspl-tatvacare/tesseract-ui";
 import { REPORTS } from "./reportsCatalog";
 import SectionBlock from "../sections/SectionBlock";
-import ReportDownloadDrawer from "./ReportDownloadDrawer";
 import usePermissions from "../data/usePermissions";
 
 const GROUPS = ["Financial", "Clinical"];
@@ -14,12 +13,12 @@ const GROUP_ICON = {
   Clinical: "activity",
 };
 
-export default function ReportsTab({ filters, department = "opd" }) {
-  const [active, setActive] = useState(null);
+export default function ReportsTab({ filters, department = "opd", onOpenReport }) {
   // Per-user report grants (legacy Role Assignment tables via Pm-Core).
   // Admins / fetch-failure / ungranted users see everything (fail open) —
   // see usePermissions for the rollout posture.
   const permissions = usePermissions(filters?.clinicId);
+  const openReport = onOpenReport || (() => {});
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -44,7 +43,7 @@ export default function ReportsTab({ filters, department = "opd" }) {
                 <div
                   key={r.id}
                   className="da-kpi-card"
-                  onClick={() => setActive(r)}
+                  onClick={() => openReport(r)}
                   style={{
                     display: "flex",
                     flexDirection: "column",
@@ -124,7 +123,7 @@ export default function ReportsTab({ filters, department = "opd" }) {
                       leftIcon={<TPLibraryIcon name="document-download" size={16} />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActive(r);
+                        openReport(r);
                       }}
                     >
                       Download
@@ -137,12 +136,6 @@ export default function ReportsTab({ filters, department = "opd" }) {
         );
       })}
 
-      <ReportDownloadDrawer
-        report={active}
-        department={department}
-        filters={filters}
-        onClose={() => setActive(null)}
-      />
     </div>
   );
 }

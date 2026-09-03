@@ -210,118 +210,46 @@ button[class*="_preset_"][data-selected="true"] {
   font-style: italic;
 }
 
-/* ── Report download panel ───────────────────────────────────────────── */
-
-/* Not a nested Tesseract/Radix Drawer. Those portal as a second dialog
-   inside the full-page analytics Drawer and fail after in-app navigation
-   (leftover dismiss layers / stacking). This panel is a plain body portal. */
-.da-report-drawer-root {
-  pointer-events: auto;
-}
-.da-report-drawer-overlay {
+/* Analytics is a full-page shell (not a Tesseract Drawer). The report
+   download Drawer is the only modal, so it is never stacked behind the page. */
+.da-page {
   position: fixed;
   inset: 0;
-  z-index: 400;
-  pointer-events: auto;
-  background: color-mix(in srgb, var(--tesseract-slate-900) 45%, transparent);
-}
-.da-report-drawer-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 401;
-  pointer-events: auto;
+  z-index: 40;
   display: flex;
   flex-direction: column;
-  width: min(40%, 520px);
-  height: 100vh;
-  background: var(--tesseract-slate-0, #fff);
-  border-left: 1px solid var(--tesseract-slate-200);
-  box-shadow: 0 16px 48px -12px color-mix(in srgb, var(--tesseract-slate-900) 24%, transparent);
-  color: var(--tesseract-slate-900);
-  font-family: var(--tesseract-font-body, inherit);
+  background: var(--tesseract-slate-50);
 }
-.da-report-drawer-header {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  height: 56px;
-  padding: 0 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--tesseract-slate-100) 70%, transparent);
-  gap: 0;
+
+/* ── Report download drawer ──────────────────────────────────────────── */
+
+.da-report-drawer-dialog {
+  z-index: 1000 !important;
+  pointer-events: auto !important;
 }
-.da-report-drawer-close {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: var(--tesseract-radius-8, 8px);
-  background: transparent;
-  color: var(--tesseract-slate-700);
-  cursor: pointer;
-}
-.da-report-drawer-close:hover {
-  background: var(--tesseract-slate-100);
-}
-.da-report-drawer-header-rule {
-  width: 1px;
-  height: 20px;
-  margin: 0 12px;
-  background: var(--tesseract-slate-300);
-}
-.da-report-drawer-header-text {
-  min-width: 0;
-}
-.da-report-drawer-header-text h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--tesseract-fg-heading, var(--tesseract-slate-900));
-}
-.da-report-drawer-header-text p {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--tesseract-fg-secondary, var(--tesseract-slate-500));
-}
-.da-report-drawer-panel .da-report-drawer {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px 20px 24px !important;
-}
-/* Date/dropdown menus portal to body and must sit above this panel. */
-body:has([data-da-report-drawer]) [data-radix-popper-content-wrapper],
-body:has([data-da-report-drawer]) [class*="_menu_"] {
-  z-index: 450 !important;
+[class*="_overlay_"][data-state="open"]:has(+ .da-report-drawer-dialog) {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999 !important;
+  pointer-events: auto !important;
 }
 
 /* ── Portaled SegmentedControl / primary button contrast ─────────────── */
 
 /* Host app forces inner spans dark. Restore white on accent surfaces for
-   Tesseract dialogs AND the report download panel (plain body portal,
-   not a Tesseract Drawer, so it is outside .da-root). */
+   Tesseract dialogs (report download Drawer portals outside .da-root). */
 [data-radix-popper-content-wrapper] button[class*="_item_"][aria-checked="true"],
 [data-radix-popper-content-wrapper] button[class*="_item_"][aria-checked="true"] [class*="_label"],
 div[role="dialog"] button[class*="_item_"][aria-checked="true"],
-div[role="dialog"] button[class*="_item_"][aria-checked="true"] [class*="_label"],
-.da-report-drawer-panel button[class*="_item_"][aria-checked="true"],
-.da-report-drawer-panel button[class*="_item_"][aria-checked="true"] [class*="_label"] {
+div[role="dialog"] button[class*="_item_"][aria-checked="true"] [class*="_label"] {
   color: var(--tesseract-fg-inverse, #fff) !important;
 }
 
 div[role="dialog"] button[data-variant="solid"][data-theme="primary"],
-div[role="dialog"] button[data-variant="solid"][data-theme="primary"] *,
-.da-report-drawer-panel button[data-variant="solid"][data-theme="primary"],
-.da-report-drawer-panel button[data-variant="solid"][data-theme="primary"] * {
+div[role="dialog"] button[data-variant="solid"][data-theme="primary"] * {
   color: var(--tesseract-fg-inverse, #fff) !important;
 }
-div[role="dialog"] button[data-variant="solid"][data-theme="primary"] [data-tp-icon],
-.da-report-drawer-panel button[data-variant="solid"][data-theme="primary"] [data-tp-icon] {
+div[role="dialog"] button[data-variant="solid"][data-theme="primary"] [data-tp-icon] {
   background-color: var(--tesseract-fg-inverse, #fff) !important;
 }
 
