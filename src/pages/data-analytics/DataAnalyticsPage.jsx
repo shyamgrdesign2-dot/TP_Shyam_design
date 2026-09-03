@@ -338,7 +338,24 @@ export default function DataAnalyticsPage() {
   return (
     <TesseractThemeProvider colorScheme="light">
       <Drawer open={open} onOpenChange={(v) => (!v ? close() : setOpen(v))}>
-        <DrawerContent side="right" width="full" showClose={false} bodyPadding={0}>
+        <DrawerContent
+          side="right"
+          width="full"
+          showClose={false}
+          bodyPadding={0}
+          onPointerDownOutside={(event) => {
+            if (document.querySelector("[data-da-report-drawer]")) event.preventDefault();
+          }}
+          onFocusOutside={(event) => {
+            if (document.querySelector("[data-da-report-drawer]")) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (document.querySelector("[data-da-report-drawer]")) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (document.querySelector("[data-da-report-drawer]")) event.preventDefault();
+          }}
+        >
           <div
             className="da-root"
             style={{
