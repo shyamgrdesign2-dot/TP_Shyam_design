@@ -210,19 +210,34 @@ button[class*="_preset_"][data-selected="true"] {
   font-style: italic;
 }
 
-/* ── Report drawer overlay ───────────────────────────────────────────── */
+/* ── Page shell ──────────────────────────────────────────────────────── */
 
-/* The report download drawer is a nested Drawer inside the main full-page
-   analytics Drawer. Both portals render overlay (z-50) + dialog (z-51) as
-   direct body children. The inner drawer's overlay ends up behind the outer
-   dialog because z-50 < z-51. Bump the second pair so the report drawer
-   stacks above the main drawer. The selector targets: any overlay that
-   follows a dialog (i.e. the second overlay in body, which is the inner one). */
-body > div[role="dialog"][data-state="open"] ~ div[class*="_overlay_"][data-state="open"] {
-  z-index: 52 !important;
+/* The analytics route owns the whole viewport. This is plain layout — it
+   deliberately stays BELOW Tesseract's dialog layer (overlay 50 / content 51)
+   so the report download Drawer, the only dialog on this screen, stacks over
+   it by the design system's own rules. Nothing here overrides a DS z-index.
+
+   Previously the page was itself a Drawer, which made the report drawer a
+   nested dialog; DialogPrimitive has no per-nesting-level layering, so the
+   nested scrim landed under the page panel and the app had to re-stack the
+   portals with a body-sibling-order selector. Both are gone. */
+.da-page {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: var(--tesseract-slate-50);
+  animation: da-page-in 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
-body > div[role="dialog"][data-state="open"] ~ div[class*="_overlay_"][data-state="open"] + div[role="dialog"][data-state="open"] {
-  z-index: 53 !important;
+
+@keyframes da-page-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .da-page { animation: none; }
 }
 
 /* ── Portaled SegmentedControl fix ───────────────────────────────────── */
