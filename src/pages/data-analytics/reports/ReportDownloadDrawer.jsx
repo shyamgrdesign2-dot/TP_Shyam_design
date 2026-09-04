@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
+  Drawer,
+  DrawerContent,
   DateRangePicker,
   SegmentedControl,
   Dropdown,
@@ -63,17 +65,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   useEffect(() => {
     if (open && report) trackAnalytics(EVENTS.REPORT_OPENED, { department, report_name: report.label || report.id });
   }, [open, report, department]);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      onClose();
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [open, onClose]);
   const [range, setRange] = useState(null);
   const [type, setType] = useState(department);
   const [downloading, setDownloading] = useState(false);
@@ -468,32 +459,14 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     }
   };
 
-  if (!open) return null;
-
-  return createPortal(
-    <div data-da-report-drawer className="da-report-drawer-root">
-      <div className="da-report-drawer-overlay" onClick={onClose} />
-      <aside
-        className="da-report-drawer-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="da-report-drawer-title"
+  return (
+    <Drawer open={open} onOpenChange={(v) => (!v ? onClose() : null)}>
+      <DrawerContent
+        side="right"
+        width="40%"
+        title={report?.label || "Download report"}
+        description={report ? `${report.group} report` : ""}
       >
-        <header className="da-report-drawer-header">
-          <button
-            type="button"
-            className="da-report-drawer-close"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <TPLibraryIcon name="close-square" variant="bold" size={22} />
-          </button>
-          <span className="da-report-drawer-header-rule" aria-hidden="true" />
-          <div className="da-report-drawer-header-text">
-            <h2 id="da-report-drawer-title">{report?.label || "Download report"}</h2>
-            {report ? <p>{`${report.group} report`}</p> : null}
-          </div>
-        </header>
         <div className="da-report-drawer" style={{ display: "flex", flexDirection: "column", gap: 20, padding: 4 }}>
           {needsAppointmentReportType && (
             <Field label="Report Type">
@@ -881,6 +854,10 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             Download CSV
           </Button>
         </div>
+
+        {/* Portal to <body>: DrawerContent animates with a CSS transform,
+            which turns position:fixed descendants into drawer-relative
+            boxes and pushes them off screen. */}
         {toast &&
           createPortal(
             <div
@@ -890,7 +867,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
                 top: 24,
                 left: "50%",
                 transform: "translateX(-50%)",
-                zIndex: 10050,
+                zIndex: 10000,
                 minWidth: 420,
                 maxWidth: "90vw",
               }}
@@ -908,9 +885,8 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             </div>,
             document.body
           )}
-      </aside>
-    </div>,
-    document.body
+      </DrawerContent>
+    </Drawer>
   );
 }
 
