@@ -210,8 +210,17 @@ button[class*="_preset_"][data-selected="true"] {
   font-style: italic;
 }
 
-/* Analytics is a full-page shell (not a Tesseract Drawer). The report
-   download Drawer is the only modal, so it is never stacked behind the page. */
+/* ── Page shell ──────────────────────────────────────────────────────── */
+
+/* The analytics route owns the whole viewport. This is plain layout — it
+   deliberately stays BELOW Tesseract's dialog layer (overlay 50 / content 51)
+   so the report download Drawer, the only dialog on this screen, stacks over
+   it by the design system's own rules. Nothing here overrides a DS z-index.
+
+   Previously the page was itself a Drawer, which made the report drawer a
+   nested dialog; DialogPrimitive has no per-nesting-level layering, so the
+   nested scrim landed under the page panel and the app had to re-stack the
+   portals with a body-sibling-order selector. Both are gone. */
 .da-page {
   position: fixed;
   inset: 0;
@@ -219,25 +228,21 @@ button[class*="_preset_"][data-selected="true"] {
   display: flex;
   flex-direction: column;
   background: var(--tesseract-slate-50);
+  animation: da-page-in 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* ── Report download drawer ──────────────────────────────────────────── */
-
-.da-report-drawer-dialog {
-  z-index: 1000 !important;
-  pointer-events: auto !important;
-}
-[class*="_overlay_"][data-state="open"]:has(+ .da-report-drawer-dialog) {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 999 !important;
-  pointer-events: auto !important;
+@keyframes da-page-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
-/* ── Portaled SegmentedControl / primary button contrast ─────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .da-page { animation: none; }
+}
 
-/* Host app forces inner spans dark. Restore white on accent surfaces for
-   Tesseract dialogs (report download Drawer portals outside .da-root). */
+/* ── Portaled SegmentedControl fix ───────────────────────────────────── */
+
+/* Active primary SegmentedControl segment in portaled drawers (outside .da-root) */
 [data-radix-popper-content-wrapper] button[class*="_item_"][aria-checked="true"],
 [data-radix-popper-content-wrapper] button[class*="_item_"][aria-checked="true"] [class*="_label"],
 div[role="dialog"] button[class*="_item_"][aria-checked="true"],
@@ -245,6 +250,7 @@ div[role="dialog"] button[class*="_item_"][aria-checked="true"] [class*="_label"
   color: var(--tesseract-fg-inverse, #fff) !important;
 }
 
+/* Solid primary buttons inside portaled drawers */
 div[role="dialog"] button[data-variant="solid"][data-theme="primary"],
 div[role="dialog"] button[data-variant="solid"][data-theme="primary"] * {
   color: var(--tesseract-fg-inverse, #fff) !important;

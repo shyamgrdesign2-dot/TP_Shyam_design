@@ -1,5 +1,5 @@
-// Stops react-beautiful-dnd's drop-animation listener from dispatching twice
-// for a single drop.
+// Keeps react-beautiful-dnd's drop-animation listener from turning a duplicate
+// transitionend into a thrown assertion.
 //
 // TATVAPRACTICE-NQ: 255 events, 68 doctors, /prescription. Sentry titles it "c"
 // (a minified frame) because the thrown value is a plain object rather than an
@@ -11,81 +11,78 @@
 //   var onTransitionEnd =
 //     mapped.type === 'DRAGGING' && mapped.dropping ? onMoveEnd : null;
 //
-// onMoveEnd checks it is mid-drag, that a drop is animating, and that
-// event.propertyName is "transform", then dispatches DROP_ANIMATION_FINISHED.
-// The reducer asserts the store is still in the DROP_ANIMATING phase when that
-// action lands. The first dispatch moves it out of that phase, so a *second*
-// dispatch inside the same drop trips the assertion — and a production build
-// compiles that assertion without a message, hence the bare "Invariant failed".
+// onMoveEnd dispatches DROP_ANIMATION_FINISHED for any transitionend whose
+// propertyName is "transform". The reducer asserts the store is still in the
+// DROP_ANIMATING phase when that action lands. The first dispatch moves it out,
+// so a second dispatch inside the same drop trips the assertion — and a
+// production build compiles that assertion without a message, hence the bare
+// "Invariant failed".
 //
-// A second dispatch is easy to come by: the row carries more than one
-// transform-animating thing (antd's own transitions, the .taper-dose badge),
-// and the handler stays attached until React re-renders it away, which is not
-// synchronous with the animation ending.
+// A duplicate is easy to come by: the row carries more than one
+// transform-animating thing, and the handler stays attached until React
+// re-renders it away, which is not synchronous with the animation ending.
 //
-// Why the previous attempt (PR #4031) did not work. It forwarded the event only
-// when `event.target === event.currentTarget`, on the theory that the stray
-// transition came from a child. The captured events disprove that — target is
-// the draggable row itself:
+// Two guards, in order:
 //
-//   target:        div.ant-row.taper-dose.align-items-center.border-bottom
-//   currentTarget: body > div#root   (React 18's delegation root)
+//   1. Only forward events raised on the draggable element itself. A
+//      descendant's transform transition would otherwise be forwarded, RBD
+//      would dispatch while the phase is still DROP_ANIMATING (so no throw) and
+//      the drop animation would end early — a visible regression rather than a
+//      logged one. The draggable is identified by the data attribute RBD puts
+//      on it, which no descendant carries; `event.currentTarget` is not usable
+//      here, since React 18 delegates at the root container.
 //
-// so the check passed the event straight through and changed nothing.
+//   2. Swallow RBD's own assertion if it fires anyway. By the time it throws,
+//      the first dispatch has already completed the drop — the state the
+//      assertion is protecting is fine, and the throw is the library
+//      complaining about being told twice. Only that exact message is
+//      swallowed; anything else propagates untouched.
 //
-// What this does instead: forward the first transform transitionend of a drop
-// and ignore the rest, which is exactly the one dispatch the reducer expects.
-// The latch is keyed on the draggable's own id — RBD's onMoveEnd identity is
-// not stable (its useCallback lists `mapped`, which changes during the drop),
-// so the function itself cannot be used as the key. When a drop is not
-// animating RBD passes onTransitionEnd: null, and that is the signal to clear
-// the latch for the next drop.
+// Deliberately stateless. An earlier revision latched "one dispatch per drop"
+// in a module-level Map keyed on the draggable id. Review found that key is not
+// unique across the app (AdviceBox, TabAdviceBox and TabAdviceSearch all emit
+// `advice-${index}`), that clearing the latch meant mutating module state
+// during render at twelve call sites, and that rows unmounting mid-drop leaked
+// entries permanently. None of those risks exist without the state.
 
-// When each draggable id last dispatched, so a repeat inside the same drop can
-// be recognised. Two things clear it, and they cover each other's gap:
-//
-//   - RBD rendering onTransitionEnd: null, which always follows a finished
-//     drop. Exact, and the normal path.
-//   - The entry ageing out. Needed because the first clause never runs if the
-//     row unmounts mid-drop (navigating away, the list re-keying). Without it a
-//     stale id would sit here for the life of the page and swallow the *real*
-//     dispatch of that row's next drop, which would leave the store stuck in
-//     DROP_ANIMATING — a worse bug than the one being fixed.
-//
-// RBD's drop animation is ~330ms; the window is comfortably longer than that
-// and far shorter than any plausible drag-drop-drag of the same row.
-const DROP_DISPATCH_WINDOW_MS = 1000;
-const lastDispatchAt = new Map();
+// RBD's assertion message in a production build, where invariant() is compiled
+// without the developer-facing detail. See its `var prefix = 'Invariant failed'`.
+const RBD_INVARIANT_MESSAGE = "Invariant failed";
+
+const RBD_DRAGGABLE_ID_ATTRIBUTE = "data-rbd-draggable-id";
+
+// True when the transition ended on the draggable itself rather than on
+// something inside it. Falls back to forwarding when the id or the DOM node is
+// not available, so an unrecognised shape degrades to current behaviour instead
+// of silently dropping the real dispatch.
+const isRaisedOnDraggable = (event, draggableId) => {
+  if (draggableId == null) return true;
+  const target = event.target;
+  if (!target || typeof target.getAttribute !== "function") return true;
+  return target.getAttribute(RBD_DRAGGABLE_ID_ATTRIBUTE) === draggableId;
+};
 
 export const guardDropAnimation = (draggableProps) => {
   if (!draggableProps) return draggableProps;
 
-  const draggableId = draggableProps["data-rbd-draggable-id"];
   const onTransitionEnd = draggableProps.onTransitionEnd;
+  // Null whenever no drop is animating, which is almost always.
+  if (typeof onTransitionEnd !== "function") return draggableProps;
 
-  // No handler means no drop is animating, so the next one starts clean.
-  if (typeof onTransitionEnd !== "function") {
-    if (draggableId != null) lastDispatchAt.delete(draggableId);
-    return draggableProps;
-  }
+  const draggableId = draggableProps[RBD_DRAGGABLE_ID_ATTRIBUTE];
 
   return {
     ...draggableProps,
     onTransitionEnd: (event) => {
-      // Only the drop animation's own property is worth forwarding. RBD
-      // ignores the rest anyway, and checking here stops an unrelated
-      // transition from consuming this drop's single dispatch.
       if (!event || event.propertyName !== "transform") return;
+      if (!isRaisedOnDraggable(event, draggableId)) return;
 
-      if (draggableId != null) {
-        const now = Date.now();
-        const previous = lastDispatchAt.get(draggableId);
-        if (previous != null && now - previous < DROP_DISPATCH_WINDOW_MS)
-          return;
-        lastDispatchAt.set(draggableId, now);
+      try {
+        onTransitionEnd(event);
+      } catch (error) {
+        if (error && error.message === RBD_INVARIANT_MESSAGE) return;
+        throw error;
       }
-
-      onTransitionEnd(event);
     },
   };
 };

@@ -462,7 +462,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   return (
     <Drawer open={open} onOpenChange={(v) => (!v ? onClose() : null)}>
       <DrawerContent
-        className="da-report-drawer-dialog"
         side="right"
         width="40%"
         title={report?.label || "Download report"}

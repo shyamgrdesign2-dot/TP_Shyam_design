@@ -3,117 +3,167 @@ import { guardDropAnimation } from "./dndTransitionGuard";
 // Shapes taken from react-beautiful-dnd 13.1.1. draggableProps carries an
 // onTransitionEnd only while a drop is animating, and always carries the
 // draggable's id.
-const dropping = (onTransitionEnd, id = "medication-3") => ({
+const DRAGGABLE_ID = "medication-3";
+
+const dropping = (onTransitionEnd, id = DRAGGABLE_ID) => ({
   "data-rbd-draggable-id": id,
   "data-rbd-draggable-context-id": "0",
   style: { transform: "translate(0px, 12px)" },
   onTransitionEnd,
 });
 
-const idle = (id = "medication-3") => ({
+const idle = (id = DRAGGABLE_ID) => ({
   "data-rbd-draggable-id": id,
   "data-rbd-draggable-context-id": "0",
   style: {},
   onTransitionEnd: null,
 });
 
-const transformEnd = (target = { id: "row" }) => ({
-  propertyName: "transform",
-  target,
-  currentTarget: target,
+// The draggable row: the element RBD stamps with the id attribute.
+const rowElement = (id = DRAGGABLE_ID) => ({
+  getAttribute: (name) => (name === "data-rbd-draggable-id" ? id : null),
 });
 
-describe("guardDropAnimation", () => {
-  it("forwards the drop animation's first transform transitionend", () => {
-    const inner = jest.fn();
-    const event = transformEnd();
+// Anything inside the row carries no such attribute.
+const childElement = () => ({ getAttribute: () => null });
 
-    guardDropAnimation(dropping(inner, "first-forward")).onTransitionEnd(event);
+const transitionEnd = (target, propertyName = "transform") => ({
+  propertyName,
+  target,
+  // React 18 delegates at the root container, so currentTarget is not the row.
+  currentTarget: { id: "root" },
+});
+
+const rbdInvariant = () => {
+  const error = new Error("Invariant failed");
+  return error;
+};
+
+describe("guardDropAnimation", () => {
+  it("forwards a transform transitionend raised on the draggable itself", () => {
+    const inner = jest.fn();
+    const event = transitionEnd(rowElement());
+
+    guardDropAnimation(dropping(inner)).onTransitionEnd(event);
 
     expect(inner).toHaveBeenCalledWith(event);
   });
 
-  it("swallows a second transform transitionend in the same drop", () => {
-    // TATVAPRACTICE-NQ. The first dispatch moves the store out of
-    // DROP_ANIMATING; a second one trips the reducer assertion and throws
-    // "Invariant failed".
-    const inner = jest.fn();
-    const guarded = guardDropAnimation(dropping(inner, "second-swallowed"));
+  it("swallows RBD's duplicate-dispatch assertion", () => {
+    // TATVAPRACTICE-NQ. The first dispatch completes the drop; a second one
+    // reaches the reducer after the phase has moved on and trips its assertion,
+    // which a production build throws with no message beyond the prefix.
+    const inner = jest.fn(() => {
+      throw rbdInvariant();
+    });
 
-    guarded.onTransitionEnd(transformEnd());
-    guarded.onTransitionEnd(transformEnd());
-    guarded.onTransitionEnd(transformEnd());
-
+    expect(() =>
+      guardDropAnimation(dropping(inner)).onTransitionEnd(
+        transitionEnd(rowElement()),
+      ),
+    ).not.toThrow();
     expect(inner).toHaveBeenCalledTimes(1);
   });
 
-  it("swallows the second event even across re-renders of the same drop", () => {
-    // RBD's onMoveEnd identity changes during a drop (its useCallback lists
-    // `mapped`), so the latch cannot key on the function — this is the case
-    // that a function-identity latch would miss.
+  it("rethrows anything that is not that assertion", () => {
+    // The catch is narrow on purpose — a real bug inside the drop handler must
+    // still reach the error boundary and Sentry.
+    const inner = jest.fn(() => {
+      throw new TypeError("Cannot read properties of null (reading 'foo')");
+    });
+
+    expect(() =>
+      guardDropAnimation(dropping(inner)).onTransitionEnd(
+        transitionEnd(rowElement()),
+      ),
+    ).toThrow("Cannot read properties of null (reading 'foo')");
+  });
+
+  it("ignores a transition raised on a descendant of the draggable", () => {
+    // A child animating transform would otherwise be forwarded, and RBD would
+    // finish the drop animation early while the phase is still DROP_ANIMATING —
+    // no throw, but a visibly truncated animation.
+    const inner = jest.fn();
+
+    guardDropAnimation(dropping(inner)).onTransitionEnd(
+      transitionEnd(childElement()),
+    );
+
+    expect(inner).not.toHaveBeenCalled();
+  });
+
+  it("does not confuse two draggables that share an id", () => {
+    // AdviceBox, TabAdviceBox and TabAdviceSearch all emit `advice-${index}`,
+    // so the same id string exists in more than one DragDropContext. Each
+    // guard only ever forwards events from its own element, and holds no
+    // shared state, so one cannot suppress the other.
+    const listA = jest.fn();
+    const listB = jest.fn();
+
+    guardDropAnimation(dropping(listA, "advice-0")).onTransitionEnd(
+      transitionEnd(rowElement("advice-0")),
+    );
+    guardDropAnimation(dropping(listB, "advice-0")).onTransitionEnd(
+      transitionEnd(rowElement("advice-0")),
+    );
+
+    expect(listA).toHaveBeenCalledTimes(1);
+    expect(listB).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards every drop, however fast they follow each other", () => {
+    // Keyboard dragging can complete two drops of the same row inside a second.
+    // Both must dispatch; suppressing the second would leave RBD's store stuck
+    // in DROP_ANIMATING.
     const first = jest.fn();
     const second = jest.fn();
 
-    guardDropAnimation(dropping(first, "across-renders")).onTransitionEnd(transformEnd());
-    guardDropAnimation(dropping(second, "across-renders")).onTransitionEnd(transformEnd());
+    guardDropAnimation(dropping(first)).onTransitionEnd(
+      transitionEnd(rowElement()),
+    );
+    guardDropAnimation(dropping(second)).onTransitionEnd(
+      transitionEnd(rowElement()),
+    );
 
     expect(first).toHaveBeenCalledTimes(1);
-    expect(second).not.toHaveBeenCalled();
-  });
-
-  it("re-arms once the drop finishes and RBD drops the handler", () => {
-    const firstDrop = jest.fn();
-    const secondDrop = jest.fn();
-
-    guardDropAnimation(dropping(firstDrop, "re-arm")).onTransitionEnd(transformEnd());
-    // Drop over: RBD re-renders with onTransitionEnd: null.
-    guardDropAnimation(idle("re-arm"));
-    guardDropAnimation(dropping(secondDrop, "re-arm")).onTransitionEnd(transformEnd());
-
-    expect(firstDrop).toHaveBeenCalledTimes(1);
-    expect(secondDrop).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps drops on different rows independent", () => {
-    const rowA = jest.fn();
-    const rowB = jest.fn();
-
-    guardDropAnimation(dropping(rowA, "medication-1")).onTransitionEnd(
-      transformEnd(),
-    );
-    guardDropAnimation(dropping(rowB, "medication-2")).onTransitionEnd(
-      transformEnd(),
-    );
-
-    expect(rowA).toHaveBeenCalledTimes(1);
-    expect(rowB).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
   });
 
   it("ignores transitions of other properties", () => {
-    // An opacity or border-color transition must not consume the drop's single
-    // dispatch, or the real one would be swallowed.
     const inner = jest.fn();
-    const guarded = guardDropAnimation(dropping(inner, "other-props"));
+    const guarded = guardDropAnimation(dropping(inner));
 
-    guarded.onTransitionEnd({ propertyName: "opacity", target: {} });
+    guarded.onTransitionEnd(transitionEnd(rowElement(), "opacity"));
     expect(inner).not.toHaveBeenCalled();
 
-    guarded.onTransitionEnd(transformEnd());
+    guarded.onTransitionEnd(transitionEnd(rowElement()));
     expect(inner).toHaveBeenCalledTimes(1);
   });
 
-  it("forwards an event raised on the row itself", () => {
-    // The regression that PR #4031 got wrong: the captured events show target
-    // IS the draggable row, so a target/currentTarget equality check does not
-    // filter anything.
-    const inner = jest.fn();
-    const row = { id: "taper-dose-row" };
+  it("leaves props untouched when no drop is animating", () => {
+    const props = idle();
 
-    guardDropAnimation(dropping(inner, "row-itself")).onTransitionEnd({
-      propertyName: "transform",
-      target: row,
-      currentTarget: row,
-    });
+    expect(guardDropAnimation(props)).toBe(props);
+  });
+
+  it("forwards when the target cannot be identified", () => {
+    // An unrecognised event shape degrades to previous behaviour rather than
+    // silently swallowing the drop's real dispatch.
+    const inner = jest.fn();
+    const guarded = guardDropAnimation(dropping(inner));
+
+    guarded.onTransitionEnd({ propertyName: "transform", target: null });
+    guarded.onTransitionEnd({ propertyName: "transform" });
+
+    expect(inner).toHaveBeenCalledTimes(2);
+  });
+
+  it("forwards when RBD supplies no draggable id", () => {
+    const inner = jest.fn();
+    const props = dropping(inner);
+    delete props["data-rbd-draggable-id"];
+
+    guardDropAnimation(props).onTransitionEnd(transitionEnd(childElement()));
 
     expect(inner).toHaveBeenCalledTimes(1);
   });
@@ -124,16 +174,15 @@ describe("guardDropAnimation", () => {
 
     const inner = jest.fn();
     expect(() =>
-      guardDropAnimation(dropping(inner, "malformed")).onTransitionEnd(undefined),
+      guardDropAnimation(dropping(inner)).onTransitionEnd(undefined),
     ).not.toThrow();
     expect(inner).not.toHaveBeenCalled();
   });
 
   it("passes the rest of draggableProps through untouched", () => {
-    const props = dropping(jest.fn());
-    const guarded = guardDropAnimation(props);
+    const guarded = guardDropAnimation(dropping(jest.fn()));
 
-    expect(guarded["data-rbd-draggable-id"]).toBe("medication-3");
+    expect(guarded["data-rbd-draggable-id"]).toBe(DRAGGABLE_ID);
     expect(guarded["data-rbd-draggable-context-id"]).toBe("0");
     expect(guarded.style).toEqual({ transform: "translate(0px, 12px)" });
   });
