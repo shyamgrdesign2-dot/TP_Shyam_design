@@ -2,6 +2,8 @@ import React, { useMemo, useState, useRef, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom";
 import {
   TesseractThemeProvider,
+  Drawer,
+  DrawerContent,
   Sidebar,
   HeroBanner,
   SectionCard,
@@ -31,7 +33,6 @@ import AdmissionsDepthSection from "./sections/AdmissionsDepthSection";
 import WardsSection from "./sections/WardsSection";
 import ClinicalActivitySection from "./sections/ClinicalActivitySection";
 import ReportsTab from "./reports/ReportsTab";
-import ReportDownloadDrawer from "./reports/ReportDownloadDrawer";
 import useFilterOptions from "./data/useFilterOptions";
 import useCapabilities from "./data/useCapabilities";
 import { trackAnalytics, EVENTS } from "./data/analyticsTracking";
@@ -108,12 +109,12 @@ export default function DataAnalyticsPage() {
   );
   const isConsultModesOnly = accessMode === DA_ACCESS_CONSULT_MODES;
 
+  const [open, setOpen] = useState(true);
   const [department, setDepartment] = useState("opd");
   const [section, setSection] = useState(
     isConsultModesOnly ? "consultation-modes" : "overview"
   );
   const [subTab, setSubTab] = useState("all");
-  const [downloadReport, setDownloadReport] = useState(null);
 
   // What this account is configured for (role, clinics, modules, modes) —
   // features a clinic/doctor doesn't have are never rendered (spec §1.7).
@@ -135,21 +136,6 @@ export default function DataAnalyticsPage() {
       trackAnalytics(EVENTS.CLOSED, { department, section, time_spent_seconds: seconds });
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // In-app navigation leaves react-remove-scroll / Radix locks on <body>
-  // (`pointer-events: none`). A hard refresh of /data-analytics-x does not.
-  // Unlock so the report Drawer (a sibling modal) can receive clicks.
-  useEffect(() => {
-    const unlock = () => {
-      document.body.style.removeProperty("pointer-events");
-      document.body.style.removeProperty("overflow");
-      document.body.style.removeProperty("padding-right");
-      document.body.removeAttribute("data-scroll-locked");
-    };
-    unlock();
-    const id = window.requestAnimationFrame(unlock);
-    return () => window.cancelAnimationFrame(id);
-  }, []);
 
   // Only Care has sub-tabs; Grow is a single combined view (user ruling).
   // Procedures / Gynec / Obstetric tabs were REMOVED (API-CONTRACTS-CURRENT
@@ -293,8 +279,8 @@ export default function DataAnalyticsPage() {
   );
 
   const close = () => {
-    setDownloadReport(null);
-    navigate(-1);
+    setOpen(false);
+    window.setTimeout(() => navigate(-1), 240);
   };
 
   const onDepartmentChange = (value) => {
@@ -351,7 +337,25 @@ export default function DataAnalyticsPage() {
 
   return (
     <TesseractThemeProvider colorScheme="light">
-      <div className="da-page">
+      <Drawer open={open} onOpenChange={(v) => (!v ? close() : setOpen(v))}>
+        <DrawerContent
+          side="right"
+          width="full"
+          showClose={false}
+          bodyPadding={0}
+          onPointerDownOutside={(event) => {
+            if (document.querySelector("[data-da-report-drawer]")) event.preventDefault();
+          }}
+          onFocusOutside={(event) => {
+            if (document.querySelector("[data-da-report-drawer]")) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (document.querySelector("[data-da-report-drawer]")) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (document.querySelector("[data-da-report-drawer]")) event.preventDefault();
+          }}
+        >
           <div
             className="da-root"
             style={{
@@ -519,7 +523,6 @@ export default function DataAnalyticsPage() {
                         hero={hero}
                         subTab={subTab}
                         isConsultModesOnly={isConsultModesOnly}
-                        onOpenReport={setDownloadReport}
                       />
                     </div>
                   </div>
@@ -527,13 +530,8 @@ export default function DataAnalyticsPage() {
               </main>
             </div>
           </div>
-      </div>
-      <ReportDownloadDrawer
-        report={downloadReport}
-        department={subTab === "ipd" ? "ipd" : "opd"}
-        filters={filters}
-        onClose={() => setDownloadReport(null)}
-      />
+        </DrawerContent>
+      </Drawer>
     </TesseractThemeProvider>
   );
 }
@@ -546,7 +544,7 @@ function isComparable(range) {
   return days <= 90;
 }
 
-function SectionContent({ department, section, filters, hero, subTab, isConsultModesOnly, onOpenReport }) {
+function SectionContent({ department, section, filters, hero, subTab, isConsultModesOnly }) {
   // Mission Hospital: mount only Consultation Modes so other section hooks never fire.
   if (isConsultModesOnly) {
     return <ConsultationModesSection filters={filters} />;
@@ -571,7 +569,7 @@ function SectionContent({ department, section, filters, hero, subTab, isConsultM
       case "messages":
         return <MessagesSection filters={filters} />;
       case "reports":
-        return <ReportsTab filters={filters} department={subTab === "ipd" ? "ipd" : "opd"} onOpenReport={onOpenReport} />;
+        return <ReportsTab filters={filters} department={subTab === "ipd" ? "ipd" : "opd"} />;
       default:
         break;
     }
@@ -589,7 +587,7 @@ function SectionContent({ department, section, filters, hero, subTab, isConsultM
       case "billing":
         return <BillingSection filters={filters} department="ipd" />;
       case "reports":
-        return <ReportsTab filters={filters} department={subTab === "ipd" ? "ipd" : "opd"} onOpenReport={onOpenReport} />;
+        return <ReportsTab filters={filters} department={subTab === "ipd" ? "ipd" : "opd"} />;
       default:
         break;
     }
