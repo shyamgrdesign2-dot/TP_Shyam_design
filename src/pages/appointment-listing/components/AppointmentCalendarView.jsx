@@ -12,9 +12,11 @@ import {
 
 import { ASSETS } from "../../../assets";
 import useDoctorSlots from "../data/useDoctorSlots";
+import useReceptionistDoctorSlots from "../../receptionist-appointment-listing/data/useReceptionistDoctorSlots";
 import { STATUS_META, statusMeta, visitMeta, shortGenderAge, CONDITION_COLORS } from "../data/appointmentStates";
 import { TAB_IDS } from "../data/appointmentsConfig";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
+import { ReceptionistRowKebabMenu, receptionistRowPrimaryAction } from "../../receptionist-appointment-listing/components/receptionistRowActions";
 import QueueRxSplitButton from "./QueueRxSplitButton";
 import AppointmentEventCard from "./AppointmentEventCard";
 import BillingTag, { StatusTag } from "./BillingTag";
@@ -354,11 +356,12 @@ export function MiniDatePopover({ anchor, onPick, onClose, maxDate = null }) {
  * below the card depending on which side it fits, measured after mount rather
  * than estimated, and carries the CTA that small cards can't show inline.
  */
-function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, onMouseEnter, onMouseLeave }) {
+function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, onMouseEnter, onMouseLeave, receptionistMode = false }) {
   // Act on this appointment's own status inside the merged "All" view.
   const cardTab = row.status || tabId;
   const access = useListingAccess();
-  const { showBilling } = access;
+  const { showBilling: showBillingDoctor } = access;
+  const showBilling = receptionistMode ? false : showBillingDoctor;
   const act = (id, r) => {
     onRowAction?.(id, r);
     /* Keep the popover mounted through the current pointer-down so a
@@ -369,7 +372,9 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
     }
     onClose();
   };
-  const primary = rowPrimaryAction(cardTab, row, act, access);
+  const primary = receptionistMode
+    ? receptionistRowPrimaryAction()
+    : rowPrimaryAction(cardTab, row, act, access);
   const canShowAbha = Boolean(
     (row.abhaAddress || row.raw?.abhaAddress) && access.hipId && access.abhaEnable
   );
@@ -405,7 +410,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
      hasVideo on the record, but joining is no longer a valid action — and
      rendering Join alone used to force the actions footer open, which then
      drew a second kebab next to the head one (cancelled has no primary). */
-  const showJoin = row.hasVideo && cardTab === TAB_IDS.QUEUE;
+  const showJoin = !receptionistMode && row.hasVideo && cardTab === TAB_IDS.QUEUE;
   const showActionsFooter = !!(primary || showJoin);
   /* Two boxes on purpose: the outer one positions and carries the caret,
      the inner one clips its children to the 12px radius. A single box can't
@@ -474,7 +479,12 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
         </div>
         {/* Cancelled (and any other no-CTA) rows put the kebab here; when the
             footer is open the kebab lives there instead — never both. */}
-        {!showActionsFooter && <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />}
+        {!showActionsFooter &&
+          (receptionistMode ? (
+            <ReceptionistRowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          ) : (
+            <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          ))}
       </div>
 
       {/* Icon-led rows: the glyph names the field, so no label column is
@@ -539,7 +549,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
       {showActionsFooter && (
         <div className={styles.popoverActions}>
           <span className={styles.popoverActionsLead}>
-            {primary && (
+            {!receptionistMode && primary && (
               cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL ? (
                 <QueueRxSplitButton row={row} onRowAction={act} tabId={cardTab} />
               ) : (
@@ -557,10 +567,12 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
                 Join
               </Button>
             )}
-            {/* Move CTA removed: tablet/desktop both drag the card onto a
-                free slot (see startDrag). The kebab still has Reschedule. */}
           </span>
-          <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          {receptionistMode ? (
+            <ReceptionistRowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          ) : (
+            <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          )}
         </div>
       )}
       </div>
@@ -611,6 +623,9 @@ export default function AppointmentCalendarView({
   onModeChange = null, // publishes internal mode changes so the toolbar toggle stays in sync
   disableAvailabilityLayer = false, // hides availability controls + stops slot API calls
   hideModeToggle = false,
+  /** When set, slot fetches use receptionist auth for this doctor. */
+  doctorId = null,
+  receptionistMode = false,
 }) {
   const { isChikitsalay } = useListingAccess();
   const legend = isChikitsalay
@@ -1085,10 +1100,18 @@ export default function AppointmentCalendarView({
     return out;
   }, [mode, days, anchor, freeSlots, disableAvailabilityLayer]);
 
-  const { slotsByDate, pendingDates } = useDoctorSlots({
+  const doctorSlots = useDoctorSlots({
     dateISOs: slotDateISOs,
     version: slotsVersion,
+    enabled: !doctorId,
   });
+  const receptionistSlots = useReceptionistDoctorSlots({
+    doctorId,
+    dateISOs: slotDateISOs,
+    version: slotsVersion,
+    enabled: !!doctorId,
+  });
+  const { slotsByDate, pendingDates } = doctorId ? receptionistSlots : doctorSlots;
 
   /* How many chips a month cell can actually hold.
 
@@ -1811,6 +1834,7 @@ export default function AppointmentCalendarView({
                         key={row.id}
                         row={row}
                         tabId={tabId}
+                        receptionistMode={receptionistMode}
                         width={cardWidth}
                         height={heightPx}
                         onRowAction={onRowAction}
@@ -2017,6 +2041,7 @@ export default function AppointmentCalendarView({
           onClose={closePopup}
           onMouseEnter={keepOpen}
           onMouseLeave={hoverClose}
+          receptionistMode={receptionistMode}
         />
       )}
     </div>

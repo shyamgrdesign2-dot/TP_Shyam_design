@@ -14,6 +14,7 @@ import { TAB_IDS, EMPTY_STATE_BY_TAB } from "../data/appointmentsConfig";
 import { CONDITION_COLORS, formatDurationConsultation } from "../data/appointmentStates";
 import { useListingAccess } from "../data/useListingAccess";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
+import { ReceptionistRowKebabMenu } from "../../receptionist-appointment-listing/components/receptionistRowActions";
 import QueueRxSplitButton from "./QueueRxSplitButton";
 import emptyDocsIllustration from "../assets/empty-docs.svg";
 import BillingTag from "./BillingTag";
@@ -60,11 +61,13 @@ export default function AppointmentListView({
   onRowAction,
   onPatientClick,
   onAddAppointment,
+  receptionistMode = false,
 }) {
   const emptyMeta = EMPTY_STATE_BY_TAB[tabId] || EMPTY_STATE_BY_TAB[TAB_IDS.QUEUE];
   const wrapRef = useRef(null);
   const access = useListingAccess();
-  const { showBilling, showBookActions, isZydusAccount, isChikitsalay } = access;
+  const { showBilling: showBillingDoctor, showBookActions, isZydusAccount, isChikitsalay } = access;
+  const showBilling = receptionistMode ? false : showBillingDoctor;
   const zydusAppointmentData = useSelector((state) => state.records?.zydusAappointmentData) || EMPTY_ROWS;
   const actionCtx = access;
 
@@ -312,7 +315,7 @@ export default function AppointmentListView({
         cellClassName: styles.actionCol,
         cell: (row) => (
           <div className={styles.actionCell}>
-            {tabId === TAB_IDS.QUEUE || tabId === TAB_IDS.REFERRAL ? (
+            {receptionistMode ? null : tabId === TAB_IDS.QUEUE || tabId === TAB_IDS.REFERRAL ? (
               tabId === TAB_IDS.QUEUE && isChikitsalay ? (
                 <Button
                   variant="outline"
@@ -328,7 +331,11 @@ export default function AppointmentListView({
             ) : (
               <TableActions align="right" primary={rowPrimaryAction(tabId, row, onRowAction, actionCtx)} actions={[]} />
             )}
-            <RowKebabMenu tabId={tabId} row={row} onRowAction={onRowAction} />
+            {receptionistMode ? (
+              <ReceptionistRowKebabMenu tabId={tabId} row={row} onRowAction={onRowAction} />
+            ) : (
+              <RowKebabMenu tabId={tabId} row={row} onRowAction={onRowAction} />
+            )}
           </div>
         ),
       },
@@ -345,6 +352,7 @@ export default function AppointmentListView({
       zydusAppointmentData,
       actionCtx,
       isChikitsalay,
+      receptionistMode,
     ]
   );
 
@@ -385,7 +393,7 @@ export default function AppointmentListView({
               <Button variant="ghost" theme="primary" size="sm" onClick={onClearFilters}>
                 Clear all filters
               </Button>
-            ) : emptyMeta.cta === "add-appointment" && showBookActions ? (
+            ) : emptyMeta.cta === "add-appointment" && (receptionistMode || showBookActions) ? (
               <Button
                 variant="solid"
                 theme="primary"
