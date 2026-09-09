@@ -59,6 +59,7 @@ import {
   getCvtExtHosPatientDataShowValue,
   shouldUseCvtExtHosDigitisedPatientMapping,
 } from "../cvtExtHosPatientPrint";
+import { resolvePatientEddDisplay } from "../patientEddDisplay";
 import ObsHistoryInlineView from "../../components/print_settings/obsHistory/inline";
 import ObsHistoryListView from "../../components/print_settings/obsHistory/list";
 import ObsHistoryTableView from "../../components/print_settings/obsHistory/table";
@@ -1093,6 +1094,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         caseManagerData,
         isPediatricAccessable,
         formatPediatricHtWt: formatHeightWeight,
+        obsHistoryData,
       });
     }
     var value = "";
@@ -1115,7 +1117,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     } else if (id == 8) {
       value = `${caseManagerData?.patient_data?.patient_consultation_type ? caseManagerData?.patient_data?.patient_consultation_type : "-"}`;
     } else if (id == 9) {
-      value = `${caseManagerData?.patient_data?.patient_edd_date ? caseManagerData?.patient_data?.patient_edd_date : "-"}`;
+      value = resolvePatientEddDisplay(
+        caseManagerData?.patient_data,
+        obsHistoryData,
+      );
     } else if (id == 10) {
       value = `${caseManagerData?.patient_data?.patient_email ? caseManagerData?.patient_data?.patient_email : "-"}`;
     } else if (id == 11) {

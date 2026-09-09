@@ -7,6 +7,7 @@ import moment from 'moment';
 import {
     getCvtExtHosPatientDataShowValue,
 } from '../../utils/cvtExtHosPatientPrint';
+import { resolvePatientEddDisplay } from '../../utils/patientEddDisplay';
 import { getDecodedToken } from '../../utils/localStorage';
 import { ASSETS } from '../../assets';
 import { getUploadedFilePublicUrl } from '../../pages/smartSync/services/templateUtils';
@@ -1113,6 +1114,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 abhaDetails,
                 caseManagerData,
                 isPediatricAccessable,
+                obsHistoryData,
             });
         }
         var value = ''
@@ -1133,7 +1135,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         } else if (id == 8) {
             value = `${caseManagerData?.patient_data?.patient_consultation_type ? caseManagerData?.patient_data?.patient_consultation_type : '-'}`
         } else if (id == 9) {
-            value = `${caseManagerData?.patient_data?.patient_edd_date ? caseManagerData?.patient_data?.patient_edd_date : '-'}`
+            value = resolvePatientEddDisplay(caseManagerData?.patient_data, obsHistoryData)
         } else if (id == 10) {
             value = `${caseManagerData?.patient_data?.patient_email ? caseManagerData?.patient_data?.patient_email : '-'}`
         } else if (id == 11) {

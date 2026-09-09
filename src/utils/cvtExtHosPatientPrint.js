@@ -1,4 +1,5 @@
 import moment from "moment";
+import { resolvePatientEddDisplay } from "./patientEddDisplay";
 
 const SHOW_DATE_FORMAT = "DD/MM/YYYY";
 
@@ -161,6 +162,7 @@ export function getCvtExtHosPatientDataShowValue(id, args) {
     caseManagerData,
     isPediatricAccessable,
     formatPediatricHtWt,
+    obsHistoryData,
   } = args;
 
   if (id == 20) {
@@ -218,7 +220,7 @@ export function getCvtExtHosPatientDataShowValue(id, args) {
       : "-";
   }
   if (id == 9) {
-    return patient?.patient_edd_date ? String(patient.patient_edd_date) : "-";
+    return resolvePatientEddDisplay(patient, obsHistoryData);
   }
   if (id == 10) {
     return patient?.patient_email ? String(patient.patient_email) : "-";
