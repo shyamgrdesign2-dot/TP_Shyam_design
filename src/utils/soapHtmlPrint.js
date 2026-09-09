@@ -1,4 +1,5 @@
 import moment from "moment";
+import { resolvePatientEddDisplay } from "./patientEddDisplay";
 
 const CM_FALLBACK = {
   top: 1.2,
@@ -100,7 +101,7 @@ function getConsultationDate(patient, consultationDate) {
   return moment(raw).isValid() ? moment(raw).format("DD/MM/YYYY HH:mm") : "-";
 }
 
-function getPatientValue(id, { patient, profile, consultationDate }) {
+function getPatientValue(id, { patient, profile, consultationDate, obsHistoryData }) {
   switch (Number(id)) {
     case 1:
       return `${getPatientName(patient)}, ${getPatientId(patient)}`;
@@ -122,7 +123,7 @@ function getPatientValue(id, { patient, profile, consultationDate }) {
     case 8:
       return patient?.patient_consultation_type || "-";
     case 9:
-      return patient?.patient_edd_date || "-";
+      return resolvePatientEddDisplay(patient, obsHistoryData);
     case 10:
       return patient?.patient_email || patient?.pm_email || "-";
     case 11:
@@ -185,7 +186,7 @@ function renderHeader(printSettings) {
   `;
 }
 
-function renderPatientInfo({ printSettings, patient, profile, consultationDate }) {
+function renderPatientInfo({ printSettings, patient, profile, consultationDate, obsHistoryData }) {
   const show = printSettings?.header_footer?.show_patient_info;
   if (show === "none") return "";
   const enabled = (printSettings?.header_footer?.patient_info || []).filter(
@@ -195,7 +196,12 @@ function renderPatientInfo({ printSettings, patient, profile, consultationDate }
   const rows = enabled
     .map((item) => ({
       title: item?.title || "",
-      value: getPatientValue(item?.id, { patient, profile, consultationDate }),
+      value: getPatientValue(item?.id, {
+        patient,
+        profile,
+        consultationDate,
+        obsHistoryData,
+      }),
     }))
     .map(
       (item) => `
@@ -244,6 +250,7 @@ function buildSoapPrintHtml({
   patient,
   profile,
   consultationDate,
+  obsHistoryData,
 }) {
   const safeSoapHtml = sanitizeRichHtml(soapHtml);
   const pageFont = cssFontFamily(printSettings?.page_format?.font_family);
@@ -457,7 +464,7 @@ function buildSoapPrintHtml({
   <main class="soap-print-page">
     ${renderWatermark(printSettings)}
     ${renderHeader(printSettings)}
-    ${renderPatientInfo({ printSettings, patient, profile, consultationDate })}
+    ${renderPatientInfo({ printSettings, patient, profile, consultationDate, obsHistoryData })}
     <section class="soap-content">${safeSoapHtml}</section>
     ${renderSignature(printSettings)}
     ${renderFooter(printSettings)}
@@ -487,6 +494,7 @@ export function printSoapHtmlDocument({
   profile,
   caseManagerData,
   consultationDate,
+  obsHistoryData,
 }) {
   if (!soapHtml || !printSettings) {
     throw new Error("SOAP print data is missing.");
@@ -503,6 +511,7 @@ export function printSoapHtmlDocument({
     patient,
     profile: doctorProfile,
     consultationDate,
+    obsHistoryData: obsHistoryData ?? caseManagerData?.obsHistoryData,
   });
 
   return new Promise((resolve, reject) => {
