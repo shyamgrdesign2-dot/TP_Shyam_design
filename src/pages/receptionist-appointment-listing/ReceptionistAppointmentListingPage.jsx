@@ -104,7 +104,7 @@ function ReceptionistAppointmentListingInner() {
   const [view, setView] = useState(() => readPreference("receptionistView", "list"));
   const [calendarMode, setCalendarMode] = useState(() => {
     const saved = readPreference("receptionistCalendarMode", "day");
-    return saved === "week" || saved === "month" ? saved : "day";
+    return saved === "week" ? "week" : "day";
   });
   const [activeTab, setActiveTab] = useState(() =>
     readPreference("receptionistView", "list") === "calendar" ? TAB_IDS.ALL : TAB_IDS.QUEUE
@@ -145,46 +145,24 @@ function ReceptionistAppointmentListingInner() {
   const allowFutureDates =
     activeTab === TAB_IDS.QUEUE || activeTab === TAB_IDS.ALL;
 
-  const pickCalendarMode = useCallback((m) => {
-    if (m !== "day" && m !== "week" && m !== "month") return;
-    setCalendarMode(m);
-    writePreference("receptionistCalendarMode", m);
-  }, []);
-
-  // Month is one listAppointmentCalendar call over the displayed month
-  // (1st–last), not the 42-cell padded grid.
-  const queryRange = useMemo(() => {
-    if (renderCalendar && calendarMode === "month") {
-      const d = dateRange?.start ? new Date(dateRange.start) : new Date();
-      const start = new Date(d.getFullYear(), d.getMonth(), 1);
-      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(0, 0, 0, 0);
-      return { start, end };
-    }
-    return dateRange || { start: new Date(), end: new Date() };
-  }, [renderCalendar, calendarMode, dateRange]);
-
   const { rows: liveRows, countByTab, dayTotals, loading, loadingMore, hasMore, error, loadMore, refetch } =
     useReceptionistAppointments({
       doctorId: selectedDoctorId,
       tabId: activeTab,
-      dateRange: queryRange,
+      dateRange: dateRange || { start: new Date(), end: new Date() },
       query: debouncedQuery,
       visitTypeCsv,
-      fetchAllPages: renderCalendar && calendarMode !== "month",
+      fetchAllPages: renderCalendar,
       calendarMode: renderCalendar ? calendarMode : "day",
     });
 
   // Slot (In-Clinic / Teleconsultation) is client-side — same as doctor listing.
-  // Month chips have no visit-mode flag from listAppointmentCalendar.
   const rows = useMemo(() => {
-    if (calendarMode === "month" && renderCalendar) return liveRows;
     const slotSel = filters.slot || [];
     if (slotSel.length !== 1) return liveRows;
     const wantVideo = slotSel[0] === "video";
     return liveRows.filter((row) => row.hasVideo === wantVideo);
-  }, [liveRows, filters.slot, calendarMode, renderCalendar]);
+  }, [liveRows, filters.slot]);
 
   const changeView = (next) => {
     if (next === view) return;
@@ -376,20 +354,6 @@ function ReceptionistAppointmentListingInner() {
                 />
               </div>
               <div className={styles.toolbarRight}>
-                {renderCalendar && (
-                  <SegmentedControl
-                    className={styles.grainSeg}
-                    size="sm"
-                    variant="block"
-                    options={[
-                      { value: "day", label: "Day" },
-                      { value: "week", label: "Week" },
-                      { value: "month", label: "Month" },
-                    ]}
-                    value={calendarMode}
-                    onValueChange={pickCalendarMode}
-                  />
-                )}
                 <div className={`${styles.searchLabel} ${styles.receptionistSearch}`}>
                   <InputBox
                     fullWidth
@@ -519,8 +483,13 @@ function ReceptionistAppointmentListingInner() {
                   slotsVersion={slotsVersion}
                   allowBook
                   modeOverride={calendarMode}
-                  onModeChange={pickCalendarMode}
-                  hideModeToggle
+                  onModeChange={(m) => {
+                    if (m === "day" || m === "week") {
+                      setCalendarMode(m);
+                      writePreference("receptionistCalendarMode", m);
+                    }
+                  }}
+                  hideModeToggle={false}
                   doctorId={selectedDoctorId}
                   receptionistMode
                 />

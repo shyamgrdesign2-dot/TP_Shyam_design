@@ -83,7 +83,11 @@ export function SelectedDoctorProvider({ children }) {
   }, [selectedDoctorId]);
 
   const setSelectedDoctorId = (id) => {
-    if (id != null) setSelectedDoctorIdState(String(id));
+    if (id == null) return;
+    // Update attending-doctor extras immediately (not only in useEffect) so
+    // the next list fetch already carries the newly selected um_id / doctor_id.
+    setReceptionistAttendingDoctor(id);
+    setSelectedDoctorIdState(String(id));
   };
 
   const selectedDoctor = useMemo(

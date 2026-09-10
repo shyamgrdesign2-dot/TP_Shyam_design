@@ -28,7 +28,7 @@ const ALLOWED = {
   view: ["list", "calendar"],
   calendarMode: ["day", "week", "month"],
   receptionistView: ["list", "calendar"],
-  receptionistCalendarMode: ["day", "week", "month"],
+  receptionistCalendarMode: ["day", "week"],
   /* Whether the availability layer is drawn under the appointments. */
   calendarFreeSlots: ["on", "off"],
   /* Optional sections of the add-patient form. Personal Details is not

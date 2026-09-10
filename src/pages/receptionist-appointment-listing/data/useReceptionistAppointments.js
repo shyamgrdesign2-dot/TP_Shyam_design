@@ -153,6 +153,7 @@ export default function useReceptionistAppointments({
   const pageRef = useRef(0);
   const loadingMoreLock = useRef(false);
   const prevTabRef = useRef(tabId);
+  const prevDoctorRef = useRef(doctorId);
   const prevFetchKeyRef = useRef(null);
 
   const isMonthCalendar = calendarMode === "month";
@@ -212,11 +213,16 @@ export default function useReceptionistAppointments({
     if (!doctorId) {
       setRows([]);
       setDayTotals({});
+      setCounts({});
       setLoading(false);
       return;
     }
     const seq = ++requestSeq.current;
     pageRef.current = 0;
+    loadingMoreLock.current = false;
+    setLoading(true);
+    setLoadingMore(false);
+    setHasMore(false);
     setError(null);
     try {
       /* One call paints the month: size chips per day plus total_count for
@@ -356,6 +362,16 @@ export default function useReceptionistAppointments({
       prevTabRef.current = tabId;
       setRows([]);
       setDayTotals({});
+    }
+    if (prevDoctorRef.current !== doctorId) {
+      prevDoctorRef.current = doctorId;
+      // Clear immediately so the table shows shimmer instead of the previous
+      // doctor's rows/counts while the new request is in flight.
+      setRows([]);
+      setDayTotals({});
+      setCounts({});
+      setHasMore(false);
+      setError(null);
     }
     const fetchKey = `rec|${doctorId}|${tabId}|${startDate}|${endDate}|${query}|${visitTypeCsv}|${fetchAllPages}|${calendarMode}`;
     if (prevFetchKeyRef.current === fetchKey) return;
