@@ -28,6 +28,37 @@ export async function listAppointments(data) {
   );
 }
 
+/**
+ * GET /api/v1/appointment/listAppointmentCalendar
+ * Month grid for Kea receptionist: one call for the window, `size` chips/day.
+ * Selected doctor is required as query `doctor_id` (same as BE Kea contract).
+ * Also sends um_id / receptionist_id via withReceptionistQuery.
+ */
+export async function listAppointmentCalendar({
+  startDate,
+  endDate,
+  size = 3,
+  appointmentStatus,
+  doctorId,
+} = {}) {
+  if (doctorId == null || doctorId === "") {
+    return { status: false, message: "doctor_id is required for receptionist calendar." };
+  }
+  const params = new URLSearchParams({
+    startDate,
+    endDate,
+    size: String(size),
+    doctor_id: String(doctorId),
+  });
+  if (appointmentStatus != null && appointmentStatus !== "") {
+    params.set("appointmentStatus", String(appointmentStatus));
+  }
+  return api.get(
+    withReceptionistQuery(`/api/v1/appointment/listAppointmentCalendar?${params}`),
+    appointmentConfig()
+  );
+}
+
 /** GET /api/v1/appointment/listSlots */
 export async function listSlots(doctorId, date) {
   const path = withReceptionistQuery(

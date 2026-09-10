@@ -30,6 +30,14 @@ Visit mutations use `withReceptionistVisitMutationBody` (query + headers only).
 - **Body (existing +):** `doctorIds: [um_id]`, `startDate`, `endDate`, `apStatue`, `search`, `filterVisitType`, `page`
 - **Receptionist auth:** Validate token role = receptionist; `clinic_id` from token; verify `doctorIds[0]` belongs to same clinic; reject cross-clinic with **403**
 
+### 1b. Month calendar summary
+
+- **Method:** `GET`
+- **URL:** `{appointment_api_url}/api/v1/appointment/listAppointmentCalendar?startDate=&endDate=&size=3&appointmentStatus=0,1,2,3`
+- **Query extras (receptionist):** `um_id`, `receptionist_id`, optional `doctor_id` (selected doctor)
+- **Response:** per-day `{ date, total_count, appointments[] }` (up to `size` chips; `total_count` drives `+N more`)
+- **Receptionist auth:** Same dual-auth as list — scope to selected doctor + clinic
+
 ### 2. List slots (clinic + tele)
 
 - **Method:** `GET`

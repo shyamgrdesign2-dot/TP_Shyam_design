@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import moment from "moment";
-import { listAppointments } from "../../../api/services/receptionistAppointmentApi";
+import {
+  listAppointments,
+  listAppointmentCalendar,
+} from "../../../api/services/receptionistAppointmentApi";
 import { isGrowthBookFeatureOn } from "../../../utils/growthbook";
 import { GB_APPT_SEQUENCE } from "../../../utils/constants";
 import { getCrossConsultFromRecord } from "../../../utils/crossConsultHelpers";
 import {
   TAB_IDS,
   ALL_MERGED_TABS,
+  MONTH_CALENDAR_SIZE,
   apStatueForTab,
+  calendarStatusCsvForTab,
+  tabIdFromPamStatus,
 } from "../../appointment-listing/data/appointmentsConfig";
 
 const DATE_FORMAT = "YYYY-MM-DD";
@@ -62,6 +68,42 @@ function mapRecord(rec, tabId, index) {
   };
 }
 
+/* Slim row for month chips — calendar endpoint only returns pam_id, time,
+   status and patient name. Day drill-down loads full listAppointment rows. */
+function mapCalendarAppointment(appt, dayISO, index) {
+  const timeText = appt?.appointment_time || "";
+  const timeMoment = moment(String(timeText).trim(), ["h:mm A", "hh:mm A", "HH:mm"], true);
+  const dateISO = appt?.appointment_date || dayISO || null;
+  const patientName = appt?.patient_name || "--";
+  const salutation = appt?.salutation;
+  return {
+    id: String(appt?.pam_id ?? `${dateISO || "day"}-${index}`),
+    raw: appt,
+    status: tabIdFromPamStatus(appt?.appointment_status, false),
+    name: salutation ? `${salutation} ${patientName}` : patientName,
+    firstName: String(patientName).trim().split(/\s+/)[0] || "",
+    genderAge: "",
+    contact: "--",
+    mrn: "",
+    visitType: "--",
+    specialty: "",
+    billStatus: "",
+    remark: "",
+    slotTime: String(timeText).trim().replace(/\s*([ap])\.?\s*m\.?$/i, (_, p) => ` ${p.toUpperCase()}M`),
+    slotDate: dateISO || "",
+    slotHour: timeMoment.isValid() ? timeMoment.hour() : 0,
+    slotMinute: timeMoment.isValid() ? timeMoment.minute() : 0,
+    dateISO,
+    symptomsGathered: false,
+    abhaAddress: "",
+    patientConditionId: null,
+    arrivedTime: "",
+    durationConsultation: "",
+    consultType: 0,
+    hasVideo: false,
+  };
+}
+
 async function fetchAppointmentPage(basePayload, page) {
   const res = await listAppointments({ ...basePayload, page });
   if (!res?.status) throw new Error(res?.error || res?.message || "Could not load appointments.");
@@ -88,6 +130,7 @@ const RECEPTIONIST_MERGED_TABS = ALL_MERGED_TABS.filter(
 /**
  * Appointment rows for receptionist listing — scoped to selected doctor via
  * doctorIds + receptionist auth extras on each API call.
+ * Month calendar uses listAppointmentCalendar (one call, size chips/day).
  */
 export default function useReceptionistAppointments({
   doctorId,
@@ -96,10 +139,12 @@ export default function useReceptionistAppointments({
   query,
   visitTypeCsv,
   fetchAllPages = false,
+  calendarMode = "day",
 }) {
   const sortQueueBySequence = isGrowthBookFeatureOn(GB_APPT_SEQUENCE);
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
+  const [dayTotals, setDayTotals] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -109,6 +154,8 @@ export default function useReceptionistAppointments({
   const loadingMoreLock = useRef(false);
   const prevTabRef = useRef(tabId);
   const prevFetchKeyRef = useRef(null);
+
+  const isMonthCalendar = calendarMode === "month";
 
   const { startDate, endDate } = useMemo(() => {
     const start = dateRange?.start ? moment(dateRange.start) : moment();
@@ -164,6 +211,7 @@ export default function useReceptionistAppointments({
   const fetchRows = useCallback(async () => {
     if (!doctorId) {
       setRows([]);
+      setDayTotals({});
       setLoading(false);
       return;
     }
@@ -171,6 +219,39 @@ export default function useReceptionistAppointments({
     pageRef.current = 0;
     setError(null);
     try {
+      /* One call paints the month: size chips per day plus total_count for
+         "+N more". Day/week keep paginating listAppointment. */
+      if (isMonthCalendar) {
+        const res = await listAppointmentCalendar({
+          startDate,
+          endDate,
+          size: MONTH_CALENDAR_SIZE,
+          appointmentStatus: calendarStatusCsvForTab(tabId, { includeDraft: false }),
+          doctorId,
+        });
+        if (seq !== requestSeq.current) return;
+        if (!res?.status) throw new Error(res?.error || res?.message || "Could not load appointments.");
+        const days = Array.isArray(res?.data?.data) ? res.data.data : [];
+        const totals = {};
+        const mapped = [];
+        days.forEach((day) => {
+          const dateISO = day?.date || null;
+          if (dateISO) totals[dateISO] = Number(day?.total_count) || 0;
+          (day?.appointments || []).forEach((appt) => {
+            mapped.push(mapCalendarAppointment(appt, dateISO, mapped.length));
+          });
+        });
+        setDayTotals(totals);
+        setRows(mapped);
+        const monthTotal = Object.values(totals).reduce((sum, n) => sum + n, 0);
+        setCounts((prev) => ({ ...prev, [tabId]: monthTotal }));
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+
+      setDayTotals({});
+
       if (tabId === TAB_IDS.ALL) {
         const first = await Promise.all(
           RECEPTIONIST_MERGED_TABS.map((statusTab) => fetchAppointmentPage(listPayload(statusTab), 0))
@@ -226,14 +307,27 @@ export default function useReceptionistAppointments({
       if (seq !== requestSeq.current) return;
       console.error("useReceptionistAppointments:", e);
       setRows([]);
+      setDayTotals({});
       setHasMore(false);
       setError(e);
       setLoading(false);
     }
-  }, [doctorId, tabId, listPayload, fetchAllPages, fillRemaining, applyCounts]);
+  }, [
+    doctorId,
+    tabId,
+    listPayload,
+    fetchAllPages,
+    fillRemaining,
+    applyCounts,
+    isMonthCalendar,
+    startDate,
+    endDate,
+  ]);
 
   const loadMore = useCallback(async () => {
-    if (fetchAllPages || !hasMore || loading || loadingMoreLock.current || !doctorId) return;
+    if (isMonthCalendar || fetchAllPages || !hasMore || loading || loadingMoreLock.current || !doctorId) {
+      return;
+    }
     loadingMoreLock.current = true;
     const seq = requestSeq.current;
     const nextPage = pageRef.current + 1;
@@ -255,24 +349,29 @@ export default function useReceptionistAppointments({
         setLoadingMore(false);
       }
     }
-  }, [fetchAllPages, hasMore, loading, tabId, listPayload, doctorId]);
+  }, [fetchAllPages, hasMore, loading, tabId, listPayload, doctorId, isMonthCalendar]);
 
   useEffect(() => {
     if (prevTabRef.current !== tabId) {
       prevTabRef.current = tabId;
       setRows([]);
+      setDayTotals({});
     }
-    const fetchKey = `rec|${doctorId}|${tabId}|${startDate}|${endDate}|${query}|${visitTypeCsv}|${fetchAllPages}`;
+    const fetchKey = `rec|${doctorId}|${tabId}|${startDate}|${endDate}|${query}|${visitTypeCsv}|${fetchAllPages}|${calendarMode}`;
     if (prevFetchKeyRef.current === fetchKey) return;
     prevFetchKeyRef.current = fetchKey;
     setLoading(true);
     fetchRows();
-  }, [fetchRows, tabId, startDate, endDate, query, visitTypeCsv, fetchAllPages, doctorId]);
+  }, [fetchRows, tabId, startDate, endDate, query, visitTypeCsv, fetchAllPages, doctorId, calendarMode]);
 
   const countByTab = useMemo(() => {
+    if (isMonthCalendar) {
+      const monthTotal = Object.values(dayTotals).reduce((sum, n) => sum + (Number(n) || 0), 0);
+      return { ...counts, [tabId]: monthTotal };
+    }
     if (tabId === TAB_IDS.ALL) return { ...counts, [TAB_IDS.ALL]: rows.length };
     return counts;
-  }, [counts, rows.length, tabId]);
+  }, [counts, rows.length, tabId, isMonthCalendar, dayTotals]);
 
   const refetch = useCallback(() => {
     prevFetchKeyRef.current = null;
@@ -280,5 +379,5 @@ export default function useReceptionistAppointments({
     return fetchRows();
   }, [fetchRows]);
 
-  return { rows, countByTab, loading, loadingMore, hasMore, error, loadMore, refetch };
+  return { rows, countByTab, dayTotals, loading, loadingMore, hasMore, error, loadMore, refetch };
 }
