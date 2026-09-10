@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import {
   TesseractThemeProvider,
@@ -99,7 +98,6 @@ function TabBar({ tabs, activeTab, countByTab, onSelect }) {
 }
 
 function ReceptionistAppointmentListingInner() {
-  const navigate = useNavigate();
   const { doctors, loading: doctorsLoading, selectedDoctorId, selectedDoctor, setSelectedDoctorId } =
     useSelectedDoctor();
 
@@ -114,7 +112,10 @@ function ReceptionistAppointmentListingInner() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filters, setFilters] = useState({});
-  const [dateRange, setDateRange] = useState(null);
+  const [dateRange, setDateRange] = useState(() => {
+    const today = startOfDayLocal(new Date());
+    return { start: today, end: today };
+  });
   const [bookingCtx, setBookingCtx] = useState(null);
   const [rescheduleFor, setRescheduleFor] = useState(null);
   const [slotsVersion, setSlotsVersion] = useState(0);
@@ -144,7 +145,7 @@ function ReceptionistAppointmentListingInner() {
   const allowFutureDates =
     activeTab === TAB_IDS.QUEUE || activeTab === TAB_IDS.ALL;
 
-  const { rows, countByTab, loading, loadingMore, hasMore, error, loadMore, refetch } =
+  const { rows: liveRows, countByTab, loading, loadingMore, hasMore, error, loadMore, refetch } =
     useReceptionistAppointments({
       doctorId: selectedDoctorId,
       tabId: activeTab,
@@ -153,6 +154,14 @@ function ReceptionistAppointmentListingInner() {
       visitTypeCsv,
       fetchAllPages: renderCalendar,
     });
+
+  // Slot (In-Clinic / Teleconsultation) is client-side — same as doctor listing.
+  const rows = useMemo(() => {
+    const slotSel = filters.slot || [];
+    if (slotSel.length !== 1) return liveRows;
+    const wantVideo = slotSel[0] === "video";
+    return liveRows.filter((row) => row.hasVideo === wantVideo);
+  }, [liveRows, filters.slot]);
 
   const changeView = (next) => {
     if (next === view) return;
@@ -196,25 +205,18 @@ function ReceptionistAppointmentListingInner() {
     }));
   };
 
-  const onRowAction = useCallback(
-    (action, row) => {
-      const rec = row?.raw || row;
-      switch (action) {
-        case "patient-details":
-          navigate("/patient_details", { state: { patient_data: rec } });
-          break;
-        case "cancel-appointment":
-          setCancelTarget(row);
-          break;
-        case "reschedule":
-          setBookingCtx({ slot: null, reschedule: row });
-          break;
-        default:
-          break;
-      }
-    },
-    [navigate]
-  );
+  const onRowAction = useCallback((action, row) => {
+    switch (action) {
+      case "cancel-appointment":
+        setCancelTarget(row);
+        break;
+      case "reschedule":
+        setBookingCtx({ slot: null, reschedule: row });
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   const confirmCancelAppointment = async () => {
     const rec = cancelTarget?.raw;
@@ -367,6 +369,7 @@ function ReceptionistAppointmentListingInner() {
                   showPresets={!renderCalendar}
                   commitMode={renderCalendar ? "apply" : "outside-click"}
                   value={renderCalendar ? dateRange?.start ?? null : dateRange}
+                  placeholder="Today"
                   onChange={(v) => {
                     if (renderCalendar) {
                       const d = pickedDate(v) || (v?.start ? startOfDayLocal(v.start) : null);
@@ -444,7 +447,6 @@ function ReceptionistAppointmentListingInner() {
                     setFilters({});
                   }}
                   onRowAction={onRowAction}
-                  onPatientClick={(row) => onRowAction("patient-details", row)}
                   onAddAppointment={() => setBookingCtx({ slot: null })}
                   receptionistMode
                 />
@@ -569,10 +571,12 @@ function ReceptionistAppointmentListingInner() {
               ? `Cancel ${cancelTarget.name}'s appointment on ${cancelTarget.slotDate} at ${cancelTarget.slotTime}?`
               : ""
           }
-          confirmLabel="Cancel appointment"
-          confirmTheme="danger"
-          loading={cancelling}
-          onConfirm={confirmCancelAppointment}
+          calloutTone="error"
+          primaryLabel="Keep Appointment"
+          onPrimary={() => setCancelTarget(null)}
+          secondaryLabel={cancelling ? "Cancelling…" : "Cancel Appointment"}
+          secondaryTone="destructive"
+          onSecondary={confirmCancelAppointment}
         />
 
         {toast && (

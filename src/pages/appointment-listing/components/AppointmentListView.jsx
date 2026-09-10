@@ -71,10 +71,12 @@ export default function AppointmentListView({
   const zydusAppointmentData = useSelector((state) => state.records?.zydusAappointmentData) || EMPTY_ROWS;
   const actionCtx = access;
 
-  // Legacy UAT: name is not clickable on Zydus Appointment or Cancelled tabs.
+  // Receptionist has no patient-details access. Legacy UAT: name is not
+  // clickable on Zydus Appointment or Cancelled tabs.
   const patientNameClickable =
-    !isZydusAccount ||
-    (tabId !== TAB_IDS.ZYDUS_APPOINTMENT && tabId !== TAB_IDS.CANCELLED);
+    !receptionistMode &&
+    (!isZydusAccount ||
+      (tabId !== TAB_IDS.ZYDUS_APPOINTMENT && tabId !== TAB_IDS.CANCELLED));
 
   // The new table scrolls inside the DS scroller, not the page (unlike
   // legacy AppointmentData). Watch that scroller: near the bottom, or when
