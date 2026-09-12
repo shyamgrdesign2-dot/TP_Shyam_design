@@ -72,7 +72,8 @@ import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { clinicTargetStatus, generateClinicToken } from "../chikitsalay/service";
 import { DENTAL_RX_PAD_ROUTE } from "../../utils/dentalRoutes";
-import { handleAdmitToIpd, sendMessageToParent } from "../../utils/utils";
+import { sendMessageToParent } from "../../utils/utils";
+import AdmitToIpdModal from "../../components/admit-to-ipd/AdmitToIpdModal";
 import { EVENTS } from "../../utils/events";
 import { isChrome, isSafari } from "react-device-detect";
 import { fetchPatientDefaultLanguage } from "../../api/services/DefaultLanguageService";
@@ -457,6 +458,7 @@ export default function AppointmentListingPage() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [actionDrawer, setActionDrawer] = useState(null);
+  const [admitToIpdRecord, setAdmitToIpdRecord] = useState(null);
   const [toast, setToast] = useState(null);
   /* Toasts leave the way they arrived: unmounting on dismiss would cut the
      exit animation, so the host is kept mounted for its duration. */
@@ -1113,7 +1115,9 @@ export default function AppointmentListingPage() {
           setActionDrawer({ type: action, record: rec, name: row.name, tabId: row.status || activeTab });
           break;
         case "admit-to-ipd":
-          handleAdmitToIpd(rec);
+          // Legacy AppointmentData opens AdmitToIpdModal (category + reason)
+          // before submitting — do not call handleAdmitToIpd without those fields.
+          setAdmitToIpdRecord(rec);
           break;
         case "health-checkup-report":
           navigate("/patient_details", {
@@ -1897,6 +1901,12 @@ export default function AppointmentListingPage() {
             refetch();
             setSlotsVersion((v) => v + 1);
           }}
+        />
+
+        <AdmitToIpdModal
+          open={Boolean(admitToIpdRecord)}
+          patientRecord={admitToIpdRecord}
+          onClose={() => setAdmitToIpdRecord(null)}
         />
 
         <input
