@@ -17,12 +17,5 @@ ApiIpdService.checkPatientAdmitted = function ({ patientId }) {
   );
 };
 
-/** Zydus: create admission-to-IPD request with category + reason (AdmitToIpdModal). */
-ApiIpdService.createZydusAdmissionToIpd = function (data) {
-  return api.post(`/genx2/admission-to-ipd`, data, {
-    customBaseUrl: config.ipd_api_url,
-  });
-};
-
 export default ApiIpdService;
 

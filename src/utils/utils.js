@@ -2093,40 +2093,9 @@ export const updateFooterImageHeight = (
  * Handles redirecting to IPD admission page with patient data
  * @param {Object} record - Patient record containing patient information
  */
-export const handleAdmitToIpd = async (record, admissionOptions = {}) => {
+export const handleAdmitToIpd = async (record) => {
+
   try {
-    if (isZydus()) {
-      const mrno =
-        record?.mrno ||
-        record?.pm_reference_id ||
-        record?.tpml_refrence_id ||
-        record?.pm_pid;
-      const encounterId = record?.encounterId || record?.pam_ref_id;
-      const {
-        admissionCategoryEnumVal,
-        admissionRequestReasonEnumVal,
-      } = admissionOptions;
-
-      if (!mrno || !encounterId) {
-        throw new Error("MR number and encounter ID are required for admission");
-      }
-      if (!admissionCategoryEnumVal || !admissionRequestReasonEnumVal) {
-        throw new Error("Admission category and request reason are required");
-      }
-
-      const { default: ApiIpdService } = await import("../api/services/ApiIpd");
-      const result = await ApiIpdService.createZydusAdmissionToIpd({
-        mrno: String(mrno),
-        encounterId: String(encounterId),
-        admissionCategoryEnumVal,
-        admissionRequestReasonEnumVal,
-      });
-      if (result?.status === false) {
-        throw new Error(result?.message || result?.error || "Admission request failed");
-      }
-      return true;
-    }
-
     // Check if patient is already admitted before proceeding
     const { store } = await import("../redux/store");
     const { checkPatientAdmitted } = await import("../redux/ipdSlice");
@@ -2191,25 +2160,9 @@ export const handleAdmitToIpd = async (record, admissionOptions = {}) => {
       token = token.replace(/^["']|["']$/g, '');
     }
     
-    // Carry the GenX session across origins too — the IPD portal stores the
-    // `genrxToken` param into its own localStorage and strips it from the URL.
-    let genxToken = localStorage.getItem(PERSISTANT_STORAGE_KEY_GENX_TOKEN);
-    if (genxToken) {
-      try {
-        const parsedGenx = JSON.parse(genxToken);
-        genxToken = typeof parsedGenx === 'string' ? parsedGenx : genxToken;
-      } catch (e) {
-        // If not JSON, use as is
-      }
-      genxToken = genxToken.replace(/^["']|["']$/g, '');
-    }
-    const genxParam = genxToken
-      ? `&genrxToken=${encodeURIComponent(genxToken)}`
-      : '';
-
     // Build the complete URL with encoded patient data and token
-    const url = token
-      ? `${baseUrl}/?redirectTo=ipd/create-admission?patientData=${encodedData}&authToken=${token}${genxParam}`
+    const url = token 
+      ? `${baseUrl}/?redirectTo=ipd/create-admission?patientData=${encodedData}&authToken=${token}`
       : `${baseUrl}/ipd/create-admission?patientData=${encodedData}`;
 
 
@@ -2218,7 +2171,7 @@ export const handleAdmitToIpd = async (record, admissionOptions = {}) => {
     window.location.href = url;
   } catch (error) {
     console.error("Error redirecting to CreateAdmission:", error);
-    throw error;
+    message.error("Failed to redirect to admission page. Please try again.");
   }
 };
 
