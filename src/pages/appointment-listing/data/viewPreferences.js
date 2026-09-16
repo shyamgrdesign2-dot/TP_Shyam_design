@@ -13,6 +13,8 @@ const KEYS = {
   calendarMode: "tp.appointments.calendarMode",
   calendarFreeSlots: "tp.appointments.calendarFreeSlots",
   calendarHourPx: "tp.appointments.calendarHourPx",
+  receptionistView: "tp.receptionist.appointments.view",
+  receptionistCalendarMode: "tp.receptionist.appointments.calendarMode",
   patientSectionAdditional: "tp.addPatient.section.additional",
   patientSectionAddress: "tp.addPatient.section.address",
 };
@@ -25,6 +27,8 @@ const NUMERIC = new Set(["calendarHourPx"]);
 const ALLOWED = {
   view: ["list", "calendar"],
   calendarMode: ["day", "week", "month"],
+  receptionistView: ["list", "calendar"],
+  receptionistCalendarMode: ["day", "week"],
   /* Whether the availability layer is drawn under the appointments. */
   calendarFreeSlots: ["on", "off"],
   /* Optional sections of the add-patient form. Personal Details is not

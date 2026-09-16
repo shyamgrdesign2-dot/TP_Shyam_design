@@ -21,7 +21,7 @@ import {
   Toast,
   TPLibraryIcon,
 } from "@dhspl-tatvacare/tesseract-ui";
-import { DatePicker } from "antd";
+import { DatePicker, message } from "antd";
 // eslint-disable-next-line import/no-unresolved -- exports-map alias ("./styles.css" → dist css); webpack resolves it, eslint-plugin-import cannot
 import "@dhspl-tatvacare/tesseract-ui/styles.css";
 
@@ -39,6 +39,10 @@ import {
 import useAppointments, { fetchQueueRows } from "./data/useAppointments";
 import { useListingAccess } from "./data/useListingAccess";
 import { readPreference, writePreference } from "./data/viewPreferences";
+import {
+  encodePrintLanguage,
+  resolveLatestFinishedPrintUrl,
+} from "./data/finishedPrintRx";
 import AppointmentListView from "./components/AppointmentListView";
 import AppointmentCalendarView from "./components/AppointmentCalendarView";
 import BookAppointmentDrawer from "./components/BookAppointmentDrawer";
@@ -68,6 +72,7 @@ import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import { useDeviceType } from "../../utils/deviceDetection";
+import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { clinicTargetStatus, generateClinicToken } from "../chikitsalay/service";
@@ -78,7 +83,8 @@ import { isChrome, isSafari } from "react-device-detect";
 import { fetchPatientDefaultLanguage } from "../../api/services/DefaultLanguageService";
 import { getSnapRxDigitization } from "../snapRx/services/snapRxService";
 import { generateUniqueFileName, getCorrectedFileName } from "../medicalRecords/utils/helper";
-import { fetchAllDocumentCategories } from "../medicalRecords/service";
+import { fetchAllDocumentCategories, uploadDocsToAzure } from "../medicalRecords/service";
+import { normalizeLabResultsResponse } from "../../utils/labResultsUtils";
 import {
   GB_VOICE_RX_NEW_UI,
   UNFINISHED_RX_CASE,
@@ -92,6 +98,8 @@ import {
   ZYDUS_FLAG,
 } from "./data/zydusConsultFlow";
 import styles from "./AppointmentListingPage.module.css";
+
+const FINISHED_PRINT_MESSAGE_KEY = "listing-finished-print-rx-generate";
 
 /* All glyphs come from the Tesseract icon CDN via TPLibraryIcon (house
    rule: no inline / third-party SVGs). Closest CDN equivalents to the
@@ -313,27 +321,140 @@ export default function AppointmentListingPage() {
   const showQueueExportMenu = !isTabletDevice && !isIPadDesktopMode;
   // siteId / empNo are set by SidebarDoctor after the Zydus ICT login handshake;
   // they live in the doctors redux slice, same as legacy AppointmentData.js reads them.
-  const { siteId: zydusSiteId, empNo: zydusEmpNo, userId } = useSelector((state) => state.doctors || {});
+  const { siteId: zydusSiteId, empNo: zydusEmpNo, userId, defaultPrintSettings } = useSelector(
+    (state) => state.doctors || {}
+  );
   const { advancedSettings } = useSelector((state) => state.billing || {});
   const { isOpdBillingAccessable } = useOpdBilling();
+  const finishedData = useSelector((state) => state.records?.finishedData) || [];
+  const genxSyncInFlightRef = useRef(new Set());
+  const [pendingFinishedPrint, setPendingFinishedPrint] = useState(null);
+  // usePrintPayloadPdf clears error asynchronously when printUrl changes; without
+  // a generation id the completion effect can treat a prior failure as belonging
+  // to the new request and abort every Finished Print retry until remount.
+  const finishedPrintGenRef = useRef(0);
+  const finishedPrintStartedGenRef = useRef(0);
+
+  const finishedPrintSelectedLang = useMemo(() => {
+    if (!pendingFinishedPrint?.selectedLang) return undefined;
+    try {
+      return Number(atob(pendingFinishedPrint.selectedLang));
+    } catch {
+      return undefined;
+    }
+  }, [pendingFinishedPrint?.selectedLang]);
+
+  const {
+    printBlob: finishedPrintBlob,
+    isGenerating: isFinishedPrintGenerating,
+    error: finishedPrintError,
+  } = usePrintPayloadPdf({
+    printUrl: pendingFinishedPrint?.printUrl || null,
+    selectedLang: finishedPrintSelectedLang,
+    isGynaecHistoryAccessable: false,
+    payloadOverride: null,
+    skipFetch: !pendingFinishedPrint?.printUrl,
+    labParamsData: pendingFinishedPrint?.labParamsData ?? null,
+    isCvtExtHosAccessableFromGB: isCvtExtHos,
+    patientId:
+      pendingFinishedPrint?.record?.patient_unique_id ||
+      pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    patientUniqueId:
+      pendingFinishedPrint?.record?.patient_unique_id ||
+      pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    tcmId:
+      pendingFinishedPrint?.caseManagerData?.tcm_id || pendingFinishedPrint?.record?.tcm_id,
+    canvasFilename: pendingFinishedPrint?.caseManagerData?.canvas_filename,
+    isDentalEnabled,
+    caseManagerDataOverride: pendingFinishedPrint?.caseManagerData ?? null,
+    patientRecord: pendingFinishedPrint?.caseManagerData?.patient_data,
+  });
+
+  useEffect(() => {
+    if (!pendingFinishedPrint) return;
+
+    if (isFinishedPrintGenerating) {
+      finishedPrintStartedGenRef.current = pendingFinishedPrint.gen;
+      return;
+    }
+
+    // Ignore stale hook error from a previous printUrl until this gen has started.
+    if (finishedPrintError) {
+      if (finishedPrintStartedGenRef.current !== pendingFinishedPrint.gen) return;
+      message.open({
+        key: FINISHED_PRINT_MESSAGE_KEY,
+        type: "error",
+        content: finishedPrintError?.message || "Failed to generate PDF.",
+        duration: 2,
+      });
+      setPendingFinishedPrint(null);
+      return;
+    }
+
+    if (!(finishedPrintBlob instanceof Blob)) return;
+    if (finishedPrintStartedGenRef.current !== pendingFinishedPrint.gen) return;
+
+    const completePendingPrint = async () => {
+      message.destroy(FINISHED_PRINT_MESSAGE_KEY);
+
+      try {
+        if (pendingFinishedPrint.printChannel === "in_app") {
+          const file = new File(
+            [finishedPrintBlob],
+            `${new Date().toISOString().split("T")[0]}.pdf`,
+            { type: "application/pdf" }
+          );
+          const formData = new FormData();
+          formData.append(file?.name, file);
+          const res = await uploadDocsToAzure(formData);
+          const uploadedUrl = res?.[0]?.url;
+          if (!uploadedUrl) {
+            throw new Error("Failed to upload PDF.");
+          }
+          sendMessageToParent(EVENTS.PRINT, { url: uploadedUrl });
+        } else {
+          const blobURL = URL.createObjectURL(finishedPrintBlob);
+          window.open(blobURL, "_blank");
+        }
+      } catch {
+        message.open({
+          key: FINISHED_PRINT_MESSAGE_KEY,
+          type: "error",
+          content: "Failed to open prescription.",
+          duration: 2,
+        });
+      } finally {
+        setPendingFinishedPrint(null);
+      }
+    };
+
+    completePendingPrint();
+  }, [
+    pendingFinishedPrint,
+    isFinishedPrintGenerating,
+    finishedPrintBlob,
+    finishedPrintError,
+  ]);
 
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
   const [view, setView] = useState(() => readPreference("view", "list"));
-  /* Day/Week now lives in the page toolbar, so the page owns the calendar's
+  /* Day/Week/Month now lives in the page toolbar, so the page owns the calendar's
      grain. It drives the grid through the calendar's modeOverride, and the
      calendar publishes back through onModeChange (e.g. drilling into a day from
-     week view) so the toolbar toggle stays in step. */
+     month view) so the toolbar toggle stays in step. */
   const [calendarMode, setCalendarMode] = useState(() => {
     const saved = readPreference("calendarMode", "day");
-    // Month is hidden from the toggle, so never start the grid in it.
-    return saved === "week" ? "week" : "day";
+    return saved === "week" || saved === "month" ? saved : "day";
   });
   const pickCalendarMode = useCallback((m) => {
     if (m !== "day" && m !== "week" && m !== "month") return;
     setCalendarMode(m);
     writePreference("calendarMode", m);
   }, []);
+  // Zydus calendar UI is day-only; clamp query/fetch/hook to the same grain so a
+  // leftover localStorage "month" preference cannot drive a month-wide fetch.
+  const effectiveCalendarMode = isZydusAccount ? "day" : calendarMode;
   const [activeTab, setActiveTab] = useState(() => {
     // Zydus defaults to Encounter tab on first load; non-Zydus defaults to Queue.
     // Calendar preference restores "All" only for non-Zydus (Zydus has no All tab).
@@ -803,24 +924,40 @@ export default function AppointmentListingPage() {
   // visitTypeCsv is a string so the hook's inputs stay referentially stable.
   const visitTypeCsv = (filters.visitType || []).join(",");
   // In the calendar the grid's own span wins; the table keeps the picker's.
-  const queryRange = useMemo(
-    () => (renderCalendar && calendarWindow ? calendarWindow : dateRange),
-    [renderCalendar, calendarWindow, dateRange]
-  );
-  const { rows: liveRows, counts: countByTab, loading, loadingMore, hasMore, error, refetch, loadMore } = useAppointments({
+  // Month is a single listAppointmentCalendar call over the displayed month
+  // (1st–last), not the 42-cell padded grid — so leaving month view cannot
+  // accidentally paginate listAppointment across six weeks.
+  const queryRange = useMemo(() => {
+    if (renderCalendar && effectiveCalendarMode === "month") {
+      const d = dateRange?.start ? new Date(dateRange.start) : new Date();
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      return { start, end };
+    }
+    if (renderCalendar && effectiveCalendarMode === "day") {
+      const start = dateRange?.start ? new Date(dateRange.start) : new Date();
+      return { start, end: start };
+    }
+    return renderCalendar && calendarWindow ? calendarWindow : dateRange;
+  }, [renderCalendar, effectiveCalendarMode, calendarWindow, dateRange]);
+  const { rows: liveRows, counts: countByTab, dayTotals, loading, loadingMore, hasMore, error, refetch, loadMore } = useAppointments({
     tabId: activeTab,
     dateRange: queryRange,
     query: debouncedQuery,
     visitTypeCsv,
     /* Calendar must eventually show every appointment in the window. Table
-       uses the same 25-row infinite scroll as the legacy screen. */
-    fetchAllPages: renderCalendar,
+       uses the same 25-row infinite scroll as the legacy screen. Month uses
+       listAppointmentCalendar instead, so it must not paginate. */
+    fetchAllPages: renderCalendar && effectiveCalendarMode !== "month",
     includeDraft: showDraft,
     includePendingDigitisation: digitisationWorklistEnabled,
     zydusSiteId,
     zydusEmpNo,
     isZydusAccount,
     isChikitsalay: isChikitsalayAccessable && !isZydusAccount,
+    calendarMode: renderCalendar ? effectiveCalendarMode : "day",
   });
 
   // Pending Digitisation is an all-time worklist, independent of the Slot /
@@ -866,11 +1003,14 @@ export default function AppointmentListingPage() {
 
   const rows = useMemo(() => {
     if (activeTab === TAB_IDS.REFERRAL) return liveRows;
+    /* Month chips have no visit-mode flag from listAppointmentCalendar, so
+       the in-clinic/video filter cannot be applied without emptying the grid. */
+    if (effectiveCalendarMode === "month" && renderCalendar) return liveRows;
     const slotSel = filters.slot || [];
     if (slotSel.length !== 1) return liveRows;
     const wantVideo = slotSel[0] === "video";
     return liveRows.filter((row) => row.hasVideo === wantVideo);
-  }, [liveRows, filters.slot, activeTab]);
+  }, [liveRows, filters.slot, activeTab, effectiveCalendarMode, renderCalendar]);
 
   // Zydus legacy date navigator: single day (prev/next + date picker),
   // with the legacy "can't go to next day when on today" rule.
@@ -1127,7 +1267,69 @@ export default function AppointmentListingPage() {
         }
         case "print-rx":
         case "print-draft-rx": {
-          // Match Patient Details / legacy AppointmentData: in-app WebView
+          // Finished tab: frontend PDF via usePrintPayloadPdf (legacy AppointmentData).
+          // Draft / other tabs keep opening the listing print URL.
+          const isFinishedPrint =
+            action === "print-rx" &&
+            (activeTab === TAB_IDS.FINISHED || row?.status === TAB_IDS.FINISHED);
+
+          if (isFinishedPrint) {
+            try {
+              const res = await fetchPatientDefaultLanguage(rec?.patient_unique_id);
+              const patientDefaultLanguage =
+                res?.settings?.defaultLanguage || defaultPrintSettings?.default_language;
+              const encodedData = encodePrintLanguage(patientDefaultLanguage);
+              const printChannel = !isChrome && !isSafari ? "in_app" : "browser";
+              const { printUrl, caseManagerData, latestConsultation } =
+                await resolveLatestFinishedPrintUrl(rec, encodedData);
+
+              message.open({
+                key: FINISHED_PRINT_MESSAGE_KEY,
+                type: "loading",
+                content: "Preparing PDF...",
+                duration: 0,
+              });
+
+              let labParamsData = [];
+              try {
+                const patientUniqueId =
+                  rec?.patient_unique_id || caseManagerData?.patient_data?.patient_unique_id;
+                const labParamsBaseUrl = env.lab_params_api_url;
+                if (patientUniqueId && labParamsBaseUrl) {
+                  const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+                  const cleanedToken = token ? token.replace(/['"]+/g, "") : "";
+                  const labResponse = await axios.get(
+                    `${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientUniqueId}?today=true`,
+                    { headers: { Authorization: `Bearer ${cleanedToken}` } }
+                  );
+                  labParamsData = normalizeLabResultsResponse(labResponse);
+                }
+              } catch (labError) {
+                console.error("Error fetching lab params for finished print:", labError);
+              }
+
+              setPendingFinishedPrint({
+                gen: ++finishedPrintGenRef.current,
+                printUrl,
+                selectedLang: encodedData,
+                printChannel,
+                record: rec,
+                caseManagerData,
+                latestConsultation,
+                labParamsData,
+              });
+            } catch (error) {
+              message.open({
+                key: FINISHED_PRINT_MESSAGE_KEY,
+                type: "error",
+                content: error?.message || "Failed to open prescription.",
+                duration: 2,
+              });
+            }
+            break;
+          }
+
+          // Match Patient Details / legacy draft print: in-app WebView
           // (iPad tablet shell) uses sendMessageToParent so the native print
           // Options UI opens. Bare window.open(pdf) takes over the whole
           // tablet screen with no back into the portal.
@@ -1196,7 +1398,7 @@ export default function AppointmentListingPage() {
           break;
       }
     },
-    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions, isZydusAccount, runZydusEncounterAction]
+    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions, isZydusAccount, runZydusEncounterAction, defaultPrintSettings]
   );
 
   /* Same as AppointmentData.js on prod: kebab onClick → handleAddClick
@@ -1410,7 +1612,7 @@ export default function AppointmentListingPage() {
                 />
               </div>
               <div className={styles.toolbarRight}>
-                {/* Day/Week lives here now, ahead of the date stepper, so the
+                {/* Day/Week/Month lives here, ahead of the date stepper, so the
                     calendar's grain and its navigation read as one control group
                     and the grid keeps its own header for nothing but the grid. */}
                 {renderCalendar && !isZydusAccount && (
@@ -1418,15 +1620,12 @@ export default function AppointmentListingPage() {
                     className={styles.grainSeg}
                     size="sm"
                     variant="block"
-                    /* Month view is built and working, but hidden from the
-                       toggle for prod parity (matching the legacy screen); the
-                       rendering path stays so it can be switched on later by
-                       adding the option back here. */
                     options={[
                       { value: "day", label: "Day" },
                       { value: "week", label: "Week" },
+                      { value: "month", label: "Month" },
                     ]}
-                    value={calendarMode === "month" ? "day" : calendarMode}
+                    value={calendarMode}
                     onValueChange={pickCalendarMode}
                   />
                 )}
@@ -1721,6 +1920,7 @@ export default function AppointmentListingPage() {
               ) : (
                 <AppointmentCalendarView
                   rows={rows}
+                  dayTotals={dayTotals}
                   tabId={activeTab}
                   onRowAction={onRowAction}
                   /* In move mode the tapped slot is a proposal for the
@@ -1774,10 +1974,10 @@ export default function AppointmentListingPage() {
                   }}
                   slotsVersion={slotsVersion}
                   allowBook={showBookActions}
-                  /* The page owns the grain now (Day/Week toggle in the toolbar):
+                  /* The page owns the grain now (Day/Week/Month toggle in the toolbar):
                      it drives the grid here and receives internal changes back. */
-                  modeOverride={isZydusAccount ? "day" : calendarMode}
-                  onModeChange={setCalendarMode}
+                  modeOverride={effectiveCalendarMode}
+                  onModeChange={pickCalendarMode}
                   disableAvailabilityLayer={isZydusAccount}
                   hideModeToggle
                 />

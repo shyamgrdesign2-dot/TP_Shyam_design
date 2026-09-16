@@ -16,6 +16,7 @@ import {
 } from "@dhspl-tatvacare/tesseract-ui";
 
 import ApiAppointments from "../../../api/services/ApiAppointments";
+import * as ReceptionistApptApi from "../../../api/services/receptionistAppointmentApi";
 import { addAppointment, bookTeleconsult, getSlotsList, getTeleconsultSlotsList } from "../../addAppointment/service";
 import { getLoggedInDoctorId } from "../data/useDoctorSlots";
 import { findMatchingTeleSlot } from "../data/slotTeleMatch";
@@ -119,7 +120,40 @@ export default function BookAppointmentDrawer({
      doctor on the mode of the chip they tapped (clinic vs tele). */
   modeLocked = false,
   isReschedule = false,
+  /** Override JWT doctor id (receptionist flow). */
+  doctorId: doctorIdProp = null,
+  /** Use receptionist auth on appointment API calls. */
+  receptionistMode = false,
 }) {
+  const resolveDoctorId = () => {
+    const raw = doctorIdProp ?? getLoggedInDoctorId();
+    if (raw == null || raw === "") return raw;
+    const n = Number(raw);
+    return Number.isNaN(n) ? raw : n;
+  };
+  const fetchCaseTypes = () =>
+    receptionistMode ? ReceptionistApptApi.getCaseTypes() : ApiAppointments.getCaseTypes();
+  const fetchCategories = () =>
+    receptionistMode ? ReceptionistApptApi.listCategories() : ApiAppointments.listCategories();
+  const fetchSlots = (docId, date) =>
+    receptionistMode ? ReceptionistApptApi.listSlots(docId, date) : getSlotsList(docId, date);
+  const fetchTeleSlots = (docId, date) =>
+    receptionistMode ? ReceptionistApptApi.listTeleSlots(docId, date) : getTeleconsultSlotsList(docId, date);
+  const searchPatientsApi = (q) =>
+    receptionistMode ? ReceptionistApptApi.searchPatients(q) : ApiAppointments.searchPatients(q, "");
+  const rescheduleApi = (id, payload) =>
+    receptionistMode
+      ? ReceptionistApptApi.rescheduleAppointment(id, payload)
+      : ApiAppointments.rescheduleAppointment(id, payload);
+  const bookApi = (payload, isTele) =>
+    receptionistMode
+      ? isTele
+        ? ReceptionistApptApi.bookTeleAppointment(payload)
+        : ReceptionistApptApi.bookAppointment(payload)
+      : isTele
+      ? bookTeleconsult(payload)
+      : addAppointment(payload);
+
   const [mode, setMode] = useState(initialMode);
   const [query, setQuery] = useState("");
   const [patients, setPatients] = useState([]);
@@ -199,10 +233,10 @@ export default function BookAppointmentDrawer({
   // Visit types + categories (same sources as the legacy confirm form).
   useEffect(() => {
     if (!open) return;
-    ApiAppointments.getCaseTypes()
+    fetchCaseTypes()
       .then((res) => setCaseTypes(res?.status ? res.data?.case_type || [] : []))
       .catch(() => setCaseTypes([]));
-    ApiAppointments.listCategories()
+    fetchCategories()
       .then((res) => {
         const list = res?.categories || res?.data?.categories || [];
         setCategories(list);
@@ -229,12 +263,12 @@ export default function BookAppointmentDrawer({
      shows the matching list — 5‑min tele chips when Tele is selected, etc. */
   useEffect(() => {
     if (!slotless || !pickDate) return;
-    const doctorId = getLoggedInDoctorId();
+    const doctorId = resolveDoctorId();
     const mySeq = ++slotSeq.current;
     setSlotsLoading(true);
     Promise.all([
-      getSlotsList(doctorId, pickDate).catch(() => null),
-      getTeleconsultSlotsList(doctorId, pickDate).catch(() => null),
+      fetchSlots(doctorId, pickDate).catch(() => null),
+      fetchTeleSlots(doctorId, pickDate).catch(() => null),
     ])
       .then(([clinicRes, teleRes]) => {
         if (mySeq !== slotSeq.current) return;
@@ -322,7 +356,7 @@ export default function BookAppointmentDrawer({
       const mySeq = ++searchSeq.current;
       setSearching(true);
       try {
-        const res = await ApiAppointments.searchPatients(q, "");
+        const res = await searchPatientsApi(q);
         if (mySeq === searchSeq.current) setPatients(res?.status ? res.data || [] : []);
       } catch {
         if (mySeq === searchSeq.current) setPatients([]);
@@ -339,8 +373,8 @@ export default function BookAppointmentDrawer({
   useEffect(() => {
     let alive = true;
     if (!open || mode !== "teleconsult" || !effectiveSlot) return undefined;
-    const doctorId = getLoggedInDoctorId();
-    getTeleconsultSlotsList(doctorId, effectiveSlot.dateISO)
+    const doctorId = resolveDoctorId();
+    fetchTeleSlots(doctorId, effectiveSlot.dateISO)
       .then((res) => {
         if (!alive) return;
         const teleSlots = res?.status ? res.slots || [] : [];
@@ -424,7 +458,7 @@ export default function BookAppointmentDrawer({
         : moment(effectiveSlot.end, ["HH:mm:ss", "HH:mm"], true);
 
       let payload = {
-        doctor_id: getLoggedInDoctorId(),
+        doctor_id: resolveDoctorId(),
         patient_unique_id: patient.patient_unique_id,
         pm_pid: patient.pm_pid,
         appointment_date: effectiveSlot.dateISO,
@@ -459,7 +493,7 @@ export default function BookAppointmentDrawer({
         if (payload.toct_id) movePayload.toct_id = payload.toct_id;
         if (payload.category_id) movePayload.category_id = payload.category_id;
         if (payload.appointment_remark) movePayload.appointment_remark = payload.appointment_remark;
-        const res = await ApiAppointments.rescheduleAppointment(rescheduleId, movePayload);
+        const res = await rescheduleApi(rescheduleId, movePayload);
         if (res?.status === false) {
           setToast({
             status: "error",
@@ -480,7 +514,7 @@ export default function BookAppointmentDrawer({
       }
 
       if (isTele) payload = { ...payload, patient_unique_id: String(payload.patient_unique_id) };
-      const res = isTele ? await bookTeleconsult(payload) : await addAppointment(payload);
+      const res = await bookApi(payload, isTele);
       if (res?.status) {
         setToast({ status: "success", title: `${patient.pm_fullname || "Patient"}'s appointment booked successfully!` });
         onOpenChange(false);

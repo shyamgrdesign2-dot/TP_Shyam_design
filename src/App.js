@@ -57,6 +57,12 @@ const DataAnalyticsPage = React.lazy(() =>
 const AppointmentListingPage = React.lazy(() =>
   lazyRetry(() => import("./pages/appointment-listing"))
 );
+const ReceptionistAppointmentListingPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/receptionist-appointment-listing"))
+);
+const ReceptionistRouteGuard = React.lazy(() =>
+  lazyRetry(() => import("./pages/receptionist-appointment-listing/ReceptionistRouteGuard"))
+);
 const Prescription = React.lazy(() =>
   lazyRetry(() => import("./pages/Prescription"))
 );
@@ -861,6 +867,14 @@ function App() {
           <Route path="billing-settings" element={<BillingSettings />} />
           <Route path="data-analytics-x" element={<DataAnalyticsPage />} />
           <Route path="appointments-x" element={<AppointmentListingPage />} />
+          <Route
+            path="receptionist/appointments"
+            element={
+              <ReceptionistRouteGuard>
+                <ReceptionistAppointmentListingPage />
+              </ReceptionistRouteGuard>
+            }
+          />
           <Route path="add-appointment" element={<AddAppointment />} />
           {(isReceptionist || (isMobile && !isTablet)) ? <Route path="add_patient" element={<AddNewPatient />} /> : null}
           <Route path="snap-rx" element={<SnapRx />} />

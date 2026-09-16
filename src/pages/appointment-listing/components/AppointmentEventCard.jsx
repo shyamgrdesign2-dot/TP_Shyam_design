@@ -4,6 +4,7 @@ import { TableActions, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import { ASSETS } from "../../../assets";
 import { statusMeta, shortGenderAge, videoTint, CONDITION_COLORS } from "../data/appointmentStates";
 import { rowPrimaryAction, primaryKebabOption, RowKebabMenu } from "./rowActions";
+import { ReceptionistRowKebabMenu, receptionistRowPrimaryAction } from "../../receptionist-appointment-listing/components/receptionistRowActions";
 import QueueRxSplitButton from "./QueueRxSplitButton";
 import BillingTag from "./BillingTag";
 import { useListingAccess } from "../data/useListingAccess";
@@ -106,6 +107,7 @@ export default function AppointmentEventCard({
   // Engaging an action on the card itself dismisses the hover popover: its
   // menu and the popover would otherwise stack, two of the same thing at once.
   onActionInteract,
+  receptionistMode = false,
   ...handlers
 }) {
   // In the merged "All" view each card acts on its own status
@@ -113,8 +115,11 @@ export default function AppointmentEventCard({
   const cardTab = row.status || tabId;
   const status = statusMeta(cardTab);
   const access = useListingAccess();
-  const { showBilling } = access;
-  const primary = rowPrimaryAction(cardTab, row, onRowAction, access);
+  const { showBilling: showBillingDoctor } = access;
+  const showBilling = receptionistMode ? false : showBillingDoctor;
+  const primary = receptionistMode
+    ? receptionistRowPrimaryAction()
+    : rowPrimaryAction(cardTab, row, onRowAction, access);
   const v = cardVariant(width, height, row);
 
   const canShowAbha = Boolean(
@@ -286,30 +291,31 @@ export default function AppointmentEventCard({
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => {
             e.stopPropagation();
-            // Close the hover popover the moment an on-card action is pressed,
-            // so its menu opens on a clean card, not on top of the tooltip.
             onActionInteract?.();
           }}
         >
-          {v.showCta && primary && (
+          {!receptionistMode && v.showCta && primary && (
             cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL ? (
               <QueueRxSplitButton row={row} onRowAction={onRowAction} tabId={cardTab} />
             ) : (
               <TableActions align="right" primary={primary} actions={[]} />
             )
           )}
-          {v.showKebab && (
-            <RowKebabMenu
-              tabId={cardTab}
-              row={row}
-              onRowAction={onRowAction}
-              extraOptions={
-                v.showCta || cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL
-                  ? []
-                  : [primaryKebabOption(cardTab, access)].filter(Boolean)
-              }
-            />
-          )}
+          {v.showKebab &&
+            (receptionistMode ? (
+              <ReceptionistRowKebabMenu tabId={cardTab} row={row} onRowAction={onRowAction} />
+            ) : (
+              <RowKebabMenu
+                tabId={cardTab}
+                row={row}
+                onRowAction={onRowAction}
+                extraOptions={
+                  v.showCta || cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL
+                    ? []
+                    : [primaryKebabOption(cardTab, access)].filter(Boolean)
+                }
+              />
+            ))}
         </div>
       )}
     </div>

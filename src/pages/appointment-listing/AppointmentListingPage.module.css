@@ -545,6 +545,14 @@ html :where(.page) td {
   flex-shrink: 0;
 }
 
+/* Receptionist toolbar keeps search on the right; give it a usable width so
+   the placeholder is not clipped beside the date + filter controls. */
+.receptionistSearch {
+  min-width: 260px;
+  width: 280px;
+  max-width: 320px;
+  flex-shrink: 0;
+}
 
 /* Page-level overflow menu, now trailing the toolbar's control cluster (after
    the filters, at the very right end) rather than up in the tab row: its Queue

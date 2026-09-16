@@ -43,6 +43,28 @@ ApiAppointments.getAllAppointment = function (data) {
   return api.post(`/api/v1/appointment/listAppointment`, data, baseUrl);
 };
 
+/* Month calendar summary: one GET for the window, `size` appointments per
+   day plus that day's total_count. Query params match the webservice
+   contract (startDate, endDate, size, appointmentStatus CSV). */
+ApiAppointments.listAppointmentCalendar = function ({
+  startDate,
+  endDate,
+  size = 3,
+  appointmentStatus,
+} = {}) {
+  return api.get(`/api/v1/appointment/listAppointmentCalendar`, {
+    ...baseUrl,
+    params: {
+      startDate,
+      endDate,
+      size,
+      ...(appointmentStatus != null && appointmentStatus !== ""
+        ? { appointmentStatus }
+        : {}),
+    },
+  });
+};
+
 ApiAppointments.cancelAppointments = function (data) {
   return api.post(`/api/v1/appointment/cancelAppointment`, data, baseUrl);
 };

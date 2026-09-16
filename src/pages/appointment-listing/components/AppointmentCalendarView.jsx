@@ -12,9 +12,11 @@ import {
 
 import { ASSETS } from "../../../assets";
 import useDoctorSlots from "../data/useDoctorSlots";
+import useReceptionistDoctorSlots from "../../receptionist-appointment-listing/data/useReceptionistDoctorSlots";
 import { STATUS_META, statusMeta, visitMeta, shortGenderAge, CONDITION_COLORS } from "../data/appointmentStates";
-import { TAB_IDS } from "../data/appointmentsConfig";
+import { TAB_IDS, MONTH_CALENDAR_SIZE } from "../data/appointmentsConfig";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
+import { ReceptionistRowKebabMenu, receptionistRowPrimaryAction } from "../../receptionist-appointment-listing/components/receptionistRowActions";
 import QueueRxSplitButton from "./QueueRxSplitButton";
 import AppointmentEventCard from "./AppointmentEventCard";
 import BillingTag, { StatusTag } from "./BillingTag";
@@ -67,7 +69,7 @@ const MONTH_CELL_CHROME = 24 + 12 + 18;
 
 function initialCalendarMode() {
   const saved = readPreference("calendarMode", "day");
-  return saved === "week" ? "week" : "day";
+  return saved === "week" || saved === "month" ? saved : "day";
 }
 
 
@@ -354,11 +356,12 @@ export function MiniDatePopover({ anchor, onPick, onClose, maxDate = null }) {
  * below the card depending on which side it fits, measured after mount rather
  * than estimated, and carries the CTA that small cards can't show inline.
  */
-function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, onMouseEnter, onMouseLeave }) {
+function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, onMouseEnter, onMouseLeave, receptionistMode = false }) {
   // Act on this appointment's own status inside the merged "All" view.
   const cardTab = row.status || tabId;
   const access = useListingAccess();
-  const { showBilling } = access;
+  const { showBilling: showBillingDoctor } = access;
+  const showBilling = receptionistMode ? false : showBillingDoctor;
   const act = (id, r) => {
     onRowAction?.(id, r);
     /* Keep the popover mounted through the current pointer-down so a
@@ -369,7 +372,9 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
     }
     onClose();
   };
-  const primary = rowPrimaryAction(cardTab, row, act, access);
+  const primary = receptionistMode
+    ? receptionistRowPrimaryAction()
+    : rowPrimaryAction(cardTab, row, act, access);
   const canShowAbha = Boolean(
     (row.abhaAddress || row.raw?.abhaAddress) && access.hipId && access.abhaEnable
   );
@@ -405,7 +410,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
      hasVideo on the record, but joining is no longer a valid action — and
      rendering Join alone used to force the actions footer open, which then
      drew a second kebab next to the head one (cancelled has no primary). */
-  const showJoin = row.hasVideo && cardTab === TAB_IDS.QUEUE;
+  const showJoin = !receptionistMode && row.hasVideo && cardTab === TAB_IDS.QUEUE;
   const showActionsFooter = !!(primary || showJoin);
   /* Two boxes on purpose: the outer one positions and carries the caret,
      the inner one clips its children to the 12px radius. A single box can't
@@ -474,7 +479,12 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
         </div>
         {/* Cancelled (and any other no-CTA) rows put the kebab here; when the
             footer is open the kebab lives there instead — never both. */}
-        {!showActionsFooter && <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />}
+        {!showActionsFooter &&
+          (receptionistMode ? (
+            <ReceptionistRowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          ) : (
+            <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          ))}
       </div>
 
       {/* Icon-led rows: the glyph names the field, so no label column is
@@ -539,7 +549,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
       {showActionsFooter && (
         <div className={styles.popoverActions}>
           <span className={styles.popoverActionsLead}>
-            {primary && (
+            {!receptionistMode && primary && (
               cardTab === TAB_IDS.QUEUE || cardTab === TAB_IDS.REFERRAL ? (
                 <QueueRxSplitButton row={row} onRowAction={act} tabId={cardTab} />
               ) : (
@@ -557,10 +567,12 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
                 Join
               </Button>
             )}
-            {/* Move CTA removed: tablet/desktop both drag the card onto a
-                free slot (see startDrag). The kebab still has Reschedule. */}
           </span>
-          <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          {receptionistMode ? (
+            <ReceptionistRowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          ) : (
+            <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
+          )}
         </div>
       )}
       </div>
@@ -583,6 +595,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
 
 export default function AppointmentCalendarView({
   rows,
+  dayTotals = {},
   tabId,
   onRowAction,
   onSlotPick,
@@ -611,6 +624,9 @@ export default function AppointmentCalendarView({
   onModeChange = null, // publishes internal mode changes so the toolbar toggle stays in sync
   disableAvailabilityLayer = false, // hides availability controls + stops slot API calls
   hideModeToggle = false,
+  /** When set, slot fetches use receptionist auth for this doctor. */
+  doctorId = null,
+  receptionistMode = false,
 }) {
   const { isChikitsalay } = useListingAccess();
   const legend = isChikitsalay
@@ -1085,10 +1101,18 @@ export default function AppointmentCalendarView({
     return out;
   }, [mode, days, anchor, freeSlots, disableAvailabilityLayer]);
 
-  const { slotsByDate, pendingDates } = useDoctorSlots({
+  const doctorSlots = useDoctorSlots({
     dateISOs: slotDateISOs,
     version: slotsVersion,
+    enabled: !doctorId,
   });
+  const receptionistSlots = useReceptionistDoctorSlots({
+    doctorId,
+    dateISOs: slotDateISOs,
+    version: slotsVersion,
+    enabled: !!doctorId,
+  });
+  const { slotsByDate, pendingDates } = doctorId ? receptionistSlots : doctorSlots;
 
   /* How many chips a month cell can actually hold.
 
@@ -1128,8 +1152,8 @@ export default function AppointmentCalendarView({
      a single line plus "+11 more" says almost nothing about the day, and the
      row floor in CSS guarantees room for two. */
   const monthChipCap = useMemo(() => {
-    if (!monthRowH) return 3;
-    return Math.max(2, Math.min(3, Math.floor((monthRowH - MONTH_CELL_CHROME) / MONTH_CHIP_H)));
+    if (!monthRowH) return MONTH_CALENDAR_SIZE;
+    return Math.max(2, Math.min(MONTH_CALENDAR_SIZE, Math.floor((monthRowH - MONTH_CELL_CHROME) / MONTH_CHIP_H)));
   }, [monthRowH]);
 
   const eventsByDay = useMemo(() => {
@@ -1267,9 +1291,8 @@ export default function AppointmentCalendarView({
     onAnchorChange?.(day);
   };
 
-  // Day / Week only changes how much of the anchor day is shown, so
+  // Day / Week / Month only changes how much of the anchor day is shown, so
   // the anchor itself survives the switch. The choice is remembered.
-  // Month is hidden for now (see MODE_OPTIONS).
   const pickMode = (m) => {
     if (m !== "day" && m !== "week" && m !== "month") return;
     setMode(m);
@@ -1811,6 +1834,7 @@ export default function AppointmentCalendarView({
                         key={row.id}
                         row={row}
                         tabId={tabId}
+                        receptionistMode={receptionistMode}
                         width={cardWidth}
                         height={heightPx}
                         onRowAction={onRowAction}
@@ -1879,15 +1903,18 @@ export default function AppointmentCalendarView({
           <div className={styles.monthGrid} ref={monthGridRef}>
             {monthCells.map((d) => {
               const inMonth = d.getMonth() === anchor.getMonth();
-              const events = eventsByDay[iso(d)] || [];
+              const dayISO = iso(d);
+              const events = eventsByDay[dayISO] || [];
+              const shown = events.slice(0, monthChipCap);
+              const total = dayTotals[dayISO] ?? events.length;
               return (
                 <button
-                  key={iso(d)}
+                  key={dayISO}
                   type="button"
                   className={styles.monthCell}
                   data-outside={!inMonth || undefined}
-                  data-today={iso(d) === todayISO || undefined}
-                  data-selected={iso(d) === iso(anchor) || undefined}
+                  data-today={dayISO === todayISO || undefined}
+                  data-selected={dayISO === iso(anchor) || undefined}
                   onClick={() => {
                     goToDate(d);
                     pickMode("day");
@@ -1909,10 +1936,10 @@ export default function AppointmentCalendarView({
                     inMonth &&
                     (() => {
                       if (startOfDay(d) < startOfDay(new Date())) return null;
-                      if (pendingDates.has(iso(d))) {
+                      if (pendingDates.has(dayISO)) {
                         return <span className={styles.monthFreeSkeleton} aria-hidden="true" />;
                       }
-                      const daySlots = slotsByDate[iso(d)];
+                      const daySlots = slotsByDate[dayISO];
                       if (!daySlots) return null;
                       const free = daySlots.filter((x) => x.status === "available" && !x.isPast).length;
                       /* No published slots at all is a closed day (a holiday,
@@ -1934,14 +1961,14 @@ export default function AppointmentCalendarView({
                     })()}
                   {/* One line each, status-coloured, so a month cell stays a
                       density read rather than a stack of little cards. */}
-                  {events.slice(0, monthChipCap).map((row) => (
+                  {shown.map((row) => (
                     <span key={row.id} className={styles.monthChip} data-status={row.status || tabId}>
                       <span className={styles.monthChipTime}>{row.slotTime}</span>
                       <span className={styles.monthChipName}>{row.name}</span>
                     </span>
                   ))}
-                  {events.length > monthChipCap && (
-                    <span className={styles.moreCount}>+{events.length - monthChipCap} more</span>
+                  {total > shown.length && (
+                    <span className={styles.moreCount}>+{total - shown.length} more</span>
                   )}
                 </button>
               );
@@ -2017,6 +2044,7 @@ export default function AppointmentCalendarView({
           onClose={closePopup}
           onMouseEnter={keepOpen}
           onMouseLeave={hoverClose}
+          receptionistMode={receptionistMode}
         />
       )}
     </div>
