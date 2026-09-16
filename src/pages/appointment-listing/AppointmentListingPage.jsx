@@ -21,7 +21,7 @@ import {
   Toast,
   TPLibraryIcon,
 } from "@dhspl-tatvacare/tesseract-ui";
-import { DatePicker } from "antd";
+import { DatePicker, message } from "antd";
 // eslint-disable-next-line import/no-unresolved -- exports-map alias ("./styles.css" → dist css); webpack resolves it, eslint-plugin-import cannot
 import "@dhspl-tatvacare/tesseract-ui/styles.css";
 
@@ -39,6 +39,10 @@ import {
 import useAppointments, { fetchQueueRows } from "./data/useAppointments";
 import { useListingAccess } from "./data/useListingAccess";
 import { readPreference, writePreference } from "./data/viewPreferences";
+import {
+  encodePrintLanguage,
+  resolveLatestFinishedPrintUrl,
+} from "./data/finishedPrintRx";
 import AppointmentListView from "./components/AppointmentListView";
 import AppointmentCalendarView from "./components/AppointmentCalendarView";
 import BookAppointmentDrawer from "./components/BookAppointmentDrawer";
@@ -68,6 +72,7 @@ import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import { useDeviceType } from "../../utils/deviceDetection";
+import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { clinicTargetStatus, generateClinicToken } from "../chikitsalay/service";
@@ -79,7 +84,8 @@ import { isChrome, isSafari } from "react-device-detect";
 import { fetchPatientDefaultLanguage } from "../../api/services/DefaultLanguageService";
 import { getSnapRxDigitization } from "../snapRx/services/snapRxService";
 import { generateUniqueFileName, getCorrectedFileName } from "../medicalRecords/utils/helper";
-import { fetchAllDocumentCategories } from "../medicalRecords/service";
+import { fetchAllDocumentCategories, uploadDocsToAzure } from "../medicalRecords/service";
+import { normalizeLabResultsResponse } from "../../utils/labResultsUtils";
 import {
   GB_VOICE_RX_NEW_UI,
   UNFINISHED_RX_CASE,
@@ -93,6 +99,8 @@ import {
   ZYDUS_FLAG,
 } from "./data/zydusConsultFlow";
 import styles from "./AppointmentListingPage.module.css";
+
+const FINISHED_PRINT_MESSAGE_KEY = "listing-finished-print-rx-generate";
 
 /* All glyphs come from the Tesseract icon CDN via TPLibraryIcon (house
    rule: no inline / third-party SVGs). Closest CDN equivalents to the
@@ -314,9 +322,111 @@ export default function AppointmentListingPage() {
   const showQueueExportMenu = !isTabletDevice && !isIPadDesktopMode;
   // siteId / empNo are set by SidebarDoctor after the Zydus ICT login handshake;
   // they live in the doctors redux slice, same as legacy AppointmentData.js reads them.
-  const { siteId: zydusSiteId, empNo: zydusEmpNo, userId } = useSelector((state) => state.doctors || {});
+  const { siteId: zydusSiteId, empNo: zydusEmpNo, userId, defaultPrintSettings } = useSelector(
+    (state) => state.doctors || {}
+  );
   const { advancedSettings } = useSelector((state) => state.billing || {});
   const { isOpdBillingAccessable } = useOpdBilling();
+  const finishedData = useSelector((state) => state.records?.finishedData) || [];
+  const genxSyncInFlightRef = useRef(new Set());
+  const [pendingFinishedPrint, setPendingFinishedPrint] = useState(null);
+
+  const finishedPrintSelectedLang = useMemo(() => {
+    if (!pendingFinishedPrint?.selectedLang) return undefined;
+    try {
+      return Number(atob(pendingFinishedPrint.selectedLang));
+    } catch {
+      return undefined;
+    }
+  }, [pendingFinishedPrint?.selectedLang]);
+
+  const {
+    printBlob: finishedPrintBlob,
+    printBlobSourceUrl: finishedPrintBlobSourceUrl,
+    isGenerating: isFinishedPrintGenerating,
+    error: finishedPrintError,
+  } = usePrintPayloadPdf({
+    printUrl: pendingFinishedPrint?.printUrl || null,
+    selectedLang: finishedPrintSelectedLang,
+    isGynaecHistoryAccessable: false,
+    payloadOverride: null,
+    skipFetch: !pendingFinishedPrint?.printUrl,
+    labParamsData: pendingFinishedPrint?.labParamsData ?? null,
+    isCvtExtHosAccessableFromGB: isCvtExtHos,
+    patientId:
+      pendingFinishedPrint?.record?.patient_unique_id ||
+      pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    patientUniqueId:
+      pendingFinishedPrint?.record?.patient_unique_id ||
+      pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    tcmId:
+      pendingFinishedPrint?.caseManagerData?.tcm_id || pendingFinishedPrint?.record?.tcm_id,
+    canvasFilename: pendingFinishedPrint?.caseManagerData?.canvas_filename,
+    isDentalEnabled,
+    caseManagerDataOverride: pendingFinishedPrint?.caseManagerData ?? null,
+    patientRecord: pendingFinishedPrint?.caseManagerData?.patient_data,
+  });
+
+  useEffect(() => {
+    if (!pendingFinishedPrint) return;
+    if (isFinishedPrintGenerating) return;
+
+    if (finishedPrintError) {
+      message.open({
+        key: FINISHED_PRINT_MESSAGE_KEY,
+        type: "error",
+        content: finishedPrintError?.message || "Failed to generate PDF.",
+        duration: 2,
+      });
+      setPendingFinishedPrint(null);
+      return;
+    }
+
+    if (finishedPrintBlobSourceUrl !== pendingFinishedPrint.printUrl) return;
+
+    const completePendingPrint = async () => {
+      if (!(finishedPrintBlob instanceof Blob)) return;
+      message.destroy(FINISHED_PRINT_MESSAGE_KEY);
+
+      try {
+        if (pendingFinishedPrint.printChannel === "in_app") {
+          const file = new File(
+            [finishedPrintBlob],
+            `${new Date().toISOString().split("T")[0]}.pdf`,
+            { type: "application/pdf" }
+          );
+          const formData = new FormData();
+          formData.append(file?.name, file);
+          const res = await uploadDocsToAzure(formData);
+          const uploadedUrl = res?.[0]?.url;
+          if (!uploadedUrl) {
+            throw new Error("Failed to upload PDF.");
+          }
+          sendMessageToParent(EVENTS.PRINT, { url: uploadedUrl });
+        } else {
+          const blobURL = URL.createObjectURL(finishedPrintBlob);
+          window.open(blobURL, "_blank");
+        }
+      } catch {
+        message.open({
+          key: FINISHED_PRINT_MESSAGE_KEY,
+          type: "error",
+          content: "Failed to open prescription.",
+          duration: 2,
+        });
+      } finally {
+        setPendingFinishedPrint(null);
+      }
+    };
+
+    completePendingPrint();
+  }, [
+    pendingFinishedPrint,
+    isFinishedPrintGenerating,
+    finishedPrintBlob,
+    finishedPrintBlobSourceUrl,
+    finishedPrintError,
+  ]);
 
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
@@ -1149,7 +1259,68 @@ export default function AppointmentListingPage() {
         }
         case "print-rx":
         case "print-draft-rx": {
-          // Match Patient Details / legacy AppointmentData: in-app WebView
+          // Finished tab: frontend PDF via usePrintPayloadPdf (legacy AppointmentData).
+          // Draft / other tabs keep opening the listing print URL.
+          const isFinishedPrint =
+            action === "print-rx" &&
+            (activeTab === TAB_IDS.FINISHED || row?.status === TAB_IDS.FINISHED);
+
+          if (isFinishedPrint) {
+            try {
+              const res = await fetchPatientDefaultLanguage(rec?.patient_unique_id);
+              const patientDefaultLanguage =
+                res?.settings?.defaultLanguage || defaultPrintSettings?.default_language;
+              const encodedData = encodePrintLanguage(patientDefaultLanguage);
+              const printChannel = !isChrome && !isSafari ? "in_app" : "browser";
+              const { printUrl, caseManagerData, latestConsultation } =
+                await resolveLatestFinishedPrintUrl(rec, encodedData);
+
+              message.open({
+                key: FINISHED_PRINT_MESSAGE_KEY,
+                type: "loading",
+                content: "Preparing PDF...",
+                duration: 0,
+              });
+
+              let labParamsData = [];
+              try {
+                const patientUniqueId =
+                  rec?.patient_unique_id || caseManagerData?.patient_data?.patient_unique_id;
+                const labParamsBaseUrl = env.lab_params_api_url;
+                if (patientUniqueId && labParamsBaseUrl) {
+                  const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+                  const cleanedToken = token ? token.replace(/['"]+/g, "") : "";
+                  const labResponse = await axios.get(
+                    `${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientUniqueId}?today=true`,
+                    { headers: { Authorization: `Bearer ${cleanedToken}` } }
+                  );
+                  labParamsData = normalizeLabResultsResponse(labResponse);
+                }
+              } catch (labError) {
+                console.error("Error fetching lab params for finished print:", labError);
+              }
+
+              setPendingFinishedPrint({
+                printUrl,
+                selectedLang: encodedData,
+                printChannel,
+                record: rec,
+                caseManagerData,
+                latestConsultation,
+                labParamsData,
+              });
+            } catch (error) {
+              message.open({
+                key: FINISHED_PRINT_MESSAGE_KEY,
+                type: "error",
+                content: error?.message || "Failed to open prescription.",
+                duration: 2,
+              });
+            }
+            break;
+          }
+
+          // Match Patient Details / legacy draft print: in-app WebView
           // (iPad tablet shell) uses sendMessageToParent so the native print
           // Options UI opens. Bare window.open(pdf) takes over the whole
           // tablet screen with no back into the portal.
@@ -1218,7 +1389,7 @@ export default function AppointmentListingPage() {
           break;
       }
     },
-    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions, isZydusAccount, runZydusEncounterAction]
+    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions, isZydusAccount, runZydusEncounterAction, defaultPrintSettings]
   );
 
   /* Same as AppointmentData.js on prod: kebab onClick → handleAddClick
