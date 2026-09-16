@@ -1088,7 +1088,7 @@ export default function AppointmentListingPage() {
         isZydusAccount && activeTab === TAB_IDS.ZYDUS_ENCOUNTER;
       switch (action) {
         case "type-rx": {
-          window.Moengage?.track_event("patient_search_consult", {
+          window.Moengage?.track_event?.("patient_search_consult", {
             doctor_id: profile?.doctor_unique_id,
             patient_id: rec?.patient_unique_id,
           });

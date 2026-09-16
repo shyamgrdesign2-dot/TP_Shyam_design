@@ -373,7 +373,7 @@ const BillingSettings = () => {
                     onClick={() => {
                       setVideoLink(item1);
                       const clinic_name = getClinicName(profile?.hospital_data);
-                      window.Moengage.track_event("TP_Tutorial_Viewed", {
+                      window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                         clinic_name,
                         tutorial_type: videoList[15]?.category,
                       });

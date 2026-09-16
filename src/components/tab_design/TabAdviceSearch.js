@@ -12,6 +12,7 @@ import {
 import { MenuOutlined } from '@ant-design/icons';
 import TabSearchHeader from "./TabSearchHeader";
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../../utils/dndTransitionGuard";
 
 function TabAdviceSearch({ passIndex, onClose }) {
 
@@ -132,7 +133,7 @@ function TabAdviceSearch({ passIndex, onClose }) {
                                         {(provided) => (
                                             <Row
                                                 ref={provided.innerRef}
-                                                {...provided.draggableProps}
+                                                {...guardDropAnimation(provided.draggableProps)}
                                                 key={index}
                                                 gutter={[0]}
                                                 className="h-38 align-items-center"

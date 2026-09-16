@@ -103,7 +103,7 @@ function SnapRxContent() {
         }
 
         const tokenData = getTokenData();
-        window.Moengage.track_event("TP_TC_StartCall", {
+        window.Moengage?.track_event?.("TP_TC_StartCall", {
           doctor_name: profile?.um_name,
           doctor_number: profile?.um_contact,
           doctor_specialty: profile?.dp_name,

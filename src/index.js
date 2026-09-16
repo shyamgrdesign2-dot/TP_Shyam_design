@@ -77,6 +77,38 @@ if (typeof window !== "undefined") {
 
 const appEnv = process.env.REACT_APP_ENV || "prod";
 const isProd = isProductionEnv(appEnv);
+
+// Where this document stood at boot, for segmenting telemetry by whether paint vitals
+// were ever possible. Buckets:
+//   iframe    — embedded document. The Kea hospital dashboard renders /billing-dashboard,
+//               /lims and /pharmacy inside display:none iframes (~70% of pageload
+//               volume). visibilityState alone cannot detect these: a nested document
+//               mirrors the top-level tab, so a hidden iframe in a focused tab still
+//               reads "visible".
+//   prerender — speculative load; paints only after activation, and its clock starts at
+//               prerender start (app_ready subtracts activationStart — see useAppReady).
+//   hidden    — tab restored in the background at browser startup or opened unfocused.
+//               The browser fires no FCP/LCP for a document that starts hidden.
+//   visible   — someone was plausibly watching; paint vitals should exist.
+// Missing FCP/LCP on iframe/hidden loads is correct browser behavior, not a bug.
+//
+// Stamped via addEventProcessor + the beforeSendSpan option below rather than
+// Sentry.setTag: a scope tag would be wiped wholesale by clearSentryContext() on /login
+// mounts (src/utils/sentryContext.js clears the whole isolation scope), and standalone
+// LCP/CLS span envelopes never read scope tags at all (createSpanEnvelope serializes
+// spans directly). Both paths below read this constant, so neither can be cleared.
+const BOOT_VISIBILITY = (() => {
+  try {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return "unknown";
+    }
+    if (window.self !== window.top) return "iframe";
+    if (document.prerendering) return "prerender";
+    return document.visibilityState || "unknown";
+  } catch (e) {
+    return "unknown";
+  }
+})();
 const tracesSampleRateValue =
   Number(
     process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE ??
@@ -182,6 +214,33 @@ Sentry.init({
     /window\.webkit\.messageHandlers/i,
     /Error in getting sdk settings from localstorage/i,
   ],
+  // Standalone LCP/CLS span envelopes (enabled via _experiments above) bypass scope
+  // tags and event processors entirely, so boot_visibility has to be attached here for
+  // them — this is the only path that reaches those spans, and LCP is the metric the
+  // whole segmentation exists to split.
+  //
+  // Restricted to the spans the segmentation is actually queried on. The SDK runs this
+  // callback for the root span AND every child span of every transaction
+  // (client.js "2. Process child spans"), and this app emits ~9.6M child spans a day
+  // against ~456k transactions: tagging http.client/resource.*/long-animation-frame
+  // would upload hundreds of MB a day of an attribute nobody filters on.
+  //
+  // KNOWN COST, measured: defining this callback at all drops `contexts.trace.links`
+  // from every transaction. The SDK round-trips the root span through
+  // convertTransactionEventToSpanJson (which does not carry `links`) and merges the
+  // result back over contexts.trace, so the loss happens no matter what this body does
+  // — narrowing the gate does not avoid it. Verified by A/B locally: links present with
+  // the callback removed, absent with it defined. Accepted because the SDK also writes
+  // `sentry.previous_trace` as a span attribute, which survives, so previous-trace
+  // information is degraded (no structured link in the trace UI) rather than lost.
+  beforeSendSpan(span) {
+    const op = span.op || "";
+    if (op === "pageload" || op === "navigation" || op.startsWith("ui.webvital.")) {
+      span.data = { ...span.data, boot_visibility: BOOT_VISIBILITY };
+    }
+    return span;
+  },
+
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;
@@ -202,6 +261,16 @@ Sentry.init({
     return event;
   },
   enableLogs: true
+});
+
+// Tag every event (errors and transactions) with the boot-time visibility computed
+// above. An event processor reads the constant at capture time, so unlike a scope tag
+// it survives clearSentryContext()'s isolation-scope wipe on /login. The value is
+// deliberately the state AT BOOT — a tab revealed hours later still reports how it
+// started, because that is what decides whether its pageload could carry paint vitals.
+Sentry.addEventProcessor((event) => {
+  event.tags = { ...event.tags, boot_visibility: BOOT_VISIBILITY };
+  return event;
 });
 
 // Fix for stale lazy-loaded chunks after a new deployment.

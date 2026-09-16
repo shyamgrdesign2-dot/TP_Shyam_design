@@ -50,6 +50,7 @@ import {
 import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { PrescriptionEmptyLineDragHandle } from "./PrescriptionEmptyLineUi";
 
 import TextArea from "antd/es/input/TextArea";
@@ -589,7 +590,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
   const onDeleteModule = async () => {
     // Track MoEngage event for delete module
     if (window.Moengage) {
-      window.Moengage.track_event("TP_CMV2_Del", getMoeData());
+      window.Moengage?.track_event?.("TP_CMV2_Del", getMoeData());
     }
 
     try {
@@ -639,7 +640,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
   const handleRemoveFromRxPad = async () => {
     // Track MoEngage event for remove from Rx pad
     if (window.Moengage) {
-      window.Moengage.track_event("TP_CMV2_Remove", getMoeData());
+      window.Moengage?.track_event?.("TP_CMV2_Remove", getMoeData());
     }
 
     try {
@@ -963,7 +964,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
                   {(provided) => (
                     <Row
                       ref={provided.innerRef}
-                      {...provided.draggableProps}
+                      {...guardDropAnimation(provided.draggableProps)}
                       key={index}
                       gutter={[0]}
                       className={[
@@ -1313,7 +1314,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
         onClick={isModuleDisabled ? undefined : () => {
           // Track MoEngage event for edit module
           if (window.Moengage) {
-            window.Moengage.track_event("TP_CM2_Edit", getMoeData());
+            window.Moengage?.track_event?.("TP_CM2_Edit", getMoeData());
           }
           setCanEditName(true);
         }}

@@ -191,7 +191,7 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
   const handleDeleteModule = async () => {
     // Track MoEngage event for delete module
     if (window.Moengage) {
-      window.Moengage.track_event("TP_CMV2_Del", getMoeData());
+      window.Moengage?.track_event?.("TP_CMV2_Del", getMoeData());
     }
 
     try {
@@ -393,7 +393,7 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
     } else if (key === "edit" && !isModuleDisabled) {
       // Track MoEngage event for edit module
       if (window.Moengage) {
-        window.Moengage.track_event("TP_CM2_Edit", getMoeData());
+        window.Moengage?.track_event?.("TP_CM2_Edit", getMoeData());
       }
       setCanEditName(true);
     }

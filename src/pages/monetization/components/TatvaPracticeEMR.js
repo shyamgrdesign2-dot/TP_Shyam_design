@@ -23,7 +23,7 @@ function TatvaPracticeEMR({ item,clickKnowMore }) {
         const tokenData = getTokenData();
         const clinic_name = getClinicName(profile?.hospital_data);
         const deviceSdkData = getDeviceSdkData(); 
-        window.Moengage.track_event("TP_ViewMoreFeatures", {
+        window.Moengage?.track_event?.("TP_ViewMoreFeatures", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,

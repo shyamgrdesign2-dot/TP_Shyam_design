@@ -344,7 +344,7 @@ function MobileVoiceRecording() {
 
     try {
       const clinic = getClinic(profile?.hospital_data);
-      window.Moengage.track_event("TP_App_AV_Submit", {
+      window.Moengage?.track_event?.("TP_App_AV_Submit", {
         ...getVoiceRxMoengageBasePayload({
           profile,
           userId,

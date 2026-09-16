@@ -1622,7 +1622,7 @@ function Cardiology(props) {
   const printContent = async () => {
     if (showDigitalRx || showDigitalSnapRx) {
       showDigitalRx &&
-        window.Moengage.track_event("TP_Digitised_Prescription_Print", {
+        window.Moengage?.track_event?.("TP_Digitised_Prescription_Print", {
           Doctor_Name: profile?.um_name,
           Doctor_Number: profile?.um_contact,
           Doctor_Unique_Id: profile?.doctor_unique_id,
@@ -1690,7 +1690,7 @@ function Cardiology(props) {
 
   const printInAppContent = async () => {
     if (shouldUseVoiceRxPrintPayload && showDigitalGenRx) {
-      window.Moengage.track_event("TP_Digitised_Prescription_Print", {
+      window.Moengage?.track_event?.("TP_Digitised_Prescription_Print", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
         Doctor_Unique_Id: profile?.doctor_unique_id,
@@ -1729,7 +1729,7 @@ function Cardiology(props) {
     try {
       if (showDigitalRx || showDigitalSnapRx) {
         if (showDigitalRx) {
-          window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+          window.Moengage?.track_event?.("TP_Digitised_Prescription_Download", {
             Doctor_Name: profile?.um_name,
             Doctor_Number: profile?.um_contact,
             Doctor_Unique_Id: profile?.doctor_unique_id,
@@ -1865,7 +1865,7 @@ function Cardiology(props) {
     };
 
     if (shouldUseVoiceRxPrintPayload && showDigitalGenRx) {
-      window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+      window.Moengage?.track_event?.("TP_Digitised_Prescription_Download", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
         Doctor_Unique_Id: profile?.doctor_unique_id,
@@ -1915,7 +1915,7 @@ function Cardiology(props) {
   ]);
 
   const handleEditRxClick = async () => {
-    window.Moengage.track_event("edit_rx_click", {
+    window.Moengage?.track_event?.("edit_rx_click", {
       doctor_id: profile?.doctor_unique_id,
       patient_id:
         patient_data !== undefined ? patient_data.patient_unique_id : 0,
@@ -2127,7 +2127,7 @@ function Cardiology(props) {
       patient_data?.pam_id ??
       viewCaseManagerData?.appointmentId ??
       tcmData?.appointmentId;
-    window.Moengage.track_event("TP_DigitizeSSRx", {
+    window.Moengage?.track_event?.("TP_DigitizeSSRx", {
     patient_id: patient_data?.patient_unique_id || "",
     patient_name: patient_data?.pm_fullname || "",
     doctor_id: profile?.doctor_unique_id,
@@ -3861,7 +3861,7 @@ function Cardiology(props) {
   };
 
   const handleStartConsult = () => {
-    window.Moengage.track_event("start_new_visit_click", {
+    window.Moengage?.track_event?.("start_new_visit_click", {
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
     });
@@ -3883,7 +3883,7 @@ function Cardiology(props) {
 
   const handleStartVoiceRx = () => {
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+    window.Moengage?.track_event?.("TP_VoiceRx_EntryPoint_Click", {
       patient_contact: patient_data?.pm_contact_no || "",
       patient_id: patient_data?.patient_unique_id || "",
       doctor_speciality: profile?.dp_name,
@@ -3900,7 +3900,7 @@ function Cardiology(props) {
   };
 
   const handleStartSmartRx = () => {
-    window.Moengage?.track_event("start_new_SmartRx_click", {
+    window.Moengage?.track_event?.("start_new_SmartRx_click", {
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
     });
@@ -3910,7 +3910,7 @@ function Cardiology(props) {
   };
 
   const handleStartSnapRx = () => {
-    window.Moengage?.track_event("start_new_SnapRx_click", {
+    window.Moengage?.track_event?.("start_new_SnapRx_click", {
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
     });
@@ -4972,7 +4972,7 @@ function Cardiology(props) {
                     onClick={() => {
                       if (isVoiceRxPaid) {
                         const clinic_name = getClinicName(profile?.hospital_data);
-                        window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+                        window.Moengage?.track_event?.("TP_VoiceRx_EntryPoint_Click", {
                           patient_contact: patient_data?.pm_contact_no || "",
                           patient_id: patient_data?.patient_unique_id || "",
                           doctor_speciality: profile?.dp_name,
@@ -4987,7 +4987,7 @@ function Cardiology(props) {
                           ),
                         });
                       } else {
-                        window.Moengage.track_event("start_new_visit_click", {
+                        window.Moengage?.track_event?.("start_new_visit_click", {
                           doctor_id: profile?.doctor_unique_id,
                           patient_id:
                             patient_data !== undefined

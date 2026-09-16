@@ -38,6 +38,7 @@ import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import DoseCalculator from "./dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import FreeBadge from "../common/FreeBadge";
@@ -837,7 +838,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
       return;
     }
 
-    window.Moengage.track_event("medicine_select", {
+    window.Moengage?.track_event?.("medicine_select", {
       value: keyParsed.tmm_medicine_name
     });
 
@@ -876,7 +877,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
       showHideAddMedicineModal()
       setAddCustom(JSON.parse(item.key));
     } else {
-      window.Moengage.track_event("medicine_select", {
+      window.Moengage?.track_event?.("medicine_select", {
         "value": JSON.parse(item.key).tmm_medicine_name
       });
 
@@ -1397,7 +1398,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
   };
 
   const onTemplateSelected = async (tmtd_id) => {
-    window.Moengage.track_event("medication_template_used", {
+    window.Moengage?.track_event?.("medication_template_used", {
       "template_name": tmtd_id.tmtd_template_name
     });
     const action = await dispatch(
@@ -1664,7 +1665,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
 
   const taperDoseAdd = async (item) => {
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("TP_Medicine_Tappered_Web", {
+    window.Moengage?.track_event?.("TP_Medicine_Tappered_Web", {
       clinic_name,
       "Doctor_unique_id": profile?.doctor_unique_id,
       "Doctor_specialty": profile?.dp_name,
@@ -1831,7 +1832,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                       {(provided) => (
                         <Row
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           key={rowKey}
                           gutter={[0]}
                           className={[

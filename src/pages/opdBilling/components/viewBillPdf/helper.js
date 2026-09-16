@@ -141,12 +141,9 @@ export const billDataShow = (id, billData, gstIn) => {
         ? billData?.billNumber ?? "-"
         : billData?.receiptNumber ?? "-";
   } else if (id == 3) {
-    value =
-      billData?.updatedAt || billData?.createdAt
-        ? moment(billData.updatedAt || billData?.createdAt).format(
-            "DD/MM/YYYY HH:mm"
-          )
-        : "-";
+    value = billData?.createdAt
+      ? moment(billData.createdAt).format("DD/MM/YYYY HH:mm")
+      : "-";
   } else if (id == 4) {
     value =
       (billData?.paymentStatus === "FullyPaid"
@@ -155,12 +152,9 @@ export const billDataShow = (id, billData, gstIn) => {
   } else if (id == 5) {
     value = gstIn ?? "-";
   } else if (id == 6) {
-    value =
-      billData?.updatedAt || billData?.createdAt
-        ? moment(billData.updatedAt || billData?.createdAt).format(
-            "DD/MM/YYYY"
-          )
-        : "-";
+    value = billData?.createdAt
+      ? moment(billData.createdAt).format("DD/MM/YYYY")
+      : "-";
   }
   return value;
 };

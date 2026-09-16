@@ -44,6 +44,7 @@ import {
 import ApiSurgical from "../api/services/ApiSurgical";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { useLocation } from "react-router-dom";
 import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
 import { ASSETS } from "../assets";
@@ -334,7 +335,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
       });
       setSurgeriesData((prev) => [...prev]);
       setSearchParentQuery("");
-      window.Moengage.track_event("TP_Surgery_added", {
+      window.Moengage?.track_event?.("TP_Surgery_added", {
         clinic_name: getClinicName(profile?.hospital_data),
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,
@@ -475,7 +476,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
           ...surgeriesUpdatedData,
           masterId: masterId,
         };
-        window.Moengage.track_event("TP_Surgery_added", {
+        window.Moengage?.track_event?.("TP_Surgery_added", {
           clinic_name: getClinicName(profile?.hospital_data),
           doctor_id: profile?.doctor_unique_id,
           patient_number: patient_data?.pm_contact_no,
@@ -730,7 +731,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
                       {(provided) => (
                         <Row
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           key={rowKey}
                           gutter={[0]}
                           className={isNewEmptyLineUiEnabled ? [

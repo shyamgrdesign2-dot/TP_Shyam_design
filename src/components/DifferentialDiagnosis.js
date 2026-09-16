@@ -93,7 +93,7 @@ const DifferentialDiagnosis = ({
                   }}
                   onClick={() => {
                     onSelectParent({ ...item });
-                    window.Moengage.track_event(
+                    window.Moengage?.track_event?.(
                       isDiagnosis ? "TP_CDSS_Ddx_selected" : "TP_CDSS_addtoRx",
                       {
                         clinic_name: getClinicName(profile?.hospital_data),
@@ -201,7 +201,7 @@ const DifferentialDiagnosis = ({
                   const clinic_name = getClinicName(profile?.hospital_data);
                   const tokenData = getTokenData(); 
                   const deviceSdkData = getDeviceSdkData();
-                  window.Moengage.track_event("TP_Monetization_FreeTrailButton", {
+                  window.Moengage?.track_event?.("TP_Monetization_FreeTrailButton", {
                     doctor_name: profile?.um_name,
                     doctor_number: profile?.um_contact,
                     doctor_unique_id: profile?.doctor_unique_id,
@@ -289,7 +289,7 @@ const DifferentialDiagnosis = ({
                   const clinic_name = getClinicName(profile?.hospital_data);
                   const tokenData = getTokenData(); 
                   const deviceSdkData = getDeviceSdkData();
-                  window.Moengage.track_event("TP_Monetization_FreeTrailButton", {
+                  window.Moengage?.track_event?.("TP_Monetization_FreeTrailButton", {
                     doctor_name: profile?.um_name,
                     doctor_number: profile?.um_contact,
                     doctor_unique_id: profile?.doctor_unique_id,

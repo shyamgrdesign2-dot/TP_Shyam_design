@@ -184,7 +184,7 @@ const OnboardingCarousel = () => {
   };
 
   const handleExploreMore = () => {
-    window.Moengage.track_event("TP_NewLoginFlow_Explore_more", {
+    window.Moengage?.track_event?.("TP_NewLoginFlow_Explore_more", {
       clicked: true,
       operating_system: detectOperatingSystem(),
       utm_campaign: utm.utm_campaign ?? 'NA',

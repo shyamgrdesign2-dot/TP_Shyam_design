@@ -299,7 +299,7 @@ function MobileCreateCertificate({
 
   const onPatientCertificateClick = async () => {
     if (window.Moengage && clinicName) {
-      window.Moengage.track_event("TP_Certificate_created", {
+      window.Moengage?.track_event?.("TP_Certificate_created", {
         clinic_name: clinicName,
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id,

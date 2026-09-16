@@ -60,7 +60,7 @@ const VerifyOTP = ({
     setLoading(true);
     if (window.retryOtp) {
       if(isLoginFlow){
-        window.Moengage.track_event('TP_NewLoginFlow_Login_Resend_OTP', {
+        window.Moengage?.track_event?.('TP_NewLoginFlow_Login_Resend_OTP', {
           mobile: "91" + mobileNumber,
           operating_system: detectOperatingSystem(),
           utm_campaign: utm.utm_campaign ?? 'NA',
@@ -71,7 +71,7 @@ const VerifyOTP = ({
           is_marketing: Object.values(utm).some(value => value && value.length > 0),
         })}
       else{
-        window.Moengage.track_event('TP_NewLoginFlow_Signup_Resend_OTP', {
+        window.Moengage?.track_event?.('TP_NewLoginFlow_Signup_Resend_OTP', {
           mobile: "91" + mobileNumber,
           operating_system: detectOperatingSystem(),
           utm_campaign: utm.utm_campaign ?? 'NA',
@@ -123,7 +123,7 @@ const VerifyOTP = ({
                 const verifyResponse = await verifyAccessToken(mobileNumber, message, tempPassword);
                 const loginResponse = await loginWithPassword(mobileNumber, tempPassword);
 
-                window.Moengage.track_event('TP_NewLoginFlow_Set_Password_OTP_Submit', {
+                window.Moengage?.track_event?.('TP_NewLoginFlow_Set_Password_OTP_Submit', {
                   mobile: "91" + mobileNumber,
                   operating_system: detectOperatingSystem(),
                   utm_campaign: utm.utm_campaign ?? 'NA',
@@ -151,7 +151,7 @@ const VerifyOTP = ({
                 if (response) {
                   const { ssoUrl } = response;
 
-                  window.Moengage.track_event('TP_NewLoginFlow_Login_OTP_Submit', {
+                  window.Moengage?.track_event?.('TP_NewLoginFlow_Login_OTP_Submit', {
                     mobile: "91" + mobileNumber,
                     operating_system: detectOperatingSystem(),
                     utm_campaign: utm.utm_campaign ?? 'NA',
@@ -180,7 +180,7 @@ const VerifyOTP = ({
                 localStorage.removeItem("isLoginFlow");
                 localStorage.removeItem("isUserExists");
                 localStorage.removeItem("isCaptchaVerified");
-                window.Moengage.track_event('TP_NewLoginFlow_Signup_OTP_Submit', {
+                window.Moengage?.track_event?.('TP_NewLoginFlow_Signup_OTP_Submit', {
                   mobile: "91" + mobileNumber,
                   utm_campaign: utm.utm_campaign ?? 'NA',
                   utm_source: utm.utm_source ?? 'NA',

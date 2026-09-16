@@ -51,7 +51,7 @@ export default function AppTeleconsultBootstrap() {
     doctorLeftFiredRef.current = true;
     const tokenData = getTokenData();
 
-    window?.Moengage?.track_event("TP_TC_endTC", {
+    window?.Moengage?.track_event?.("TP_TC_endTC", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_specialty: profile?.dp_name,

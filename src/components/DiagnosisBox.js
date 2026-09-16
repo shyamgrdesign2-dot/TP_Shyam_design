@@ -39,6 +39,7 @@ import {
 } from "../redux/diagnosisSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { ASSETS } from "../assets";
@@ -802,7 +803,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                     {(provided) => (
                       <Row
                         ref={provided.innerRef}
-                        {...provided.draggableProps}
+                        {...guardDropAnimation(provided.draggableProps)}
                         key={rowKey}
                         gutter={[0]}
                         className={isNewEmptyLineUiEnabled ? [

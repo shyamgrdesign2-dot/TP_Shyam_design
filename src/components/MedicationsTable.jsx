@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input, Button, Select } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { useLocation } from 'react-router-dom';
@@ -785,7 +786,7 @@ const MedicationsTable = ({
       if (isGroundingAccessable) {
         const clinic = getClinic(profile?.hospital_data);
         const userType = getHmTypeIndicator(medicineData);
-        window.Moengage.track_event("TP_GD_Editted", {
+        window.Moengage?.track_event?.("TP_GD_Editted", {
           patient_id: patient_data?.patient_unique_id || "",
           patient_name: patient_data?.pm_fullname || "",
           doctor_id: profile?.doctor_unique_id,
@@ -1228,7 +1229,7 @@ const MedicationsTable = ({
                         return (
                         <tr 
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           className={`${styles['medications-row']} taper-dose ${isContinuation ? styles['taper-row'] : ''}`}
                           style={{
                             ...provided.draggableProps.style,

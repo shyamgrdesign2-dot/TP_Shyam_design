@@ -80,7 +80,7 @@ function RxPreviewModal({
     }
 
     // Fallback when Cardiology has not yet exposed editRx (e.g. still loading) – match web/PatientDetails Edit flow
-    window.Moengage?.track_event('edit_rx_click', {
+    window.Moengage?.track_event?.('edit_rx_click', {
       doctor_id: profile?.doctor_unique_id,
       patient_id: appointment?.patient_unique_id || 0,
       rx_date: viewCaseManagerData?.consultation_date,
@@ -143,7 +143,7 @@ function RxPreviewModal({
   const handleRepeatRx = () => {
     if (!viewCaseManagerData || !appointment) return;
     
-    window.Moengage?.track_event('repeat_rx_click', {
+    window.Moengage?.track_event?.('repeat_rx_click', {
       doctor_id: profile?.doctor_unique_id,
       patient_id: appointment?.patient_unique_id || 0,
       rx_date: viewCaseManagerData?.consultation_date,

@@ -441,7 +441,7 @@ function AppointmentDashboard() {
   // Handle consult click
   const handleConsultClick = useCallback((record) => {
     if (window.Moengage) {
-      window.Moengage.track_event('patient_search_consult', {
+      window.Moengage?.track_event?.('patient_search_consult', {
         doctor_id: profile?.doctor_unique_id,
         patient_id: record?.patient_unique_id,
       });
@@ -693,7 +693,7 @@ function AppointmentDashboard() {
       const fullDownloadUrl = `${downloadUrl}&lg=${encodedData}`;
 
       if (isDigitized && window.Moengage && profile) {
-        window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+        window.Moengage?.track_event?.("TP_Digitised_Prescription_Download", {
           Doctor_Name: profile?.um_name,
           Doctor_Number: profile?.um_contact,
           Doctor_Unique_Id: profile?.doctor_unique_id,
@@ -736,7 +736,7 @@ function AppointmentDashboard() {
     // Track event
     if (window.Moengage && profile) {
       const clinic_name = getClinicName(profile?.hospital_data);
-      window.Moengage.track_event("TP_Appointment_WalkIn", {
+      window.Moengage?.track_event?.("TP_Appointment_WalkIn", {
         clinic_name,
       });
     }
@@ -749,7 +749,7 @@ function AppointmentDashboard() {
     // Track event
     if (window.Moengage && profile) {
       const clinic_name = getClinicName(profile?.hospital_data);
-      window.Moengage.track_event("TP_Appointment_AddAppointment", {
+      window.Moengage?.track_event?.("TP_Appointment_AddAppointment", {
         clinic_name,
       });
     }

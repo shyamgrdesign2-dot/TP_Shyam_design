@@ -1224,7 +1224,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const onChange = useCallback(
     (key) => {
       if (key === TAB_DRAFT_RX) {
-        window?.Moengage?.track_event(
+        window?.Moengage?.track_event?.(
           EVENTS.SAVE_DRAFT.viewSection,
           getDraftMoengageDoctorAttributes(profile, userId)
         );
@@ -1698,7 +1698,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onConsultClick = async (record) => {
-    window.Moengage.track_event("patient_search_consult", {
+    window.Moengage?.track_event?.("patient_search_consult", {
       doctor_id: profile?.doctor_unique_id,
       patient_id: record?.patient_unique_id,
     });
@@ -1933,11 +1933,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const onSmartRxClick = async (record) => {
     const tokenData = getTokenData();
     const clinic = getClinic(profile?.hospital_data);
-    window.Moengage.track_event("patient_search_consult", {
+    window.Moengage?.track_event?.("patient_search_consult", {
       doctor_id: profile?.doctor_unique_id,
       patient_id: record?.patient_unique_id,
     });
-    window.Moengage.track_event("TP_SmartRx_Started", {
+    window.Moengage?.track_event?.("TP_SmartRx_Started", {
       patient_id: record?.patient_unique_id || "",
       patient_name: record.pm_fullname,
       doctor_id: profile?.doctor_unique_id,
@@ -2068,7 +2068,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       // const ocrData = await fetchRxDigitisedData(tcm_id);
       const tokenData = getTokenData();
       const clinic = getClinic(profile?.hospital_data);
-      window.Moengage.track_event("TP_DigitizeSSRx", {
+      window.Moengage?.track_event?.("TP_DigitizeSSRx", {
       patient_id: record?.patient_unique_id || "",
       patient_name: record.pm_fullname,
       doctor_id: profile?.doctor_unique_id,
@@ -2377,7 +2377,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const onPrintRxUrlClick = async (record) => {
     if (selectedTab === TAB_DRAFT_RX) {
-      window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.printDraft, {
+      window?.Moengage?.track_event?.(EVENTS.SAVE_DRAFT.printDraft, {
         ...getDraftMoengageDoctorAttributes(profile, userId),
         tcm_id: record?.tcm_id || 0,
       });
@@ -2560,7 +2560,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   }
 
   const handleResumeDraftRx = async (record) => {
-    window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.resume, {
+    window?.Moengage?.track_event?.(EVENTS.SAVE_DRAFT.resume, {
       ...getDraftMoengageDoctorAttributes(profile, userId),
       tcm_id: record?.tcm_id || 0,
       source: 1,
@@ -3722,7 +3722,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const onVoiceRxClick = async (record) => {
     const clinic = getClinic(profile?.hospital_data);
-    window.Moengage.track_event("TP_AV_Entry", {
+    window.Moengage?.track_event?.("TP_AV_Entry", {
       patient_id: record?.patient_unique_id || "",
       patient_name: record?.pm_fullname || "",
       patient_mobile_number: record?.pm_contact_no || "",

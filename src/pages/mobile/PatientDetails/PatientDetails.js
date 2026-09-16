@@ -369,7 +369,7 @@ function PatientDetails() {
 
   const handleVoiceRxClick = useCallback(() => {
     if (profile && window.Moengage && clinic) {
-      window.Moengage.track_event("TP_AV_Entry", {
+      window.Moengage?.track_event?.("TP_AV_Entry", {
         patient_id: patient_data?.patient_unique_id || patient_data?.pm_pid || "",
         patient_name: patient_data?.pm_fullname || "",
         patient_mobile_number: patient_data?.pm_contact_no || "",
@@ -399,7 +399,7 @@ function PatientDetails() {
     if (cardiologyPrintHandlerRef.current?.editRx) {
       cardiologyPrintHandlerRef.current.editRx();
     } else {
-      window.Moengage?.track_event('edit_rx_click', {
+      window.Moengage?.track_event?.('edit_rx_click', {
         doctor_id: profile?.doctor_unique_id,
         patient_id: patient_data?.patient_unique_id || 0,
         rx_date: viewCaseManagerData?.consultation_date,
@@ -521,7 +521,7 @@ function PatientDetails() {
   const handleRepeatRx = useCallback(() => {
     if (!viewCaseManagerData) return;
 
-    window.Moengage?.track_event('repeat_rx_click', {
+    window.Moengage?.track_event?.('repeat_rx_click', {
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
       rx_date: viewCaseManagerData?.consultation_date,

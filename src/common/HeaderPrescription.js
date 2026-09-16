@@ -1420,7 +1420,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     orderAction?.meta?.requestStatus === "fulfilled" &&
                     orderAction?.payload?.status !== false;
                 if (requestSucceeded) {
-                    window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
+                    window?.Moengage?.track_event?.("TP_orderMedicineAndInvestigation_API_response", {
                         ...eventPayload,
                         status: "success",
                     });
@@ -1430,7 +1430,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                         orderAction?.payload?.error ||
                         orderAction?.error?.message ||
                         "request_rejected";
-                    window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
+                    window?.Moengage?.track_event?.("TP_orderMedicineAndInvestigation_API_response", {
                         ...eventPayload,
                         status: "failure",
                         reason: failureReason,
@@ -1444,7 +1444,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         (typeof rxDrawingCanvasIds === "string" && rxDrawingCanvasIds.split(",").filter(Boolean).length > 0);
 
     const trackSaveDraftEvent = useCallback(() => {
-        window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.save, {
+        window?.Moengage?.track_event?.(EVENTS.SAVE_DRAFT.save, {
             ...getDraftMoengageDoctorAttributes(profile),
         });
     }, [profile]);
@@ -1659,7 +1659,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const onTemplateSelected = async (tmoc_id, tmoc_template_name) => {
         oneClickCosultationTemplateId = tmoc_id
-        window.Moengage.track_event("one_click_template_select", {
+        window.Moengage?.track_event?.("one_click_template_select", {
             "template_name": tmoc_template_name
         });
         const action = await dispatch(
@@ -3212,9 +3212,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 consultationEventPayload.voice_rx_has_history = Boolean(voiceDigitization?.history?.length);
             }
             tcmId == 0 ?
-                window.Moengage.track_event("TP_Consultation_ended", consultationEventPayload)
+                window.Moengage?.track_event?.("TP_Consultation_ended", consultationEventPayload)
                 :
-                window.Moengage.track_event("TP_Consultation_edited", consultationEventPayload)
+                window.Moengage?.track_event?.("TP_Consultation_edited", consultationEventPayload)
 
             const finalSelectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
               : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
@@ -3422,7 +3422,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                   dispatch(setSelectAutofill(false));
                 }
 
-                window.Moengage.track_event("Z_enter_getInvestigationAndMedicine", {
+                window.Moengage?.track_event?.("Z_enter_getInvestigationAndMedicine", {
                     clinic_name,
                     patient_id: patient_data?.patient_unique_id,
                     mrno: patient_data?.mrno,
@@ -3436,7 +3436,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     && (medicationData.length > 0 || investigationData.length > 0)
                 ) {
 
-                    window.Moengage.track_event("Z_getInvestigationAndMedicine_API_before_call", {
+                    window.Moengage?.track_event?.("Z_getInvestigationAndMedicine_API_before_call", {
                         clinic_name,
                         patient_id: patient_data?.patient_unique_id,
                         tcm_id: action?.payload?.tcm_id,
@@ -3461,7 +3461,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 .join(", ")
                             : "";
 
-                        window.Moengage.track_event("Z_getInvestigationAndMedicine_API_Response", {
+                        window.Moengage?.track_event?.("Z_getInvestigationAndMedicine_API_Response", {
                             clinic_name,
                             patient_id: patient_data?.patient_unique_id,
                             status: 'suceess',
@@ -3485,7 +3485,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             "pillupSwitch": isPillUpAccessableFromGB && pillupSwitch ? 1 : 0
                         }
                         
-                        window.Moengage.track_event("Z_placeIctOrder_API_before_call", {
+                        window.Moengage?.track_event?.("Z_placeIctOrder_API_before_call", {
                             "action": tcmId == 0 ? 'add' : 'edit',
                             "tcmId": action?.payload?.tcm_id,
                             "siteId": siteId,
@@ -3503,18 +3503,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
                         const actionPIO = await dispatch(placeIctOrder(zydusSendData))
                         if (actionPIO.payload?.status !== 400) {
-                            window.Moengage.track_event("Z_placeIctOrder_API_Response", {
+                            window.Moengage?.track_event?.("Z_placeIctOrder_API_Response", {
                                 status: 'suceess'
                             })
                         } else {
-                            window.Moengage.track_event("Z_placeIctOrder_API_Response", {
+                            window.Moengage?.track_event?.("Z_placeIctOrder_API_Response", {
                                 status: 'failure',
                                 reason:actionPIO.payload.data.message
                             })
                         }
 
                     } else {
-                        window.Moengage.track_event("Z_getInvestigationAndMedicine_API_Response", {
+                        window.Moengage?.track_event?.("Z_getInvestigationAndMedicine_API_Response", {
                             clinic_name,
                             status: 'failure',
                             reason:action.error
@@ -3566,7 +3566,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         onClick={() => {
                                             setVideoLink(item1)
                                             const clinic_name = getClinicName(profile?.hospital_data);
-                                            window.Moengage.track_event("TP_Tutorial_Viewed", {
+                                            window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                                                 clinic_name,
                                                 tutorial_type: videoList[0]?.category,
                                             });

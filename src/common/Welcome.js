@@ -41,7 +41,7 @@ function Welcome(props) {
 
   const clickWalkInConsultation = () => {
     const businessId = decodedToken?.result?.hospital_business_id;
-    window.Moengage.track_event("walk_in_consultation_click", {
+    window.Moengage?.track_event?.("walk_in_consultation_click", {
       doctor_id: profile?.doctor_unique_id,
       timestamp: new Date(),
     });
@@ -59,7 +59,7 @@ function Welcome(props) {
   const handleNewTemplate = () => {
     navigate("/create-campaign", { state: { setupData: appointmentAgentsData } });
     const clinic_city = getClinicCity(profile?.hospital_data);
-    window.Moengage.track_event("TP_Choose_New_Template", {
+    window.Moengage?.track_event?.("TP_Choose_New_Template", {
       Doctor_specialty: profile?.dp_name,
       Doctor_unique_id: profile?.doctor_unique_id,
       clinic_city,
@@ -128,7 +128,7 @@ function Welcome(props) {
                 className={pageHeroBannerStyles.outlineBtn}
                 leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
                 onClick={() => {
-                  window.Moengage.track_event("TP_AddAppointment_addnewappointment", {
+                  window.Moengage?.track_event?.("TP_AddAppointment_addnewappointment", {
                     Doctor_specialty: profile?.dp_name,
                     Doctor_unique_id: profile?.doctor_unique_id,
                     Doctor_Name: profile?.um_name,

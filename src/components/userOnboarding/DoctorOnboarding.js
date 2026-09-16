@@ -305,7 +305,7 @@ const DoctorOnboarding = ({
 
             updateOnboardingDetails(doctorData).then(data => {
               setCurrentStep(1);
-              window.Moengage.track_event("TP_NewLoginFlow_Basic_info_Next", {
+              window.Moengage?.track_event?.("TP_NewLoginFlow_Basic_info_Next", {
                 mobile: getUserMobileNumber(),
                 doctor_name: formData.fullName,
                 speciality: formData.speciality,
@@ -564,7 +564,7 @@ const DoctorOnboarding = ({
       const success = await handleUpdateOnboardingDetails();
       // moengage event for basic info step
       if (success) {
-        window.Moengage.track_event("TP_NewLoginFlow_Basic_info_Next", {
+        window.Moengage?.track_event?.("TP_NewLoginFlow_Basic_info_Next", {
           mobile: "91" + userMobileNumber,
           doctor_name: formData.fullName,
           speciality: formData.speciality,
@@ -591,7 +591,7 @@ const DoctorOnboarding = ({
         : await handleFinalizeOnboarding();
       // moengage event for clinic details step
       if (success) {
-        window.Moengage.track_event("TP_NewLoginFlow_Clinical_info_Next", {
+        window.Moengage?.track_event?.("TP_NewLoginFlow_Clinical_info_Next", {
           mobile: "91" + userMobileNumber,
           doctor_name: formData.fullName,
           speciality: formData.speciality,
@@ -620,7 +620,7 @@ const DoctorOnboarding = ({
         completeClinicSetupForMedeco()
         onClose();
         // moengage event for upload documents step
-        window.Moengage.track_event("TP_NewLoginFlow_Submit_setup", {
+        window.Moengage?.track_event?.("TP_NewLoginFlow_Submit_setup", {
           mobile: "91" + userMobileNumber,
           doctor_name: formData.fullName,
           speciality: formData.speciality,
@@ -711,7 +711,7 @@ const DoctorOnboarding = ({
               <Button
                 onClick={() => {
                   // moengage event for skip and upload later
-                  window.Moengage.track_event(
+                  window.Moengage?.track_event?.(
                     "TP_NewLoginFlow_Skip_And_Submit_later",
                     {
                       mobile: "91" + userMobileNumber,
@@ -842,7 +842,7 @@ const DoctorOnboarding = ({
                 block
                 onClick={() => {
                   // moengage event for skip and upload later
-                  window.Moengage.track_event(
+                  window.Moengage?.track_event?.(
                     "TP_NewLoginFlow_Skip_And_Submit_later",
                     {
                       mobile: "91" + userMobileNumber,

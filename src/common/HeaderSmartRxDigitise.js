@@ -103,7 +103,7 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
   const handleSaveDigitiseRx = async () => {
         const tokenData = getTokenData();
         const clinic = getClinic(profile?.hospital_data);
-        window.Moengage.track_event("TP_SubmitDigitizedRx", {
+        window.Moengage?.track_event?.("TP_SubmitDigitizedRx", {
         patient_id: patient_data?.patient_unique_id || "",
         patient_name: patient_data?.pm_fullname || "",
         doctor_id: profile?.doctor_unique_id,

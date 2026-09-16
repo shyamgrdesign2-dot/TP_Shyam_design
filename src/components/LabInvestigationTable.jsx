@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input, Button } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../utils/dndTransitionGuard";
 import { v4 as uuidv4 } from 'uuid';
 import styles from './ConsultationDrawer.module.css';
 
@@ -577,7 +578,7 @@ const LabInvestigationTable = ({
       if (isGroundingAccessable) {
         const clinic = getClinic(profile?.hospital_data);
         const userType = getHmTypeIndicator(investigationData);
-        window.Moengage.track_event("TP_GD_Editted", {
+        window.Moengage?.track_event?.("TP_GD_Editted", {
           patient_id: patient_data?.patient_unique_id || "",
           patient_name: patient_data?.pm_fullname || "",
           doctor_id: profile?.doctor_unique_id,
@@ -741,7 +742,7 @@ const LabInvestigationTable = ({
                       {(provided, snapshot) => (
                         <tr 
                           ref={provided.innerRef}
-                          {...provided.draggableProps}
+                          {...guardDropAnimation(provided.draggableProps)}
                           key={item.id || index} 
                           className={styles['investigation-row']}
                           style={{

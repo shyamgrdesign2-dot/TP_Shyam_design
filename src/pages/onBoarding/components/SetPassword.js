@@ -107,7 +107,7 @@ const SetPassword = ({ onViewChange, mobileNumber }) => {
     // If all validations pass, proceed with OTP
     if (window.sendOtp) {
       // moengage event for set password
-      window.Moengage.track_event('TP_NewLoginFlow_Password_Setup', {
+      window.Moengage?.track_event?.('TP_NewLoginFlow_Password_Setup', {
         mobile: "91" + mobileNumber,
         operating_system: detectOperatingSystem(),
         utm_campaign: utm.utm_campaign ?? 'NA',
@@ -124,7 +124,7 @@ const SetPassword = ({ onViewChange, mobileNumber }) => {
         (successData) => {
           if (successData && successData.message) {
             const reqId = successData.message;
-            window.Moengage.track_event('TP_NewLoginFlow_Password_Setup_Otp_Success', {
+            window.Moengage?.track_event?.('TP_NewLoginFlow_Password_Setup_Otp_Success', {
               mobile: "91" + mobileNumber,
               operating_system: detectOperatingSystem(),
               utm_campaign: utm.utm_campaign ?? 'NA',

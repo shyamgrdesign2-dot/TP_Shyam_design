@@ -20,6 +20,7 @@ import {
 } from "../../redux/adviceSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { guardDropAnimation } from "../../utils/dndTransitionGuard";
 import TabAdviceSearch from "../../components/tab_design/TabAdviceSearch";
 import { ASSETS } from "../../assets";
 const {
@@ -297,7 +298,7 @@ function TabAdviceBox() {
                         {(provided) => (
                           <Row
                             ref={provided.innerRef}
-                            {...provided.draggableProps}
+                            {...guardDropAnimation(provided.draggableProps)}
                             key={index}
                             gutter={[0]}
                             className="h-38 align-items-center"

@@ -63,7 +63,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 
 let ppvMountCount = 0;
 function PrescriptionPrintView() {
-
     const divRef = useRef(null);
     const printRef = useRef();
     const sessionRxUrlRef = useRef(null);
@@ -713,7 +712,7 @@ function PrescriptionPrintView() {
                                     type="text"
                                     disabled={isPdfGenerating}
                                     onClick={() => {
-                                        window.Moengage.track_event("print_select", {
+                                        window.Moengage?.track_event?.("print_select", {
                                             "language": LANGUAGE_LIST.find(e => e.value == selectedLang)?.label
                                         });
                                         (browserName == "Chrome WebView" || browserName == "WebKit") ? printInAppContent() : printContent()

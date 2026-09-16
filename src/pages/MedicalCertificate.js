@@ -454,7 +454,7 @@ function MedicalCertificate() {
 
     const onPatientCertificateClick = async () => {
         const clinic_name = getClinicName(profile?.hospital_data);
-        window.Moengage.track_event("TP_Certificate_created", {
+        window.Moengage?.track_event?.("TP_Certificate_created", {
             clinic_name,
             patient_number: patient_data?.pm_contact_no,
             patient_id: patient_data?.patient_unique_id,

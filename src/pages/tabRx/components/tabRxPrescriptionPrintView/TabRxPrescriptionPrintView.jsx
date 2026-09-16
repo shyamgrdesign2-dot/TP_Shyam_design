@@ -1069,7 +1069,7 @@ function TabRxPrescriptionPrintView() {
               };
               const tokenData = getTokenData();
               const clinic = getClinic(profile?.hospital_data);
-              window.Moengage.track_event("TP_DigitizeTabRx", {
+              window.Moengage?.track_event?.("TP_DigitizeTabRx", {
                 patient_id: patient_data?.patient_unique_id || "",
                 patient_name: patient_data?.pm_fullname || "",
                 doctor_id: profile?.doctor_unique_id,
@@ -1147,7 +1147,7 @@ function TabRxPrescriptionPrintView() {
                   type="text"
                   disabled={isPdfGenerating}
                   onClick={() => {
-                    window.Moengage.track_event("print_select", {
+                    window.Moengage?.track_event?.("print_select", {
                       language: LANGUAGE_LIST.find(
                         (e) => e.value == selectedLang,
                       )?.label,

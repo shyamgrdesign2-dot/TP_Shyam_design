@@ -43,7 +43,7 @@ const UserDetailsForm = () => {
       return;
     }
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("InterestSubmitted_Click", {
+    window.Moengage?.track_event?.("InterestSubmitted_Click", {
       doctor_id: profile?.doctor_unique_id,
       clinic_name,
     });

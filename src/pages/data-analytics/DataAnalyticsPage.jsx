@@ -2,8 +2,6 @@ import React, { useMemo, useState, useRef, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom";
 import {
   TesseractThemeProvider,
-  Drawer,
-  DrawerContent,
   Sidebar,
   HeroBanner,
   SectionCard,
@@ -109,7 +107,6 @@ export default function DataAnalyticsPage() {
   );
   const isConsultModesOnly = accessMode === DA_ACCESS_CONSULT_MODES;
 
-  const [open, setOpen] = useState(true);
   const [department, setDepartment] = useState("opd");
   const [section, setSection] = useState(
     isConsultModesOnly ? "consultation-modes" : "overview"
@@ -278,10 +275,7 @@ export default function DataAnalyticsPage() {
     [dateRange, doctors, clinics, doctorLocked, caps.selfId, caps.selfClinicId]
   );
 
-  const close = () => {
-    setOpen(false);
-    window.setTimeout(() => navigate(-1), 240);
-  };
+  const close = () => navigate(-1);
 
   const onDepartmentChange = (value) => {
     if (isConsultModesOnly && value !== "opd") return;
@@ -337,8 +331,17 @@ export default function DataAnalyticsPage() {
 
   return (
     <TesseractThemeProvider colorScheme="light">
-      <Drawer open={open} onOpenChange={(v) => (!v ? close() : setOpen(v))}>
-        <DrawerContent side="right" width="full" showClose={false} bodyPadding={0}>
+      {/* A ROUTE, not a modal. This page owns the whole viewport — there is no
+          shared app layout behind it (see App.js: the route element IS the
+          page). It used to render itself as a full-width Drawer purely for the
+          slide-in look, which made every dialog opened inside it — the report
+          download drawer — a NESTED dialog. Tesseract's DialogPrimitive gives
+          every dialog the same z-index (overlay 50 / content 51) and portals
+          them all to <body>, so a nested dialog's scrim always lands under its
+          parent's panel and its panel only wins on DOM order. Rendering the
+          page as a page leaves exactly one dialog on screen, so the stacking is
+          well-defined without any z-index overrides. */}
+      <div className="da-page">
           <div
             className="da-root"
             style={{
@@ -513,8 +516,7 @@ export default function DataAnalyticsPage() {
               </main>
             </div>
           </div>
-        </DrawerContent>
-      </Drawer>
+      </div>
     </TesseractThemeProvider>
   );
 }

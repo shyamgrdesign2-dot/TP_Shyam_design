@@ -147,11 +147,11 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
         setUtm_content(params.get("utm_content") ?? 'NA');
 
         if(reason === 'forgotPassword' || reason === "setPassword"){
-          window.Moengage.track_event('TP_ResetPassword_landing_page', {
+          window.Moengage?.track_event?.('TP_ResetPassword_landing_page', {
             utm_campaign, utm_source, utm_medium, utm_content
           });
         }else {
-          window.Moengage.track_event('TP_Login_OTP_landing_page', {
+          window.Moengage?.track_event?.('TP_Login_OTP_landing_page', {
             utm_campaign, utm_source, utm_medium, utm_content
           });
         }
@@ -266,7 +266,7 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
       setError("OTP service is currently unavailable. Please try again later.");
       setIsButtonDisabled(false);
       setLoading(false); // Hide loader
-      window.Moengage.track_event('TP_OTP_error', {
+      window.Moengage?.track_event?.('TP_OTP_error', {
         mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
       });
       return;
@@ -285,7 +285,7 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
         // Start the countdown timer
         startTimer();
         setLoading(false); // Hide loader
-        window.Moengage.track_event('TP_OTP_Requested', {
+        window.Moengage?.track_event?.('TP_OTP_Requested', {
           mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
         });
       },
@@ -294,7 +294,7 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
         setError("Failed to send OTP. Please try again.");
         setIsButtonDisabled(false);
         setLoading(false); // Hide loader
-        window.Moengage.track_event('TP_OTP_error', {
+        window.Moengage?.track_event?.('TP_OTP_error', {
           mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
         });
       }
@@ -334,7 +334,7 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
         setError(null); // Clear error message
         startTimer(); // Restart the countdown timer
         setLoading(false); // Hide loader
-        window.Moengage.track_event('TP_OTP_Resend', {
+        window.Moengage?.track_event?.('TP_OTP_Resend', {
           mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
         });
       },
@@ -343,7 +343,7 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
         setError("Failed to resend OTP. Please try again.");
         setIsButtonDisabled(false);
         setLoading(false); // Hide loader
-        window.Moengage.track_event('TP_OTP_error', {
+        window.Moengage?.track_event?.('TP_OTP_error', {
           mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
         });
       }
@@ -370,19 +370,19 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
           if (message === "Invalid OTP") {
             setError("Invalid OTP. Please try again.");
             setLoading(false); // Hide loader
-            window.Moengage.track_event('TP_OTP_Incorrect', {
+            window.Moengage?.track_event?.('TP_OTP_Incorrect', {
               mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
             });
             return;
           }
 
-          window.Moengage.track_event('TP_OTP_Verified', {
+          window.Moengage?.track_event?.('TP_OTP_Verified', {
             mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
           });
           try {
             const response = await verifyAccessToken(mobileNumber, message);
-            window.Moengage.add_mobile("+91" + mobileNumber);
-            window.Moengage.track_event('TP_Login_Success', {
+            window.Moengage?.add_mobile?.("+91" + mobileNumber);
+            window.Moengage?.track_event?.('TP_Login_Success', {
               mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
             });
             const {
@@ -446,7 +446,7 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
           console.error("Error verifying OTP:", error);
           setError("Failed to verify OTP. Please try again.");
           setLoading(false); // Hide loader
-          window.Moengage.track_event('TP_OTP_Incorrect', {
+          window.Moengage?.track_event?.('TP_OTP_Incorrect', {
             mobile: "91" + mobileNumber, utm_campaign, utm_source, utm_medium, utm_content
           });
         }
