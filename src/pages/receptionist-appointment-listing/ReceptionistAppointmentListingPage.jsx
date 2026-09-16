@@ -116,6 +116,9 @@ function ReceptionistAppointmentListingInner() {
     const today = startOfDayLocal(new Date());
     return { start: today, end: today };
   });
+  // Week grid publishes its Mon–Sun window here; without it listAppointment is
+  // called with start===end===anchor and six columns stay empty.
+  const [calendarWindow, setCalendarWindow] = useState(null);
   const [bookingCtx, setBookingCtx] = useState(null);
   const [rescheduleFor, setRescheduleFor] = useState(null);
   const [slotsVersion, setSlotsVersion] = useState(0);
@@ -145,11 +148,19 @@ function ReceptionistAppointmentListingInner() {
   const allowFutureDates =
     activeTab === TAB_IDS.QUEUE || activeTab === TAB_IDS.ALL;
 
+  const queryRange = useMemo(() => {
+    if (renderCalendar && calendarMode === "day") {
+      const start = dateRange?.start ? new Date(dateRange.start) : new Date();
+      return { start, end: start };
+    }
+    return renderCalendar && calendarWindow ? calendarWindow : dateRange;
+  }, [renderCalendar, calendarMode, calendarWindow, dateRange]);
+
   const { rows: liveRows, countByTab, dayTotals, loading, loadingMore, hasMore, error, loadMore, refetch } =
     useReceptionistAppointments({
       doctorId: selectedDoctorId,
       tabId: activeTab,
-      dateRange: dateRange || { start: new Date(), end: new Date() },
+      dateRange: queryRange || { start: new Date(), end: new Date() },
       query: debouncedQuery,
       visitTypeCsv,
       fetchAllPages: renderCalendar,
@@ -170,6 +181,7 @@ function ReceptionistAppointmentListingInner() {
     writePreference("receptionistView", next);
     if (next === "calendar") {
       setDateRange((r) => (r?.start ? { start: r.start, end: r.start } : { start: new Date(), end: new Date() }));
+      setCalendarWindow(null);
       setActiveTab(TAB_IDS.ALL);
     } else if (activeTab === TAB_IDS.ALL) {
       setActiveTab(TAB_IDS.QUEUE);
@@ -374,7 +386,10 @@ function ReceptionistAppointmentListingInner() {
                   onChange={(v) => {
                     if (renderCalendar) {
                       const d = pickedDate(v) || (v?.start ? startOfDayLocal(v.start) : null);
-                      if (d) setDateRange({ start: d, end: d });
+                      if (d) {
+                        setDateRange({ start: d, end: d });
+                        setCalendarWindow(null);
+                      }
                       return;
                     }
                     // List view: keep a real range (do not collapse start/end to one day).
@@ -474,11 +489,16 @@ function ReceptionistAppointmentListingInner() {
                   slotFilter={(filters.slot || []).length === 1 ? filters.slot[0] : null}
                   allowFutureDates={allowFutureDates}
                   dateRange={dateRange || { start: new Date(), end: new Date() }}
-                  onAnchorChange={(d) => setDateRange({ start: d, end: d })}
+                  onAnchorChange={(d) => {
+                    setDateRange({ start: d, end: d });
+                    setCalendarWindow(null);
+                  }}
+                  onWindowChange={setCalendarWindow}
                   onSlotUnavailable={setToast}
                   onDateChange={(v) => {
                     const d = pickedDate(v);
                     setDateRange(d ? { start: d, end: d } : null);
+                    setCalendarWindow(null);
                   }}
                   slotsVersion={slotsVersion}
                   allowBook
@@ -487,6 +507,7 @@ function ReceptionistAppointmentListingInner() {
                     if (m === "day" || m === "week") {
                       setCalendarMode(m);
                       writePreference("receptionistCalendarMode", m);
+                      setCalendarWindow(null);
                     }
                   }}
                   hideModeToggle={false}
