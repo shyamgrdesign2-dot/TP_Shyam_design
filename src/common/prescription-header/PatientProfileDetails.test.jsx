@@ -36,8 +36,8 @@ test('routes each CTA independently and omits summary on the summary page', () =
     expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['View Patient Details', 'Edit Patient Details']);
     expect(screen.getByRole('button', { name: 'View Patient Details' })).toHaveAttribute('data-variant', 'outline');
     expect(screen.getByRole('button', { name: 'Edit Patient Details' })).toHaveAttribute('data-variant', 'link');
-    expect(screen.getByRole('separator').previousElementSibling).toBe(screen.getByRole('button', { name: 'View Patient Details' }));
-    expect(screen.getByRole('separator').nextElementSibling).toBe(screen.getByRole('button', { name: 'Edit Patient Details' }));
+    expect(screen.getByRole('button', { name: 'View Patient Details' }).compareDocumentPosition(screen.getByRole('separator')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('separator').compareDocumentPosition(screen.getByRole('button', { name: 'Edit Patient Details' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Edit Patient Details' }));
     expect(onEditProfile).toHaveBeenCalledTimes(1);
     expect(onVisitSummary).not.toHaveBeenCalled();

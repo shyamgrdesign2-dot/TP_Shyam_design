@@ -58,7 +58,6 @@ test('clicking a locked detail cell focuses search, opens suggestions and can re
   expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true');
   await waitFor(() => expect(screen.getByTitle('Headache')).toBeVisible());
   expect(showInfo).toHaveBeenCalledWith({ key: 'prescription-add-name', content: 'Enter the name to fill in all other details.' });
-  expect(screen.getByTestId('notes-cell').querySelector('input')).toBeDisabled();
   expect(screen.getByPlaceholderText('Notes')).toBeDisabled();
   fireEvent.keyDown(screen.getByRole('combobox'), {key:'Escape',keyCode:27});
   await waitFor(() => expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false'));

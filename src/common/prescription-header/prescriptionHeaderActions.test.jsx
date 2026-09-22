@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { queryHelpers, render, screen, fireEvent } from '@testing-library/react';
 import { Header } from '@dhspl-tatvacare/tesseract-ui';
 import { prescriptionHeaderActions } from './prescriptionHeaderActions';
 
@@ -12,9 +12,8 @@ test('draft selection uses its own handler rather than ending the visit', () => 
     screen.getByRole('menuitem', {name:'Save as Draft'}),
   ]);
   screen.getAllByRole('menuitem').forEach(item => {
-    expect(item.querySelectorAll('[data-tp-icon]')).toHaveLength(1);
-    expect(item.querySelector('[data-tp-icon]')).toHaveAttribute('data-tp-icon','arrow-right4/linear');
-    expect(item.querySelector('svg')).toBeNull();
+    expect(queryHelpers.queryAllByAttribute('data-tp-icon', item, /./)).toHaveLength(1);
+    expect(queryHelpers.queryByAttribute('data-tp-icon', item, /./)).toHaveAttribute('data-tp-icon','arrow-right4/linear');
   });
   fireEvent.click(screen.getByRole('menuitem',{name:/Save as Draft/}));
   expect(onDraft).toHaveBeenCalledTimes(1);

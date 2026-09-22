@@ -22,9 +22,9 @@ test('shows an uploaded image, falls back on image failure, and retries a change
 });
 
 test('omits missing metadata and renders separators only between available values', () => {
-  const {container,rerender} = render(<HeaderPatient patient={patient} age="42y" />);
-  expect(container.querySelectorAll('.metaDivider')).toHaveLength(2);
+  const {rerender} = render(<HeaderPatient patient={patient} age="42y" />);
+  expect(screen.queryAllByText('|')).toHaveLength(2);
   rerender(<HeaderPatient patient={{pm_fullname:'Alex Example'}} age="42y" />);
-  expect(container.querySelectorAll('.metaDivider')).toHaveLength(0);
+  expect(screen.queryAllByText('|')).toHaveLength(0);
   expect(screen.getByText('42y')).toBeInTheDocument();
 });
