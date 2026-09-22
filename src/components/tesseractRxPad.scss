@@ -1,8 +1,9 @@
+@import './prescriptionTableFields';
+
 /* Tesseract RxPadSection skin for PrescriptionNew section boxes.
    Matches the design system's ClinicalTable visuals (header row, borders,
    colors) while the body keeps the portal's antd behavior components.
-   Fonts: per product decision the section title AND table headers use the
-   portal's Poppins (not tesseract Mulish). */
+   Typography follows the Tesseract RxPadSection reference. */
 
 /* Voice Rx CTA (new UI): the white inner face sits inset 2px inside the 10px
    outer radius — concentric corners need the inner radius to follow suit. */
@@ -32,6 +33,7 @@
 
   /* ── Table shell (mirror of ClinicalTable .wrap/.table) ── */
   .tesseract-ct {
+    position: relative;
     border: 0.5px solid var(--tp-slate-200, #e2e2ea);
     border-radius: var(--tesseract-radius-10, 10px);
     background: #fff;
@@ -80,6 +82,29 @@
       );
     }
 
+    &[data-behind-left]::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 18px;
+      transform: translateX(var(--tp-ct-scroll-left, 0px));
+      z-index: 6;
+      pointer-events: none;
+      background: linear-gradient(to right, rgba(15, 23, 42, 0.12), transparent);
+    }
+
+    .prescription-disabled-delete {
+        opacity: .25 !important;
+        cursor: default;
+        border: 0 !important;
+        outline: 0;
+        box-shadow: none !important;
+        background: transparent !important;
+        padding: 0;
+    }
+
     /* Column sizing (non-medication tables): the notes column soaks up all
        leftover width and the action column is a fixed 48px in BOTH header and
        body rows — so header/body always align and the delete CTA sits at the
@@ -118,7 +143,7 @@
         font-weight: 500;
         letter-spacing: 0.02em;
         text-transform: uppercase;
-        color: var(--tp-slate-500, #71717a);
+        color: var(--tp-slate-900, #171725);
         border-right: 0.5px solid var(--tp-slate-200, #e2e2ea);
         background: var(--tp-slate-50, #f8f8fc);
 
@@ -176,7 +201,7 @@
       position: relative;
 
       .ant-select,
-      .ant-input,
+      .ant-input:not(.prescription-table-notes-input),
       .ant-input-textarea,
       > div {
         width: 100% !important;
@@ -206,7 +231,7 @@
         inset-inline-end: 0 !important;
       }
 
-      .ant-input {
+      .ant-input:not(.prescription-table-notes-input) {
         height: 100% !important;
         min-height: 42px;
         padding: 0 12px !important;
@@ -247,7 +272,7 @@
         font-weight: 500;
         letter-spacing: 0.02em;
         text-transform: uppercase;
-        color: var(--tp-slate-500, #71717a);
+        color: var(--tp-slate-900, #171725);
       }
 
       .border-end,
@@ -362,7 +387,7 @@
         height: 100% !important;
       }
 
-      .ant-input {
+      .ant-input:not(.prescription-table-notes-input) {
         width: 100% !important;
         height: 100% !important;
         min-height: 42px;
@@ -381,7 +406,7 @@
         min-height: 42px;
       }
 
-      textarea.notesinput {
+      textarea.notesinput:not(.prescription-table-notes-input) {
         height: 52px !important;
         min-height: 0 !important;
         max-height: 52px !important;
@@ -435,7 +460,7 @@
         box-shadow: none !important;
       }
 
-      .ant-input {
+      .ant-input:not(.prescription-table-notes-input) {
         width: 100% !important;
         height: 100% !important;
         min-height: 42px;
@@ -445,8 +470,8 @@
         border-radius: 0 !important;
       }
 
-      textarea.notesinput,
-      textarea.ant-input {
+      textarea.notesinput:not(.prescription-table-notes-input),
+      textarea.ant-input:not(.prescription-table-notes-input) {
         height: 52px !important;
         min-height: 0 !important;
         max-height: 52px !important;
@@ -521,7 +546,7 @@
         font-weight: 600;
         letter-spacing: 0.02em;
         text-transform: uppercase;
-        color: var(--tp-slate-500, #71717a);
+        color: var(--tp-slate-900, #171725);
         background: var(--tp-slate-50, #f8f8fc);
         border-right: 0.5px solid var(--tp-slate-200, #e2e2ea) !important;
         border-bottom: none !important;
@@ -763,6 +788,210 @@
     &:hover {
       background: var(--tp-slate-200, #e2e2ea) !important;
       color: var(--tp-slate-700, #454551) !important;
+    }
+  }
+}
+
+// Keep draft fields legible without introducing an extra search-cell border.
+.prescription-guided-add-row.prescription-empty-line-row--draft {
+  .ant-col:not(.prescription-empty-line-cell--draft-active) {
+    background: var(--tp-slate-50, #f8f8fc) !important;
+  }
+  > .ant-col:first-child,
+  > .prescription-empty-line-cell--draft-active {
+    background: #fff !important;
+  }
+  .ant-col:has(> .prescription-empty-line-draft-disabled-control) {
+    cursor: pointer;
+  }
+  .prescription-empty-line-draft-disabled-control {
+    pointer-events: none;
+  }
+  .ant-select-disabled.ant-select:not(.ant-select-customize-input) .ant-select-selector,
+  .ant-input-disabled {
+    background: transparent !important;
+  }
+  .ant-select-disabled .ant-select-arrow,
+  .ant-select-disabled .ant-select-selection-item,
+  .ant-input-disabled {
+    color: var(--tesseract-fg-disabled, #e2e2ea) !important;
+    -webkit-text-fill-color: var(--tesseract-fg-disabled, #e2e2ea);
+  }
+}
+
+// Apply the same field and action rules after the legacy table skins.
+.tesseract-rxpad .tesseract-ct {
+  @include prescription-table-placeholders;
+
+  .ant-select:not(.ant-select-disabled) .ant-select-selector:focus-within,
+  .ant-select.ant-select-focused:not(.ant-select-disabled) .ant-select-selector,
+  .ant-input:not(:disabled):focus,
+  .ant-input.notesinput:not(:disabled):focus {
+    @include prescription-table-focus;
+  }
+
+  // An AutoComplete owns one focus ring, on its selector, not its inner input.
+  .ant-select .ant-select-selector input.ant-input:focus {
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+
+  .tesseract-ct-sticky-action {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    align-self: stretch;
+    box-shadow: none !important;
+
+    .btn-delete-prescription {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 32px;
+      width: 32px;
+      height: 32px;
+      min-height: 0;
+      margin: 0;
+      padding: 0 !important;
+    }
+  }
+}
+
+// All medication modes share one scroll width and one set of column sizes.
+// Header, committed rows, taper rows and the add row must line up exactly.
+.tesseract-rxpad .tesseract-ct.tesseract-ct-wide {
+  .tesseract-ct-med-head,
+  .taper-dose {
+    width: max(100%, 1244px) !important;
+    min-width: 1244px !important;
+    align-items: stretch !important;
+
+    > .ant-col:nth-child(1) {
+      flex: 0 0 48px !important;
+      min-width: 48px !important;
+      max-width: 48px !important;
+    }
+    > .ant-col:nth-child(2) {
+      flex: 0 0 280px !important;
+      min-width: 280px !important;
+      max-width: 280px !important;
+      flex-direction: column;
+    }
+    > .ant-col:nth-child(3) {
+      flex: 1 0 916px !important;
+      min-width: 916px !important;
+      max-width: none !important;
+      display: flex;
+      flex-direction: column;
+
+      > .ant-row {
+        width: 100%;
+        min-width: 0;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        flex: 1;
+
+        > .ant-col {
+          min-width: 0 !important;
+          max-width: none !important;
+          flex: 0 0 160px !important;
+        }
+        > .ant-col:nth-child(1) { flex-basis: 148px !important; }
+        > .ant-col:nth-child(5) { flex: 1 0 240px !important; }
+        > .ant-col:nth-child(6) { flex: 0 0 48px !important; }
+      }
+    }
+  }
+
+  .taper-dose .ant-select-selection-search {
+    inset-inline-start: 0 !important;
+    inset-inline-end: 0 !important;
+  }
+  .taper-dose .ant-select-selection-search-input {
+    padding-inline: 12px !important;
+  }
+  .taper-dose .ant-col:has(> .prescription-cell-action) {
+    flex-direction: column;
+
+    > .ant-select {
+      height: auto !important;
+      flex: 1;
+      min-height: 36px;
+    }
+  }
+  .taper-dose:not(.prescription-empty-line-row--draft) > .ant-col:nth-child(2) > .fontroboto.fw-medium {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    padding-block: 2px !important;
+    min-height: 36px;
+    flex: 1;
+  }
+}
+
+.tesseract-rxpad .tesseract-ct {
+  .prescription-table-notes {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 42px;
+    padding: 0;
+    flex: 1;
+    box-sizing: border-box;
+
+    &:focus-within { @include prescription-table-focus; }
+
+    textarea.prescription-table-notes-input {
+      width: 100%;
+      min-height: 0 !important;
+      padding: 11px 12px !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      line-height: 20px;
+      &:focus { border: 0 !important; box-shadow: none !important; outline: none !important; }
+      resize: none;
+      align-self: center;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      overflow-x: hidden !important;
+    }
+  }
+}
+
+// Search categories are labels, not hoverable/selectable results.
+.ant-select-dropdown .ant-select-item.prescription-dropdown-heading {
+  cursor: default;
+  pointer-events: none;
+  background: transparent !important;
+  min-height: 24px;
+  padding-block: 4px;
+  &, * {
+    color: var(--tesseract-fg-tertiary, #717179) !important;
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    line-height: 16px;
+  }
+}
+
+.tesseract-rxpad {
+  > header h3 { font: 600 16px/24px var(--tesseract-font-family, Inter, sans-serif) !important; color: var(--tesseract-slate-700, #454551) !important; }
+  .tesseract-ct {
+    .tesseract-ct-head .tesseract-ct-th { @include prescription-table-heading; }
+    .tesseract-ct-med-head {
+      min-height: 38px;
+      .ant-col { min-height: 38px; }
+      .fontroboto { @include prescription-table-heading; width: 100%; }
+      label { font: inherit !important; color: inherit !important; }
+    }
+    // The cell owns the focus border; the textarea has no nested input shell.
+    .prescription-table-notes textarea.ant-input.prescription-table-notes-input:focus {
+      box-shadow: none !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      outline: none !important;
     }
   }
 }

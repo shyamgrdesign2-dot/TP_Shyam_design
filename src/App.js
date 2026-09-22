@@ -1,4 +1,6 @@
+import PrescriptionViewportFocus from './components/PrescriptionViewportFocus';
 import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { PrescriptionToastHost } from './common/PrescriptionToasts';
 import {
   Routes,
   Route,
@@ -156,6 +158,8 @@ const AppointmentAgent = React.lazy(() =>
 const AppointmentSuccess = React.lazy(() =>
   lazyRetry(() => import("./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess"))
 );
+const PrescriptionHeaderSmoke = React.lazy(() => import('./pages/dev/PrescriptionHeaderSmoke'));
+
 const VoiceRxConsult = React.lazy(() =>
   lazyRetry(() => import("./pages/VoiceRxConsult"))
 );
@@ -787,6 +791,10 @@ function App() {
   const appRoutes = (
     <Suspense fallback={<FullPageLoader />}>
       <SentryRoutes>
+        {/* Local design QA only; no clinical actions are connected to this page. */}
+        {['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) && (
+          <Route path="/dev/prescription-header" element={<PrescriptionHeaderSmoke />} />
+        )}
         {/* Public route */}
         <Route path="/login" element={<Onboarding />} />
         <Route path="/our-offerings" element={<OurOffering />} />
@@ -993,6 +1001,8 @@ function App() {
             </AppStoreProvider>
           </Suspense>
         )}
+        <PrescriptionViewportFocus />
+        <PrescriptionToastHost />
         <div className="no-print app-version-tag">
           v2.1.17
         </div>

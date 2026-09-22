@@ -1,3 +1,4 @@
+import { notifyPrescriptionAction } from './PrescriptionActionToast';
 import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { Table, Switch, Row, Col, Button, Card, Popover, Modal, Dropdown, Menu, message } from 'antd';
 import { MenuOutlined, MoreOutlined } from '@ant-design/icons';
@@ -782,6 +783,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           setMedicalHistoryData([])
         }
         handleDrawerCustomize()
+        notifyPrescriptionAction("Customizations saved");
       } else {
         errorMessage(action.error)
       }
@@ -789,7 +791,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
   }
 
   async function onDefaultPadClick() {
-    errorMessage('Action in progress..')
+    message.info('Action in progress..')
     var sendData = {
       data: {
         default: true,
@@ -831,7 +833,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       if (left.findIndex(e => e.tmdpm_id === 8 && e.tmdpm_status === 0) === -1) {
         setMedicalHistoryData([])
       }
-      errorMessage('Action successfully')
+      message.success('Action successfully')
       handleDrawerCustomize()
     } else {
       errorMessage(action.error)

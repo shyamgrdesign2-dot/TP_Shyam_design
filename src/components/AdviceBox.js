@@ -1,3 +1,6 @@
+import PrescriptionCustomOption from './PrescriptionCustomOption';
+import { notifyPrescriptionAction } from '../common/PrescriptionActionToast';
+import RxActionTooltip from '../common/prescription-header/RxActionTooltip';
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from "react";
 import {
   AutoComplete,
@@ -229,7 +232,7 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
         value: searchQuery,
         label: <div className='d-flex align-items-center'>
           <Checkbox checked={adviceDataCheck.some(x => x.advice_name == searchQuery)}></Checkbox>
-          <div className="ms-2">{searchQuery} <i className="icon-Add mx-1 text-primary fs-6"></i> <a className="fw-medium text-decoration-underline text-primary"> Add Custom</a></div>
+          <PrescriptionCustomOption value={searchQuery} category="Advice" />
         </div>,
       });
     setParentSearchOptions(data);
@@ -325,7 +328,8 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
     })
     setAdviceData([...adviceData, ...updatedData]);
     showHideTemplatesListPopover();
-  };
+        notifyPrescriptionAction("Template added to prescription");
+      };
 
   const onDeleteTemplateClicked = async (tat_id) => {
     const action = await dispatch(deleteTemplate(tat_id));
@@ -370,6 +374,7 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template saved");
       }
     }
   };
@@ -401,6 +406,7 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template updated");
       }
     }
   };
@@ -751,7 +757,8 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
   const onRemoveRows = () => {
     setAdviceData([])
     showHideClearData()
-  };
+        notifyPrescriptionAction("Section cleared");
+      };
 
   //Remove All Rows
   const REMOVE_ALL_ROWS = useMemo(() => {
@@ -868,9 +875,9 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Browse templates">
+                <RxActionTooltip active={popOver1} placement="bottom" title="Browse templates">
                   {tesseractActionButton({ icon: "grid-5", label: "Browse advice templates" })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
             <Popover
@@ -882,16 +889,16 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Save as template">
+                <RxActionTooltip active={popOver2} placement="bottom" title="Save as template">
                   {tesseractActionButton({ icon: "ram", label: "Save advice as template", disabled: adviceData.length === 0 })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
-            <Tooltip placement="bottom" title="Clear all entries">
+            <RxActionTooltip active={isModalOpen1} placement="bottom" title="Clear all entries">
               <span>
                 {tesseractActionButton({ icon: "eraser", label: "Clear advice", onClick: showHideClearData, disabled: adviceData.length === 0 })}
               </span>
-            </Tooltip>
+            </RxActionTooltip>
           </>
         }
       >

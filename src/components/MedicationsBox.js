@@ -1,3 +1,7 @@
+import PrescriptionCustomOption from './PrescriptionCustomOption';
+import { renderPrescriptionDropdown } from './PrescriptionDropdownHints';
+import { notifyPrescriptionAction } from '../common/PrescriptionActionToast';
+import RxActionTooltip from '../common/prescription-header/RxActionTooltip';
 import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } from "react";
 import { AutoComplete, Input, Button, Form, Row, Col, Select, Popover, Tabs, Spin, Tooltip, Drawer, message, Switch, Tour } from "antd";
 import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
@@ -61,6 +65,7 @@ import {
   TPLibraryIcon,
 } from "@dhspl-tatvacare/tesseract-ui";
 import "./tesseractRxPad.scss";
+import PrescriptionCellAction from "./PrescriptionCellAction";
 import { attachTesseractCtBehind } from "./tesseractCt";
 import {
   hasInvalidChikitsalayMedication,
@@ -72,6 +77,8 @@ import {
 } from "../utils/medicationCopyNormalization";
 import {
   PrescriptionEmptyLineDraftSearch,
+  createPrescriptionSearchHeading,
+  PrescriptionEmptyLineRow,
   PrescriptionEmptyLineDragHandle,
   usePrescriptionNewEmptyLineUi,
 } from "./PrescriptionEmptyLineUi";
@@ -459,6 +466,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
         return popupClassName ? { popupClassName } : {};
       }
       return {
+        dropdownRender: renderPrescriptionDropdown,
         popupMatchSelectWidth: false,
         popupClassName: [
           PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS,
@@ -679,14 +687,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
 
     if (doseCalculatorDrawer) {
       if (searchMLQuery.length == 0) {
-        data.unshift({
-          key: -1,
-          label: (
-            <>
-              <div>FREQUENTLY USED</div>
-            </>
-          ),
-        });
+        data.unshift(createPrescriptionSearchHeading());
       } else {
         searchMLQuery && !isChikitsalayAccessable &&
         data.push({
@@ -698,21 +699,14 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
             value: `${searchMLQuery}${Math.random()}`,
           label: (
             <>
-              <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{searchMLQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
+              <PrescriptionCustomOption value={searchMLQuery} category="Medicine" />
             </>
           ),
         });
       }
     } else {
       if (activeSearchQuery.length == 0) {
-        data.unshift({
-          key: -1,
-          label: (
-            <>
-              <div>FREQUENTLY USED</div>
-            </>
-          ),
-        });
+        data.unshift(createPrescriptionSearchHeading());
       } else {
         activeSearchQuery && !isChikitsalayAccessable &&
         data.push({
@@ -724,7 +718,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
             value: `${activeSearchQuery}${Math.random()}`,
           label: (
             <>
-              <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{activeSearchQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
+              <PrescriptionCustomOption value={activeSearchQuery} category="Medicine" />
             </>
           ),
         });
@@ -887,7 +881,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
         if (medicineExists) {
           message.open({
             key: MESSAGE_KEY,
-            type: '',
+            type: 'info',
             className: 'message-appointment',
             content: (
               <div className='d-flex align-items-center'>
@@ -1299,7 +1293,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
     setMedicationData((prev) => [...prev]);
     message.open({
       key: MESSAGE_KEY,
-      type: '',
+      type: 'success',
       className: 'message-appointment',
       content: (
         <div className='d-flex align-items-center'>
@@ -1392,6 +1386,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
         };
       });
       setMedicationData([...medicationData, ...updatedData]);
+      notifyPrescriptionAction(updatedData.length ? 'Previous prescription loaded' : 'No previous prescription found', updatedData.length ? 'success' : 'info');
     } else {
       errorMessage(action.error)
     }
@@ -1443,7 +1438,8 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
       });
       setMedicationData([...medicationData, ...updatedData]);
       showHideTemplatesListPopover();
-    } else {
+        notifyPrescriptionAction("Template added to prescription");
+      } else {
       errorMessage(action.error)
     }
   };
@@ -1493,6 +1489,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus == "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template saved");
       }
     }
   };
@@ -1526,6 +1523,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus == "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template updated");
       }
     }
   };
@@ -1937,6 +1935,9 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                               </Tooltip>
                               {renderSelectedMedicineStock(item)}
                             </div>
+                            {useTesseractUi ? (
+                              <PrescriptionCellAction icon="add" onClick={() => taperDoseAdd(item)}>Tapering Dose</PrescriptionCellAction>
+                            ) : (
                             <div
                               className="badge-tapper badge-tapper--taper"
                               onClick={(event) => {
@@ -1949,6 +1950,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                             >
                               <i className="icon-Add me-1"></i> Tapering Dose
                             </div>
+                            )}
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
                             {!item.pms_default && !(isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item)) &&
@@ -1991,9 +1993,13 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                                     />
                                     {ii === 0 && (profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
                                       dosesList.some((e1) => e1.medicine_id == item.tmm_id) ? (
-                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, right: 0 }} onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Edit Calc." : "Edit Calculation"}</div>
+                                        useTesseractUi ? <PrescriptionCellAction icon="calculator" onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}>Edit Calc.</PrescriptionCellAction> : (
+                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, right: 0 }} onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}><img src={calculatorIconBlue} alt="Dose calculator" className="svg-hovered me-1" /> {(useTesseractUi || isVoiceRxModuleEnabled) ? "Edit Calc." : "Edit Calculation"}</div>
+                                        )
                                       ) : (
-                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, right: 0 }} onClick={() => handleViewDoseCalcDrawer("1", 0)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Dose Calc." : "Dose Calculator"}</div>
+                                        useTesseractUi ? <PrescriptionCellAction icon="calculator" onClick={() => handleViewDoseCalcDrawer("1", 0)}>Dose Calc.</PrescriptionCellAction> : (
+                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, right: 0 }} onClick={() => handleViewDoseCalcDrawer("1", 0)}><img src={calculatorIconBlue} alt="Dose calculator" className="svg-hovered me-1" /> {(useTesseractUi || isVoiceRxModuleEnabled) ? "Dose Calc." : "Dose Calculator"}</div>
+                                        )
                                       )
                                     )}
                                   </Col>
@@ -2067,22 +2073,26 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                                       allowClear
                                     />
                                     {item?.tmm_days_duration_type && (
+                                      useTesseractUi ? <PrescriptionCellAction onClick={() => onAutoFillDuration(item?.index)}>Autofill all meds</PrescriptionCellAction> : (
                                       <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><span style={{ display: "inline-block", width: 14, height: 14, flexShrink: 0, backgroundColor: "currentColor", WebkitMask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/copy.svg) center / contain no-repeat", mask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/copy.svg) center / contain no-repeat", marginRight: 3 }} />Autofill to all meds</div>
+                                      )
                                     )}
                                   </Col>
                                   <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
+                                    <div className={useTesseractUi ? "prescription-table-notes" : undefined} style={useTesseractUi ? undefined : {display: "contents"}}>
                                     <TextArea
-                                      className="notesinput border-0 h-100 align-self-center"
+                                      className={`notesinput border-0 ${useTesseractUi ? "prescription-table-notes-input" : "h-100 align-self-center"}`}
                                       data-testid={`medicine-note-${item.index}`}
                                       placeholder={isChikitsalayAccessable ? "" : "Notes"}
                                       defaultValue={item.tmm_remarks}
                                       value={item.tmm_remarks}
                                       autoSize={{
                                         minRows: 1,
-                                        maxRows: isChikitsalayAccessable ? 3 : 2,
+                                        maxRows: useTesseractUi ? 3 : isChikitsalayAccessable ? 3 : 2,
                                       }}
                                       onChange={(e) => onChangeNoteChild(e, item?.index)}
                                     />
+                                    </div>
                                   </Col>
                                   <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${useTesseractUi ? "tesseract-ct-sticky-action" : ""} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
                                     <Button
@@ -2104,7 +2114,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                 })}
                 {provided.placeholder}
                 {isNewEmptyLineUiEnabled && (
-                  <Row
+                  <PrescriptionEmptyLineRow
                     gutter={[0]}
                     className={[
                       "taper-dose align-items-center border-bottom",
@@ -2174,21 +2184,23 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                           />
                         </Col>
                         <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
+                          <div className={useTesseractUi ? "prescription-table-notes prescription-empty-line-draft-disabled-control" : undefined} style={useTesseractUi ? undefined : {display: "contents"}}>
                           <TextArea
-                            className="notesinput border-0 h-100 align-self-center prescription-empty-line-draft-disabled-control"
+                            className={`notesinput border-0 prescription-empty-line-draft-disabled-control ${useTesseractUi ? "prescription-table-notes-input" : "h-100 align-self-center"}`}
                             placeholder={isChikitsalayAccessable ? "" : "Notes"}
                             value=""
                             disabled
                             autoSize={{
                               minRows: 1,
-                              maxRows: isChikitsalayAccessable ? 3 : 2,
+                              maxRows: useTesseractUi ? 3 : isChikitsalayAccessable ? 3 : 2,
                             }}
                           />
+                          </div>
                         </Col>
                         <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${useTesseractUi ? "tesseract-ct-sticky-action" : ""} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`} />
                       </Row>
                     </Col>
-                  </Row>
+                  </PrescriptionEmptyLineRow>
                 )}
               </div>
             )}
@@ -2861,7 +2873,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                       value: JSON.stringify({ ...e }),
                       label: i === [...genericList, { tmm_generic: genericQuery }].filter(e => e.tmm_generic).length - 1 && genericQuery.length > 0 ?
                         <>
-                          <div>{e.tmm_generic}<i className="icon-Add mx-1 text-primary fs-6"></i> <a className="fw-medium text-decoration-underline text-primary"> Add Custom</a></div>
+                          <PrescriptionCustomOption value={e.tmm_generic} category="Medicine" />
                         </>
                         :
                         <>{e.tmm_generic}</>,
@@ -2910,7 +2922,8 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
     resetEmptyLineRowsUi();
     setMedicationData([])
     showHideClearData()
-  };
+        notifyPrescriptionAction("Section cleared");
+      };
 
   //Remove All Rows
   const REMOVE_ALL_ROWS = useMemo(() => {
@@ -3191,9 +3204,9 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Browse templates">
+                <RxActionTooltip active={popOver1} placement="bottom" title="Browse templates">
                   {tesseractActionButton({ icon: "grid-5", label: "Browse medication templates" })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
             <Popover
@@ -3205,16 +3218,16 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : "Save as template"}>
+                <RxActionTooltip active={popOver2} placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : "Save as template"}>
                   {tesseractActionButton({ icon: "ram", label: "Save medications as template", disabled: medicationData.length === 0 || hasUngroundedMedications })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
-            <Tooltip placement="bottom" title="Clear all entries">
+            <RxActionTooltip active={isModalOpen1} placement="bottom" title="Clear all entries">
               <span>
                 {tesseractActionButton({ icon: "eraser", label: "Clear medications", onClick: showHideClearData, disabled: medicationData.length === 0 })}
               </span>
-            </Tooltip>
+            </RxActionTooltip>
           </>
         }
       >

@@ -1,3 +1,4 @@
+import PrescriptionCustomOption from './PrescriptionCustomOption';
 import React, {
   useState,
   useRef,
@@ -3672,14 +3673,7 @@ const ConsultationDrawerMobile = ({
             value: searchParentQuery,
             label: (
               <>
-                <div>
-                  {searchParentQuery}
-                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-                  <a className="fw-medium text-decoration-underline text-primary">
-                    {" "}
-                    Add Custom
-                  </a>
-                </div>
+                <PrescriptionCustomOption value={searchParentQuery} category="Investigation" />
               </>
             ),
           });

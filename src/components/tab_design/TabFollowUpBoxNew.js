@@ -1,3 +1,4 @@
+import { notifyPrescriptionAction } from '../../common/PrescriptionActionToast';
 import React, { useState, useEffect, useCallback, useContext, useMemo } from "react";
 import { Input, Button, Drawer, Tabs, Select, Spin, Popover, Row, Col, DatePicker, Tooltip } from 'antd';
 import { LoadingOutlined } from "@ant-design/icons";
@@ -235,7 +236,8 @@ function TabFollowUpBoxNew() {
         const updatedData = template.template_content
         setAdditionalNote(additionalNote.concat(` ${updatedData}`));
         !isMobile ? showHideTemplatesListPopover() : handleDrawerTemplate()
-    };
+        notifyPrescriptionAction("Template added to prescription");
+      };
 
     const onDeleteTemplateClicked = async (tmftm_id) => {
         const action = await dispatch(deleteFollowupTemplate(tmftm_id));
@@ -278,7 +280,8 @@ function TabFollowUpBoxNew() {
             if (action.meta.requestStatus === "fulfilled") {
                 setInputTemplateName(null);
                 !isMobile ? showHideSaveTemplatePopOver() : handleDrawerSave()
-            }
+        notifyPrescriptionAction("Template saved");
+      }
         }
     };
 
@@ -307,7 +310,8 @@ function TabFollowUpBoxNew() {
             if (action.meta.requestStatus === "fulfilled") {
                 setInputTemplateName(null);
                 !isMobile ? showHideSaveTemplatePopOver() : handleDrawerSave()
-            }
+        notifyPrescriptionAction("Template updated");
+      }
         }
     };
 
@@ -714,7 +718,7 @@ function TabFollowUpBoxNew() {
                                                     type="clear"
                                                     label="Clear additional notes"
                                                     disabled={additionalNote.length === 0}
-                                                    onClick={() => setAdditionalNote("")}
+                                                    onClick={() => { setAdditionalNote(""); notifyPrescriptionAction("Additional notes cleared"); }}
                                                     small
                                                 />
                                             </Tooltip>
@@ -750,7 +754,7 @@ function TabFollowUpBoxNew() {
                                                     type="clear"
                                                     label="Clear additional notes"
                                                     disabled={additionalNote.length === 0}
-                                                    onClick={() => setAdditionalNote("")}
+                                                    onClick={() => { setAdditionalNote(""); notifyPrescriptionAction("Additional notes cleared"); }}
                                                     small
                                                 />
                                             </Tooltip>

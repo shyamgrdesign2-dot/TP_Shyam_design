@@ -1,3 +1,7 @@
+import { notifyPrescriptionAction } from './PrescriptionActionToast';
+import RxWorkflowHeader, { RxFulfilmentToggle, rxClearAction } from './prescription-header/RxWorkflowHeader';
+import { headerIcon, visitActionIcon } from './prescription-header/prescriptionHeaderActions';
+import { TPLibraryIcon } from '@dhspl-tatvacare/tesseract-ui';
 import React, {
   useState,
   useEffect,
@@ -285,9 +289,10 @@ function HeaderPrescription({
     }
   };
 
-  const handleClearClick = () => {
+  const handleClearClick = async () => {
     setIsClearModalOpen(!isClearModalOpen);
-    onClear(); // Call the parent's clear handler
+    await onClear();
+    notifyPrescriptionAction('Prescription cleared');
   };
 
   const handleSubmitClick = async () => {
@@ -699,20 +704,29 @@ function HeaderPrescription({
       }
     }, []);
 
-  return (
-    <Navbar className="justify-content-between headerprescription p-0">
-      <Container fluid className="h-100 gx-0 w-100">
-        <Row className="h-100 align-items-center w-100 justify-content-between">
-          <Col lg="auto" className="h-100">
-            <div className="align-items-center d-flex h-100">
-              <div className="border-end h-100 text-center">
-                <div
-                  onClick={checkDataFillOrNot}
-                  className="btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer"
-                >
-                  <i className="icon-right"></i>
-                </div>
-                <CommonModal
+  const isZydusFulfilment = getDecodedToken()?.result?.hospital_business_id == env.zydus_business_id;
+  const actions = {
+    tutorial: !isCvtExtHosAccessableFromGB ? { key: 'tutorial', ariaLabel: 'Play tutorial', active: popOverVideo,
+      icon: <img src={ASSETS.images.tutorial2} width={42} height={42} alt="" />, variant: 'ghost', style: { padding: 0, border: 0 },
+      wrap: node => <Popover open={popOverVideo} onOpenChange={showHideVideoListPopover} content={VIDEO_CONTENT} trigger="click" overlayClassName="pop-430 pp-0 videoTutorial" placement="bottom">{node}</Popover> } : undefined,
+    tools: !isCvtExtHosAccessableFromGB ? [{ key: 'customize', ariaLabel: 'Customize prescription sections', active: customizeDrawer, onClick: handleDrawerCustomize },
+      ...(isPillUpAccessableFromGB ? [{ key: 'fulfilment', node: <RxFulfilmentToggle ref={tourRef} checked={pillupSwitch} onChange={pillUpChange}
+        label={isZydusFulfilment ? 'eaZY Dose' : 'PillUp'} logo={isZydusFulfilment ? EazyDoseLogo : Pillup}
+        help={<Popover open={popOver3} onOpenChange={showHidePillUpPopover} content={profile?.userSettingFlag?.find(e => e?.type === 'pillup')?.status === 1 ? PILLUP_CONTENT() : null} trigger="hover" placement="bottom">
+          <span className="d-inline-flex" aria-label="About medicine fulfilment"><TPLibraryIcon name="info-circle" variant="linear" size={16} /></span>
+        </Popover>} /> }] : [])] : [],
+    smart: [
+      ...(isSmartSyncConnectAccessableFromGB ? [{ key: 'smartsync', label: connectLoading ? 'SmartSync Connecting...' : isConnected ? 'SmartSync Connected' : 'SmartSync Disconnected',
+        icon: headerIcon('bluetooth'), variant: 'tonal', theme: isConnected ? 'success' : connectLoading ? 'neutral' : 'error',
+        onClick: isConnected ? handleDisconnectPopup : handleConnectButtonClick, disabled: connectLoading, loading: connectLoading, active: Boolean(isDisconnect) }] : []),
+      ...(handleVideoConsult ? [{ key: 'video', ariaLabel: 'Video consultation', icon: headerIcon('video'), onClick: handleVideoConsult, loading: isVideoConsultLoading }] : []),
+      ...(showTeleconsultIcon ? [{ key: 'teleconsult', ariaLabel: isTeleconsultActive ? 'Meeting in progress' : 'Tele-Consultation', icon: headerIcon('video'), onClick: onTeleconsultClick, disabled: isTeleconsultJoinLoading || isTeleconsultActive, loading: isTeleconsultJoinLoading }] : []),
+    ],
+    primary: { label: 'Visit', icon: visitActionIcon, onClick: handleSubmitClick, loading: loading || loader, disabled: (!prescription && clicked) || loader },
+    more: !isCvtExtHosAccessableFromGB ? rxClearAction(() => setIsClearModalOpen(true), !prescription || loading) : undefined,
+  };
+  return <RxWorkflowHeader variant="smart-rx" patient={patient_data} onBack={checkDataFillOrNot} actions={actions} aria-label="Smart prescription header">
+    <CommonModal
                   isModalOpen={isBackModalOpen}
                   onCancel={showHideBackModal}
                   modalWidth={500}
@@ -747,7 +761,7 @@ function HeaderPrescription({
                     </>
                   }
                 />
-                <CommonModal
+    <CommonModal
                   isModalOpen={showDiconnectPopup}
                   // onCancel={showHideBackModal}
                   modalWidth={500}
@@ -777,123 +791,7 @@ function HeaderPrescription({
                     </>
                   }
                 />
-              </div>
-              <ProfilePopover patient_data={patient_data} />
-            </div>
-          </Col>
-          <Col lg="auto">
-            <div className="align-items-center d-flex h-100">
-              {/*Will be utilising this code in future, once the video is available */}
-              {isSmartSyncConnectAccessableFromGB && (
-                <Button
-                  type="button"
-                  className="btn align-items-center d-flex btn-device-connect rounded-5 pe-3 bg-white shadow2 me-2"
-                  onClick={
-                    isConnected
-                      ? handleDisconnectPopup
-                      : handleConnectButtonClick
-                  }
-                  disabled={connectLoading}
-                >
-                  <span>
-                    {connectLoading
-                      ? "SmartSync Connecting..."
-                      : isConnected
-                      ? "SmartSync Connected"
-                      : "SmartSync Disconnected"}
-                  </span>
-
-                  <div
-                    style={{
-                      width: "48px",
-                      height: "26px",
-                      borderRadius: "32px",
-                      backgroundColor: isConnected
-                        ? "rgb(109 225 178)"
-                        : "white",
-                      boxShadow: "rgba(0, 0, 0, 0.3) 0px 0px 3px inset",
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "4px",
-                      transition: "background-color 0.3s ease",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        borderRadius: "50%",
-                        width: "20px",
-                        height: "20px",
-                        backgroundColor: connectLoading
-                          ? "#4B4AD5"
-                          : isConnected
-                          ? "#fff"
-                          : "rgb(255 181 181)",
-                        transform: isConnected
-                          ? "translateX(21px)"
-                          : "translateX(0)",
-                        transition:
-                          "transform 0.3s ease, background-color 0.3s ease",
-                      }}
-                    >
-                      <img
-                        src={
-                          connectLoading
-                            ? devicePad
-                            : isConnected
-                            ? smartSyncConnected
-                            : smartSyncDisconnected
-                        }
-                        alt="devicePad"
-                        style={{
-                          transition: "opacity 0.3s ease",
-                          opacity: connectLoading ? 0.5 : 1,
-                          width: "16px",
-                          height: "16px",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </Button>
-              )}
-              {isPillUpAccessableFromGB && !isCvtExtHosAccessableFromGB && (
-                <div
-                  ref={tourRef}
-                  className="ms-2 border rounded-20px px-2 py-1 d-flex align-items-center"
-                  style={{ backgroundColor: "rgb(226, 226, 234, 0.2)" }}
-                >
-                  {(() => {
-                    const decodedToken = getDecodedToken();
-                    const tokenData = decodedToken?.result;
-                    const isZydusUser = tokenData?.hospital_business_id == env.zydus_business_id;
-                    return isZydusUser ? <img src={EazyDoseLogo} alt="eaZY Dose" style={{ height: '20px' }} /> : <img src={Pillup} />;
-                  })()}
-                  <Popover
-                    open={popOver3}
-                    onOpenChange={showHidePillUpPopover}
-                    content={profile?.userSettingFlag?.find(e => e?.type === 'pillup')?.status === 1 ? PILLUP_CONTENT() : null}
-                    trigger="hover"
-                    placement="bottom"
-                  >
-                    <i className="icon-info opacity-50 fs-18 mx-1"></i>
-                  </Popover>
-                  <Switch
-                    className="switch-custom"
-                    value={pillupSwitch}
-                    onChange={pillUpChange}
-                  />
-                  <Tour
-                    placement="bottom"
-                    closeIcon={false}
-                    open={tourOpen}
-                    steps={steps}
-                    onClose={onTourHandle}
-                  />
-                </div>
-              )}
-              <CommonModal
+    <CommonModal
                 isModalOpen={isDisconnect}
                 onCancel={showHideDisconnectModal}
                 modalWidth={500}
@@ -928,72 +826,7 @@ function HeaderPrescription({
                   </>
                 }
               />
-              { !isCvtExtHosAccessableFromGB &&
-                <button
-                  className="btn d-flex align-items-center btn-text"
-                  onClick={handleDrawerCustomize}
-                >
-                  <i className="icon-setting me-2"></i> <span>Customize</span>
-                </button>
-              }
-
-              <Drawer
-                placement="right"
-                closeIcon={false}
-                onClose={handleDrawerCustomize}
-                open={customizeDrawer}
-                className="modalWidth-900"
-                width="auto"
-              >
-                {CUSTOMIZE_CONTENT_TAB}
-              </Drawer>
-              { !isCvtExtHosAccessableFromGB &&
-                <Popover
-                  open={popOverVideo}
-                  onOpenChange={showHideVideoListPopover}
-                  content={VIDEO_CONTENT}
-                  trigger="click"
-                  overlayClassName="pop-430 pp-0 videoTutorial"
-                  placement="bottom"
-                >
-                  {/* <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'> */}
-                  <span
-                    className="text-decoration-none rounded-5 mx-3"
-                    style={{ cursor: "pointer" }}
-                  >
-                    <img height={42} src={tutorial} />
-                  </span>
-                  {/* </button> */}
-                </Popover>
-              }
-
-              {videoLink && !isCvtExtHosAccessableFromGB && (
-                <VideoModal
-                  videoLink={videoLink}
-                  onCancel={() => setVideoLink(null)}
-                />
-              )}
-
-
-              { !isCvtExtHosAccessableFromGB && 
-                (<Button
-                    type="button"
-                    className="btn align-items-center d-flex btn-41 btn-clear me-20"
-                    onClick={() => setIsClearModalOpen(!isClearModalOpen)}
-                    loading={loading}
-                    disabled={!prescription}
-                  >
-                    <img
-                      className="align-items-center d-flex"
-                      src={reload}
-                      alt="clear"
-                    />
-                    <span>Clear All</span>
-                  </Button>
-                )
-              }
-
-              <CommonModal
+    <CommonModal
                 isModalOpen={isClearModalOpen}
                 onCancel={showHideClearModal}
                 modalWidth={500}
@@ -1028,49 +861,10 @@ function HeaderPrescription({
                   </>
                 }
               />
-              {handleVideoConsult && (
-                <VideoConsultButton 
-                  onClick={handleVideoConsult} 
-                  loading={isVideoConsultLoading}
-                />
-              )}
-              {showTeleconsultIcon && (
-                <Tooltip
-                  placement="bottom"
-                  title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"}
-                  destroyTooltipOnHide
-                >
-                  <span className={isTeleconsultActive ? "d-inline-block" : ""}>
-                    <button
-                      type="button"
-                      className="btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn me-20"
-                      onClick={onTeleconsultClick}
-                      disabled={isTeleconsultJoinLoading || isTeleconsultActive}
-                    >
-                      {isTeleconsultJoinLoading ? (
-                        <LoadingOutlined style={{ fontSize: 24 }} />
-                      ) : (
-                        <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} />
-                      )}
-                    </button>
-                  </span>
-                </Tooltip>
-              )}
-              <Button
-                type="button"
-                className="btn align-items-center d-flex btn-41 btn-primary3 me-20"
-                onClick={handleSubmitClick}
-                loading={loading || loader}
-                disabled={(!prescription && clicked) || loader}
-              >
-                Submit
-              </Button>
-            </div>
-          </Col>
-        </Row>
-      </Container>
-    </Navbar>
-  );
+    <Drawer placement="right" closeIcon={false} onClose={handleDrawerCustomize} open={customizeDrawer} className="modalWidth-900" width="auto">{CUSTOMIZE_CONTENT_TAB}</Drawer>
+    {!isCvtExtHosAccessableFromGB && isPillUpAccessableFromGB && <Tour placement="bottom" closeIcon={false} open={tourOpen} steps={steps} onClose={onTourHandle} />}
+    {videoLink && !isCvtExtHosAccessableFromGB && <VideoModal videoLink={videoLink} onCancel={() => setVideoLink(null)} />}
+  </RxWorkflowHeader>;
 }
 
 export default React.memo(HeaderPrescription);

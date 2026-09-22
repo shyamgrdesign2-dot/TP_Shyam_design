@@ -1,3 +1,7 @@
+import PrescriptionCustomOption from './PrescriptionCustomOption';
+import { notifyPrescriptionAction } from '../common/PrescriptionActionToast';
+import RxActionTooltip from '../common/prescription-header/RxActionTooltip';
+import PrescriptionNoteInput from './PrescriptionNoteInput';
 import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
   AutoComplete,
@@ -48,6 +52,8 @@ import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.sc
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 import {
   PrescriptionEmptyLineDraftSearch,
+  createPrescriptionSearchHeading,
+  PrescriptionEmptyLineRow,
   PrescriptionEmptyLineDragHandle,
   usePrescriptionNewEmptyLineUi,
 } from "./PrescriptionEmptyLineUi";
@@ -227,14 +233,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
       });
     });
     if (searchParentQuery.length === 0) {
-      data.unshift({
-        key: -1,
-        label: (
-          <>
-            <div>FREQUENTLY USED</div>
-          </>
-        ),
-      });
+      data.unshift(createPrescriptionSearchHeading());
     } else {
       searchParentQuery && parentOptionsList.findIndex(e => e.examination_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 &&
         data.push({
@@ -247,7 +246,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
           value: searchParentQuery,
           label: (
             <>
-              <div>{searchParentQuery}<i className="icon-Add mx-1 text-primary fs-6"></i> <a className="fw-medium text-decoration-underline text-primary"> Add Custom</a></div>
+              <PrescriptionCustomOption value={searchParentQuery} category="Examination" />
             </>
           ),
         });
@@ -343,13 +342,13 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
         value: searchChildQuery.query,
         label: (
           <>
-            <div>{searchChildQuery.query}</div>
+            <PrescriptionCustomOption value={searchChildQuery.query} category="Examination" />
           </>
         ),
       });
     }
     setChildSearchOptions(data);
-  }, [childOptionsList]);
+  }, [childOptionsList, searchChildQuery]);
 
   const onFocusChid = (i) => {
     setSearchChildQuery({ query: examinationData[i].examination_name, index: i });
@@ -432,7 +431,8 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
       const updatedData = action?.payload;
       setExaminationData([...examinationData, ...updatedData]);
       showHideTemplatesListPopover();
-    } else {
+        notifyPrescriptionAction("Template added to prescription");
+      } else {
       errorMessage(action.error)
     }
   };
@@ -481,6 +481,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template saved");
       }
     }
   };
@@ -513,6 +514,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template updated");
       }
     }
   };
@@ -662,7 +664,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
                             isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
                             shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
                           ].filter(Boolean).join(" ")}>
-                            <Input
+                            <PrescriptionNoteInput enabled={useTesseractUi} legacyMultiline={false}
                               className="notesinput border-0"
                               placeholder="Notes"
                               defaultValue={item.note}
@@ -689,7 +691,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
                 })}
                 {provided.placeholder}
                 {isNewEmptyLineUiEnabled && (
-                  <Row
+                  <PrescriptionEmptyLineRow
                     gutter={[0]}
                     className={[
                       "symptoms-table-row",
@@ -721,7 +723,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
                       "symptoms-table-cell",
                       shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
                     ].filter(Boolean).join(" ")}>
-                      <Input
+                      <PrescriptionNoteInput enabled={useTesseractUi} legacyMultiline={false}
                         className="notesinput border-0 prescription-empty-line-draft-disabled-control"
                         placeholder="Notes"
                         value=""
@@ -733,7 +735,7 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
                       useTesseractUi ? "tesseract-ct-sticky-action" : "",
                       shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
                     ].filter(Boolean).join(" ")} />
-                  </Row>
+                  </PrescriptionEmptyLineRow>
                 )}
               </div>
             )}
@@ -972,7 +974,8 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
     resetEmptyLineRowsUi();
     setExaminationData([])
     showHideClearData()
-  };
+        notifyPrescriptionAction("Section cleared");
+      };
 
   //Remove All Rows
   const REMOVE_ALL_ROWS = useMemo(() => {
@@ -1100,9 +1103,9 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Browse templates">
+                <RxActionTooltip active={popOver1} placement="bottom" title="Browse templates">
                   {tesseractActionButton({ icon: "grid-5", label: "Browse examination templates" })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
             <Popover
@@ -1114,16 +1117,16 @@ function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Save as template">
+                <RxActionTooltip active={popOver2} placement="bottom" title="Save as template">
                   {tesseractActionButton({ icon: "ram", label: "Save examination as template", disabled: examinationData.length === 0 })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
-            <Tooltip placement="bottom" title="Clear all entries">
+            <RxActionTooltip active={isModalOpen1} placement="bottom" title="Clear all entries">
               <span>
                 {tesseractActionButton({ icon: "eraser", label: "Clear examinations", onClick: showHideClearData, disabled: examinationData.length === 0 })}
               </span>
-            </Tooltip>
+            </RxActionTooltip>
           </>
         }
       >

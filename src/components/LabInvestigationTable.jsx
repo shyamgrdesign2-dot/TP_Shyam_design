@@ -1,3 +1,4 @@
+import PrescriptionCustomOption from './PrescriptionCustomOption';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input, Button } from 'antd';
@@ -191,14 +192,7 @@ const LabInvestigationTable = ({
             value: searchQuery,
             label: (
               <>
-                <div>
-                  {searchQuery}
-                  <i className="icon-Add mx-1 text-primary fs-6"></i>{' '}
-                  <span className="fw-medium text-decoration-underline text-primary">
-                    {' '}
-                    Add Custom
-                  </span>
-                </div>
+                <PrescriptionCustomOption value={searchQuery} category="Investigation" />
               </>
             ),
           });

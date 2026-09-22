@@ -789,3 +789,18 @@
     }
   }
 }
+
+// Consultation tables use the same Tesseract header and field geometry.
+.prescription-overlay-scope .custom-module-v2 {
+  &__table-header-cell {
+    height: 38px;
+    padding: 8px 12px;
+    background: var(--tesseract-slate-50, #fafafb);
+    color: var(--tesseract-slate-500, #717179) !important;
+    font: 600 12px/18px var(--tesseract-font-family, Inter, sans-serif) !important;
+  }
+  &__table-cell { padding: 0; vertical-align: middle; }
+  &__table-cell textarea { padding: 11px 12px !important; line-height: 20px; }
+}
+.custom-module-dropdown-item[aria-selected="true"] { background: var(--tesseract-slate-100, #f1f1f5) !important; }
+.custom-module-dropdown-header { font: 500 11px/16px var(--tesseract-font-family, Inter, sans-serif) !important; color: var(--tesseract-slate-400, #a2a2a8) !important; background: transparent !important; pointer-events: none; }

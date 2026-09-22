@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Popover, Drawer, Radio, message } from 'antd';
 import { makeDefaultLogo } from "../utils/utils";
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useSelector, useDispatch } from "react-redux";
 import moment from 'moment';
@@ -12,6 +12,8 @@ import { isMobile } from 'react-device-detect';
 import { listBloodGroup, editBloodGroup, viewPatient } from '../redux/appointmentsSlice';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { ASSETS } from "../assets";
+import { HeaderPatient, resolveHeaderPatient } from './prescription-header/HeaderPatient';
+import PatientProfileDetails from './prescription-header/PatientProfileDetails';
 const BloodIcon = ASSETS.images.blood;
 
 
@@ -42,6 +44,7 @@ export const genderAge = (patient_data, profile, shouldShowGender = true) => {
 };
 
 function ProfilePopover(props) {
+    const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const [tokenData, setTokenData] = useState(null);
     const [zydusBloodGroupDrawerOpen, setZydusBloodGroupDrawerOpen] = useState(false);
@@ -60,6 +63,7 @@ function ProfilePopover(props) {
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
+    const headerPatient = resolveHeaderPatient(patient_data, patients_details);
 
     let patientDOB = ''
     if (patients_details?.pm_dob) {
@@ -126,7 +130,7 @@ function ProfilePopover(props) {
     };
 
     const handleBloodGroupDrawerOpen = () => {
-        setSelectedBloodGroup(patients_details?.pm_blood_group || patient_data?.pm_blood_group || null);
+        setSelectedBloodGroup(headerPatient.pm_blood_group || headerPatient.patient_blood_group || null);
         fetchBloodGroupOptions();
         setZydusBloodGroupDrawerOpen(true);
         setOpen(false);
@@ -238,14 +242,29 @@ function ProfilePopover(props) {
 
     return (
         <Popover
-            content={content}
+            content={props.tesseract ? <PatientProfileDetails
+                patient={headerPatient}
+                isZydus={tokenData?.hospital_business_id == config.zydus_business_id}
+                isExternal={isCvtExtHosAccessableFromGB}
+                isPaediatric={isPaediatric}
+                locationPath={locationPath}
+                onEditBloodGroup={handleBloodGroupDrawerOpen}
+                onEditProfile={() => { setOpen(false); navigate('/edit_patient', { replace: true, state: { patient_data: headerPatient } }); }}
+                onVisitSummary={() => { setOpen(false); navigate('/patient_details', { state: { patient_data: headerPatient } }); }}
+            /> : content}
             trigger="click"
             open={open}
             onOpenChange={handleOpenChange}
             className='cursor-pointer'
-            overlayClassName="pop-260 pp-20"
+            overlayClassName={props.tesseract ? 'patient-profile-popover' : 'pop-260 pp-20'}
         >
-            {props.children ? props.children : locationPath == '/patient_details' ? (
+            {props.children ? props.children : props.tesseract && patient_data ? (
+                <HeaderPatient
+                    patient={headerPatient}
+                    age={genderAge({ ageYears: 0, ageMonths: 0, ageDays: 0, ...headerPatient }, profile, false)}
+                    open={open}
+                />
+            ) : locationPath == '/patient_details' ? (
                 <div className={'align-items-center d-flex h-100'}>
                     <div className='align-items-center d-flex'>
                         <div className='patientName'>{`${getPatientName()},`}</div>

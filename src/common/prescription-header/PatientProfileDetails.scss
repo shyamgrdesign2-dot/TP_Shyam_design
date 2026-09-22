@@ -1,0 +1,38 @@
+.patient-profile-popover {
+    width: 288px;
+    max-width: calc(100vw - 24px);
+
+    .ant-popover-inner {
+        padding: var(--tesseract-space-4, 16px);
+        border: 1px solid var(--tesseract-slate-200, #e2e2ea);
+        border-radius: var(--tesseract-radius-lg, 12px);
+        background: var(--tesseract-slate-0, #fff);
+    }
+}
+
+.patient-profile-details {
+    font-family: var(--tesseract-font-body, inherit);
+
+    .patient-profile-fields { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+    .patient-profile-field { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .patient-profile-field-icon {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        border-radius: 50%;
+        background: var(--tesseract-violet-50, #faf5fe);
+        color: var(--tesseract-violet-500, #a461d8);
+    }
+    .patient-profile-field-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    dt { font-size: 12px; line-height: 18px; font-weight: 400; color: var(--tesseract-slate-500, #717179); }
+    dd { margin: 0; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--tesseract-slate-800, #2c2c35); }
+    .patient-profile-actions { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+    .patient-profile-action-divider { width: 100%; margin: 0; border: 0; border-top: 1px solid var(--tesseract-slate-200, #e2e2ea); opacity: 1; }
+    .patient-profile-actions > button { width: 100%; }
+    button[data-theme="primary"] {
+        color: var(--tesseract-blue-500, #4b4ad5) !important;
+        span, svg { color: inherit !important; }
+    }
+}

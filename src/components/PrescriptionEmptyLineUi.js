@@ -1,13 +1,73 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { renderPrescriptionDropdown } from './PrescriptionDropdownHints';
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { AutoComplete } from "antd";
+import { AutoComplete, Row, message } from "antd";
+import { TPLibraryIcon } from '@dhspl-tatvacare/tesseract-ui';
 import { v4 as uuidv4 } from "uuid";
 
 import { removeBeforeWhiteSpace } from "../utils/utils";
+import { focusNewPrescriptionRow } from "./tesseractCt";
 
 const EMPTY_LINE_ANIMATION_MS = 180;
+// Enumerable symbols survive the object spreads used by row editors, while JSON
+// persistence ignores them. UI identity must not depend on the edited object.
+const ROW_UI_KEY = Symbol('prescriptionRowKey');
+const EmptyLineContext = React.createContext(undefined);
+
+export function PrescriptionDisabledDelete() {
+  return <button type="button" disabled aria-label="Delete row" className="btn-delete-prescription prescription-disabled-delete">
+    <TPLibraryIcon name="trash" corner="rounded" variant="linear" size={18} />
+  </button>;
+}
+
+function withDisabledDelete(children) {
+  return React.Children.map(children, child => {
+    if (!React.isValidElement(child)) return child;
+    if (child.props.className?.includes('tesseract-ct-sticky-action') && !child.props.children) {
+      return React.cloneElement(child, {}, <PrescriptionDisabledDelete />);
+    }
+    return child.props.children ? React.cloneElement(child, {}, withDisabledDelete(child.props.children)) : child;
+  });
+}
+
+export function PrescriptionEmptyLineRow({ children, className, ...props }) {
+  const hintId = useId();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const rowRef = useRef(null);
+  const isDetailCell = (event) => event.target.closest?.('.ant-col')
+    ?.querySelector('.prescription-empty-line-draft-disabled-control');
+  const guideToName = (event) => {
+    if (!isDetailCell(event)) return;
+    event.preventDefault();
+    message.info({ key: 'prescription-add-name', content: 'Enter the name to fill in all other details.' });
+    const input = rowRef.current?.querySelector('.prescription-empty-line-draft-search input');
+    input?.focus();
+    setSearchOpen(true);
+  };
+  return (
+    <EmptyLineContext.Provider value={{ hintId, searchOpen, setSearchOpen }}>
+      <Row {...props} ref={rowRef} className={`${className || ''} prescription-guided-add-row`}
+        onPointerDownCapture={event => { if (isDetailCell(event)) event.preventDefault(); }}
+        onClickCapture={guideToName} aria-describedby={hintId}>
+        {withDisabledDelete(children)}
+      </Row>
+      <span id={hintId} className="visually-hidden">
+        Enter the name to fill in all other details.
+      </span>
+    </EmptyLineContext.Provider>
+  );
+}
+
+PrescriptionEmptyLineRow.propTypes = { children: PropTypes.node, className: PropTypes.string };
 
 export const isEmptyLineHeaderOption = (option) => option?.key === -1 || option?.key === "-1";
+
+export const createPrescriptionSearchHeading = () => ({
+  key: -1,
+  disabled: true,
+  className: 'prescription-dropdown-heading',
+  label: 'FREQUENTLY USED',
+});
 
 export function PrescriptionEmptyLineDragHandle({ dragHandleProps }) {
   return (
@@ -50,20 +110,35 @@ export function PrescriptionEmptyLineDraftSearch({
   onSelect,
   onInputKeyDown,
 }) {
+  const row = React.useContext(EmptyLineContext);
+  const [localOpen, setLocalOpen] = useState(false);
   return (
     <div ref={inputRef} className={inputClassName}>
       <AutoComplete
         value={value}
         placeholder="Search & add"
+        aria-describedby={row?.hintId}
         bordered={false}
-        defaultOpen={false}
         onSearch={onSearch}
         options={options}
         className="autocomplete-custom w-100 prescription-empty-line-draft-search"
         {...popupProps}
+        dropdownRender={renderPrescriptionDropdown}
+        open={row ? row.searchOpen : localOpen}
+        onDropdownVisibleChange={open => {
+          (row?.setSearchOpen || setLocalOpen)(open);
+          popupProps.onDropdownVisibleChange?.(open);
+        }}
         defaultActiveFirstOption={true}
         onSelect={onSelect}
-        onInputKeyDown={onInputKeyDown}
+        onInputKeyDown={event => {
+          if (event.key === 'Escape') (row?.setSearchOpen || setLocalOpen)(false);
+          // Let Select commit its highlighted result, including after arrow navigation.
+          const activeId = event.currentTarget.getAttribute('aria-activedescendant');
+          const activeOption = activeId && document.getElementById(activeId);
+          if (event.key === 'Enter' && activeOption && activeOption.getAttribute('aria-disabled') !== 'true' && activeOption.textContent !== 'FREQUENTLY USED') return;
+          onInputKeyDown(event);
+        }}
       />
     </div>
   );
@@ -117,6 +192,17 @@ export function usePrescriptionNewEmptyLineUi({
   const rowUiKeysRef = useRef(new WeakMap());
   const rowRemovalTimersRef = useRef([]);
   const draftInputRef = useRef(null);
+  const focusAfterCommitRef = useRef(false);
+
+  useEffect(() => {
+    if (!focusAfterCommitRef.current) return;
+    // rc-select restores focus after a popup mouse-down. Move focus after
+    // that queued restoration; this effect already runs after the row mounts.
+    const timer = setTimeout(() => {
+      if (focusNewPrescriptionRow(draftInputRef.current)) focusAfterCommitRef.current = false;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [rows]);
 
   const clearRemovalTimers = useCallback(() => {
     rowRemovalTimersRef.current.forEach((timerId) => clearTimeout(timerId));
@@ -143,11 +229,11 @@ export function usePrescriptionNewEmptyLineUi({
 
   const getRowKey = useCallback((item, index) => {
     if (item && typeof item === "object") {
-      if (!rowUiKeysRef.current.has(item)) {
-        rowUiKeysRef.current.set(item, uuidv4());
-      }
-
-      return rowUiKeysRef.current.get(item);
+      if (item[ROW_UI_KEY]) return item[ROW_UI_KEY];
+      const key = rowUiKeysRef.current.get(item) || `${rowKeyPrefix}-${item.unique_id || uuidv4()}`;
+      rowUiKeysRef.current.set(item, key);
+      if (Object.isExtensible(item)) item[ROW_UI_KEY] = key;
+      return key;
     }
 
     return `${rowKeyPrefix}-row-${index}`;
@@ -171,11 +257,13 @@ export function usePrescriptionNewEmptyLineUi({
     }
 
     blurDraftInput();
+    focusAfterCommitRef.current = true;
 
     if (commitRow) {
       const result = commitRow(sourceRow, name);
 
       if (result === false) {
+        focusAfterCommitRef.current = false;
         return false;
       }
 

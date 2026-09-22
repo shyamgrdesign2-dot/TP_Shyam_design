@@ -1,0 +1,16 @@
+.header-smoke-page {
+  padding: 28px;
+  min-height: 100vh;
+  background: #f5f5fa;
+  color: #363643;
+  h1 { font-size: 24px; margin-bottom: 8px; }
+  p { font-size: 14px; color: #707080; }
+  .header-smoke-presets, .header-smoke-options, .header-smoke-toggles { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin: 20px 0; }
+  .header-smoke-options label, .header-smoke-toggles label { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+  input:not([type=checkbox]), select { padding: 8px 12px; border: 1px solid #d8d8e4; border-radius: 8px; background: white; }
+  input:not([type=checkbox]) { width: 300px; }
+  fieldset { border: 1px solid #d8d8e4; padding: 16px; border-radius: 12px; }
+  legend { width: auto; font-size: 14px; }
+  .header-smoke-canvas { border: 1px solid #d8d8e4; border-radius: 8px; overflow: hidden; }
+  .header-smoke-status { margin: 20px 0; padding: 14px; border-radius: 8px; background: #eeebff; color: #4a3891; }
+}

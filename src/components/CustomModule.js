@@ -1,3 +1,9 @@
+import PrescriptionCustomOption from './PrescriptionCustomOption';
+import { renderPrescriptionDropdown } from './PrescriptionDropdownHints';
+import { notifyPrescriptionAction } from '../common/PrescriptionActionToast';
+import RxActionTooltip from '../common/prescription-header/RxActionTooltip';
+import PrescriptionNoteInput from './PrescriptionNoteInput';
+import { PrescriptionDisabledDelete } from './PrescriptionEmptyLineUi';
 import React, {
   useState,
   useEffect,
@@ -227,14 +233,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
           value: searchChildQuery?.query,
           label: (
             <>
-              <div>
-                {searchChildQuery?.query}
-                <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-                <a className="fw-medium text-decoration-underline text-primary">
-                  {" "}
-                  Add Custom
-                </a>
-              </div>
+              <PrescriptionCustomOption value={searchChildQuery?.query} />
             </>
           ),
         });
@@ -542,13 +541,14 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
       ];
       
       // If no previous data found, show message
-      if (updatedModuleData.length === 0) {
+      if (updatedData.length === 0) {
         message.info("No previous data found");
         return;
       }
 
       // Update the parent state with the new module contents
       updateCustomModuleContents(updatedModuleData);
+      notifyPrescriptionAction('Previous data loaded');
     } else {
       errorMessage(action.error);
     }
@@ -569,7 +569,8 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
 
     // Close the template popover
     showHideTemplatesListPopover();
-  };
+        notifyPrescriptionAction("Template added to prescription");
+      };
 
   const onDeleteTemplateClicked = async (templateId) => {
     const modules = customModules.map((cm) => {
@@ -768,6 +769,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template saved");
       }
     }
   };
@@ -820,6 +822,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template updated");
       }
     }
   };
@@ -988,6 +991,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
                       >
                         <div className="fontroboto fw-medium">
                           <AutoComplete
+                            dropdownRender={renderPrescriptionDropdown}
                             defaultValue={item.title}
                             value={item.title}
                             placeholder={`${module?.name} Name`}
@@ -1027,7 +1031,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
                           isVoiceTargetHighlighted(index, "notes") ? "custom-module-voice-target-cell" : "",
                         ].filter(Boolean).join(" ")}
                       >
-                        <TextArea
+                        <PrescriptionNoteInput enabled={useTesseractUi} legacyMultiline={true}
                           className="customnotesinput"
                           placeholder="Notes"
                           value={item.notes}
@@ -1041,7 +1045,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
                         />
                       </Col>
                       <Col lg={1} md={1} sm={2} xs={2} className={["text-center", useTesseractUi ? "tesseract-ct-sticky-action" : "", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleActionCell : ""].filter(Boolean).join(" ")}>
-                        {!(useTesseractUi && !String(item?.title || "").trim() && !String(item?.notes || "").trim()) && (
+                        {(useTesseractUi && !String(item?.title || "").trim() && !String(item?.notes || "").trim()) ? <PrescriptionDisabledDelete /> : (
                           <Button
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
@@ -1248,7 +1252,8 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
 
     // Close the clear data modal
     showHideClearData();
-  };
+        notifyPrescriptionAction("Section cleared");
+      };
 
   //Remove All Rows
   const REMOVE_ALL_ROWS = useMemo(() => {
@@ -1600,16 +1605,16 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
                 placement="bottomRight"
               >
                 <span>
-                  <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                  <RxActionTooltip active={popOver1} placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
                     {tesseractActionButton({ icon: "grid-5", label: `Browse ${module?.name || "module"} templates` })}
-                  </Tooltip>
+                  </RxActionTooltip>
                 </span>
               </Popover>
-              <Tooltip
+              <RxActionTooltip active={popOver2}
                 placement="bottom"
                 title={
                   hasModuleData
-                    ? ""
+                    ? "Save as template"
                     : `Please enter some ${module?.name} to save a template`
                 }
               >
@@ -1625,12 +1630,12 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
                     {tesseractActionButton({ icon: "ram", label: `Save ${module?.name || "module"} as template`, disabled: !hasModuleData })}
                   </span>
                 </Popover>
-              </Tooltip>
-              <Tooltip placement="bottom" title="Clear this section">
+              </RxActionTooltip>
+              <RxActionTooltip active={isModalOpen1} placement="bottom" title="Clear this section">
                 <span>
                   {tesseractActionButton({ icon: "eraser", label: `Clear ${module?.name || "module"}`, onClick: showHideClearData, disabled: !hasModuleData })}
                 </span>
-              </Tooltip>
+              </RxActionTooltip>
               <Dropdown
                 overlay={menu}
                 trigger={["click"]}

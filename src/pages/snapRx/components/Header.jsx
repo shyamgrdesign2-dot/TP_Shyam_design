@@ -1,3 +1,6 @@
+import { notifyPrescriptionAction } from '../../../common/PrescriptionActionToast';
+import RxWorkflowHeader, { rxClearAction } from '../../../common/prescription-header/RxWorkflowHeader';
+import { headerIcon, visitActionIcon } from '../../../common/prescription-header/prescriptionHeaderActions';
 import React, { useState, useCallback, useContext } from "react";
 import { Container, Navbar, Row, Col } from "react-bootstrap";
 import { Button, Tooltip } from "antd";
@@ -52,28 +55,25 @@ function Header({
     }
   };
 
-  const handleClearClick = () => {
+  const handleClearClick = async () => {
     setIsClearModalOpen(!isClearModalOpen);
-    onClear(); // Call the parent's clear handler
+    await onClear();
+    notifyPrescriptionAction('Prescription cleared');
   };
 
   const handleSubmitClick = async () => {
     onSubmit();
   };
-  return (
-    <Navbar className="justify-content-between headerprescription p-0 snap-rx-header">
-      <Container fluid className="h-100 gx-0 w-100">
-        <Row className="h-100 align-items-center w-100 justify-content-between">
-          <Col lg="auto" className="h-100">
-            <div className="align-items-center d-flex h-100">
-              <div className="border-end h-100 text-center">
-                <div
-                  onClick={checkDataFillOrNot}
-                  className="btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer"
-                >
-                  <i className="icon-right"></i>
-                </div>
-                <CommonModal
+  return <RxWorkflowHeader variant="snap-rx" patient={patient_data} onBack={checkDataFillOrNot} className="snap-rx-header" aria-label="SnapRx header" actions={{
+    tutorial: { key: 'tutorial', ariaLabel: 'Play tutorial', icon: <img src={ASSETS.images.tutorial2} width={42} height={42} alt="" />, variant: 'ghost', style: { padding: 0, border: 0 }, onClick: handleTutorial },
+    smart: [
+      ...(showUploadMoreButton ? [{ key: 'upload', label: 'Upload more', icon: headerIcon('document-upload'), onClick: onUploadMore }] : []),
+      ...(showTeleconsultIcon ? [{ key: 'teleconsult', ariaLabel: isTeleconsultActive ? 'Meeting in progress' : 'Tele-Consultation', icon: headerIcon('video'), onClick: onTeleconsultClick, disabled: isTeleconsultJoinLoading || isTeleconsultActive, loading: isTeleconsultJoinLoading }] : []),
+    ],
+    primary: { label: 'Visit', icon: visitActionIcon, onClick: handleSubmitClick, loading: loader, disabled: !showUploadMoreButton || loader },
+    more: rxClearAction(() => setIsClearModalOpen(true), !smartRxData?.length || loader),
+  }}>
+    <CommonModal
                   isModalOpen={isBackModalOpen}
                   onCancel={showHideBackModal}
                   modalWidth={500}
@@ -108,23 +108,7 @@ function Header({
                     </>
                   }
                 />
-              </div>
-              <ProfilePopover patient_data={patient_data} />
-            </div>
-          </Col>
-          <Col lg="auto">
-            <div className="align-items-center d-flex h-100">
-              <button
-                className="btn d-flex align-items-center btn-text me-10 tutorial"
-                onClick={handleTutorial}
-              >
-                <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
-                  <img height={42} src={tutorial} alt="tutorial" />
-                  Tutorial
-                </span>
-              </button>
-
-              <CommonModal
+    <CommonModal
                 isModalOpen={isClearModalOpen}
                 onCancel={showHideClearModal}
                 modalWidth={500}
@@ -159,53 +143,6 @@ function Header({
                   </>
                 }
               />
-              {showUploadMoreButton ? (
-                <Button
-                  type="button"
-                  className="me-20 upload-more-btn"
-                  onClick={onUploadMore}
-                >
-                  <i className="icon-upload" style={{ color: "#4B4AD5" }}></i>
-                  <span>Upload more</span>
-                </Button>
-              ) : null}
-              {showTeleconsultIcon && (
-                <Tooltip
-                  placement="bottom"
-                  title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"}
-                  destroyTooltipOnHide
-                >
-                  <span className={isTeleconsultActive ? "d-inline-block" : ""}>
-                    <button
-                      type="button"
-                      className="btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn me-20"
-                      onClick={onTeleconsultClick}
-                      disabled={isTeleconsultJoinLoading || isTeleconsultActive}
-                    >
-                      {isTeleconsultJoinLoading ? (
-                        <LoadingOutlined style={{ fontSize: 24 }} />
-                      ) : (
-                        <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} />
-                      )}
-                    </button>
-                  </span>
-                </Tooltip>
-              )}
-              <Button
-                type="button"
-                className="btn align-items-center d-flex btn-41 btn-primary3 me-20"
-                onClick={handleSubmitClick}
-                loading={loader}
-                disabled={!showUploadMoreButton || loader}
-              >
-                Submit
-              </Button>
-            </div>
-          </Col>
-        </Row>
-      </Container>
-    </Navbar>
-  );
+  </RxWorkflowHeader>;
 }
-
 export default React.memo(Header);

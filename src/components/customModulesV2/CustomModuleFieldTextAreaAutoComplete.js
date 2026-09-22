@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import PrescriptionCustomOption from '../PrescriptionCustomOption';
+import PrescriptionDropdownHints from '../PrescriptionDropdownHints';
+import React, { useState, useId, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Spin } from "antd";
 import TextArea from "antd/es/input/TextArea";
@@ -51,6 +53,12 @@ const CustomModuleFieldTextAreaAutoComplete = ({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [options, setOptions] = useState([]);
+  const dropdownId = useId();
+  const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
+  useEffect(() => { setActiveOptionIndex(-1); }, [options]);
+  useEffect(() => {
+    if (activeOptionIndex >= 0) dropdownRef.current?.querySelector(`[data-option-index="${activeOptionIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeOptionIndex]);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const textAreaRef = useRef(null);
   const blurTimeoutRef = useRef(null);
@@ -157,7 +165,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
     if (!searchQuery || searchQuery.trim().length === 0) {
       if (frequentlyUsedValues.length > 0) {
         data.push({
-          key: -1,
+          key: "-1",
           label: <div className="fw-medium">FREQUENTLY USED</div>,
         });
         frequentlyUsedValues.forEach((val) => {
@@ -191,14 +199,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
           key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
           value: queryTrimmed,
           label: (
-            <div>
-              {queryTrimmed}
-              <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-              <span className="fw-medium text-decoration-underline text-primary">
-                {" "}
-                Add Custom
-              </span>
-            </div>
+            <PrescriptionCustomOption value={queryTrimmed} />
           ),
         });
       }
@@ -251,14 +252,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
               key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
               value: queryTrimmed,
               label: (
-                <div>
-                  {queryTrimmed}
-                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-                  <span className="fw-medium text-decoration-underline text-primary">
-                    {" "}
-                    Add Custom
-                  </span>
-                </div>
+                <PrescriptionCustomOption value={queryTrimmed} />
               ),
             });
           }
@@ -269,14 +263,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
               key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
               value: queryTrimmed,
               label: (
-                <div>
-                  {queryTrimmed}
-                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-                  <span className="fw-medium text-decoration-underline text-primary">
-                    {" "}
-                    Add Custom
-                  </span>
-                </div>
+                <PrescriptionCustomOption value={queryTrimmed} />
               ),
             });
           }
@@ -288,14 +275,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
             key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
             value: queryTrimmed,
             label: (
-              <div>
-                {queryTrimmed}
-                <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-                <span className="fw-medium text-decoration-underline text-primary">
-                  {" "}
-                  Add Custom
-                </span>
-              </div>
+              <PrescriptionCustomOption value={queryTrimmed} />
             ),
           });
         }
@@ -409,6 +389,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
 
   const dropdownNode = isFocused && dropdownVisible && options.length > 0 && dropdownPosition ? (
     <div
+      id={dropdownId}
       ref={dropdownRef}
       className="custom-module-dropdown"
       style={{
@@ -425,6 +406,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
         e.preventDefault();
       }}
     >
+      <div role="listbox" aria-label={`${fieldLabel} suggestions`}>
       {options.map((option, idx) => {
         // Parse the option key to check if it's a custom value and get the actual value
         let optionValue = option.value;
@@ -442,6 +424,11 @@ const CustomModuleFieldTextAreaAutoComplete = ({
         return (
           <div
             key={option.key || idx}
+            id={`${dropdownId}-${idx}`}
+            data-option-index={idx}
+            role={option.key === "-1" ? undefined : "option"}
+            aria-selected={option.key === "-1" ? undefined : activeOptionIndex === idx}
+            onMouseEnter={() => option.key !== "-1" && setActiveOptionIndex(idx)}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -456,6 +443,8 @@ const CustomModuleFieldTextAreaAutoComplete = ({
           </div>
         );
       })}
+      </div>
+      <PrescriptionDropdownHints />
       {loading && (
         <div className="custom-module-dropdown-loading" style={{ padding: '8px 12px', textAlign: 'center' }}>
           <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
@@ -478,7 +467,27 @@ const CustomModuleFieldTextAreaAutoComplete = ({
         placeholder={placeholder || `Enter ${fieldLabel}`}
         disabled={disabled}
         autoFocus={autoFocus}
-        autoSize={{ minRows: 1, maxRows: 10 }}
+        autoSize={{ minRows: 1, maxRows: 3 }}
+        aria-autocomplete="list"
+        aria-controls={dropdownVisible ? dropdownId : undefined}
+        aria-expanded={isFocused && dropdownVisible}
+        aria-activedescendant={dropdownVisible && activeOptionIndex >= 0 ? `${dropdownId}-${activeOptionIndex}` : undefined}
+        onKeyDown={event => {
+          if (event.isComposing || event.nativeEvent?.isComposing) return;
+          if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setDropdownVisible(false); return; }
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            const indices = options.map((option, index) => option.key !== '-1' ? index : -1).filter(index => index >= 0);
+            if (!indices.length) return;
+            event.preventDefault(); event.stopPropagation(); setDropdownVisible(true);
+            const current = indices.indexOf(activeOptionIndex);
+            const next = event.key === 'ArrowDown' ? (current + 1) % indices.length : (current < 0 ? indices.length - 1 : (current - 1 + indices.length) % indices.length);
+            setActiveOptionIndex(indices[next]);
+          } else if (event.key === 'Enter' && !event.shiftKey && dropdownVisible && activeOptionIndex >= 0) {
+            event.preventDefault(); event.stopPropagation();
+            const option = options[activeOptionIndex];
+            onSelect(option.value, option);
+          }
+        }}
         bordered={false}
         onFocus={() => {
           // Clear any pending blur timeout from previous field

@@ -9,6 +9,7 @@ import {
 } from 'react-router-dom';
 
 import App from './App';
+import { installPrescriptionMessageBridge } from './common/PrescriptionToasts';
 import reportWebVitals from './reportWebVitals';
 import { APP_RELEASE } from './utils/appVersion';
 
@@ -301,6 +302,7 @@ if (typeof window !== "undefined") {
   window.addEventListener("offline", reportBrowserOfflineToSentry);
 }
 
+installPrescriptionMessageBridge();
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <BrowserRouter basename={"/"}>

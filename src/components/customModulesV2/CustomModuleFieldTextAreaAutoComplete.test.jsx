@@ -1,0 +1,28 @@
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import CustomModuleFieldTextAreaAutoComplete from './CustomModuleFieldTextAreaAutoComplete';
+jest.mock('antd/es/input/TextArea',()=>require('antd').Input.TextArea);
+const mockDispatch=jest.fn();
+const mockState={customModules:{searchModuleResults:[],loading:false}};
+jest.mock('react-redux',()=>({useDispatch:()=>mockDispatch,useSelector:selector=>selector(mockState)}));
+jest.mock('../../redux/customModuleSlice',()=>({searchModule:jest.fn()}));
+jest.mock('../../utils/utils',()=>({removeBeforeWhiteSpace:value=>value.trimStart()}));
+beforeAll(()=>{ Element.prototype.scrollIntoView=jest.fn(); });
+test('custom suggestions support arrows, Enter and Escape without turning Enter into a selection when closed',async()=>{
+  const change=jest.fn();
+  render(<CustomModuleFieldTextAreaAutoComplete fieldName="notes" fieldLabel="Notes" value="" onChange={change} moduleId="test" fieldId="field" focusedFieldId="field" templates={[{content:[{notes:'First'},{notes:'Second'}]}]} />);
+  const input=screen.getByPlaceholderText('Enter Notes');
+  fireEvent.focus(input);
+  expect(await screen.findByLabelText('Keyboard shortcuts')).toBeInTheDocument();
+  fireEvent.keyDown(input,{key:'ArrowDown'});
+  fireEvent.keyDown(input,{key:'ArrowDown'});
+  fireEvent.keyDown(input,{key:'ArrowUp'});
+  fireEvent.keyDown(input,{key:'Enter'});
+  expect(change).toHaveBeenLastCalledWith('First');
+  fireEvent.keyDown(input,{key:'ArrowDown'});
+  fireEvent.keyDown(input,{key:'Escape'});
+  expect(screen.queryByLabelText('Keyboard shortcuts')).not.toBeInTheDocument();
+  change.mockClear();
+  fireEvent.keyDown(input,{key:'Enter'});
+  expect(change).not.toHaveBeenCalled();
+});

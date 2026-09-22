@@ -1,3 +1,5 @@
+import { notifyPrescriptionAction } from './PrescriptionActionToast';
+import RxWorkflowHeader from './prescription-header/RxWorkflowHeader';
 import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } from 'react';
 import { Container, Navbar, Row, Col } from 'react-bootstrap';
 import { Button, Dropdown, Tooltip, Popover, Input, Spin, Tabs, Select, Drawer, message } from 'antd';
@@ -23,6 +25,8 @@ import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
 import FreeTrialButton from '../pages/monetization/components/FreeTrialButton';
 import { TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
+import headerStyles from "./prescription-header/HeaderPrescription.module.scss";
+import { prescriptionHeaderActions, headerIcon } from "./prescription-header/prescriptionHeaderActions";
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 import {
     VoiceRxModuleActionButton,
@@ -1584,11 +1588,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const handleConfirmClear = async () => {
         await onResetClick();
         setIsClearModalOpen(false);
-    };
+        notifyPrescriptionAction("Prescription cleared");
+      };
 
     const items = [
         {
-            label: <div onClick={showClearConfirmation}>Clear</div>,
+            label: 'Clear All',
+            icon: <TPLibraryIcon name="eraser" family="design-tools" corner="rounded" variant="linear" size={18} />,
+            onClick: showClearConfirmation,
             key: 'clear',
         },
     ];
@@ -1833,7 +1840,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
             }
             (isMobile || (isTablet && isNewPrescriptionUi) || (isCompactHeader && useCompactActionIcons)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
-        } else {
+        notifyPrescriptionAction("Template added to prescription");
+      } else {
             errorMessage(action.error)
         }
     };
@@ -1999,7 +2007,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
             setInputTemplateName(null);
             !isMobile ? showHideSaveTemplatePopOver() : handleDrawerSave()
-        }
+        notifyPrescriptionAction("Template saved");
+      }
     };
 
     const onSearchTemplate = useCallback(() => {
@@ -2147,7 +2156,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
             setInputTemplateName(null);
             !isMobile ? showHideSaveTemplatePopOver() : handleDrawerSave()
-        }
+        notifyPrescriptionAction("Template updated");
+      }
 
     };
 
@@ -3587,6 +3597,440 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             </>
         );
     }, [popOverVideo]);
+    const headerDialogs = (
+        <>
+            <CommonModal
+                isModalOpen={isBackModalOpen}
+                onCancel={showHideBackModal}
+                modalWidth={500}
+                zIndex={headerOverlayZIndex}
+                title={"You may lose your data"}
+                modalBody={
+                    <>
+                        <div className="alert-warning rounded-10px p-2 patient-details">
+                            <div className="d-flex align-items-center">
+                                <img className='me-3' src={alertIcon} alt="Warning" />
+                                <span>
+                                    You’ve entered few details that hasn’t been saved yet. What would you like to do?
+                                </span>
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <div className="d-flex align-items-center mt-2 justify-content-end">
+                                <div onClick={() => send_path !== undefined ? navigate(-1) : navigate('/', { replace: true })} className="me-4 text-decoration-underline btn p-0 color-red">
+                                    {shouldEnableDraft ? "Go Back Without Saving" : "Yes, Leave"}
+                                </div>
+                                <Button onClick={() => {shouldEnableDraft && onSaveAsDraft(); showHideBackModal();}} className="lh-lg btn btn-primary3 btn-41 px-4">
+                                    {shouldEnableDraft ? <span>Save as Draft</span> : <span>No, Stay</span>}
+                                </Button>
+                            </div>
+                        </div>
+                    </>
+                }
+            />
+            <CommonModal
+                isModalOpen={Boolean(headerTranscriptFallback)}
+                onCancel={() => setHeaderTranscriptFallback("")}
+                modalWidth={560}
+                zIndex={headerOverlayZIndex}
+                title="Transcript is ready"
+                modalBody={
+                    <>
+                        <Input.TextArea
+                            value={headerTranscriptFallback}
+                            autoSize={{ minRows: 5, maxRows: 10 }}
+                            readOnly
+                            onFocus={(event) => event.target.select()}
+                        />
+                        <div className="d-flex justify-content-end mt-3">
+                            <Button
+                                className="btn btn-primary3 btn-41 px-4"
+                                onClick={async () => {
+                                    try {
+                                        await navigator.clipboard.writeText(headerTranscriptFallback);
+                                        qdToast("Transcript copied to clipboard.");
+                                        setHeaderTranscriptFallback("");
+                                    } catch (error) {
+                                        console.error("[HeaderTranscribe] manual clipboard copy failed", error);
+                                        qdToast("Select the transcript text and copy it manually.", { type: "warning" });
+                                    }
+                                }}
+                            >
+                                Copy Transcript
+                            </Button>
+                        </div>
+                    </>
+                }
+            />
+        </>
+    );
+    // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes/drawing canvas).
+    const hasPrescriptionModuleData = (
+      hasDentalData ||
+      symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
+      diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
+      medicationData.length > 0 || privateNotesData || followUpDate || additionalNote ||
+      givenVaccines.length > 0 || updatedDueVaccines?.length > 0 ||
+      customModuleContents?.some((e) => e?.content?.length && e?.content?.some(c => c.title || c.notes)) ||
+      hasOpthalValues() || hasCustomModuleContent() || hasRxDrawingCanvasIds
+    );
+    // Sidebar-only signals (vitals/medical history/measurements/gynec/obstetric/lab params/zydus labs).
+    const hasSidebarOnlyData = (
+      vitalsData.length > 0 || medicalHistoryData.length > 0 || measurements.length > 0 ||
+      (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated ||
+      labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
+    );
+    // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
+    const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && hasDiagnosisNameAndIcdCode && (!shouldUseChikitsalayInventoryValidation || hasValidChikitsalayInventoryRows) && !hasOutOfStockMedication && hasMedicationsFrequencyAndDuration : (hasPrescriptionModuleData || hasSidebarOnlyData);
+    const headerActions = (
+        <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}${isNewPrescriptionUi ? ` ${headerStyles.actions}` : ''}`}>
+            {isNewPrescriptionUi && showVoiceRxTrialChip ? (
+                <FreeTrialButton
+                    title={S_VOICE_RX}
+                    showHideSubModal={onVoiceRxTrialChipClick}
+                />
+            ) : null}
+            {!useCompactActionIcons && (
+                <Popover
+                    open={popOverVideo}
+                    onOpenChange={showHideVideoListPopover}
+                    content={VIDEO_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-430 pp-0 videoTutorial"
+                    placement="bottom"
+                    zIndex={headerOverlayZIndex}
+                >
+                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? 'me-20' : ''}`}>
+                        {/* onClick={showHideVideoListPopover} */}
+                        <span><img src={tutorial2} /></span>
+                    </button>
+                </Popover>
+            )}
+            {useCompactActionIcons ? (
+                <div className={voiceModuleStyles.headerActionGroup}>
+                    <Popover
+                        open={popOverVideo}
+                        onOpenChange={showHideVideoListPopover}
+                        content={VIDEO_CONTENT}
+                        trigger="click"
+                        overlayClassName="pop-430 pp-0 videoTutorial"
+                        placement="bottom"
+                        zIndex={headerOverlayZIndex}
+                    >
+                        <button className="btn d-flex align-items-center btn-text p-0">
+                            {/* onClick={showHideVideoListPopover} */}
+                            <span><img src={tutorial2} /></span>
+                        </button>
+                    </Popover>
+                    <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
+                    {isCompactHeader ? (
+                        <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
+                            <span>
+                                <VoiceRxModuleActionButton type="template" label="Browse prescription templates" onClick={handleDrawerTemplate} />
+                            </span>
+                        </Tooltip>
+                    ) : (
+                        <Popover
+                            open={popOver1}
+                            onOpenChange={showHideTemplatesListPopover}
+                            content={shouldUseMobileTemplateContent ? TEMPLATE_CONTENT_TAB : TEMPLATE_CONTENT_WEB}
+                            trigger="click"
+                            overlayClassName="pop-350 pp-0"
+                            placement="bottom"
+                            zIndex={headerOverlayZIndex}
+                        >
+                            <span>
+                                <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
+                                    <VoiceRxModuleActionButton type="template" label="Browse prescription templates" />
+                                </Tooltip>
+                            </span>
+                        </Popover>
+                    )}
+                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                        {isMobile ? (
+                            <VoiceRxModuleActionButton
+                                type="save"
+                                label="Save prescription as template"
+                                disabled={hasUngroundedMedications || !(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
+                                onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}
+                            />
+                        ) : (
+                            <Popover
+                                open={popOver2}
+                                onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
+                                content={SAVE_CONTENT_WEB}
+                                trigger="click"
+                                overlayClassName="pop-450 pp-0"
+                                placement="bottom"
+                                zIndex={headerOverlayZIndex}
+                            >
+                                <span>
+                                    <VoiceRxModuleActionButton
+                                        type="save"
+                                        label="Save prescription as template"
+                                        disabled={hasUngroundedMedications || !(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
+                                    />
+                                </span>
+                            </Popover>
+                        )}
+                    </Tooltip>
+                    <Tooltip placement="bottom" title="Customize prescription sections" zIndex={headerOverlayZIndex}>
+                        <VoiceRxModuleActionButton type="customize" label="Customize prescription sections" onClick={handleDrawerCustomize} />
+                    </Tooltip>
+                    <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
+                </div>
+            ) : !isMobile ? (
+                <div className="d-flex align-items-center">
+                    <Popover
+                        open={popOver1}
+                        onOpenChange={showHideTemplatesListPopover}
+                        content={TEMPLATE_CONTENT_WEB}
+                        trigger="click"
+                        overlayClassName="pop-350 pp-0"
+                        placement="bottom"
+                        zIndex={headerOverlayZIndex}
+                    >
+                        <button className="btn d-flex align-items-center btn-text">
+                            {" "}
+                            {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
+                        </button>
+                    </Popover>
+                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                        <Popover
+                            open={popOver2}
+                            onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
+                            content={SAVE_CONTENT_WEB}
+                            trigger="click"
+                            overlayClassName="pop-450 pp-0"
+                            placement="bottom"
+                            zIndex={headerOverlayZIndex}
+                        >
+                            <span>
+                                <button className="btn d-flex align-items-center btn-text" disabled={hasUngroundedMedications}>
+                                    {" "}
+                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span>
+                                </button>
+                            </span>
+                        </Popover>
+                    </Tooltip>
+                </div>
+            ) : (
+                <div className="d-flex align-items-center">
+                    <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
+                        {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
+                    </button>
+                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                        <span>
+                            <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span></button>
+                        </span>
+                    </Tooltip>
+                </div>
+            )}
+
+            {DELETE_MODAL}
+            {CLEAR_MODAL}
+
+            {!useCompactActionIcons && (
+                <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
+                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="setting-2" variant="linear" size={18} /></span> : isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
+                </button>
+            )}
+
+            {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
+               <span><img height={42} src={tutorial} /></span>
+            </button> */}
+
+            <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
+                {TEMPLATE_CONTENT_TAB}
+            </Drawer>
+            <Drawer title="Save Template" placement="right" onClose={handleDrawerSave} open={saveDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
+                {SAVE_CONTENT_TAB}
+            </Drawer>
+            <Drawer placement="right" closeIcon={false} onClose={handleDrawerCustomize} open={customizeDrawer} className="modalWidth-900" width="auto" zIndex={headerOverlayZIndex}>
+                {CUSTOMIZE_CONTENT_TAB}
+            </Drawer>
+
+            {videoLink && (
+                <VideoModal
+                    videoLink={videoLink}
+                    onCancel={() => setVideoLink(null)}
+                />
+            )}
+
+            {/* <Link className='text-main align-items-center d-flex fw-medium text14 me-30'>
+                <i className='icon-setting me-2'></i> <span className='text-decoration-underline'>Customize</span>
+            </Link> */}
+
+            {/* <Dropdown
+                menu={{
+                    items
+                }}
+                trigger={['click']}
+            >
+                <a onClick={(e) => e.preventDefault()} className='text-main align-items-center d-flex fw-medium text14 me-30'>
+                    <i className='icon-language me-2'></i>
+                    <span className='text-decoration-underline'>English</span>
+                    <i className='icon-right iconrotate270 ms-1'></i>
+                </a>
+            </Dropdown> */}
+            {/* <Tooltip placement="bottom" title="Ready to print? Please enter your prescription details.">
+                <div onClick={() => window.print()}>
+                    <Button className='btn align-items-center d-flex btn-41 btn-input me-20'>
+                        <i className='icon-Print me-2'></i>
+                        Print
+                    </Button>
+                </div>
+            </Tooltip> */}
+            {showTeleconsultIcon && (
+                <Tooltip placement="bottom" title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"} destroyTooltipOnHide trigger={["hover"]} mouseLeaveDelay={0} zIndex={headerOverlayZIndex}>
+                    <span className={isTeleconsultActive ? "d-inline-block" : ""}>
+                        <button
+                            type="button"
+                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isCompactHeader ? 'me-20' : ''}`}
+                            style={isCompactHeader ? {marginLeft: '10px'} : {}}
+                            onClick={onTeleconsultClick}
+                            disabled={isTeleconsultJoinLoading || isTeleconsultActive}
+                        >
+                            {isTeleconsultJoinLoading ? (
+                                <LoadingOutlined style={{ fontSize: 24, ...(!isCompactHeader && { marginLeft: '10px' }) }} />
+                            ) : (
+                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isCompactHeader ? { marginLeft: '10px' } : {}} />
+                            )}
+                        </button>
+                    </span>
+                </Tooltip>
+            )}
+            {handleVideoConsult && (
+                <VideoConsultButton
+                    onClick={handleVideoConsult}
+                    loading={isVideoConsultLoading}
+                />
+            )}
+            {/* VoiceRx CTA — the new UI always uses the prod GenRxButton (animated
+                gradient-video border); the compact icon-only variant is old-UI only. */}
+            {shouldShowLegacyVoiceRxCta ? (
+                isNewPrescriptionUi ? (
+                    <GenRxButton onClick={handleGenRx} className="tesseract-genrx-cta" />
+                ) : isCompactHeader ?
+                    <TabVoiceRxButton onClick={handleGenRx} />
+                    :
+                    <GenRxButton onClick={handleGenRx} />
+            ) : null}
+
+            {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isCompactHeader ? 'Draft' : 'Save as Draft'} />}
+
+            {(() => {
+              return (
+                <>
+                {onSelectLetterHead && !isDentalConsultation && (
+                  <Tooltip placement="bottom" title="Letterhead" zIndex={headerOverlayZIndex}>
+                    <button type="button" className="btn align-items-center justify-content-center d-flex btn-41 me-2" onClick={onSelectLetterHead}>
+                      <img src={notesMultiple} alt="Notes" />
+                    </button>
+                  </Tooltip>
+                )}
+                {showPreviewButton && onPreviewClick && (
+                  <>
+                    <div className="headerprescription-preview-divider" aria-hidden="true" />
+                    <Tooltip placement="bottom" title="Preview Rx" zIndex={headerOverlayZIndex}>
+                      <Button
+                        type="button"
+                        className="btn-41 btn px-2 me-2 ant-btn-text btn-input align-items-center d-flex consultation-preview-btn"
+                        onClick={onPreviewClick}
+                        icon={<i className="icon-Preview" />}
+                      >
+                        Preview
+                      </Button>
+                    </Tooltip>
+                  </>
+                )}
+                <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
+                    <Button type='button' data-testid="prescription-end-visit" className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && (onEndVisit ? onEndVisit() : onEndVisitClick())} loading={onEndVisit ? isEndVisitLoading : (loading && !saveDraftLoading)}>
+                        <i className='icon-exit me-2'></i>
+                        {isCompactHeader ? "End" : "End Visit"}
+                    </Button>
+                </Tooltip>
+                </>
+              );
+            })()}
+
+            <Dropdown className='btn btn-outline btn-more p-0' menu={{ items }} trigger={['click']} overlayStyle={{ zIndex: headerOverlayZIndex }}>
+                <a onClick={(e) => e.preventDefault()}>
+                    <i className='icon-More'></i>
+                </a>
+            </Dropdown>
+        </div>
+    );
+
+    if (isNewPrescriptionUi) {
+        const canSaveTemplate = !hasUngroundedMedications && (
+            symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
+            diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
+            medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()
+        );
+        const wrapPopover = (content, open, onOpenChange, className) => node => (
+            <Popover content={content} open={open} onOpenChange={onOpenChange} trigger="click"
+                overlayClassName={className} placement="bottom" zIndex={headerOverlayZIndex}>
+                <span className="d-inline-flex">{node}</span>
+            </Popover>
+        );
+        const tools = [
+            { key: 'templates', active: popOver1 || templateDrawer, ariaLabel: 'Browse prescription templates', icon: headerIcon('grid-5'),
+                onClick: isCompactHeader ? handleDrawerTemplate : undefined,
+                wrap: isCompactHeader ? undefined : wrapPopover(shouldUseMobileTemplateContent ? TEMPLATE_CONTENT_TAB : TEMPLATE_CONTENT_WEB, popOver1, showHideTemplatesListPopover, 'pop-350 pp-0') },
+            { key: 'save-template', active: popOver2 || saveDrawer, ariaLabel: 'Save prescription as template', icon: headerIcon('ram'), disabled: !canSaveTemplate,
+                onClick: isMobile ? handleDrawerSave : undefined,
+                wrap: isMobile ? undefined : wrapPopover(SAVE_CONTENT_WEB, popOver2, () => canSaveTemplate && showHideSaveTemplatePopOver(), 'pop-450 pp-0') },
+            { key: 'customize', active: customizeDrawer, ariaLabel: 'Customize prescription sections', icon: headerIcon('setting-4'), onClick: handleDrawerCustomize },
+        ];
+        const smart = [];
+        if (showTeleconsultIcon) smart.push({ key: 'teleconsult', ariaLabel: isTeleconsultActive ? 'Meeting in progress' : 'Tele-Consultation',
+            icon: headerIcon('video'), onClick: onTeleconsultClick, disabled: isTeleconsultActive || isTeleconsultJoinLoading, loading: isTeleconsultJoinLoading });
+        if (handleVideoConsult) smart.push({ key: 'video-consult', ariaLabel: 'Video consultation', icon: headerIcon('video'), onClick: handleVideoConsult, loading: isVideoConsultLoading });
+        if (shouldShowLegacyVoiceRxCta) smart.push({ key: 'voice-rx', label: 'Voice Rx', icon: headerIcon('microphone'), onClick: handleGenRx });
+        if (onSelectLetterHead && !isDentalConsultation) smart.push({ key: 'letterhead', ariaLabel: 'Letterhead', icon: headerIcon('document'), onClick: onSelectLetterHead });
+        if (showPreviewButton && onPreviewClick) smart.push({ key: 'preview', label: 'Preview', icon: headerIcon('eye'), onClick: onPreviewClick });
+        const visitMenu = [{ id: 'save-draft', label: 'Save as Draft', icon: headerIcon('document'),
+            onClick: onSaveAsDraft, disabled: !shouldEnableDraft || saveDraftLoading }];
+        const actions = prescriptionHeaderActions({
+            tutorial: { key: 'tutorial', active: popOverVideo, ariaLabel: 'Play tutorial', icon: <img src={tutorial2} width={42} height={42} alt="" />, variant: 'ghost',
+                style: { padding: 0, border: 0 }, wrap: wrapPopover(VIDEO_CONTENT, popOverVideo, showHideVideoListPopover, 'pop-430 pp-0 videoTutorial') },
+            tools, smart,
+            extras: showVoiceRxTrialChip ? [{ key: 'trial', type: 'node', node: <FreeTrialButton title={S_VOICE_RX} showHideSubModal={onVoiceRxTrialChipClick} /> }] : [],
+            visit: { label: 'End Visit', icon: headerIcon('clipboard-export'), testId: 'prescription-end-visit',
+                endVisitDisabled: !canEndVisit,
+                onClick: () => canEndVisit && (onEndVisit ? onEndVisit() : onEndVisitClick()),
+                loading: saveDraftLoading || (onEndVisit ? isEndVisitLoading : loading), menu: visitMenu,
+                wrap: node => <Tooltip title={canEndVisit ? '' : endVisitTooltipMessage} zIndex={headerOverlayZIndex}><span className="d-inline-flex">{node}</span></Tooltip> },
+            more: { ariaLabel: 'More prescription options', icon: headerIcon('more'),
+                wrap: node => <Dropdown menu={{ items }} trigger={['click']} overlayStyle={{ zIndex: headerOverlayZIndex }}>{node}</Dropdown> },
+        });
+        return (
+            <>
+                <RxWorkflowHeader
+                    className={`headerprescription headerprescription--new-ui ${headerStyles.header}${isCompactHeader ? ' headerprescription--tablet' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}
+                    height={62}
+                    back
+                    backIconVariant="linear"
+                    onBack={checkDataFillOrNot}
+                    leading={
+                        <ProfilePopover patient_data={patient_data} isPrescriptionPage tesseract />
+                    }
+                    actions={actions}
+                    aria-label="Prescription header"
+                    data-testid="tesseract-prescription-header"
+                />
+                {headerDialogs}
+                {DELETE_MODAL}
+                {CLEAR_MODAL}
+                <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>{TEMPLATE_CONTENT_TAB}</Drawer>
+                <Drawer title="Save Template" placement="right" onClose={handleDrawerSave} open={saveDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>{SAVE_CONTENT_TAB}</Drawer>
+                <Drawer placement="right" closeIcon={false} onClose={handleDrawerCustomize} open={customizeDrawer} className="modalWidth-900" width="auto" zIndex={headerOverlayZIndex}>{CUSTOMIZE_CONTENT_TAB}</Drawer>
+                {videoLink && <VideoModal videoLink={videoLink} onCancel={() => setVideoLink(null)} />}
+            </>
+        );
+    }
+
     return (
         <Navbar className={`justify-content-between headerprescription p-0 ${isCompactHeader ? ' headerprescription--tablet' : ''}${isNewPrescriptionUi ? ' headerprescription--new-ui' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
             <Container fluid className='h-100 gx-0 w-100'>
@@ -3597,369 +4041,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 <div onClick={checkDataFillOrNot} className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
                                     <i className='icon-right'></i>
                                 </div>
-                                <CommonModal
-                                    isModalOpen={isBackModalOpen}
-                                    onCancel={showHideBackModal}
-                                    modalWidth={500}
-                                    zIndex={headerOverlayZIndex}
-                                    title={"You may lose your data"}
-                                    modalBody={
-                                        <>
-                                            <div className="alert-warning rounded-10px p-2 patient-details">
-                                                <div className="d-flex align-items-center">
-                                                    <img className='me-3' src={alertIcon} alt="Warning" />
-                                                    <span>
-                                                        You’ve entered few details that hasn’t been saved yet. What would you like to do?
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="mt-4">
-                                                <div className="d-flex align-items-center mt-2 justify-content-end">
-                                                    <div onClick={() => send_path !== undefined ? navigate(-1) : navigate('/', { replace: true })} className="me-4 text-decoration-underline btn p-0 color-red">
-                                                        {shouldEnableDraft ? "Go Back Without Saving" : "Yes, Leave"}
-                                                    </div>
-                                                    <Button onClick={() => {shouldEnableDraft && onSaveAsDraft(); showHideBackModal();}} className="lh-lg btn btn-primary3 btn-41 px-4">
-                                                        {shouldEnableDraft ? <span>Save as Draft</span> : <span>No, Stay</span>}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </>
-                                    }
-                                />
-                                <CommonModal
-                                    isModalOpen={Boolean(headerTranscriptFallback)}
-                                    onCancel={() => setHeaderTranscriptFallback("")}
-                                    modalWidth={560}
-                                    zIndex={headerOverlayZIndex}
-                                    title="Transcript is ready"
-                                    modalBody={
-                                        <>
-                                            <Input.TextArea
-                                                value={headerTranscriptFallback}
-                                                autoSize={{ minRows: 5, maxRows: 10 }}
-                                                readOnly
-                                                onFocus={(event) => event.target.select()}
-                                            />
-                                            <div className="d-flex justify-content-end mt-3">
-                                                <Button
-                                                    className="btn btn-primary3 btn-41 px-4"
-                                                    onClick={async () => {
-                                                        try {
-                                                            await navigator.clipboard.writeText(headerTranscriptFallback);
-                                                            qdToast("Transcript copied to clipboard.");
-                                                            setHeaderTranscriptFallback("");
-                                                        } catch (error) {
-                                                            console.error("[HeaderTranscribe] manual clipboard copy failed", error);
-                                                            qdToast("Select the transcript text and copy it manually.", { type: "warning" });
-                                                        }
-                                                    }}
-                                                >
-                                                    Copy Transcript
-                                                </Button>
-                                            </div>
-                                        </>
-                                    }
-                                />
+                                {headerDialogs}
                             </div>
                             <ProfilePopover patient_data={patient_data} isPrescriptionPage />
                         </div>
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
-                        <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
-                            {isNewPrescriptionUi && showVoiceRxTrialChip ? (
-                                <FreeTrialButton
-                                    title={S_VOICE_RX}
-                                    showHideSubModal={onVoiceRxTrialChipClick}
-                                />
-                            ) : null}
-                            {!useCompactActionIcons && (
-                                <Popover
-                                    open={popOverVideo}
-                                    onOpenChange={showHideVideoListPopover}
-                                    content={VIDEO_CONTENT}
-                                    trigger="click"
-                                    overlayClassName="pop-430 pp-0 videoTutorial"
-                                    placement="bottom"
-                                    zIndex={headerOverlayZIndex}
-                                >
-                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? 'me-20' : ''}`}>
-                                        {/* onClick={showHideVideoListPopover} */}
-                                        <span><img src={tutorial2} /></span>
-                                    </button>
-                                </Popover>
-                            )}
-                            {useCompactActionIcons ? (
-                                <div className={voiceModuleStyles.headerActionGroup}>
-                                    <Popover
-                                        open={popOverVideo}
-                                        onOpenChange={showHideVideoListPopover}
-                                        content={VIDEO_CONTENT}
-                                        trigger="click"
-                                        overlayClassName="pop-430 pp-0 videoTutorial"
-                                        placement="bottom"
-                                        zIndex={headerOverlayZIndex}
-                                    >
-                                        <button className="btn d-flex align-items-center btn-text p-0">
-                                            {/* onClick={showHideVideoListPopover} */}
-                                            <span><img src={tutorial2} /></span>
-                                        </button>
-                                    </Popover>
-                                    <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
-                                    {isCompactHeader ? (
-                                        <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
-                                            <span>
-                                                <VoiceRxModuleActionButton type="template" label="Browse prescription templates" onClick={handleDrawerTemplate} />
-                                            </span>
-                                        </Tooltip>
-                                    ) : (
-                                        <Popover
-                                            open={popOver1}
-                                            onOpenChange={showHideTemplatesListPopover}
-                                            content={shouldUseMobileTemplateContent ? TEMPLATE_CONTENT_TAB : TEMPLATE_CONTENT_WEB}
-                                            trigger="click"
-                                            overlayClassName="pop-350 pp-0"
-                                            placement="bottom"
-                                            zIndex={headerOverlayZIndex}
-                                        >
-                                            <span>
-                                                <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
-                                                    <VoiceRxModuleActionButton type="template" label="Browse prescription templates" />
-                                                </Tooltip>
-                                            </span>
-                                        </Popover>
-                                    )}
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
-                                        {isMobile ? (
-                                            <VoiceRxModuleActionButton
-                                                type="save"
-                                                label="Save prescription as template"
-                                                disabled={hasUngroundedMedications || !(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
-                                                onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}
-                                            />
-                                        ) : (
-                                            <Popover
-                                                open={popOver2}
-                                                onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
-                                                content={SAVE_CONTENT_WEB}
-                                                trigger="click"
-                                                overlayClassName="pop-450 pp-0"
-                                                placement="bottom"
-                                                zIndex={headerOverlayZIndex}
-                                            >
-                                                <span>
-                                                    <VoiceRxModuleActionButton
-                                                        type="save"
-                                                        label="Save prescription as template"
-                                                        disabled={hasUngroundedMedications || !(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
-                                                    />
-                                                </span>
-                                            </Popover>
-                                        )}
-                                    </Tooltip>
-                                    <Tooltip placement="bottom" title="Customize prescription sections" zIndex={headerOverlayZIndex}>
-                                        <VoiceRxModuleActionButton type="customize" label="Customize prescription sections" onClick={handleDrawerCustomize} />
-                                    </Tooltip>
-                                    <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
-                                </div>
-                            ) : !isMobile ? (
-                                <div className="d-flex align-items-center">
-                                    <Popover
-                                        open={popOver1}
-                                        onOpenChange={showHideTemplatesListPopover}
-                                        content={TEMPLATE_CONTENT_WEB}
-                                        trigger="click"
-                                        overlayClassName="pop-350 pp-0"
-                                        placement="bottom"
-                                        zIndex={headerOverlayZIndex}
-                                    >
-                                        <button className="btn d-flex align-items-center btn-text">
-                                            {" "}
-                                            {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
-                                        </button>
-                                    </Popover>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
-                                        <Popover
-                                            open={popOver2}
-                                            onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
-                                            content={SAVE_CONTENT_WEB}
-                                            trigger="click"
-                                            overlayClassName="pop-450 pp-0"
-                                            placement="bottom"
-                                            zIndex={headerOverlayZIndex}
-                                        >
-                                            <span>
-                                                <button className="btn d-flex align-items-center btn-text" disabled={hasUngroundedMedications}>
-                                                    {" "}
-                                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span>
-                                                </button>
-                                            </span>
-                                        </Popover>
-                                    </Tooltip>
-                                </div>
-                            ) : (
-                                <div className="d-flex align-items-center">
-                                    <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
-                                        {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
-                                    </button>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
-                                        <span>
-                                            <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span></button>
-                                        </span>
-                                    </Tooltip>
-                                </div>
-                            )}
-
-                            {DELETE_MODAL}
-                            {CLEAR_MODAL}
-
-                            {!useCompactActionIcons && (
-                                <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
-                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="setting-2" variant="linear" size={18} /></span> : isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
-                                </button>
-                            )}
-
-                            {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
-                               <span><img height={42} src={tutorial} /></span>
-                            </button> */}
-
-                            <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
-                                {TEMPLATE_CONTENT_TAB}
-                            </Drawer>
-                            <Drawer title="Save Template" placement="right" onClose={handleDrawerSave} open={saveDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
-                                {SAVE_CONTENT_TAB}
-                            </Drawer>
-                            <Drawer placement="right" closeIcon={false} onClose={handleDrawerCustomize} open={customizeDrawer} className="modalWidth-900" width="auto" zIndex={headerOverlayZIndex}>
-                                {CUSTOMIZE_CONTENT_TAB}
-                            </Drawer>
-
-                            {videoLink && (
-                                <VideoModal
-                                    videoLink={videoLink}
-                                    onCancel={() => setVideoLink(null)}
-                                />
-                            )}
-
-                            {/* <Link className='text-main align-items-center d-flex fw-medium text14 me-30'>
-                                <i className='icon-setting me-2'></i> <span className='text-decoration-underline'>Customize</span>
-                            </Link> */}
-
-                            {/* <Dropdown
-                                menu={{
-                                    items
-                                }}
-                                trigger={['click']}
-                            >
-                                <a onClick={(e) => e.preventDefault()} className='text-main align-items-center d-flex fw-medium text14 me-30'>
-                                    <i className='icon-language me-2'></i>
-                                    <span className='text-decoration-underline'>English</span>
-                                    <i className='icon-right iconrotate270 ms-1'></i>
-                                </a>
-                            </Dropdown> */}
-                            {/* <Tooltip placement="bottom" title="Ready to print? Please enter your prescription details.">
-                                <div onClick={() => window.print()}>
-                                    <Button className='btn align-items-center d-flex btn-41 btn-input me-20'>
-                                        <i className='icon-Print me-2'></i>
-                                        Print
-                                    </Button>
-                                </div>
-                            </Tooltip> */}
-                            {showTeleconsultIcon && (
-                                <Tooltip placement="bottom" title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"} destroyTooltipOnHide trigger={["hover"]} mouseLeaveDelay={0} zIndex={headerOverlayZIndex}>
-                                    <span className={isTeleconsultActive ? "d-inline-block" : ""}>
-                                        <button
-                                            type="button"
-                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isCompactHeader ? 'me-20' : ''}`}
-                                            style={isCompactHeader ? {marginLeft: '10px'} : {}}
-                                            onClick={onTeleconsultClick}
-                                            disabled={isTeleconsultJoinLoading || isTeleconsultActive}
-                                        >
-                                            {isTeleconsultJoinLoading ? (
-                                                <LoadingOutlined style={{ fontSize: 24, ...(!isCompactHeader && { marginLeft: '10px' }) }} />
-                                            ) : (
-                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isCompactHeader ? { marginLeft: '10px' } : {}} />
-                                            )}
-                                        </button>
-                                    </span>
-                                </Tooltip>
-                            )}
-                            {handleVideoConsult && (
-                                <VideoConsultButton 
-                                    onClick={handleVideoConsult} 
-                                    loading={isVideoConsultLoading}
-                                />
-                            )}
-                            {/* VoiceRx CTA — the new UI always uses the prod GenRxButton (animated
-                                gradient-video border); the compact icon-only variant is old-UI only. */}
-                            {shouldShowLegacyVoiceRxCta ? (
-                                isNewPrescriptionUi ? (
-                                    <GenRxButton onClick={handleGenRx} className="tesseract-genrx-cta" />
-                                ) : isCompactHeader ?
-                                    <TabVoiceRxButton onClick={handleGenRx} />
-                                    :
-                                    <GenRxButton onClick={handleGenRx} />
-                            ) : null}
-
-                            {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isCompactHeader ? 'Draft' : 'Save as Draft'} />}
-
-                            {(() => {
-                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes/drawing canvas).
-                              const hasPrescriptionModuleData = (
-                                hasDentalData ||
-                                symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
-                                diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
-                                medicationData.length > 0 || privateNotesData || followUpDate || additionalNote ||
-                                givenVaccines.length > 0 || updatedDueVaccines?.length > 0 ||
-                                customModuleContents?.some((e) => e?.content?.length && e?.content?.some(c => c.title || c.notes)) ||
-                                hasOpthalValues() || hasCustomModuleContent() || hasRxDrawingCanvasIds
-                              );
-                              // Sidebar-only signals (vitals/medical history/measurements/gynec/obstetric/lab params/zydus labs).
-                              const hasSidebarOnlyData = (
-                                vitalsData.length > 0 || medicalHistoryData.length > 0 || measurements.length > 0 ||
-                                (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated ||
-                                labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
-                              );
-                              // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
-                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && hasDiagnosisNameAndIcdCode && (!shouldUseChikitsalayInventoryValidation || hasValidChikitsalayInventoryRows) && !hasOutOfStockMedication && hasMedicationsFrequencyAndDuration : (hasPrescriptionModuleData || hasSidebarOnlyData);
-                              return (
-                                <>
-                                {onSelectLetterHead && !isDentalConsultation && (
-                                  <Tooltip placement="bottom" title="Letterhead" zIndex={headerOverlayZIndex}>
-                                    <button type="button" className="btn align-items-center justify-content-center d-flex btn-41 me-2" onClick={onSelectLetterHead}>
-                                      <img src={notesMultiple} alt="Notes" />
-                                    </button>
-                                  </Tooltip>
-                                )}
-                                {showPreviewButton && onPreviewClick && (
-                                  <>
-                                    <div className="headerprescription-preview-divider" aria-hidden="true" />
-                                    <Tooltip placement="bottom" title="Preview Rx" zIndex={headerOverlayZIndex}>
-                                      <Button
-                                        type="button"
-                                        className="btn-41 btn px-2 me-2 ant-btn-text btn-input align-items-center d-flex consultation-preview-btn"
-                                        onClick={onPreviewClick}
-                                        icon={<i className="icon-Preview" />}
-                                      >
-                                        Preview
-                                      </Button>
-                                    </Tooltip>
-                                  </>
-                                )}
-                                <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
-                                    <Button type='button' data-testid="prescription-end-visit" className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && (onEndVisit ? onEndVisit() : onEndVisitClick())} loading={onEndVisit ? isEndVisitLoading : (loading && !saveDraftLoading)}>
-                                        <i className='icon-exit me-2'></i>
-                                        {isCompactHeader ? "End" : "End Visit"}
-                                    </Button>
-                                </Tooltip>
-                                </>
-                              );
-                            })()}
-
-                            <Dropdown className='btn btn-outline btn-more p-0' menu={{ items }} trigger={['click']} overlayStyle={{ zIndex: headerOverlayZIndex }}>
-                                <a onClick={(e) => e.preventDefault()}>
-                                    <i className='icon-More'></i>
-                                </a>
-                            </Dropdown>
-                        </div>
+                        {headerActions}
                     </Col>
                 </Row>
             </Container>

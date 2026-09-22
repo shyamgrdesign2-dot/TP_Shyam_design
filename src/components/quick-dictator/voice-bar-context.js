@@ -19,6 +19,7 @@ import React, {
   useState,
 } from "react";
 import { message } from "antd";
+import { isPrescriptionToastRoute, showPrescriptionToast } from '../../common/PrescriptionToasts';
 import { Danger } from "iconsax-reactjs";
 import PropTypes from "prop-types";
 
@@ -37,6 +38,7 @@ const DOUBLE_TAP_WINDOW_MS = 400;
 //   warning → dark `.message-appointment` card with an orange warning icon
 // Icon + text live in one flex row inside the content so they never stack.
 export function qdToast(content, { type = "success", duration = 3, key, closable = false, onDismiss } = {}) {
+  if (isPrescriptionToastRoute()) return showPrescriptionToast({ content, type, duration, key, closable, onDismiss });
   const isError = type === "error";
   const isWarning = type === "warning";
   const messageKey = key || `qd-toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

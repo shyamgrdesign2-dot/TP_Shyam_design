@@ -1,7 +1,10 @@
+import { isPrescriptionToastRoute, showPrescriptionToast } from '../../../common/PrescriptionToasts';
+
 let _handler = null;
 
 export const toast = {
   warning: (msg, options = {}) => {
+    if (isPrescriptionToastRoute()) return showPrescriptionToast({ content: msg, type: 'warning', duration: 2.5, ...options });
     if (_handler) {
       _handler({ type: "warning", msg, ...options });
     } else {
@@ -9,6 +12,7 @@ export const toast = {
     }
   },
   success: (msg, options = {}) => {
+    if (isPrescriptionToastRoute()) return showPrescriptionToast({ content: msg, type: 'success', duration: 2.5, ...options });
     if (_handler) {
       _handler({ type: "success", msg, ...options });
     } else {
@@ -16,6 +20,7 @@ export const toast = {
     }
   },
   error: (msg, options = {}) => {
+    if (isPrescriptionToastRoute()) return showPrescriptionToast({ content: msg, type: 'error', duration: 2.5, ...options });
     if (_handler) {
       _handler({ type: "error", msg, ...options });
     } else {

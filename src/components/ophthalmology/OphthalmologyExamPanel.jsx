@@ -1,4 +1,7 @@
+import { notifyPrescriptionAction } from '../../common/PrescriptionActionToast';
+import RxActionTooltip from '../../common/prescription-header/RxActionTooltip';
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { attachTesseractCtBehind } from '../tesseractCt';
 import {
   AutoComplete,
   Button,
@@ -19,6 +22,8 @@ import {
   TPLibraryIcon,
 } from "@dhspl-tatvacare/tesseract-ui";
 import styles from "./OphthalmologyExamPanel.module.scss";
+import { usePrescriptionNewPopupProps } from "../usePrescriptionNewPopupProps";
+import PrescriptionCellAction from "../PrescriptionCellAction";
 import {
   OPHTHALMOLOGY_OPTIONS,
   OPHTHALMOLOGY_SECTIONS,
@@ -124,6 +129,7 @@ const DropdownInput = ({
   inputRef,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const getPopupProps = usePrescriptionNewPopupProps(true);
 
   const filteredOptions = useMemo(() => {
     if (!options || options.length === 0) {
@@ -139,7 +145,8 @@ const DropdownInput = ({
       options={filteredOptions}
       open={isOpen}
       onFocus={() => setIsOpen(true)}
-      onBlur={() => setTimeout(() => setIsOpen(false), 120)}
+      onBlur={() => setIsOpen(false)}
+      onDropdownVisibleChange={setIsOpen}
       onChange={onChange}
       onSelect={(nextValue) => {
         onChange(nextValue);
@@ -152,8 +159,7 @@ const DropdownInput = ({
         option?.value?.toLowerCase().includes(inputValue.toLowerCase())
       }
       getPopupContainer={() => document.body}
-      dropdownMatchSelectWidth
-      dropdownClassName={styles.dropdown}
+      {...getPopupProps()}
     >
       <Input
         ref={inputRef}
@@ -161,7 +167,9 @@ const DropdownInput = ({
         bordered={false}
         placeholder={placeholder}
         onKeyDown={(event) => {
-          if (event.key === "Enter") {
+          if (event.key === "Enter" && !event.nativeEvent?.isComposing) {
+            const activeId = event.currentTarget.getAttribute('aria-activedescendant');
+            if (isOpen && activeId && document.getElementById(activeId)) return;
             setIsOpen(false);
             if (onAdvance) {
               onAdvance();
@@ -342,9 +350,9 @@ const OphthalmologyTable = ({
   };
 
   return (
-    <div className={styles.tableWrapper}>
+    <div className={styles.tableWrapper} ref={attachTesseractCtBehind}>
       {table.title && <div className={styles.tableTitle}>{table.title}</div>}
-      <table className={styles.table}>
+      <table className={styles.table} style={{ minWidth: Math.max(700, columns.length * 130) }}>
         <thead>
           <tr>
             {columns.map((column) => {
@@ -363,16 +371,14 @@ const OphthalmologyTable = ({
                 >
                   <div className={styles.columnHeaderContent}>
                     <span>{column.label}</span>
-                    <button
-                      type="button"
-                      className={styles.columnAutofillCta}
+                    <PrescriptionCellAction
                       onClick={(event) => {
                         event.stopPropagation();
                         handleEyeColumnAutofill(column.key);
                       }}
                     >
                       Autofill from {sourceEyeLabel}
-                    </button>
+                    </PrescriptionCellAction>
                   </div>
                 </th>
               );
@@ -398,16 +404,14 @@ const OphthalmologyTable = ({
                       <div className={styles.rowLabelContent}>
                         <span>{row.label}</span>
                         {showEyeAutofill && (
-                          <button
-                            type="button"
-                            className={styles.rowAutofillCta}
+                          <PrescriptionCellAction
                             onClick={(event) => {
                               event.stopPropagation();
                               handleEyeAutofill(row.key);
                             }}
                           >
                             Autofill from {sourceEyeLabel}
-                          </button>
+                          </PrescriptionCellAction>
                         )}
                       </div>
                     </td>
@@ -520,21 +524,20 @@ const OphthalmologySectionCard = ({
             };
             const iconName = ACTION_ICON_MAP[action];
             return (
+              <RxActionTooltip key={action} title={isDisabled ? "No prev data found" : action}>
               <TesseractButton
-                key={action}
                 variant="tonal"
                 theme="neutral"
                 size="sm"
                 aria-label={action}
                 disabled={isDisabled}
-                title={isDisabled ? "No prev data found" : action}
                 onClick={() => {
                   if (!isDisabled) {
                     onAction?.(section, action);
                   }
                 }}
                 icon={iconName ? <TPLibraryIcon name={iconName} variant="linear" size={18} /> : undefined}
-              />
+              /></RxActionTooltip>
             );
           })}
           {showCollapseToggle && (
@@ -867,6 +870,7 @@ const OphthalmologyExamPanel = ({
         ...prev,
         [section.id]: (prev[section.id] || 0) + 1,
       }));
+      notifyPrescriptionAction("Section cleared");
     }
   };
 
@@ -1124,12 +1128,14 @@ const OphthalmologyExamPanel = ({
   const handleSlitLampTemplateSelected = (template) => {
     applySectionTemplate("slitLampTable", template.slitLampExamination);
     setSlitLampTemplatesOpen(false);
-  };
+        notifyPrescriptionAction("Template added to prescription");
+      };
 
   const handleFundusTemplateSelected = (template) => {
     applySectionTemplate("fundusTable", template.fundusExamination);
     setFundusTemplatesOpen(false);
-  };
+        notifyPrescriptionAction("Template added to prescription");
+      };
 
   const handleTemplateDeleteModal = (type, templateId) => {
     setTemplateDeleteModal({ isOpen: true, type, templateId });
@@ -1215,7 +1221,8 @@ const OphthalmologyExamPanel = ({
       setSlitLampTemplateInput(null);
       dispatch(getSlitLampTemplates());
       handleSlitLampSaveOpen(false);
-    }
+        notifyPrescriptionAction("Template saved");
+      }
   };
 
   const handleFundusAddTemplate = async () => {
@@ -1236,7 +1243,8 @@ const OphthalmologyExamPanel = ({
       setFundusTemplateInput(null);
       dispatch(getFundusTemplates());
       handleFundusSaveOpen(false);
-    }
+        notifyPrescriptionAction("Template saved");
+      }
   };
 
   const handleSlitLampUpdateTemplate = async () => {
@@ -1259,7 +1267,8 @@ const OphthalmologyExamPanel = ({
       setSlitLampTemplateInput(null);
       dispatch(getSlitLampTemplates());
       handleSlitLampSaveOpen(false);
-    }
+        notifyPrescriptionAction("Template updated");
+      }
   };
 
   const handleFundusUpdateTemplate = async () => {
@@ -1282,7 +1291,8 @@ const OphthalmologyExamPanel = ({
       setFundusTemplateInput(null);
       dispatch(getFundusTemplates());
       handleFundusSaveOpen(false);
-    }
+        notifyPrescriptionAction("Template updated");
+      }
   };
 
   const loadFromPrevAll = useCallback(() => {
@@ -1817,24 +1827,24 @@ const OphthalmologyExamPanel = ({
                   overlayClassName="pop-350 pp-0"
                   placement="bottom"
                 >
-                  <TesseractButton
+                  <RxActionTooltip title="Browse templates" active={slitLampTemplatesOpen}><TesseractButton
                     variant="tonal"
                     theme="neutral"
                     size="sm"
                     aria-label="Browse slit lamp templates"
                     icon={<TPLibraryIcon name="grid-5" variant="linear" size={18} />}
-                  />
+                  /></RxActionTooltip>
                 </Popover>
               );
             }
             if (currentSection.id === "slitLamp" && action === "Save") {
               return (
-                <Tooltip
+                <RxActionTooltip active={slitLampSaveOpen}
                   key={`${currentSection.id}-${action}`}
                   placement="bottom"
                   title={
                     slitLampTemplateRows.length > 0
-                      ? ""
+                      ? "Save as template"
                       : "Please enter some slit lamp values to save a template"
                   }
                 >
@@ -1857,7 +1867,7 @@ const OphthalmologyExamPanel = ({
                       icon={<TPLibraryIcon name="ram" variant="linear" size={18} />}
                     />
                   </Popover>
-                </Tooltip>
+                </RxActionTooltip>
               );
             }
             if (currentSection.id === "fundus" && action === "Templates") {
@@ -1871,24 +1881,24 @@ const OphthalmologyExamPanel = ({
                   overlayClassName="pop-350 pp-0"
                   placement="bottom"
                 >
-                  <TesseractButton
+                  <RxActionTooltip title="Browse templates" active={fundusTemplatesOpen}><TesseractButton
                     variant="tonal"
                     theme="neutral"
                     size="sm"
                     aria-label="Browse fundus templates"
                     icon={<TPLibraryIcon name="grid-5" variant="linear" size={18} />}
-                  />
+                  /></RxActionTooltip>
                 </Popover>
               );
             }
             if (currentSection.id === "fundus" && action === "Save") {
               return (
-                <Tooltip
+                <RxActionTooltip active={fundusSaveOpen}
                   key={`${currentSection.id}-${action}`}
                   placement="bottom"
                   title={
                     fundusTemplateRows.length > 0
-                      ? ""
+                      ? "Save as template"
                       : "Please enter some fundus values to save a template"
                   }
                 >
@@ -1911,7 +1921,7 @@ const OphthalmologyExamPanel = ({
                       icon={<TPLibraryIcon name="ram" variant="linear" size={18} />}
                     />
                   </Popover>
-                </Tooltip>
+                </RxActionTooltip>
               );
             }
             return null;

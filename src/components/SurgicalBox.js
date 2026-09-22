@@ -1,3 +1,7 @@
+import PrescriptionCustomOption from './PrescriptionCustomOption';
+import { notifyPrescriptionAction } from '../common/PrescriptionActionToast';
+import RxActionTooltip from '../common/prescription-header/RxActionTooltip';
+import PrescriptionNoteInput from './PrescriptionNoteInput';
 import React, {
   useState,
   useEffect,
@@ -61,6 +65,7 @@ import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.sc
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 import {
   PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineRow,
   PrescriptionEmptyLineDragHandle,
   usePrescriptionNewEmptyLineUi,
 } from "./PrescriptionEmptyLineUi";
@@ -290,14 +295,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
             value: trimmedQuery,
             label: (
               <>
-                <div>
-                  {trimmedQuery}
-                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-                  <a className="fw-medium text-decoration-underline text-primary">
-                    {" "}
-                    Add Custom
-                  </a>
-                </div>
+                <PrescriptionCustomOption value={trimmedQuery} category="Surgery" />
               </>
             ),
           });
@@ -422,14 +420,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
             value: trimmedQuery,
             label: (
               <>
-                <div>
-                  {trimmedQuery}
-                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-                  <a className="fw-medium text-decoration-underline text-primary">
-                    {" "}
-                    Add Custom
-                  </a>
-                </div>
+                <PrescriptionCustomOption value={trimmedQuery} category="Surgery" />
               </>
             ),
           });
@@ -541,7 +532,8 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
     });
     setSurgeriesData([...surgeriesData, ...updatedData]);
     showHideTemplatesListPopover();
-  };
+        notifyPrescriptionAction("Template added to prescription");
+      };
 
   const onDeleteTemplateClicked = async (id) => {
     const action = await dispatch(deleteTemplate(id));
@@ -587,6 +579,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template saved");
       }
     }
   };
@@ -620,6 +613,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template updated");
       }
     }
   };
@@ -796,7 +790,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
                               shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
                             ].filter(Boolean).join(" ")}
                           >
-                            <TextArea
+                            <PrescriptionNoteInput enabled={useTesseractUi} legacyMultiline={true}
                               className="notesinput border-0"
                               placeholder="Notes"
                               defaultValue={item.notes}
@@ -833,7 +827,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
                 })}
                 {provided.placeholder}
                 {isNewEmptyLineUiEnabled && (
-                  <Row
+                  <PrescriptionEmptyLineRow
                     gutter={[0]}
                     className={[
                       "symptoms-table-row",
@@ -865,7 +859,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
                       "symptoms-table-cell",
                       shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
                     ].filter(Boolean).join(" ")}>
-                      <TextArea
+                      <PrescriptionNoteInput enabled={useTesseractUi} legacyMultiline={true}
                         className="notesinput border-0 prescription-empty-line-draft-disabled-control"
                         placeholder="Notes"
                         value=""
@@ -881,7 +875,7 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
                       useTesseractUi ? "tesseract-ct-sticky-action" : "",
                       shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
                     ].filter(Boolean).join(" ")} />
-                  </Row>
+                  </PrescriptionEmptyLineRow>
                 )}
               </div>
             )}
@@ -1082,7 +1076,8 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
     resetEmptyLineRowsUi();
     setSurgeriesData([]);
     showHideClearData();
-  };
+        notifyPrescriptionAction("Section cleared");
+      };
 
   //Remove All Rows
   const REMOVE_ALL_ROWS = useMemo(() => {
@@ -1198,9 +1193,9 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Browse templates">
+                <RxActionTooltip active={popOver1} placement="bottom" title="Browse templates">
                   {tesseractActionButton({ icon: "grid-5", label: "Browse surgery templates" })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
             <Popover
@@ -1212,16 +1207,16 @@ function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Save as template">
+                <RxActionTooltip active={popOver2} placement="bottom" title="Save as template">
                   {tesseractActionButton({ icon: "ram", label: "Save surgery as template", disabled: surgeriesData.length === 0 })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
-            <Tooltip placement="bottom" title="Clear all entries">
+            <RxActionTooltip active={isModalOpen1} placement="bottom" title="Clear all entries">
               <span>
                 {tesseractActionButton({ icon: "eraser", label: "Clear surgery", onClick: showHideClearData, disabled: surgeriesData.length === 0 })}
               </span>
-            </Tooltip>
+            </RxActionTooltip>
           </>
         }
       >

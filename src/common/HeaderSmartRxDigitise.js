@@ -1,3 +1,6 @@
+import RxWorkflowHeader from './prescription-header/RxWorkflowHeader';
+import { headerIcon } from './prescription-header/prescriptionHeaderActions';
+import { Button as TesseractButton } from '@dhspl-tatvacare/tesseract-ui';
 import React, {
   useState,
   useEffect,
@@ -178,137 +181,12 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
     setIsSubModalOpen(!isSubModalOpen);
   }, [isSubModalOpen]);
 
-  return (
-    <>
-      <Navbar
-        className={`justify-content-between headerprescription p-0 ${
-          isSnapRx ? "header-snap-rx-nav" : ""
-        }`}
-      >
-        <Container fluid className={`gx-0 w-100 ${!isSnapRx ? "h-100" : ""}`}>
-          <Row
-            className={`align-items-center w-100 justify-content-between flex-nowrap ${
-              isSnapRx ? "header-snap-rx" : "h-100"
-            }`}
-          >
-            <Col
-              xs="auto"
-              className={`h-100 p-0 ${isSnapRx ? "header-snap-rx-title-col" : ""}`}
-            >
-              <div className="align-items-center d-flex h-100">
-                <div className="border-end h-100 text-center flex-shrink-0">
-                  <div
-                    onClick={showHideBackModal}
-                    className="btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer"
-                  >
-                    <i className="icon-right"></i>
-                  </div>
-                  <CommonModal
-                    isModalOpen={isBackModalOpen}
-                    onCancel={showHideBackModal}
-                    modalWidth={500}
-                    title={"You may lose your data"}
-                    modalBody={
-                      <>
-                        <div className="alert-warning rounded-10px p-2 patient-details">
-                          <div className="d-flex align-items-center">
-                            <img
-                              className="me-3"
-                              src={alertIcon}
-                              alt="Warning"
-                            />
-                            <span>
-                              Are you sure you want to leave? <br />
-                              You will permanently lose your data.
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-4">
-                          <div className="d-flex align-items-center mt-2 justify-content-end">
-                            <div
-                              onClick={() => {
-                                if (typeof onBackToPreview === "function") {
-                                  onBackToPreview();
-                                } else {
-                                  navigate(-1);
-                                }
-                                showHideBackModal();
-                              }}
-                              className="me-4 text-decoration-underline btn p-0 text-main"
-                            >
-                              Yes Leave
-                            </div>
-                            <Button
-                              onClick={showHideBackModal}
-                              className="lh-lg btn btn-primary3 btn-41 px-4"
-                            >
-                              <span>No, Stay</span>
-                            </Button>
-                          </div>
-                        </div>
-                      </>
-                    }
-                  />
-                </div>
-                <div
-                  className={`p-4 ${isSnapRx ? "header-snap-rx-title" : ""}`}
-                >{`Review & Save ${patient_data?.pm_fullname}'s Digital Rx`}</div>
-              </div>
-            </Col>
-            <Col
-              xs="auto"
-              className={isSnapRx ? "header-snap-rx-actions-col" : ""}
-            >
-              <div
-                className={`align-items-center d-flex h-100 ${
-                  isSnapRx ? "header-snap-rx-actions" : ""
-                }`}
-              >
-                {!isSnapRx && !isSmartRx && (
-                  <FreeTrialButton
-                    title={S_RX_DIGITIZATION}
-                    showHideSubModal={showHideSubModal}
-                  />
-                )}
-
-                {isGroundingAccessableForZydus && (
-                  <button
-                    type="button"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "4px 14px",
-                      borderRadius: 16,
-                      background: "#F7F1FF",
-                      border: "1px solid #E6D8FF",
-                      color: "#A461D8",
-                      height: "41px",
-                      marginRight: isSnapRx ? "0px" : "16px",
-                    }}
-                  >
-                    <img
-                      src={zydusDataEngineIcon}
-                      alt="zydus-data-engine"
-                      width={28}
-                      height={28}
-                      style={{ marginRight: 8 }}
-                    />
-                    <div className="d-flex flex-column">
-                      <span
-                        className="grouding-color fs-10"
-                        style={{ lineHeight: "12px" }}
-                      >
-                        Powered by
-                      </span>
-                      <span
-                        className="grouding-color fs-16 semi-bold-text"
-                        style={{ lineHeight: "20px" }}
-                      >
-                        Zydus Data Engine
-                      </span>
-                    </div>
-                    <Tooltip
+  return <>
+    <RxWorkflowHeader variant={isSnapRx ? 'snap-rx-review' : 'smart-rx-review'} patient={patient_data} onBack={showHideBackModal} aria-label={isSnapRx ? 'SnapRx review header' : 'Smart prescription review header'} actions={{
+      tutorial: isSnapRx ? { key: 'tutorial', ariaLabel: 'Play tutorial', active: popOverVideo, icon: <img src={ASSETS.images.tutorial2} width={42} height={42} alt="" />, variant: 'ghost', style: { padding: 0, border: 0 },
+        wrap: node => <Popover open={popOverVideo} onOpenChange={showHideVideoListPopover} content={VIDEO_CONTENT} trigger="click" overlayClassName="pop-430 pp-0 videoTutorial" placement="bottom">{node}</Popover> } : undefined,
+      extras: !isSnapRx && !isSmartRx ? [{ key: 'trial', type: 'node', node: <FreeTrialButton title={S_RX_DIGITIZATION} showHideSubModal={showHideSubModal} /> }] : [],
+      tools: isGroundingAccessableForZydus ? [{ key: 'grounding', node: <Tooltip
                       placement="bottomRight"
                       overlayClassName="groundingTooltip"
                       title={
@@ -405,69 +283,61 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
                         </div>
                       }
                     >
-                      <i className="icon-info fs-21" />
-                    </Tooltip>
-                  </button>
-                )}
-
-                {isSnapRx ? (
-                  <Popover
-                    open={popOverVideo}
-                    onOpenChange={showHideVideoListPopover}
-                    content={VIDEO_CONTENT}
-                    trigger="click"
-                    overlayClassName="pop-430 pp-0 videoTutorial"
-                    placement="bottom"
-                  >
-                    <button className="btn d-flex align-items-center btn-text mx-3 tutorial p-0">
-                      <span className="text-decoration-none rounded-5 bg-white shadow2">
-                        <img height={42} src={tutorial} alt="tutorial" />
-                      </span>
-                    </button>
-                  </Popover>
-                ) : null}
-
-                {videoLink && (
-                  <VideoModal
-                    videoLink={videoLink}
-                    onCancel={() => setVideoLink(null)}
+                      <TesseractButton variant="tonal" theme="secondary" size="md" leftIcon={<img src={zydusDataEngineIcon} width={20} height={20} alt="" />}>Zydus Data Engine</TesseractButton>
+                    </Tooltip> }] : [],
+      smart: [{ key: 'review-title', node: <span className="rx-header-title">Review Digital Rx</span> }, ...(handleVideoConsult ? [{ key: 'video', ariaLabel: 'Video consultation', icon: headerIcon('video'), onClick: handleVideoConsult, loading: isVideoConsultLoading }] : [])],
+      primary: { label: 'Save Digitised Rx', onClick: handleSaveDigitiseRx, loading: loading || isSaveLoading, disabled: isDigitiseRxLoading },
+    }}>
+      <CommonModal
+                    isModalOpen={isBackModalOpen}
+                    onCancel={showHideBackModal}
+                    modalWidth={500}
+                    title={"You may lose your data"}
+                    modalBody={
+                      <>
+                        <div className="alert-warning rounded-10px p-2 patient-details">
+                          <div className="d-flex align-items-center">
+                            <img
+                              className="me-3"
+                              src={alertIcon}
+                              alt="Warning"
+                            />
+                            <span>
+                              Are you sure you want to leave? <br />
+                              You will permanently lose your data.
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <div className="d-flex align-items-center mt-2 justify-content-end">
+                            <div
+                              onClick={() => {
+                                if (typeof onBackToPreview === "function") {
+                                  onBackToPreview();
+                                } else {
+                                  navigate(-1);
+                                }
+                                showHideBackModal();
+                              }}
+                              className="me-4 text-decoration-underline btn p-0 text-main"
+                            >
+                              Yes Leave
+                            </div>
+                            <Button
+                              onClick={showHideBackModal}
+                              className="lh-lg btn btn-primary3 btn-41 px-4"
+                            >
+                              <span>No, Stay</span>
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    }
                   />
-                )}
-                {handleVideoConsult && (
-                  <VideoConsultButton 
-                    onClick={handleVideoConsult} 
-                    loading={isVideoConsultLoading}
-                  />
-                )}
-                <Button
-                  type="button"
-                  className="btn align-items-center d-flex btn-41 btn-primary3 me-20"
-                  onClick={handleSaveDigitiseRx}
-                  loading={loading || isSaveLoading}
-                  disabled={isDigitiseRxLoading}
-                >
-                  Save Digitised Rx
-                </Button>
-              </div>
-            </Col>
-          </Row>
-        </Container>
-      </Navbar>
-
-      <ExpiredSubModal
-        title={S_RX_DIGITIZATION}
-        isSubModalOpen={isSubModalOpen}
-        showHideSubModal={showHideSubModal}
-      />
-
-      {shouldShowVideo && (
-        <VideoModal
-          videoLink={groundingVideoLink}
-          onCancel={() => setShowVideo(false)}
-        />
-      )}
-    </>
-  );
+      {videoLink && <VideoModal videoLink={videoLink} onCancel={() => setVideoLink(null)} />}
+    </RxWorkflowHeader>
+    <ExpiredSubModal title={S_RX_DIGITIZATION} isSubModalOpen={isSubModalOpen} showHideSubModal={showHideSubModal} />
+    {shouldShowVideo && <VideoModal videoLink={groundingVideoLink} onCancel={() => setShowVideo(false)} />}
+  </>;
 }
-
 export default React.memo(HeaderSmartRxDigitise);

@@ -1,3 +1,5 @@
+import { PrescriptionDisabledDelete } from '../PrescriptionEmptyLineUi';
+import RxActionTooltip from '../../common/prescription-header/RxActionTooltip';
 import React, {
   useState,
   useEffect,
@@ -1840,7 +1842,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
               const isActiveDropdownRow = module.namedFields?.some(
                 (field) => activeDropdownFieldId === `${row.id}-${field.fieldName}`
               );
-              // Tesseract: the trailing empty row is the add affordance — no delete CTA on it.
+              // Keep the delete affordance visible but inert on the empty add row.
               const rowIsEmpty = !module.namedFields?.some(
                 (field) => String(row[field.fieldName] || "").trim()
               );
@@ -1917,7 +1919,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
                       <i className="icon-Edit"></i>
                     </Button>
                   )}
-                  {!(useTesseractUi && rowIsEmpty) && (
+                  {useTesseractUi && rowIsEmpty ? <PrescriptionDisabledDelete /> : (
                     <Button
                       className="btn py-0 btn-delete-prescription px-0"
                       onClick={() => handleDeleteRow(row.id)}
@@ -2077,11 +2079,11 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
                 </span>
               </Tooltip>
               {isMobile ? (
-                <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                <RxActionTooltip active={popOver1} placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
                   <span>
                     {tesseractActionButton({ icon: "grid-5", label: `Browse ${module?.name || "module"} templates`, onClick: handleDrawerTemplate })}
                   </span>
-                </Tooltip>
+                </RxActionTooltip>
               ) : (
                 <Popover
                   open={popOver1}
@@ -2092,17 +2094,17 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
                   placement="bottomRight"
                 >
                   <span>
-                    <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                    <RxActionTooltip active={popOver1} placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
                       {tesseractActionButton({ icon: "grid-5", label: `Browse ${module?.name || "module"} templates` })}
-                    </Tooltip>
+                    </RxActionTooltip>
                   </span>
                 </Popover>
               )}
-              <Tooltip
+              <RxActionTooltip active={popOver2}
                 placement="bottom"
                 title={
                   hasDataToSave
-                    ? ""
+                    ? "Save as template"
                     : `Please enter some ${module?.name} to save a template`
                 }
               >
@@ -2126,7 +2128,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
                     </span>
                   </Popover>
                 )}
-              </Tooltip>
+              </RxActionTooltip>
               <Tooltip placement="bottom" title="Clear this section">
                 <span>
                   {tesseractActionButton({ icon: "eraser", label: `Clear ${module?.name || "module"}`, onClick: handleClear, disabled: !hasDataToSave })}

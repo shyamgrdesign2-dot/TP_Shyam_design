@@ -1,5 +1,6 @@
 import { forwardRef, useEffect } from "react";
 import styles from "./tp-snackbar.module.scss";
+import { isPrescriptionToastRoute, showPrescriptionToast } from '../../../common/PrescriptionToasts';
 
 const SuccessSnackbarContent = forwardRef(function SuccessSnackbarContent(
   { message, onClose },
@@ -75,6 +76,12 @@ export function TPSnackbar({ severity = "info", message, onClose, ...props }) {
   } = props;
 
   useEffect(() => {
+    if (!open || message == null || !isPrescriptionToastRoute()) return undefined;
+    return showPrescriptionToast({ content: message, type: severity, duration: 0,
+      closable: Boolean(onClose), onDismiss: () => onClose?.(undefined, 'closeClick') });
+  }, [open, message, severity, onClose]);
+
+  useEffect(() => {
     if (!open || !autoHideDuration || !onClose) return undefined;
     const timeoutId = window.setTimeout(() => {
       onClose(undefined, "timeout");
@@ -82,7 +89,7 @@ export function TPSnackbar({ severity = "info", message, onClose, ...props }) {
     return () => window.clearTimeout(timeoutId);
   }, [autoHideDuration, onClose, open]);
 
-  if (!open || message == null) return null;
+  if (!open || message == null || isPrescriptionToastRoute()) return null;
 
   const handleClose = (event) => {
     onClose?.(event, "closeClick");

@@ -1,0 +1,24 @@
+.prescription-dropdown-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--tesseract-slate-200, #e2e2ea);
+  color: var(--tesseract-slate-500, #717179);
+  font: 400 11px/16px var(--tesseract-font-family, Inter, sans-serif);
+  background: var(--tesseract-slate-0, #fff);
+  span { display: inline-flex; align-items: center; gap: 3px; color: inherit !important; }
+  kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 4px; box-shadow: 0 1px 0 var(--tesseract-slate-200, #e2e2ea); border: 1px solid var(--tesseract-slate-200, #e2e2ea); border-radius: 3px; background: var(--tesseract-slate-50, #fafafb); color: inherit; font: inherit; }
+}
+
+.prescription-custom-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tesseract-blue-600, #4b4ad5) !important;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  span, svg { color: inherit !important; }
+  svg { flex-shrink: 0; }
+}

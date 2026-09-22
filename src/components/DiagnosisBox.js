@@ -1,3 +1,7 @@
+import PrescriptionCustomOption from './PrescriptionCustomOption';
+import { notifyPrescriptionAction } from '../common/PrescriptionActionToast';
+import RxActionTooltip from '../common/prescription-header/RxActionTooltip';
+import PrescriptionNoteInput from './PrescriptionNoteInput';
 import React, {
   useState,
   useEffect,
@@ -57,6 +61,8 @@ import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.sc
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 import {
   PrescriptionEmptyLineDraftSearch,
+  createPrescriptionSearchHeading,
+  PrescriptionEmptyLineRow,
   PrescriptionEmptyLineDragHandle,
   usePrescriptionNewEmptyLineUi,
 } from "./PrescriptionEmptyLineUi";
@@ -263,14 +269,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         });
       });
     if (searchParentQuery.length === 0) {
-      data.unshift({
-        key: -1,
-        label: (
-          <>
-            <div>FREQUENTLY USED</div>
-          </>
-        ),
-      });
+      data.unshift(createPrescriptionSearchHeading());
     } else {
       searchParentQuery && parentOptionsList.findIndex(e => e.tds_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && !isChikitsalayAccessable &&
         data.push({
@@ -284,7 +283,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
           value: searchParentQuery,
           label: (
             <>
-              <div>{searchParentQuery}<i className="icon-Add mx-1 text-primary fs-6"></i> <a className="fw-medium text-decoration-underline text-primary"> Add Custom</a></div>
+              <PrescriptionCustomOption value={searchParentQuery} category="Diagnosis" />
             </>
           ),
         });
@@ -393,13 +392,13 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         value: searchChildQuery.query,
         label: (
           <>
-            <div>{searchChildQuery.query}</div>
+            <PrescriptionCustomOption value={searchChildQuery.query} category="Diagnosis" />
           </>
         ),
       });
     }
     setChildSearchOptions(data);
-  }, [childOptionsList, isChikitsalayAccessable]);
+  }, [childOptionsList, isChikitsalayAccessable, searchChildQuery]);
 
   const onFocusChid = (i) => {
     setSearchChildQuery({ query: diagnosisData[i].tds_name, index: i });
@@ -527,6 +526,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         return { ...e, unique_id: uuidv4() }
       })
       setDiagnosisData([...diagnosisData, ...updatedData]);
+      notifyPrescriptionAction(updatedData.length ? 'Previous diagnosis loaded' : 'No previous diagnosis found', updatedData.length ? 'success' : 'info');
 
     } else {
       errorMessage(action.error)
@@ -539,7 +539,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       const updatedData = action?.payload;
       setDiagnosisData([...diagnosisData, ...updatedData]);
       showHideTemplatesListPopover();
-    } else {
+        notifyPrescriptionAction("Template added to prescription");
+      } else {
       errorMessage(action.error)
     }
   };
@@ -590,6 +591,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template saved");
       }
     }
   };
@@ -624,6 +626,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       if (action.meta.requestStatus === "fulfilled") {
         setInputTemplateName(null);
         showHideSaveTemplatePopOver();
+        notifyPrescriptionAction("Template updated");
       }
     }
   };
@@ -925,7 +928,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                           isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
                           useVoiceTableLayout ? voiceModuleStyles.moduleNotesCell : "",
                         ].filter(Boolean).join(" ")}>
-                          <Input
+                          <PrescriptionNoteInput enabled={useTesseractUi} legacyMultiline={false}
                             className="notesinput border-0"
                             placeholder="Notes"
                             defaultValue={item.note}
@@ -952,7 +955,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               })}
               {provided.placeholder}
               {isNewEmptyLineUiEnabled && (
-                <Row
+                <PrescriptionEmptyLineRow
                   gutter={[0]}
                   className={[
                     "symptoms-table-row",
@@ -1009,7 +1012,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                     "symptoms-table-cell",
                     useVoiceTableLayout ? voiceModuleStyles.moduleNotesCell : "",
                   ].filter(Boolean).join(" ")}>
-                    <Input
+                    <PrescriptionNoteInput enabled={useTesseractUi} legacyMultiline={false}
                       className="notesinput border-0 prescription-empty-line-draft-disabled-control"
                       placeholder="Notes"
                       value=""
@@ -1021,7 +1024,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                     useTesseractUi ? "tesseract-ct-sticky-action" : "",
                     useVoiceTableLayout ? voiceModuleStyles.moduleActionCell : "",
                   ].filter(Boolean).join(" ")} />
-                </Row>
+                </PrescriptionEmptyLineRow>
               )}
               </div>
             )}
@@ -1210,7 +1213,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     resetEmptyLineRowsUi();
     setDiagnosisData([])
     showHideClearData()
-  };
+        notifyPrescriptionAction("Section cleared");
+      };
 
   //Remove All Rows
   const REMOVE_ALL_ROWS = useMemo(() => {
@@ -1374,9 +1378,9 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Browse templates">
+                <RxActionTooltip active={popOver1} placement="bottom" title="Browse templates">
                   {tesseractActionButton({ icon: "grid-5", label: "Browse diagnosis templates" })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
             <Popover
@@ -1388,16 +1392,16 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title="Save as template">
+                <RxActionTooltip active={popOver2} placement="bottom" title="Save as template">
                   {tesseractActionButton({ icon: "ram", label: "Save diagnosis as template", disabled: diagnosisData.length === 0 })}
-                </Tooltip>
+                </RxActionTooltip>
               </span>
             </Popover>
-            <Tooltip placement="bottom" title="Clear all entries">
+            <RxActionTooltip active={isModalOpen1} placement="bottom" title="Clear all entries">
               <span>
                 {tesseractActionButton({ icon: "eraser", label: "Clear diagnosis", onClick: showHideClearData, disabled: diagnosisData.length === 0 })}
               </span>
-            </Tooltip>
+            </RxActionTooltip>
           </>
         }
       >

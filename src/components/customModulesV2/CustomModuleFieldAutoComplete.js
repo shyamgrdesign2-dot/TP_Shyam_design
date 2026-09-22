@@ -1,3 +1,5 @@
+import { renderPrescriptionDropdown } from '../PrescriptionDropdownHints';
+import PrescriptionCustomOption from '../PrescriptionCustomOption';
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { AutoComplete, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -115,6 +117,7 @@ const CustomModuleFieldAutoComplete = ({
       if (frequentlyUsedValues.length > 0) {
         data.push({
           key: -1,
+          disabled: true,
           label: <div className="fw-medium">FREQUENTLY USED</div>,
         });
         frequentlyUsedValues.forEach((val) => {
@@ -148,14 +151,7 @@ const CustomModuleFieldAutoComplete = ({
           key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
           value: queryTrimmed,
           label: (
-            <div>
-              {queryTrimmed}
-              <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-              <span className="fw-medium text-decoration-underline text-primary">
-                {" "}
-                Add Custom
-              </span>
-            </div>
+            <PrescriptionCustomOption value={queryTrimmed} />
           ),
         });
       }
@@ -200,14 +196,7 @@ const CustomModuleFieldAutoComplete = ({
             key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
             value: queryTrimmed,
             label: (
-              <div>
-                {queryTrimmed}
-                <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
-                <span className="fw-medium text-decoration-underline text-primary">
-                  {" "}
-                  Add Custom
-                </span>
-              </div>
+              <PrescriptionCustomOption value={queryTrimmed} />
             ),
           });
         }
@@ -268,6 +257,7 @@ const CustomModuleFieldAutoComplete = ({
       onSearch={onSearch}
       onSelect={onSelect}
       options={options}
+      dropdownRender={renderPrescriptionDropdown}
       className={className}
       bordered={false}
       placeholder={placeholder || `Enter ${fieldLabel}`}
