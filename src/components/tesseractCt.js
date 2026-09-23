@@ -4,6 +4,8 @@
    table overflows and is not scrolled fully right (visible on load, gone at
    the right end). Attach as a ref callback on the `.tesseract-ct` wrapper. */
 
+import { navigatePrescriptionTable } from './prescriptionTableNavigation';
+
 const rowSelector = '.symptoms-table-row, .taper-dose';
 
 function editableFields(container) {
@@ -53,6 +55,7 @@ export function attachTesseractCtBehind(el) {
   update();
   el.addEventListener("scroll", update, { passive: true });
   el.addEventListener("keydown", advancePrescriptionField);
+  el.addEventListener("keydown", navigatePrescriptionTable, true);
   if (typeof ResizeObserver !== "undefined") {
     const ro = new ResizeObserver(update);
     ro.observe(el);

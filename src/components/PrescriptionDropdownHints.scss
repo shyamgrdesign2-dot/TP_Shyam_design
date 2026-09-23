@@ -16,9 +16,12 @@
   align-items: center;
   gap: 6px;
   color: var(--tesseract-blue-600, #4b4ad5) !important;
-  font-weight: 500;
+  font-family: inherit;
+  font-weight: 400;
   white-space: normal;
   overflow-wrap: anywhere;
-  span, svg { color: inherit !important; }
+  span, strong, svg { color: inherit !important; }
+  span { font-family: inherit; font-weight: 400; }
+  strong { font-family: inherit; font-weight: 600; }
   svg { flex-shrink: 0; }
 }
