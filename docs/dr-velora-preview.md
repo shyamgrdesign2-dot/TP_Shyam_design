@@ -68,3 +68,9 @@ Conversation answers show a compact sync timestamp on the right beneath each ans
 The chat loading state uses neutral slate text, a document icon, spinner and skeleton. Progress labels wrap on narrow panels rather than truncating.
 
 Evidence rows and record headers keep their background unchanged on hover; only the disclosure icon has a neutral hover highlight. Answer sync uses a bulk clock and linear info icon with a dark Tesseract tooltip aligned to the right.
+
+## Vercel package installation
+
+Tesseract is a private GitHub Package. The project `.npmrc` reads `GITHUB_PACKAGES_TOKEN` for `npm.pkg.github.com` only. Add this as a sensitive environment variable in the Vercel project for Production and Preview before redeploying. Use a GitHub personal access token (classic) with `read:packages`, from an account granted access to `@dhspl-tatvacare/tesseract-ui`; authorize it for the organization if SSO is required. Do not use a `NEXT_PUBLIC_` variable or commit the token.
+
+For local installs, export `GITHUB_PACKAGES_TOKEN` in the shell before `npm ci`. npm does not load this install-time variable from Next.js `.env.local`. The registry URL and variable reference are committed; credentials are not. After adding or changing the Vercel variable, redeploy the latest `main` commit.
