@@ -15,7 +15,7 @@
     "test:velora": "node --test scripts/test-velora.mjs"
   },
   "dependencies": {
-    "@dhspl-tatvacare/tesseract-ui": "1.1.0",
+    "@dhspl-tatvacare/tesseract-ui": "file:vendor/dhspl-tatvacare-tesseract-ui-1.1.0.tgz",
     "@number-flow/react": "^0.6.0",
     "@tiptap/core": "^3.22.3",
     "@tiptap/extension-placeholder": "^3.22.3",

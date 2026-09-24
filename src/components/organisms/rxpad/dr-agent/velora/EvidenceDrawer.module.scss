@@ -21,7 +21,8 @@
 
 .document {margin:0;padding:0;background:var(--tp-slate-100);}
 
-.pdfPages {padding:0;display:flex;flex-direction:column;gap:12px;}.pdfPages:empty {display:none;}.pdfPages canvas {display:block;flex-shrink:0;width:100%;height:auto;background:white;box-shadow:0 1px 6px #21233514;}
+/* Content padding scrolls away with the first page; the viewport stays flush. */
+.pdfPages {padding:12px 0 0;display:flex;flex-direction:column;gap:12px;}.pdfPages:empty {display:none;}.pdfPages canvas {display:block;flex-shrink:0;width:100%;height:auto;background:white;box-shadow:0 1px 6px #21233514;}
 .documentLoading {padding:32px 16px;text-align:center;font-size:12px;color:var(--tp-slate-500);}
 
 
