@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "@/src/components/molecules/Toaster";
 
 import { DrAgentFab } from "@/src/components/organisms/rxpad/dr-agent/shell/DrAgentFab";
+import { VeloraSurface, VeloraSearch } from "@/src/components/organisms/rxpad/dr-agent/velora/VeloraSurface";
 import { DrAgentPanel } from "@/src/components/organisms/rxpad/dr-agent/DrAgentPanel";
 import { RxPadAiOverlay } from "@/src/components/organisms/rxpad/form/RxPadAiOverlay";
 import { RxPreviewSidebar } from "@/src/components/organisms/voicerx/RxPreviewSidebar";
@@ -78,7 +79,9 @@ function VoiceRxFlowInner() {
   //   Past Visits sidebar expanded, FAB visible. Clicking FAB opens bottom sheet directly.
   // Scenario 2 (has symptom data, e.g. Neha Gupta): panel opens immediately
   //   with intro message showing symptom collector data + "Start consultation".
-  const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(true);
+  const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
+  const [agentExpanded, setAgentExpanded] = useState(false);
+  const [autoQuestion, setAutoQuestion] = useState(null);
   const [voicePanelOffset, setVoicePanelOffset] = useState(0);
   const [hasNudge, setHasNudge] = useState(true);
   // RxPad horizontal-scroll edge fades. Driven by the inner scroll
@@ -233,7 +236,7 @@ function VoiceRxFlowInner() {
   }, [voiceCaptureMode, activeVoiceModule, showTooltipAt]);
 
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const bothOpen = isVoicePanelOpen && isSidebarExpanded;
+  const bothOpen = isVoicePanelOpen && !agentExpanded && isSidebarExpanded;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -246,12 +249,12 @@ function VoiceRxFlowInner() {
       }
       if (bothOpen) {
         // Both open — dynamic: min 300px on small screens, grows proportionally, max 380px on large screens
-        const clamped = Math.min(Math.max(width * 0.28, 300), 380);
+        const clamped = Math.min(Math.max(width * 0.28, 384), 400);
         setVoicePanelOffset(Math.round(clamped));
         return;
       }
       // Solo — same 32vw proportion as before, max bumped to 400px
-      const clamped = Math.min(Math.max(width * 0.32, 300), 400);
+      const clamped = Math.min(Math.max(width * 0.28, 384), 400);
       setVoicePanelOffset(Math.round(clamped));
     };
 
@@ -302,18 +305,18 @@ function VoiceRxFlowInner() {
   // Reserve right-side padding equal to the Dr. Agent panel's
   // rendered width so the RxPad section cards reflow under it
   // instead of being hidden behind it on iPad / smaller laptops.
-  // Matches the panel container's `w-[clamp(330px,38vw,360px)]`
-  // tablet width and `xl:w-[400px]`.
-  const agentRailPad = bothOpen ?
-  "pr-[clamp(300px,28vw,380px)]" :
+  // Matches the docked VeloraSurface width.
+  const agentRailPad = agentExpanded ? "" : bothOpen ?
+  "md:pr-[clamp(384px,28vw,400px)]" :
   isVoicePanelOpen ?
-  "pr-[clamp(300px,32vw,400px)]" :
+  "md:pr-[clamp(384px,28vw,400px)]" :
   "";
 
   return (
     <TPRxPadShell
       topNav={
       <RxpadHeader
+        copilotSearch={<VeloraSearch patientName={patient.label} onAsk={text => { setAutoQuestion({ text, id: Date.now() }); setIsVoicePanelOpen(true); setAgentExpanded(true); }} />}
         className="relative h-[62px] w-full bg-white"
         voiceCaptureMode={voiceCaptureMode}
         onBack={() => {
@@ -402,32 +405,17 @@ function VoiceRxFlowInner() {
           )}
           style={{ right: isVoicePanelOpen ? voicePanelOffset : 0 }} />
         
-        <div
-          data-voice-scope="dragent"
-          className={cn(
-            "pointer-events-none fixed right-0 top-[62px] z-[135] hidden h-[calc(100vh-62px)] overflow-hidden md:block transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-            bothOpen ? "w-[clamp(300px,28vw,380px)]" : "w-[clamp(300px,32vw,400px)]",
-            isVoicePanelOpen ? "translate-x-0" : "translate-x-[110%]"
-          )}
-          aria-hidden={!isVoicePanelOpen}>
-          
-          <div className="pointer-events-auto relative h-full w-full before:pointer-events-none before:absolute before:inset-y-0 before:-left-[12px] before:z-10 before:w-[12px] before:bg-gradient-to-r before:from-transparent before:to-tp-slate-900/[0.06] before:content-['']">
-            <DrAgentPanel
-              onClose={() => setIsVoicePanelOpen(false)}
-              onOpen={() => {
-                setIsVoicePanelOpen(true);
-                setHasNudge(false);
-              }}
-              isPanelVisible={isVoicePanelOpen}
-              initialPatientId={patientId}
-              mode="rxpad"
-              voiceRxMode
-              headerBrandTitle="VoiceRx"
-              onVoiceCaptureModeChange={setVoiceCaptureMode}
-              autoOpenBottomSheet={false} />
-            
-          </div>
-        </div>
+        <VeloraSurface open={isVoicePanelOpen} expanded={agentExpanded} onClose={() => setIsVoicePanelOpen(false)} onToggle={() => setAgentExpanded(value => !value)} voiceActive={!!voiceCaptureMode}>
+          <DrAgentPanel
+            copilotMode roomy={agentExpanded} autoQuestion={autoQuestion}
+            onClose={() => setIsVoicePanelOpen(false)}
+            onOpen={() => { setIsVoicePanelOpen(true); setHasNudge(false); }}
+            isPanelVisible={isVoicePanelOpen} initialPatientId={patientId}
+            voiceRxMode headerBrandTitle="Dr. Velora"
+            onVoiceCaptureModeChange={mode => { setVoiceCaptureMode(mode); if (mode) setAgentExpanded(false); }}
+            autoOpenBottomSheet={false}
+          />
+        </VeloraSurface>
         {/* Regular fab only when we are NOT actively recording — during recording the active
              agent portals its own mini controller which replaces this generic fab. */}
         {!voiceCaptureMode &&

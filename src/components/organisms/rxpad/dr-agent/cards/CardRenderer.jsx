@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { PreviewAnswer } from "../velora/EvidenceCards";
 
 import { highlightClinicalText } from "../shared/highlightClinicalText";
 
@@ -136,6 +137,8 @@ onPatientSelect,
 isStale = false)
 {
   switch (output.kind) {
+    case "chart_answer":
+      return <PreviewAnswer data={output.data.preview} />;
     // -- Summary Family (A) --------------------------------------------------
     case "patient_summary":
       // GPSummaryCard expects { data: SmartSummaryData; onPillTap?; onSidebarNav?; hideNarrative?; activeSpecialty? }

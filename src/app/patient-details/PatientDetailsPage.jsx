@@ -34,8 +34,9 @@ import { ClinicalTable as TPClinicalTable } from "@/src/components/molecules/Cli
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
 import { TPButton as Button, TPSplitButton } from "@/src/components/atoms/Button/button-system";
 import { AppointmentBanner } from "@/src/components/molecules/AppointmentBanner";
-// DrAgentFab import removed — patient-details no longer surfaces the
-// agent FAB (scoped to in-visit RxPad route only).
+import { VeloraSurface, VeloraSearch } from "@/src/components/organisms/rxpad/dr-agent/velora/VeloraSurface";
+import { DrAgentFab } from "@/src/components/organisms/rxpad/dr-agent/shell/DrAgentFab";
+import { RxPadSyncProvider } from "@/src/components/organisms/rxpad/rxpad-sync-context";
 import { DrAgentPanel } from "@/src/components/organisms/rxpad/dr-agent/DrAgentPanel";
 import { RX_CONTEXT_OPTIONS } from "@/src/components/organisms/rxpad/dr-agent/constants";
 import { cn } from "@/src/hooks/utils";
@@ -511,6 +512,8 @@ function PatientDetailInner({
   const [visitIndex, setVisitIndex] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAgentOpen, setIsAgentOpen] = useState(false);
+  const [agentExpanded, setAgentExpanded] = useState(false);
+  const [autoQuestion, setAutoQuestion] = useState(null);
 
   const navFromUrl = searchParams?.get("nav");
   useEffect(() => {
@@ -718,9 +721,12 @@ function PatientDetailInner({
         <div
           className={cn(
             "static flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-[padding] duration-200",
-            isAgentOpen && "md:pr-[300px] xl:pr-[400px]"
+            isAgentOpen && !agentExpanded && "md:pr-[clamp(384px,28vw,400px)]"
           )}>
           
+          <div className="flex shrink-0 items-center py-3 bg-white">
+            <VeloraSearch patientName={headerPatient.name} onAsk={text => { setAutoQuestion({ text, id: Date.now() }); setAgentExpanded(true); setIsAgentOpen(true); }} />
+          </div>
           <div className="shrink-0">
             <AppointmentBanner title={activeConfig.bannerTitle} actions={bannerActions} />
           </div>
@@ -751,16 +757,12 @@ function PatientDetailInner({
         </div>
       </div>
 
-      {/* Dr. Agent — non-V0 full panel + FAB */}
-      {isAgentOpen ?
-      <div className="pointer-events-none fixed right-0 top-0 z-40 hidden h-screen w-[300px] md:block xl:w-[400px]">
-          <div className="pointer-events-auto h-full w-full">
-            <DrAgentPanel onClose={() => setIsAgentOpen(false)} initialPatientId={patientId} />
-          </div>
-        </div> :
-      null}
-      {/* DrAgentFab removed from the patient-details page — agent
-           concept is scoped to the in-visit RxPad route only. */}
+      <RxPadSyncProvider>
+        <VeloraSurface open={isAgentOpen} expanded={agentExpanded} onClose={() => setIsAgentOpen(false)} onToggle={() => setAgentExpanded(value => !value)}>
+          <DrAgentPanel copilotMode roomy={agentExpanded} autoQuestion={autoQuestion} headerBrandTitle="Dr. Velora" onClose={() => setIsAgentOpen(false)} initialPatientId={patientId} isPanelVisible={isAgentOpen} />
+        </VeloraSurface>
+      </RxPadSyncProvider>
+      <DrAgentFab onClick={() => { setAgentExpanded(false); setIsAgentOpen(true); }} isPanelOpen={isAgentOpen} />
 
       <style jsx global>{`
         .da-patient-nav-item:hover { background-color: rgba(75, 74, 213, 0.08); }

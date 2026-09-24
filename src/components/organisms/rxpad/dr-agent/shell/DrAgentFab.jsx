@@ -82,7 +82,7 @@ export function DrAgentFab({ onClick, hasNudge, isPanelOpen, isModuleRecording }
       }}
       role="button"
       tabIndex={0}
-      aria-label="Open VoiceRx"
+      aria-label="Open Dr. Velora"
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onClick();
@@ -91,7 +91,7 @@ export function DrAgentFab({ onClick, hasNudge, isPanelOpen, isModuleRecording }
       {/* Hover tooltip — left of the chip */}
       <div className="pointer-events-none absolute right-[calc(100%+6px)] top-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
         <div className="relative whitespace-nowrap rounded-md bg-tp-slate-800 px-2 py-1 text-[12px] font-medium text-white shadow-lg">
-          {isModuleRecording ? "Voice recording in progress" : "Open VoiceRx"}
+          {isModuleRecording ? "Voice recording in progress" : "Open Dr. Velora"}
           <div className="absolute right-[-4px] top-1/2 -translate-y-1/2 border-[4px] border-transparent border-l-tp-slate-800" />
         </div>
       </div>
@@ -204,7 +204,7 @@ export function DrAgentFab({ onClick, hasNudge, isPanelOpen, isModuleRecording }
               </span>
             }
             <span className={styles.fabLabel}>
-              {isModuleRecording ? "Rec…" : "VoiceRx"}
+              {isModuleRecording ? "Rec…" : "Dr. Velora"}
             </span>
           </div>
         </div>

@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { WelcomeScreen } from "./velora/WelcomeScreen";
+import { PREVIEW_STARTERS, SYNC_AT } from "./velora/fixtures";
 import { cn } from "@/src/hooks/utils";
 
 import { TPSnackbar } from "@/src/components/molecules/Snackbar";
@@ -18,6 +21,9 @@ import { useDrAgentPanel } from "./hooks/useDrAgentPanel";
 
 export function DrAgentPanel({
   onClose,
+  copilotMode = false,
+  autoQuestion,
+  roomy = false,
   onOpen,
   isPanelVisible = true,
   initialPatientId,
@@ -106,7 +112,15 @@ export function DrAgentPanel({
     // RxPad sync
     runCopyWithAura,
     pushHistoricalUpdates
-  } = useDrAgentPanel({ voiceRxMode, onVoiceCaptureModeChange, initialPatientId, isPanelVisible, autoOpenBottomSheet, onClose, onOpen });
+  } = useDrAgentPanel({ copilotMode, voiceRxMode, onVoiceCaptureModeChange, initialPatientId, isPanelVisible, autoOpenBottomSheet, onClose, onOpen });
+
+  const consumedQuestion = useRef(null);
+  useEffect(() => {
+    if (autoQuestion && autoQuestion.id !== consumedQuestion.current) {
+      consumedQuestion.current = autoQuestion.id;
+      if (autoQuestion.text) handleSend(autoQuestion.text);
+    }
+  }, [autoQuestion, handleSend]);
 
   // True when any other mic / mini-recorder is already running. Used
   // to disable both "Start with Voice" CTAs (FooterBar + VoiceEmptyState).
@@ -116,7 +130,7 @@ export function DrAgentPanel({
   return (
     <div
       id="dr-agent-panel-root"
-      className="relative flex h-full flex-col bg-transparent"
+      className={`relative flex h-full flex-col bg-transparent ${copilotMode ? "velora-panel" : ""}`}
       style={{
         width: "100%",
         minWidth: 0,
@@ -162,7 +176,7 @@ export function DrAgentPanel({
             WebkitTransform: "translate3d(0,0,1px)"
           }}>
           
-        <div className="flex h-full w-full flex-col overflow-hidden">
+        <div className={`flex h-full w-full flex-col overflow-hidden ${copilotMode && !messages.length && !isTyping ? "velora-empty" : ""}`}>
 
       {/* Animated TP AI gradient wash — 5% opacity moving across the whole panel */}
       <div className="vrx-da-gradient-wash pointer-events-none absolute inset-0 z-0" aria-hidden />
@@ -203,7 +217,7 @@ export function DrAgentPanel({
                   
           </div>
 
-          {voiceEmptyState ?
+          {copilotMode && messages.length === 0 && !isTyping ? <div className="velora-welcome"><WelcomeScreen context="patient_detail" patientName={patient.label} suggestions={PREVIEW_STARTERS} lastSyncedAt={SYNC_AT} promptsAsTags promptsLayout={roomy ? "grid" : "stack"} onActionClick={handleSend} /></div> : voiceEmptyState ?
                 <VoiceEmptyState
                   onStartVoice={() => setVoiceRxDialogOpen(true)}
                   onViewPatientDetails={handleViewPatientDetails}
@@ -239,6 +253,7 @@ export function DrAgentPanel({
                  gone — one loader grammar for all AI responses. */}
 
       <FooterBar
+              copilotMode={copilotMode}
               voiceRxMode={voiceRxMode}
               voiceRxRecording={voiceRxRecording}
               voiceFirstTimeMode={voiceFirstTimeMode}

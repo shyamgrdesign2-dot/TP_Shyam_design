@@ -41,6 +41,7 @@ import { VOICE_RX_LOADER_MS, VOICE_RX_DICTATION_CHUNKS, VOICE_RX_AMBIENT_CHUNKS 
 import { emrSectionsToHtml } from "@/src/components/organisms/voicerx/ClinicalNotesEditor";
 
 import { useLiveTranscript } from "@/src/components/organisms/voicerx/use-live-transcript";
+import { previewReply } from "../velora/fixtures";
 import { uid, getQueryHint, detectSpecialties } from "../utils/panelUtils";
 import { buildVoiceConsultSidebarBatch } from "../utils/voiceHistoryUtils";
 import { buildIntroMessages } from "../engines/intro-engine";
@@ -57,6 +58,7 @@ import { buildIntroMessages } from "../engines/intro-engine";
 
 export function useDrAgentPanel({
   voiceRxMode,
+  copilotMode = false,
   onVoiceCaptureModeChange,
   initialPatientId,
   isPanelVisible,
@@ -616,7 +618,7 @@ export function useDrAgentPanel({
   // (when there are no messages yet) and the full-width "Start with Voice"
   // sticky-footer CTA (when there are messages but still no voice
   // submission). The text ChatInput is suppressed while this is true.
-  const voiceFirstTimeMode = voiceRxMode && !voiceHasFirstSubmission && !voiceRxRecording && !voiceRxAwaitingResponse;
+  const voiceFirstTimeMode = !copilotMode && voiceRxMode && !voiceHasFirstSubmission && !voiceRxRecording && !voiceRxAwaitingResponse;
   // Centered greeting + inline CTA + canned card. Only shown when nothing
   // has been seeded into the thread yet.
   // SKIP the welcome screen when symptom collector data exists — the doctor
@@ -696,7 +698,7 @@ export function useDrAgentPanel({
   // since this effect itself sets messagesByPatient).
   const hasMessagesForPatient = (messagesByPatient[selectedPatientId]?.length ?? 0) > 0;
   useEffect(() => {
-    if (!hasMessagesForPatient) {
+    if (!hasMessagesForPatient && !copilotMode) {
       let introMessages;
       if (voiceRxMode) {
         if (summary.symptomCollectorData?.symptoms?.length) {
@@ -862,6 +864,15 @@ export function useDrAgentPanel({
         setPhaseByPatient((prev) => ({ ...prev, [selectedPatientId]: newPhase }));
       }
 
+      if (copilotMode) {
+        const reply = previewReply(msg);
+        setMessagesByPatient(prev => ({ ...prev, [selectedPatientId]: [...(prev[selectedPatientId] || []), {
+          id: uid(), role: "assistant", text: reply.text, createdAt: new Date().toISOString(), rxOutput: reply.rxOutput, feedbackGiven: null,
+        }] }));
+        setIsTyping(false);
+        setTypingHint("");
+        return;
+      }
       // ── Guardrails + Routing ──
       const isOperationalQuery = intent.category === "operational";
 
@@ -911,8 +922,8 @@ export function useDrAgentPanel({
       setIsTyping(false);
       setTypingHint("");
       // Delay simulates AI thinking — 2-2.5s feels natural for clinical queries
-    }, 1800 + Math.random() * 700);
-  }, [inputValue, selectedPatientId, summary, messagesByPatient, phaseByPatient]);
+    }, copilotMode ? 350 : 1800 + Math.random() * 700);
+  }, [inputValue, selectedPatientId, summary, messagesByPatient, phaseByPatient, copilotMode]);
 
   // ── Pill Tap ──
   const handlePillTap = useCallback((pill) => {

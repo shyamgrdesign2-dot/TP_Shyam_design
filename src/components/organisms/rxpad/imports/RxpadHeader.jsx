@@ -52,6 +52,7 @@ import { TutorialPlayIcon } from "@/src/components/atoms/TutorialPlayIcon/Tutori
 
 export default function RxpadHeader({
   className,
+  copilotSearch,
   onBack,
   onVisitSummary,
   onPreview,
@@ -72,7 +73,7 @@ export default function RxpadHeader({
     <div className={`bg-white relative h-[62px] w-full overflow-x-auto ${className ?? ""}`} data-name="Rxpad_Header">
       <div className="flex h-full min-w-[980px] w-full flex-row items-center">
         <div className="content-stretch flex items-center justify-between pr-[16px] py-[10px] relative size-full max-xl:pr-[10px]">
-          <div className="content-stretch flex min-w-0 items-center gap-[16px] relative max-xl:gap-[10px]">
+          <div className="content-stretch flex shrink-0 min-w-[300px] items-center gap-[16px] relative max-xl:gap-[10px]">
             <button
               aria-label="Go back"
               className="bg-white content-stretch flex h-[60px] items-center justify-center px-[16px] py-[20px] relative shrink-0 w-[80px] transition-colors hover:bg-tp-slate-50"
@@ -180,6 +181,7 @@ export default function RxpadHeader({
                  inside the Dr. Agent panel's glossy header pill, so showing
                  it again here was redundant and noisy. */}
           </div>
+          {copilotSearch}
           <div className="content-stretch flex gap-[14px] items-center relative shrink-0 ml-4 max-xl:gap-[10px]" data-name="Toolbar">
             <TooltipProvider delayDuration={200}>
             <Tooltip>

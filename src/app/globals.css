@@ -1875,3 +1875,14 @@ input[type="date"].tp-date-muted[data-empty="true"]::-webkit-datetime-edit {
   color: var(--tp-slate-400);
 }
 
+
+/* Dr. Velora: preserve the original centered greeting + compact prompt chips. */
+.velora-empty > .relative.z-10 { flex: 0 1 auto; position: static; }
+.velora-empty { justify-content: center; }
+.velora-empty .da-chat-scroll { overflow: visible; flex: none; }
+.velora-empty .da-chat-scroll > .sticky { position: absolute; inset: 0 0 auto; }
+.velora-welcome { padding: 52px 14px 0; }
+.velora-composer { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+.velora-composer > .pointer-events-none { display: none; }
+
+.velora-panel .da-chat-scroll > .sticky { background: var(--tp-white, white); }

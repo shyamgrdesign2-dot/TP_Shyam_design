@@ -36,6 +36,7 @@ import { ChatInput } from "../chat/ChatInput";
 
 export function FooterBar({
   voiceRxMode,
+  copilotMode = false,
   voiceRxRecording,
   voiceFirstTimeMode,
   pills,
@@ -68,6 +69,7 @@ export function FooterBar({
     <div
       className={cn(
         "sticky bottom-0 z-10 shrink-0 bg-white",
+        copilotMode && "velora-composer",
         voiceRxMode && voiceRxRecording ?
         "border-t-0 shadow-none" :
         "border-t border-tp-slate-300 shadow-[0_-4px_16px_rgba(15,23,42,0.04)]"
@@ -80,7 +82,7 @@ export function FooterBar({
           background: "linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0.55) 42%, transparent)"
         }} />
       
-      {pills.length > 0 && messages.length > 0 && !isTyping && !glanceInlinePillsActive && !voiceFirstTimeMode && !voiceRxMode &&
+      {!copilotMode && pills.length > 0 && messages.length > 0 && !isTyping && !glanceInlinePillsActive && !voiceFirstTimeMode && !voiceRxMode &&
       <div className="px-[4px] pt-[8px] pb-[6px]">
           <PillBar pills={pills} onTap={onPillTap} disabled={false} />
         </div>
@@ -130,8 +132,8 @@ export function FooterBar({
         onVoiceTranscription={onVoiceTranscription}
         disabled={isDisabled}
         isPrefilled={isPrefilled}
-        placeholder={voiceRxMode ? "Type Rx here, or use the voice Rx below to speak" : `Ask about ${patientLabel}...`}
-        patientName={voiceRxMode ? undefined : patientLabel || undefined}
+        placeholder={copilotMode ? `Ask Dr. Velora about ${patientLabel?.split(" ")[0]}…` : voiceRxMode ? "Type Rx here, or use the voice Rx below to speak" : `Ask about ${patientLabel}...`}
+        patientName={copilotMode ? patientLabel : voiceRxMode ? undefined : patientLabel || undefined}
         patientMeta={voiceRxMode ? undefined : patientGender && patientAge ? `${patientGender}|${patientAge}y` : undefined}
         patientLocked
         patientLockedMessage={`You're inside ${patientLabel?.split(" ")[0] || "this patient"}'s prescription page — chat is focused on this patient`}
