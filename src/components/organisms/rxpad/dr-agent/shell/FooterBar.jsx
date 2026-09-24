@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { usePatientSync } from "../velora/usePatientSync";
+import { CopilotIcon } from "../velora/CopilotIcon";
 import { cn } from "@/src/hooks/utils";
 import { VoiceRxIcon } from "@/src/components/organisms/voicerx/voice-consult-icons";
 import { Tooltip } from "@/src/components/atoms/Tooltip";
@@ -48,6 +51,7 @@ export function FooterBar({
   isPrefilled,
   isDisabled,
   patientLabel,
+  patientId,
   patientGender,
   patientAge,
   onPillTap,
@@ -65,6 +69,14 @@ export function FooterBar({
   // voice-lock invariant.
   voiceLocked = false,
 }) {
+  const sync = usePatientSync(copilotMode ? patientId : null);
+  const [hint, setHint] = useState(0);
+  const hints = ["medications", "last prescription", "recent lab results", "documented allergies", "blood pressure readings", "last visit notes"];
+  useEffect(() => {
+    if (!copilotMode || inputValue || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setInterval(() => setHint(index => (index + 1) % 6), 3000);
+    return () => clearInterval(timer);
+  }, [copilotMode, inputValue]);
   return (
     <div
       className={cn(
@@ -123,8 +135,11 @@ export function FooterBar({
           )}
         </div>
       }
+      {copilotMode && messages.length === 0 && <div className="velora-welcome-sync"><span><CopilotIcon name="clock" variant="linear" size={12} />{sync.label ? <>Last synced <time dateTime={sync.syncedAt}>{sync.label} IST</time></> : "Last sync unavailable"}</span></div>}
       {!voiceFirstTimeMode && (!voiceRxMode || !voiceRxRecording) &&
       <ChatInput
+        hideTrustIndicator={copilotMode}
+        carouselPlaceholder={copilotMode ? { lead: `Ask Dr.Velora about ${patientLabel?.split(" ")[0]}’s`, topic: hints[hint] } : undefined}
         value={inputValue}
         onChange={onInputChange}
         onSend={onSend}
@@ -132,7 +147,7 @@ export function FooterBar({
         onVoiceTranscription={onVoiceTranscription}
         disabled={isDisabled}
         isPrefilled={isPrefilled}
-        placeholder={copilotMode ? `Ask Dr. Velora about ${patientLabel?.split(" ")[0]}…` : voiceRxMode ? "Type Rx here, or use the voice Rx below to speak" : `Ask about ${patientLabel}...`}
+        placeholder={copilotMode ? `Ask Dr.Velora about ${patientLabel?.split(" ")[0]}’s ${hints[hint]}…` : voiceRxMode ? "Type Rx here, or use the voice Rx below to speak" : `Ask about ${patientLabel}...`}
         patientName={copilotMode ? patientLabel : voiceRxMode ? undefined : patientLabel || undefined}
         patientMeta={voiceRxMode ? undefined : patientGender && patientAge ? `${patientGender}|${patientAge}y` : undefined}
         patientLocked
@@ -144,6 +159,9 @@ export function FooterBar({
         voiceRxFooterLayout={voiceRxMode} />
 
       }
+      {copilotMode && <div className="velora-trust">
+        <span className="velora-privacy"><CopilotIcon name="security-safe" size={12} />Data stays private · AI-assisted, you decide</span>
+      </div>}
     </div>);
 
 }

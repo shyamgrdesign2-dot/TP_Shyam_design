@@ -62,3 +62,11 @@
   background: linear-gradient(135deg, #d565ea 0%, #673aac 55%, #1a1994 100%);
   min-width: 96px;
 }
+
+.textareaWrap { position:relative; }
+.carouselPlaceholder { pointer-events:none; position:absolute; inset:0 4px; display:flex; align-items:flex-start; gap:4px; white-space:nowrap; font-size:14px; font-weight:400; line-height:22px; overflow:hidden; }
+.carouselLead { color:var(--tp-slate-400); font-weight:400; flex-shrink:0; max-width:calc(100% - 52px); overflow:hidden; text-overflow:ellipsis; }
+.carouselTopic { position:relative; flex:1; min-width:0; height:22px; color:var(--tp-violet-400); overflow:hidden; }
+.carouselTopic > span { position:absolute; inset:0; overflow:hidden; text-overflow:ellipsis; animation:placeholderRoll 400ms ease-out both; font-weight:400; background:linear-gradient(135deg, #B786CF, #A07CC8 52%, #9290CD); background-clip:text; -webkit-background-clip:text; color:transparent; }
+@keyframes placeholderRoll { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
+@media(prefers-reduced-motion:reduce) { .carouselTopic > span { animation:none; } }

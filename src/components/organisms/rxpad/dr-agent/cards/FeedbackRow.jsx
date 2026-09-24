@@ -51,9 +51,10 @@ export function FeedbackRow({ messageId, initialFeedback, onFeedback }) {
 
   return (
     <>
-      <div className="flex items-center gap-[4px]">
+      <div className="flex shrink-0 items-center gap-[4px]">
         <button
           type="button"
+          aria-label="Helpful answer"
           onClick={handleUp}
           disabled={!onFeedback}
           className={cn(
@@ -67,6 +68,7 @@ export function FeedbackRow({ messageId, initialFeedback, onFeedback }) {
         </button>
         <button
           type="button"
+          aria-label="Unhelpful answer"
           onClick={handleDownClick}
           disabled={!onFeedback}
           className={cn(

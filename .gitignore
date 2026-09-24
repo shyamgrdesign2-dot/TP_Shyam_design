@@ -11,3 +11,6 @@ node_modules/
 
 # Claude Code session state (per-developer, not source)
 .claude/
+
+# Generated local review artifacts
+/output/

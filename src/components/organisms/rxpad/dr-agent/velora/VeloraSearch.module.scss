@@ -1,0 +1,77 @@
+@property --velora-field-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: true;
+}
+
+.wrap { flex: 1; min-width: 160px; max-width: 600px; margin: 0 16px; }
+.fullWidth { width: 100%; max-width: none; min-width: 0; margin: 0; flex: none; }
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 44px;
+  padding: 0 8px 0 14px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: text;
+  background: linear-gradient(var(--tp-white, white), var(--tp-white, white)) padding-box,
+    conic-gradient(from var(--velora-field-angle), var(--tp-violet-100) 0deg 22deg, var(--tp-violet-300) 42deg, var(--tp-violet-500) 74deg, var(--tp-violet-100) 96deg 360deg) border-box;
+  animation: fieldSpin 4.5s linear infinite;
+}
+.field:focus-within { box-shadow: 0 0 18px var(--tp-violet-100); }
+.wash { position: absolute; inset: 0; background: url('/icons/dr-agent/chat-bg.gif') center / cover; opacity: .06; pointer-events: none; }
+.inputArea { position: relative; display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; height: 100%; }
+.spark { position: relative; flex-shrink: 0; animation: sparkBreath 4.2s ease-in-out infinite; }
+.input { position: relative; flex: 1; width: 100%; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--tp-slate-700); font-size: 14px; cursor: text; }
+.ghost { position: absolute; inset: 0 0 0 32px; display: flex; align-items: center; gap: 4px; overflow: hidden; pointer-events: none; white-space: nowrap; color: var(--tp-violet-400); font-size: 14px; }
+.lead { flex-shrink: 0; max-width: calc(100% - 80px); overflow: hidden; text-overflow: ellipsis; color: var(--tp-slate-400); font-weight:400; }
+.roll { position: relative; flex: 1; min-width: 0; height: 20px; overflow: hidden; }
+.rollIn { position: absolute; inset: 0; overflow: hidden; text-overflow: ellipsis; line-height: 20px; animation: rollIn 420ms ease-out both; }
+.header { display: flex; flex-shrink: 0; height: 104px; width: 100%; border-bottom: 1px solid var(--tp-slate-100); background: linear-gradient(180deg, var(--tp-violet-50), var(--tp-white, white) 78%); }
+.backCell { display: flex; flex: 0 0 80px; align-items: center; justify-content: center; border-right: 1px solid var(--tp-slate-100); }
+.back { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--tp-slate-700); cursor: pointer; }
+.back:hover { background: var(--tp-slate-100); }
+.back:focus-visible { outline: 2px solid var(--tp-blue-500); outline-offset: 2px; }
+.inner { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px 16px; }
+.metaRow { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.starters { flex: 1; min-width: 0; overflow-x: auto; }
+.starters > div { justify-content: flex-start !important; margin: 0 !important; }
+.syncStatus { position: relative; margin-left: auto; padding-left: 12px; border-left: 1px solid var(--tp-slate-200); display: flex; align-items: center; flex-shrink: 0; gap: 6px; color: var(--tp-slate-500); font-size: 12px; white-space: nowrap; }
+.syncStatus time { color: inherit; }
+.syncInfo { display: grid; place-items: center; width: 36px; height: 36px; margin: -4px 0 -4px -4px; border: 0; border-radius: 8px; color: var(--tp-slate-500); background: transparent; cursor: help; }
+.syncInfo:hover, .syncInfo:focus-visible { color: var(--tp-slate-800); background: var(--tp-slate-100); }
+.syncInfo:focus-visible { outline: 2px solid var(--tp-blue-500); outline-offset: 2px; }
+.syncTooltip.syncTooltip { width: 320px; max-width: calc(100vw - 24px); padding: 16px; border: 1px solid var(--tp-slate-200); border-radius: 12px; background: var(--tp-white, white); color: var(--tp-slate-700); box-shadow: 0 8px 24px var(--tp-slate-200); white-space: normal; text-align: left; font-size: 12px; line-height: 1.5; }
+.tooltipHeading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tooltipHeading strong { font-size: 14px; font-weight: 600; color: var(--tp-slate-900); }
+.demoBadge { border-radius: 4px; padding: 2px 6px; color: var(--tp-slate-600); background: var(--tp-slate-100); font-size: 12px; white-space: nowrap; }
+.syncPatient { margin: 4px 0 12px; color: var(--tp-slate-600); }
+.syncDescription { margin: 0; color: var(--tp-slate-500); }
+.fullSyncDate { display: block; margin-top: 2px; font-weight: 500; color: var(--tp-slate-800); }
+.syncCounts { margin: 12px 0; padding: 10px 0; border-block: 1px solid var(--tp-slate-100); }
+.syncCounts > div { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; }
+.syncCounts dd { margin: 0; font-weight: 600; color: var(--tp-slate-800); font-variant-numeric: tabular-nums; }
+.syncCoverage { margin: 0; color: var(--tp-slate-600); }
+.demoNote { margin: 10px 0 0; color: var(--tp-slate-500); }
+@keyframes fieldSpin { to { --velora-field-angle: 360deg; } }
+@keyframes sparkBreath { 0%, 100% { opacity: .78; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+@keyframes rollIn { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 767px) { .wrap { margin: 0 8px; }.fullWidth { margin: 0; }.inner { padding: 12px 10px; }.ghost { font-size: 12px; } }
+@media (prefers-reduced-motion: reduce) { .field, .spark, .rollIn { animation: none; } }
+
+@media (max-width: 1000px) { .syncPrefix { display: none; } }
+@media (max-width: 700px) { .syncTime { display: none; } }
+@media (max-width: 540px) { .syncText, .syncStatus > svg { display: none; }.syncStatus { padding-left: 4px; gap: 0; } }
+
+.syncTooltip.syncTooltip { z-index: 700; --tp-tooltip-arrow: var(--tp-white, white); --tesseract-slate-0: white; font-family: inherit; }
+.syncTooltip > span:first-child, .syncTooltip > span:first-child > span { display: block; }
+.syncTooltip > span[aria-hidden="true"] { left: calc(100% - 18px) !important; }
+.syncCounts dt { display: inline-flex; align-items: center; gap: 8px; }
+.syncStatus { background: transparent; }
+@media (max-width: 540px) { .syncStatus > span:first-child { display: none; } }
+
+.rollIn { font-weight:400; background:linear-gradient(135deg, #B786CF, #A07CC8 52%, #9290CD); background-clip:text; -webkit-background-clip:text; color:transparent; }

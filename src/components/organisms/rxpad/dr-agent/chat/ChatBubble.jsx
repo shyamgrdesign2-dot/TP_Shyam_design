@@ -7,6 +7,7 @@ import styles from "./ChatBubble.module.scss";
 import { useTouchDevice } from "@/src/hooks/use-touch-device";
 
 import { CardRenderer } from "../cards/CardRenderer";
+import { MessageSync } from "../velora/MessageSync";
 import { FeedbackRow } from "../cards/FeedbackRow";
 import { CopyIcon } from "../cards/CopyIcon";
 import { ActionableTooltip } from "../cards/ActionableTooltip";
@@ -920,6 +921,7 @@ export function ChatBubble({
         {!message.hideFeedback &&
         <div className={cn(
           "ml-[30px] mt-[2px] flex items-center gap-[6px] transition-all duration-[400ms] ease-out",
+          message.rxOutput?.kind === "chart_answer" && "w-[calc(100%-30px)] justify-between",
           feedbackRevealed ?
           "opacity-100 translate-y-0" :
           "opacity-0 translate-y-[6px]"
@@ -932,10 +934,12 @@ export function ChatBubble({
 
           null}
 
+          {message.rxOutput?.kind === "chart_answer" && <MessageSync result={message.rxOutput.data.preview} />}
+
           {/* Completeness ring + divider + source tag */}
           {(() => {
             const output = message.rxOutput;
-            if (!output) return null;
+            if (!output || output.kind === "chart_answer") return null;
 
             const completeness = getCompletenessForOutput(output);
             const sources = getSourcesForOutput(output, patientDocuments);

@@ -97,6 +97,7 @@ export function AgentHeader({
   onIntakeModeChange,
   variant = "full",
   brandTitle,
+  hideCloseControl = false,
   onViewSessionHistory,
   onOpenSettings
 }) {
@@ -330,6 +331,7 @@ export function AgentHeader({
                (.vrx-agent-collapse-tag) used by the brand pill so the
                two affordances on this row read as a matched pair. 18px
                icon, slate-700, glossy backdrop. */}
+          {!hideCloseControl && (
           <button
             type="button"
             onClick={onClose}
@@ -342,6 +344,7 @@ export function AgentHeader({
               <path d="M13 9l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
+          )}
         </div>
       </div>
       {/* da-* styles live in app/globals.css */}

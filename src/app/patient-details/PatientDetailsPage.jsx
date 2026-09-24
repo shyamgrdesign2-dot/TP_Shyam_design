@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Add,
-  ArrowDown2,
   ArrowLeft2,
   ArrowRight2,
   Buildings2,
@@ -34,11 +33,12 @@ import { ClinicalTable as TPClinicalTable } from "@/src/components/molecules/Cli
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
 import { TPButton as Button, TPSplitButton } from "@/src/components/atoms/Button/button-system";
 import { AppointmentBanner } from "@/src/components/molecules/AppointmentBanner";
-import { VeloraSurface, VeloraSearch } from "@/src/components/organisms/rxpad/dr-agent/velora/VeloraSurface";
+import { VeloraSurface, VeloraPatientHeader } from "@/src/components/organisms/rxpad/dr-agent/velora/VeloraSurface";
 import { DrAgentFab } from "@/src/components/organisms/rxpad/dr-agent/shell/DrAgentFab";
 import { RxPadSyncProvider } from "@/src/components/organisms/rxpad/rxpad-sync-context";
 import { DrAgentPanel } from "@/src/components/organisms/rxpad/dr-agent/DrAgentPanel";
 import { RX_CONTEXT_OPTIONS } from "@/src/components/organisms/rxpad/dr-agent/constants";
+import { isLiveTestPatient } from "@/src/components/organisms/rxpad/dr-agent/velora/liveClient";
 import { cn } from "@/src/hooks/utils";
 
 // ────────────────────────────────────────────────────────────────────
@@ -65,14 +65,15 @@ urlGender,
 urlAge)
 {
   const catalog = RX_CONTEXT_OPTIONS.find((p) => p.id === patientId);
+  const liveTest = isLiveTestPatient(patientId);
   const genderShort =
   (urlGender ?? catalog?.gender ?? "M").toUpperCase().startsWith("F") ? "F" : "M";
   const age = Number.parseInt(urlAge ?? String(catalog?.age ?? 30), 10) || 30;
   return {
     name: urlName ?? catalog?.label ?? "Patient",
-    genderLabel: genderShort === "F" ? "Female" : "Male",
-    genderShort,
-    age,
+    genderLabel: liveTest && !urlGender ? "Not recorded" : genderShort === "F" ? "Female" : "Male",
+    genderShort: liveTest && !urlGender ? "—" : genderShort,
+    age: liveTest && !urlAge ? "—" : age,
     dob: "—",
     mobile: "—",
     patientCode: `PAT-${(patientId || "000").slice(-6).toUpperCase()}`,
@@ -430,12 +431,12 @@ function DigitalRxPanel({
 
 
 const NAV_CONFIG = [
-{ id: "opd-summary", label: "OPD Visit Summary", bannerTitle: "OPD Visit Summary", kind: "opd" },
-{ id: "reports", label: "Reports", bannerTitle: "Reports", kind: "placeholder", placeholderKey: "reports" },
-{ id: "certificates", label: "Certificates", bannerTitle: "Certificates", kind: "placeholder", placeholderKey: "certificates" },
-{ id: "add-edit-bill", label: "Add/Edit Bill", bannerTitle: "Add/Edit Bill", kind: "placeholder", placeholderKey: "bill" },
-{ id: "ipd-discharge", label: "IPD Discharge Summary", bannerTitle: "IPD Discharge Summary", kind: "placeholder", placeholderKey: "ipd" },
-{ id: "daycare-discharge", label: "Daycare Discharge Summary", bannerTitle: "Daycare Discharge Summary", kind: "placeholder", placeholderKey: "daycare" }];
+{ id: "opd-summary", shortLabel: "Visit", label: "OPD Visit Summary", bannerTitle: "OPD Visit Summary", kind: "opd" },
+{ id: "reports", shortLabel: "Reports", label: "Reports", bannerTitle: "Reports", kind: "placeholder", placeholderKey: "reports" },
+{ id: "certificates", shortLabel: "Certificate", label: "Certificates", bannerTitle: "Certificates", kind: "placeholder", placeholderKey: "certificates" },
+{ id: "add-edit-bill", shortLabel: "Add Bill", label: "Add/Edit Bill", bannerTitle: "Add/Edit Bill", kind: "placeholder", placeholderKey: "bill" },
+{ id: "ipd-discharge", shortLabel: "IPD", label: "IPD Discharge Summary", bannerTitle: "IPD Discharge Summary", kind: "placeholder", placeholderKey: "ipd" },
+{ id: "daycare-discharge", shortLabel: "Daycare", label: "Daycare Discharge Summary", bannerTitle: "Daycare Discharge Summary", kind: "placeholder", placeholderKey: "daycare" }];
 
 
 function SecondaryNavIcon({ item, selected }) {
@@ -586,133 +587,49 @@ function PatientDetailInner({
       className="flex h-screen w-full flex-col overflow-hidden bg-tp-slate-100"
       data-tp-slide-in>
       
+      <VeloraPatientHeader patientId={patientId} patientName={headerPatient.name} isOpen={isAgentOpen} onBack={handleBack} onAsk={text => { setAutoQuestion({ text, id: Date.now() }); setAgentExpanded(true); setIsAgentOpen(true); }} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Secondary nav: 220 px expanded, 80 px compact when Dr. Agent is open */}
-        <nav
-          className={cn(
-            "relative flex shrink-0 flex-col overflow-hidden border-r border-tp-slate-100 bg-white transition-[width] duration-200",
-            isAgentOpen ? "w-[80px]" : "w-[220px]"
-          )}
-          aria-label="Patient sections">
-          
-          <div className={cn("shrink-0 pt-3 pb-2", isAgentOpen ? "flex justify-center px-2" : "px-3")}>
-            <button
-              type="button"
-              onClick={handleBack}
-              aria-label="Go back"
-              title={isAgentOpen ? "Go back" : undefined}
-              className={cn(
-                "inline-flex h-[32px] items-center text-[14px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-50 hover:text-tp-blue-600",
-                isAgentOpen ? "w-[32px] justify-center rounded-[8px]" : "gap-[6px] rounded-[8px] pl-[6px] pr-[10px]"
-              )}>
-              
-              <ArrowLeft2 size={16} color="currentColor" variant="Linear" />
-              {!isAgentOpen && <span>Back</span>}
-            </button>
-          </div>
-          <div className="h-px shrink-0 bg-tp-slate-100" aria-hidden />
-
-          <div className={cn("shrink-0 pt-3 pb-3", isAgentOpen ? "flex justify-center px-2" : "px-3")}>
-            {isAgentOpen ?
-            <button
-              type="button"
-              title={`${headerPatient.name} · ${headerPatient.genderShort} · ${headerPatient.age}Y`}
-              className="flex h-[40px] w-[40px] items-center justify-center rounded-full bg-tp-slate-100 transition-colors hover:bg-tp-slate-200/75"
-              aria-label="Patient profile">
-              
-                <User color="var(--tp-slate-500)" size={22} variant="Bulk" />
-              </button> :
-
+        {/* Match the PM Doctor Portal's compact patient rail at every panel state. */}
+        <nav className="relative flex w-[80px] shrink-0 flex-col overflow-hidden border-r border-tp-slate-100 bg-white" aria-label="Patient sections">
+          <div className="flex shrink-0 justify-center px-2 py-3">
             <DropdownMenu open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-                <DropdownMenuTrigger asChild>
-                  <button
+              <DropdownMenuTrigger asChild>
+                <button
                   type="button"
-                  className="flex w-full items-center gap-2.5 rounded-[10px] bg-tp-slate-100 px-2 py-2 text-left transition-colors hover:bg-tp-slate-200/75 data-[state=open]:bg-tp-slate-200/80">
-                  
-                    <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-white">
-                      <User color="var(--tp-slate-500)" size={22} variant="Bulk" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-semibold text-tp-slate-900">{headerPatient.name}</p>
-                      <p className="flex items-center text-[12px] font-medium">
-                        <span className="text-tp-slate-500">{headerPatient.genderShort}</span>
-                        <span className="w-[14px] shrink-0 text-center text-tp-slate-300" aria-hidden>·</span>
-                        <span className="text-tp-slate-500">{`${headerPatient.age}Y`}</span>
-                      </p>
-                    </div>
-                    <ArrowDown2
-                    color="var(--tp-slate-700)"
-                    size={18}
-                    strokeWidth={2}
-                    variant="Linear"
-                    className={cn("transition-transform", isProfileOpen && "rotate-180")} />
-                  
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                align="start"
-                sideOffset={6}
-                className="w-[260px] rounded-[12px] border border-tp-slate-100 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.12)]">
-                
-                  <div className="space-y-3">
-                    {profileFields.map((item) =>
-                  <div key={item.key} className="flex items-center gap-2.5">
-                        <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-tp-violet-50">
-                          {item.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[12px] leading-[16px] text-tp-slate-500">{item.label}</p>
-                          <p className="truncate text-[14px] font-semibold text-tp-slate-800">{item.value}</p>
-                        </div>
+                  title={`${headerPatient.name} · ${headerPatient.genderShort} · ${headerPatient.age === "—" ? "Age not recorded" : `${headerPatient.age}Y`}`}
+                  aria-label="Patient profile"
+                  className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-tp-slate-100 transition-colors hover:bg-tp-slate-200/75">
+                  <User color="var(--tp-slate-500)" size={22} variant="Bulk" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="right" sideOffset={12} className="w-[260px] rounded-[12px] border border-tp-slate-100 bg-white p-3 shadow-lg">
+                <div className="space-y-3">
+                  {profileFields.map(item => (
+                    <div key={item.key} className="flex items-center gap-2">
+                      <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-tp-violet-50">{item.icon}</div>
+                      <div className="min-w-0">
+                        <p className="text-[12px] leading-[16px] text-tp-slate-500">{item.label}</p>
+                        <p className="truncate text-[14px] font-semibold text-tp-slate-800">{item.value}</p>
                       </div>
-                  )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            }
+                    </div>
+                  ))}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-
           <div className="h-px shrink-0 bg-tp-slate-100" aria-hidden />
-
-          <div className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pb-4 pt-3", isAgentOpen ? "gap-[4px]" : "gap-[2px]")}>
-            {NAV_CONFIG.map((item) => {
+          <div className="flex min-h-0 flex-1 flex-col gap-[4px] overflow-y-auto overflow-x-hidden pb-4 pt-3">
+            {NAV_CONFIG.map(item => {
               const active = activeNav === item.id;
               return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveNav(item.id)}
-                  title={isAgentOpen ? item.label : undefined}
-                  className={cn(
-                    "da-patient-nav-item relative transition-colors",
-                    active && "da-patient-nav-item--active",
-                    isAgentOpen ?
-                    "mx-[6px] flex flex-col items-center gap-[4px] rounded-[10px] px-[4px] py-[8px]" :
-                    "flex w-full flex-row items-center gap-3 px-3 py-[10px] text-left"
-                  )}>
-                  
-                  {active && !isAgentOpen &&
-                  <span className="absolute bottom-[6px] left-0 top-[6px] w-[3px] rounded-r-[12px] bg-tp-blue-500" aria-hidden />
-                  }
-                  <span
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] transition-colors",
-                      active ? "bg-tp-blue-500" : "bg-tp-slate-100"
-                    )}>
-                    
+                <button key={item.id} type="button" onClick={() => setActiveNav(item.id)} title={item.label} aria-label={item.label} aria-current={active ? "page" : undefined}
+                  className={cn("da-patient-nav-item relative mx-[4px] flex flex-col items-center gap-[4px] rounded-[10px] px-[2px] py-[8px] transition-colors", active && "da-patient-nav-item--active")}>
+                  <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] transition-colors", active ? "bg-tp-blue-500" : "bg-tp-slate-100")}>
                     <SecondaryNavIcon item={item} selected={active} />
                   </span>
-                  <span
-                    className={cn(
-                      "leading-snug",
-                      isAgentOpen ? "w-full text-center text-[10px]" : "min-w-0 flex-1 truncate text-left text-[14px]",
-                      active ? "font-semibold text-tp-slate-900" : "font-medium text-tp-slate-700"
-                    )}>
-                    
-                    {item.label}
-                  </span>
-                </button>);
-
+                  <span className={cn("w-full text-center text-[12px] leading-snug", active ? "font-semibold text-tp-slate-900" : "font-medium text-tp-slate-700")}>{item.shortLabel}</span>
+                </button>
+              );
             })}
           </div>
         </nav>
@@ -724,9 +641,6 @@ function PatientDetailInner({
             isAgentOpen && !agentExpanded && "md:pr-[clamp(384px,28vw,400px)]"
           )}>
           
-          <div className="flex shrink-0 items-center py-3 bg-white">
-            <VeloraSearch patientName={headerPatient.name} onAsk={text => { setAutoQuestion({ text, id: Date.now() }); setAgentExpanded(true); setIsAgentOpen(true); }} />
-          </div>
           <div className="shrink-0">
             <AppointmentBanner title={activeConfig.bannerTitle} actions={bannerActions} />
           </div>
@@ -758,8 +672,8 @@ function PatientDetailInner({
       </div>
 
       <RxPadSyncProvider>
-        <VeloraSurface open={isAgentOpen} expanded={agentExpanded} onClose={() => setIsAgentOpen(false)} onToggle={() => setAgentExpanded(value => !value)}>
-          <DrAgentPanel copilotMode roomy={agentExpanded} autoQuestion={autoQuestion} headerBrandTitle="Dr. Velora" onClose={() => setIsAgentOpen(false)} initialPatientId={patientId} isPanelVisible={isAgentOpen} />
+        <VeloraSurface dockTop={104} open={isAgentOpen} expanded={agentExpanded} onClose={() => setIsAgentOpen(false)} onToggle={() => setAgentExpanded(value => !value)}>
+          <DrAgentPanel copilotMode roomy={agentExpanded} autoQuestion={autoQuestion} headerBrandTitle="Dr.Velora" onClose={() => setIsAgentOpen(false)} initialPatientId={patientId} isPanelVisible={isAgentOpen} />
         </VeloraSurface>
       </RxPadSyncProvider>
       <DrAgentFab onClick={() => { setAgentExpanded(false); setIsAgentOpen(true); }} isPanelOpen={isAgentOpen} />

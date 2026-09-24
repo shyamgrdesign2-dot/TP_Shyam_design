@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/src/hooks/utils";
 import styles from "./CardShell.module.scss";
+import { CopilotIcon } from "../velora/CopilotIcon";
 import { CopyIcon } from "./CopyIcon";
 import { ActionableTooltip } from "./ActionableTooltip";
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
@@ -113,6 +114,7 @@ export function CardShell({
   copyAll,
   copyAllTooltip,
   collapsible = true,
+  tesseractControls = false,
   defaultCollapsed = false,
   actions,
   sidebarLink,
@@ -202,10 +204,12 @@ export function CardShell({
         {collapsible &&
         <button
           type="button"
+          aria-label={`${collapsed ? "Expand" : "Collapse"} ${title}`}
+          aria-expanded={!collapsed}
           onClick={() => setCollapsed(!collapsed)}
           className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[6px] bg-tp-slate-100 text-tp-slate-600 transition-colors hover:bg-tp-slate-200">
           
-            {collapsed ? <ArrowDown2 size={12} variant="Linear" /> : <ArrowUp2 size={12} variant="Linear" />}
+            {tesseractControls ? <CopilotIcon name={collapsed ? "arrow-short-down" : "arrow-short-up"} size={12} variant="linear" /> : collapsed ? <ArrowDown2 size={12} variant="Linear" /> : <ArrowUp2 size={12} variant="Linear" />}
           </button>
         }
       </div>

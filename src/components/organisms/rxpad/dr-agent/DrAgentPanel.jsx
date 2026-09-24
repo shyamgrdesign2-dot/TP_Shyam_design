@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { WelcomeScreen } from "./velora/WelcomeScreen";
-import { PREVIEW_STARTERS, SYNC_AT } from "./velora/fixtures";
+import { PREVIEW_STARTERS } from "./velora/fixtures";
 import { cn } from "@/src/hooks/utils";
 
 import { TPSnackbar } from "@/src/components/molecules/Snackbar";
@@ -213,11 +213,12 @@ export function DrAgentPanel({
                     onViewSessionHistory={() => setIsSessionHistoryOpen(true)}
                     intakeMode={intakeMode}
                     onIntakeModeChange={handleIntakeModeChange}
+                    hideCloseControl={copilotMode}
                     brandTitle={headerBrandTitle} />
                   
           </div>
 
-          {copilotMode && messages.length === 0 && !isTyping ? <div className="velora-welcome"><WelcomeScreen context="patient_detail" patientName={patient.label} suggestions={PREVIEW_STARTERS} lastSyncedAt={SYNC_AT} promptsAsTags promptsLayout={roomy ? "grid" : "stack"} onActionClick={handleSend} /></div> : voiceEmptyState ?
+          {copilotMode && messages.length === 0 && !isTyping ? <div className="velora-welcome"><WelcomeScreen context="patient_detail" patientName={patient.label} suggestions={PREVIEW_STARTERS} promptsAsTags promptsLayout={roomy ? "grid" : "stack"} onActionClick={handleSend} /></div> : voiceEmptyState ?
                 <VoiceEmptyState
                   onStartVoice={() => setVoiceRxDialogOpen(true)}
                   onViewPatientDetails={handleViewPatientDetails}
@@ -230,6 +231,7 @@ export function DrAgentPanel({
                    is used for BOTH manual chat replies AND voice-submit
                    processing. Replaces the old docked VoiceRxLoaderCard. */
                 <ChatThread
+                  copilotMode={copilotMode}
                   messages={messages}
                   isTyping={isTyping || voiceRxAwaitingResponse}
                   typingHint={typingHint}
@@ -265,6 +267,7 @@ export function DrAgentPanel({
               inputValue={inputValue}
               isPrefilled={isPrefilled}
               isDisabled={isTyping || voiceRxAwaitingResponse}
+              patientId={selectedPatientId}
               patientLabel={patient.label}
               patientGender={patient.gender}
               patientAge={patient.age}

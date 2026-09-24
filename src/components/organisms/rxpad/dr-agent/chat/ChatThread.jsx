@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/src/hooks/utils";
 
 import { ChatBubble } from "./ChatBubble";
+import { VeloraLoading } from "../velora/VeloraLoading";
 import { TypingIndicator } from "./TypingIndicator";
 
 
@@ -29,6 +30,7 @@ import { TypingIndicator } from "./TypingIndicator";
 export function ChatThread({
   messages,
   isTyping = false,
+  copilotMode = false,
   onFeedback,
   onPillTap,
   onCopy,
@@ -71,7 +73,7 @@ export function ChatThread({
       ref={containerRef}
       className={cn(
         "flex flex-col px-[8px] pt-[14px] pb-[12px]",
-        "bg-gradient-to-b from-[rgba(213,101,234,0.02)] via-white to-[rgba(26,25,148,0.02)]",
+        !copilotMode && "bg-gradient-to-b from-[rgba(213,101,234,0.02)] via-white to-[rgba(26,25,148,0.02)]",
         className
       )}>
       
@@ -132,7 +134,7 @@ export function ChatThread({
       {/* Typing indicator — contextual thinking state */}
       {isTyping &&
       <div className="mt-[10px]">
-          <TypingIndicator queryHint={typingHint} />
+          {copilotMode ? <VeloraLoading label={typingHint} /> : <TypingIndicator queryHint={typingHint} />}
         </div>
       }
 

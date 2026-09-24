@@ -26,7 +26,7 @@ export const RECORDS = [
     [{ label: 'Reference', value: '4.0–5.6 %' }, { label: 'Recorded flag', value: 'High' }]),
   record('demo-metformin', 'medicine', 'Recorded prescription', '2026-09-22',
     'Fictional prescription. Metformin 500 mg tablet. Morning: 1; afternoon: 0; evening: 0; night: 1. After meals. Duration: 30 days.', 'Metformin 500 mg tablet.',
-    [{ label: 'Schedule', value: '1 / 0 / 0 / 1' }, { label: 'Duration', value: '30 days' }]),
+    [{ label: 'Schedule', value: '1-0-0-1' }, { label: 'Duration', value: '30 days' }]),
   record('demo-hba1c-jun', 'lab_result', 'HbA1c · June', '2026-06-18',
     'Fictional laboratory report. HbA1c: 7.8 %. Laboratory reference range: 4.0–5.6 %. Flag: High.', 'HbA1c: 7.8 %.'),
   record('demo-hba1c-mar', 'lab_result', 'HbA1c · March', '2026-03-12',
@@ -35,6 +35,14 @@ export const RECORDS = [
     'Fictional laboratory report. Serum creatinine: 0.9 mg/dL. Laboratory reference range: 0.7–1.3 mg/dL.', 'Serum creatinine: 0.9 mg/dL.',
     [{ label: 'Reference', value: '0.7–1.3 mg/dL' }]),
 ];
+// Sync coverage describes the same fictional corpus used by the answer cards.
+export const SYNC_SUMMARY = {
+  syncedAt: SYNC_AT,
+  prescriptions: RECORDS.filter(record => record.code === 'medicine').length,
+  pathologyReports: RECORDS.filter(record => record.code === 'lab_result').length,
+  radiologyReports: RECORDS.filter(record => record.code === 'radiology').length,
+  visits: new Set(RECORDS.map(record => record.caseId)).size,
+};
 const measurements = { type: 'Measurements', props: { title: 'Recorded measurements', rows: [
   { label: 'HbA1c', value: '7.2', unit: '%', date: '22 Sep 2026', reference: '4.0–5.6 %', flag: 'High', questionable: false, sourceRef: 'demo-hba1c-sep' },
   { label: 'Serum creatinine', value: '0.9', unit: 'mg/dL', date: '22 Sep 2026', reference: '0.7–1.3 mg/dL', flag: '', questionable: false, sourceRef: 'demo-creatinine' },
@@ -54,7 +62,7 @@ const trend = { type: 'Trend', props: { chart: { title: 'HbA1c over time', unit:
   ],
 } }, children: [] };
 
-export function buildPreviewAnswer(question) {
+export function buildPreviewAnswer(question, patientName = DEMO_PATIENT) {
   const q = question.toLowerCase();
   const kind = /trend|over time/.test(q) ? 'trend' : /medicat|prescri|dose|metformin/.test(q) ? 'medications' : /lab|result|creatinine/.test(q) ? 'labs' : /condition|diagnos/.test(q) ? 'conditions' : /advice|follow.?up/.test(q) ? 'advice' : /summar|record|overview/.test(q) ? 'summary' : null;
   if (!kind) return { question, unsupported: true };
@@ -68,7 +76,7 @@ export function buildPreviewAnswer(question) {
   const blocks = ['conditions', 'advice'].includes(kind) ? ['narrative'] : kind === 'summary' ? ['narrative', 'measurements', 'prescriptions'] : kind === 'trend' ? ['narrative', 'trend'] : kind === 'labs' ? ['narrative', 'measurements'] : ['narrative', 'prescriptions'];
   const title = { conditions: 'Conditions on record', advice: 'Advice on record', summary: 'Patient summary', medications: 'Medications on record', labs: 'Recent lab results', trend: 'HbA1c trend' }[kind];
   const all = { narrative: { type: 'Narrative', props: { markdown: narrative }, children: [] }, measurements, prescriptions, trend };
-  return { question, kind, corpus_updated_at: SYNC_AT, evidence: refs.map(ref => RECORDS.find(r => r.id === ref)),
+  return { question, kind, patientName, corpus_updated_at: SYNC_AT, evidence: refs.map(ref => RECORDS.find(r => r.id === ref)),
     ui: { schemaVersion: 'doctor-agent.ui.v1', root: 'response', elements: {
       response: { type: 'Response', props: {}, children: ['card'] },
       card: { type: 'ClinicalCard', props: { title }, children: blocks },
@@ -76,8 +84,8 @@ export function buildPreviewAnswer(question) {
     } } };
 }
 
-export function previewReply(question) {
-  const result = buildPreviewAnswer(question);
+export function previewReply(question, patientName) {
+  const result = buildPreviewAnswer(question, patientName);
   return result.unsupported ? { text: "This UI preview has sample summaries, medications, conditions, advice, lab results and an HbA1c trend. Try one of those questions." }
-    : { text: "Here’s what the fictional sample record shows.", rxOutput: { kind: "chart_answer", data: { preview: result } } };
+    : { text: ({ summary: "Here is the sample chart overview, with the source for each finding.", medications: "The sample chart contains one prescription from 22 September.", labs: "Here are the two latest recorded results and their laboratory reference ranges.", trend: "HbA1c decreased across the three recorded visits. Each point links to its report.", conditions: "One condition is documented in the sample consultation.", advice: "Here is the follow-up advice recorded at the latest sample visit." })[result.kind], rxOutput: { kind: "chart_answer", data: { preview: result } } };
 }

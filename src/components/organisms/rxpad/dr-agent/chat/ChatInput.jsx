@@ -330,6 +330,7 @@ export function ChatInput({
   onVoiceTranscription,
   disabled = false,
   placeholder = "Ask about this patient...",
+  carouselPlaceholder,
   className,
   isPrefilled = false,
   patientName,
@@ -341,6 +342,7 @@ export function ChatInput({
   isClinicContext = false,
   voiceRxCta = false,
   onVoiceRxCtaClick,
+  hideTrustIndicator = false,
   voiceRxFooterLayout = false
 }) {
   const hasText = value.trim().length > 0;
@@ -511,14 +513,16 @@ export function ChatInput({
             }
           `}</style>
 
-          {/* Row 1: Textarea — 12px font per Figma */}
+          {/* Row 1: Textarea */}
+          <div className={styles.textareaWrap}>
           <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder={placeholder}
+          placeholder={carouselPlaceholder ? "" : placeholder}
+          aria-label={carouselPlaceholder ? carouselPlaceholder.lead : undefined}
           rows={1}
           className={cn(
             "w-full resize-none bg-transparent px-[4px]",
@@ -526,6 +530,11 @@ export function ChatInput({
             "focus:outline-none",
             styles.textarea
           )} />
+          {carouselPlaceholder && !value && <span className={styles.carouselPlaceholder} aria-hidden="true">
+            <span className={styles.carouselLead}>{carouselPlaceholder.lead}</span>
+            <span className={styles.carouselTopic}><span key={carouselPlaceholder.topic}>{carouselPlaceholder.topic}</span></span>
+          </span>}
+          </div>
         
 
           {/* Row 2: VoiceRx — attach left + actions right; otherwise patient chip left + attach+actions right */}
@@ -660,12 +669,12 @@ export function ChatInput({
       }
 
       {/* Trust indicator — centered */}
-      <div className="mt-[4px] mb-[14px] flex items-center justify-center gap-[4px]">
+      {!hideTrustIndicator && <div className="mt-[4px] mb-[14px] flex items-center justify-center gap-[4px]">
         <SecuritySafe size={12} variant="Bulk" className="shrink-0 text-tp-slate-300" />
         <span className="text-[12px] leading-[1.4] text-tp-slate-300">
           Data stays private · AI-assisted, you decide
         </span>
-      </div>
+      </div>}
     </div>);
 
 }

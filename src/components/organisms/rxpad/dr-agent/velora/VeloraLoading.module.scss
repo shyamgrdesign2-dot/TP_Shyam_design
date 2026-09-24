@@ -1,0 +1,13 @@
+.loading { padding: 12px 0; }
+.status { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--tp-slate-500); }
+.spark { flex-shrink: 0; color:var(--tp-slate-400); }
+.carousel { flex: 1; min-width: 0; position: relative; min-height:24px; }
+.carousel > span { display:block; white-space:normal; line-height: 24px; animation: arrive 260ms ease-out; }
+.spinner { flex-shrink:0; width: 14px; height: 14px; border: 2px solid var(--tp-slate-200); border-top-color: var(--tp-slate-500); border-radius: 50%; animation: spin 900ms linear infinite; margin-right: 12px; }
+.skeleton { display: grid; gap: 10px; margin: 14px 32px; }
+.skeleton i { height: 12px; border-radius: 4px; background: linear-gradient(100deg,var(--tp-slate-100),var(--tp-slate-50),var(--tp-slate-100)); background-size: 200% 100%; animation: shimmer 1.6s ease-in-out infinite; }
+.skeleton i:nth-child(2) { width: 88%; }.skeleton i:nth-child(3) { width: 62%; }
+@keyframes arrive { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .spark,.spinner,.carousel > span,.skeleton i { animation:none; } }

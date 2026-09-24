@@ -332,6 +332,7 @@ function VoiceRxFlowInner() {
           `/patient-details?patientId=${encodeURIComponent(patientId)}&name=${encodeURIComponent(patient.label)}&gender=${patient.gender}&age=${patient.age}&from=rxpad-voice`
         )
         }
+        showPreview={false}
         onPreview={() => setRxPreviewOpen(true)}
         onVoiceRx={() => {
           // Re-open the VoiceRx panel from the toolbar — flips back
@@ -411,7 +412,7 @@ function VoiceRxFlowInner() {
             onClose={() => setIsVoicePanelOpen(false)}
             onOpen={() => { setIsVoicePanelOpen(true); setHasNudge(false); }}
             isPanelVisible={isVoicePanelOpen} initialPatientId={patientId}
-            voiceRxMode headerBrandTitle="Dr. Velora"
+            voiceRxMode headerBrandTitle="Dr.Velora"
             onVoiceCaptureModeChange={mode => { setVoiceCaptureMode(mode); if (mode) setAgentExpanded(false); }}
             autoOpenBottomSheet={false}
           />

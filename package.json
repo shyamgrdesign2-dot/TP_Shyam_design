@@ -11,9 +11,11 @@
     "build:tokens": "node scripts/build-tokens.mjs",
     "baseline": "node scripts/capture-baseline.mjs",
     "diff:visual": "node scripts/diff-screenshots.mjs",
-    "verify": "bash scripts/verify-build.sh"
+    "verify": "bash scripts/verify-build.sh",
+    "test:velora": "node --test scripts/test-velora.mjs"
   },
   "dependencies": {
+    "@dhspl-tatvacare/tesseract-ui": "1.1.0",
     "@number-flow/react": "^0.6.0",
     "@tiptap/core": "^3.22.3",
     "@tiptap/extension-placeholder": "^3.22.3",
@@ -28,9 +30,13 @@
     "jszip": "^3.10.1",
     "lottie-react": "^2.4.1",
     "next": "^16.2.9",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "recharts": "2.15.0"
+    "react-markdown": "^10.1.0",
+    "recharts": "2.15.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.2.4",

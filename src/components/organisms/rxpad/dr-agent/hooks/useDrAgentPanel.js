@@ -41,6 +41,8 @@ import { VOICE_RX_LOADER_MS, VOICE_RX_DICTATION_CHUNKS, VOICE_RX_AMBIENT_CHUNKS 
 import { emrSectionsToHtml } from "@/src/components/organisms/voicerx/ClinicalNotesEditor";
 
 import { useLiveTranscript } from "@/src/components/organisms/voicerx/use-live-transcript";
+import { askLivePatient, isLiveTestPatient } from "../velora/liveClient";
+import { normalizeLiveResult } from "../velora/normalizeLiveResult";
 import { previewReply } from "../velora/fixtures";
 import { uid, getQueryHint, detectSpecialties } from "../utils/panelUtils";
 import { buildVoiceConsultSidebarBatch } from "../utils/voiceHistoryUtils";
@@ -91,6 +93,7 @@ export function useDrAgentPanel({
   const [isSessionHistoryOpen, setIsSessionHistoryOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [typingHint, setTypingHint] = useState("");
+  const copilotInFlight = useRef(false);
   const [showAttachPanel, setShowAttachPanel] = useState(false);
   const [showDocBottomSheet, setShowDocBottomSheet] = useState(false);
   const [chipShaking, setChipShaking] = useState(false);
@@ -587,7 +590,7 @@ export function useDrAgentPanel({
 
   // ── Derived State ──
   const patient = useMemo(
-    () => RX_CONTEXT_OPTIONS.find((p) => p.id === selectedPatientId) || RX_CONTEXT_OPTIONS[0],
+    () => RX_CONTEXT_OPTIONS.find((p) => p.id === selectedPatientId) || (isLiveTestPatient(selectedPatientId) ? { id: selectedPatientId, label: `Test patient ${selectedPatientId}` } : RX_CONTEXT_OPTIONS[0]),
     [selectedPatientId]
   );
 
@@ -811,9 +814,9 @@ export function useDrAgentPanel({
   }, [lastSignal]);
 
   // ── Core: Send Message ──
-  const handleSend = useCallback((text) => {
+  const handleSend = useCallback(async (text) => {
     const msg = text || inputValue.trim();
-    if (!msg) return;
+    if (!msg || (copilotMode && copilotInFlight.current)) return;
 
     const msgNorm = msg.trim().toLowerCase();
     const qp = QUICK_CLINICAL_SNAPSHOT_PROMPT.trim().toLowerCase();
@@ -853,6 +856,38 @@ export function useDrAgentPanel({
     setTypingHint(getQueryHint(intent.category, msg));
     setIsTyping(true);
 
+    if (copilotMode) {
+      copilotInFlight.current = true;
+      let reply;
+      try {
+        if (isLiveTestPatient(selectedPatientId)) {
+          const result = await askLivePatient(selectedPatientId, msg, step => {
+            if (step.status === "active") setTypingHint(step.label);
+          });
+          const data = normalizeLiveResult(result);
+          reply = { text: data.intro || "", rxOutput: { kind: "chart_answer", data: { preview: data } } };
+        } else {
+          // Explicit fixture preview: each carousel beat is visible before output.
+          for (const label of ["Reviewing the sample chart", "Matching the supporting records", "Preparing the answer card"]) {
+            setTypingHint(label);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          reply = previewReply(msg, patient.label);
+          if (reply.rxOutput?.data?.preview) reply.rxOutput.data.preview.patient = { name: patient.label, age: patient.age, gender: patient.gender };
+        }
+      } catch (error) {
+        reply = { text: `Couldn’t load the live answer. ${error.message}` };
+      } finally {
+        copilotInFlight.current = false;
+        setIsTyping(false);
+        setTypingHint("");
+      }
+      setMessagesByPatient(prev => ({ ...prev, [selectedPatientId]: [...(prev[selectedPatientId] || []), {
+        id: uid(), role: "assistant", text: reply.text, createdAt: new Date().toISOString(), rxOutput: reply.rxOutput, feedbackGiven: null,
+      }] }));
+      return;
+    }
+
     // Build reply after a short delay (simulate thinking)
     setTimeout(() => {
       const currentMessages = [...(messagesByPatient[selectedPatientId] || []), userMsg];
@@ -864,15 +899,6 @@ export function useDrAgentPanel({
         setPhaseByPatient((prev) => ({ ...prev, [selectedPatientId]: newPhase }));
       }
 
-      if (copilotMode) {
-        const reply = previewReply(msg);
-        setMessagesByPatient(prev => ({ ...prev, [selectedPatientId]: [...(prev[selectedPatientId] || []), {
-          id: uid(), role: "assistant", text: reply.text, createdAt: new Date().toISOString(), rxOutput: reply.rxOutput, feedbackGiven: null,
-        }] }));
-        setIsTyping(false);
-        setTypingHint("");
-        return;
-      }
       // ── Guardrails + Routing ──
       const isOperationalQuery = intent.category === "operational";
 
@@ -922,8 +948,8 @@ export function useDrAgentPanel({
       setIsTyping(false);
       setTypingHint("");
       // Delay simulates AI thinking — 2-2.5s feels natural for clinical queries
-    }, copilotMode ? 350 : 1800 + Math.random() * 700);
-  }, [inputValue, selectedPatientId, summary, messagesByPatient, phaseByPatient, copilotMode]);
+    }, 1800 + Math.random() * 700);
+  }, [inputValue, selectedPatientId, summary, messagesByPatient, phaseByPatient, copilotMode, patient.label]);
 
   // ── Pill Tap ──
   const handlePillTap = useCallback((pill) => {

@@ -6,7 +6,7 @@ import {
   Heart, StatusUp, MessageQuestion,
   ClipboardText, Activity, Hospital,
   Health, SearchStatus, Clock,
-} from "iconsax-reactjs"
+} from "./CopilotIcon"
 
 /**
  * WelcomeScreen — ChatGPT-style intro screen for Dr. Agent.
@@ -21,7 +21,7 @@ import {
  * - Billing: billing-focused suggestions
  */
 
- 
+
 
 const ICON_SIZE = 18
 
@@ -363,15 +363,11 @@ export function WelcomePrompts({ actions, onActionClick, layout = "row", classNa
           key={i}
           type="button"
           onClick={() => onActionClick(action.message)}
-          /* Left-aligned, not centred. A stretched chip centres its label in
-             whatever width the grid gave it, so four of them put their text at
-             four different x positions and the column stops reading as a
-             column. Where the chip hugs its content - the top bar's row - the
-             two are the same thing. */
-          className="welcome-prompt-tag group relative overflow-hidden inline-flex min-w-0 shrink-0 items-center justify-start gap-[6px] text-left"
+          /* Keep each icon and label together on one centered baseline. */
+          className="welcome-prompt-tag group relative overflow-hidden inline-flex min-w-0 shrink-0 items-center justify-center gap-[6px] text-center"
           style={{
             borderRadius: 999,
-            padding: "6px 11px",
+            padding: "6px 10px",
             /* The reference card's surface, at a chip's scale: a whisper-light
                fill and a translucent white stroke, so it reads as a distinct
                surface against the rotating wash behind it rather than as a
@@ -401,7 +397,7 @@ export function WelcomePrompts({ actions, onActionClick, layout = "row", classNa
           />
 
           {action.icon && (
-            <span className="relative z-[1] flex-shrink-0 welcome-icon-grad welcome-tag-icon" style={{ opacity: 0.85 }}>
+            <span className="relative z-[1] inline-flex items-center justify-center flex-shrink-0 welcome-tag-icon" style={{ color: "var(--tp-violet-400)", opacity: 0.85, width: 16, height: 16 }}>
               {action.icon}
             </span>
           )}
@@ -436,7 +432,8 @@ function WelcomeIconDefs() {
         .welcome-icon-grad svg rect {
           fill: url(#welcomeIconGrad);
         }
-        .welcome-tag-icon svg { width: 14px; height: 14px; }
+        .welcome-tag-icon [data-tp-icon] { width: 14px !important; height: 14px !important; display: block !important; background: linear-gradient(135deg, #BE6DCF, #673AAC 52%, #5351BD) !important; }
+        .welcome-prompt-tag > span:last-child { background: linear-gradient(135deg, #A84FC4, #673AAC 52%, #5351BD); background-clip: text; -webkit-background-clip: text; color: transparent !important; }
         /* Same motion as the cards it came from. */
         .welcome-prompt-tag {
           cursor: pointer;
@@ -633,7 +630,8 @@ export function WelcomeScreen({
           width: 13px;
           height: 13px;
         }
-        .welcome-tag-icon svg { width: 14px; height: 14px; }
+        .welcome-tag-icon [data-tp-icon] { width: 14px !important; height: 14px !important; display: block !important; background: linear-gradient(135deg, #BE6DCF, #673AAC 52%, #5351BD) !important; }
+        .welcome-prompt-tag > span:last-child { background: linear-gradient(135deg, #A84FC4, #673AAC 52%, #5351BD); background-clip: text; -webkit-background-clip: text; color: transparent !important; }
         .welcome-prompt-tag {
           cursor: pointer;
           transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
