@@ -50,7 +50,7 @@ function ClinicalPreviewCard({ result, onEvidence }) {
   const elements = result.ui.elements;
   const root = elements[result.ui.root];
   const card = (root?.children || []).map(key => elements[key]).find(node => node?.type === 'ClinicalCard');
-  if (!card) return <p className={s.narrative}>This sample response has no supported card.</p>;
+  if (!card) return <p className={s.narrative}>This response has no supported card.</p>;
   const count = result.evidence.length;
   const icons = { medications: 'capsule', labs: 'clipboard-activity', trend: 'status-up', conditions: 'health', advice: 'message-question', summary: 'document-text' };
   const sectionCount = card.children.filter(key => elements[key]?.type !== 'Narrative').length;
@@ -74,7 +74,7 @@ function ClinicalPreviewCard({ result, onEvidence }) {
           </tr>)}</tbody>
         </table></div>
       </section>;
-    })}<p className={s.limitation}>{result.live ? "Based on indexed test-patient records. Missing information does not confirm absence." : "Fictional records for UI review. Missing information does not confirm absence."}</p></div>
+    })}</div>
     <div className={s.evidenceBox}>
       <button className={s.evidenceFooter} onClick={() => onEvidence()} aria-haspopup="dialog" aria-label="Open evidence">
         <EvidenceIcon size={18} /><strong>Evidence</strong><span className={s.recordCount}>[{count} {count === 1 ? 'record' : 'records'}]</span>

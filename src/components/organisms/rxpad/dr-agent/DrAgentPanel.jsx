@@ -255,6 +255,7 @@ export function DrAgentPanel({
                  gone — one loader grammar for all AI responses. */}
 
       <FooterBar
+              dictateRequest={autoQuestion?.dictate ? autoQuestion.id : null}
               copilotMode={copilotMode}
               voiceRxMode={voiceRxMode}
               voiceRxRecording={voiceRxRecording}

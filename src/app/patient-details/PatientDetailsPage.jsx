@@ -587,7 +587,7 @@ function PatientDetailInner({
       className="flex h-screen w-full flex-col overflow-hidden bg-tp-slate-100"
       data-tp-slide-in>
       
-      <VeloraPatientHeader patientId={patientId} patientName={headerPatient.name} isOpen={isAgentOpen} onBack={handleBack} onAsk={text => { setAutoQuestion({ text, id: Date.now() }); setAgentExpanded(true); setIsAgentOpen(true); }} />
+      <VeloraPatientHeader patientId={patientId} patientName={headerPatient.name} patientAge={headerPatient.age} patientGender={headerPatient.genderShort} isOpen={isAgentOpen} onBack={handleBack} onAsk={(text, options) => { setAutoQuestion({ text, dictate: options?.dictate, id: Date.now() }); setAgentExpanded(true); setIsAgentOpen(true); }} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Match the PM Doctor Portal's compact patient rail at every panel state. */}
         <nav className="relative flex w-[80px] shrink-0 flex-col overflow-hidden border-r border-tp-slate-100 bg-white" aria-label="Patient sections">

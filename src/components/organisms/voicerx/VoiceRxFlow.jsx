@@ -316,7 +316,7 @@ function VoiceRxFlowInner() {
     <TPRxPadShell
       topNav={
       <RxpadHeader
-        copilotSearch={<VeloraSearch patientName={patient.label} onAsk={text => { setAutoQuestion({ text, id: Date.now() }); setIsVoicePanelOpen(true); setAgentExpanded(true); }} />}
+        copilotSearch={<VeloraSearch patientName={patient.label} onAsk={(text, options) => { setAutoQuestion({ text, dictate: options?.dictate, id: Date.now() }); setIsVoicePanelOpen(true); setAgentExpanded(true); }} />}
         className="relative h-[62px] w-full bg-white"
         voiceCaptureMode={voiceCaptureMode}
         onBack={() => {

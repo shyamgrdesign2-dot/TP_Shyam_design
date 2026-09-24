@@ -868,7 +868,7 @@ export function useDrAgentPanel({
           reply = { text: data.intro || "", rxOutput: { kind: "chart_answer", data: { preview: data } } };
         } else {
           // Explicit fixture preview: each carousel beat is visible before output.
-          for (const label of ["Reviewing the sample chart", "Matching the supporting records", "Preparing the answer card"]) {
+          for (const label of ["Reviewing the patient chart", "Matching the supporting records", "Preparing the answer card"]) {
             setTypingHint(label);
             await new Promise(resolve => setTimeout(resolve, 1000));
           }

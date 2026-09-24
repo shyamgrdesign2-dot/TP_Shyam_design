@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SyncDetails } from "../velora/SyncDetails";
 import { usePatientSync } from "../velora/usePatientSync";
 import { CopilotIcon } from "../velora/CopilotIcon";
 import { cn } from "@/src/hooks/utils";
@@ -38,6 +39,7 @@ import { ChatInput } from "../chat/ChatInput";
 
 
 export function FooterBar({
+  dictateRequest,
   voiceRxMode,
   copilotMode = false,
   voiceRxRecording,
@@ -135,9 +137,9 @@ export function FooterBar({
           )}
         </div>
       }
-      {copilotMode && messages.length === 0 && <div className="velora-welcome-sync"><span><CopilotIcon name="clock" variant="linear" size={12} />{sync.label ? <>Last synced <time dateTime={sync.syncedAt}>{sync.label} IST</time></> : "Last sync unavailable"}</span></div>}
       {!voiceFirstTimeMode && (!voiceRxMode || !voiceRxRecording) &&
       <ChatInput
+        dictateRequest={dictateRequest}
         hideTrustIndicator={copilotMode}
         carouselPlaceholder={copilotMode ? { lead: `Ask Dr.Velora about ${patientLabel?.split(" ")[0]}’s`, topic: hints[hint] } : undefined}
         value={inputValue}
@@ -159,6 +161,7 @@ export function FooterBar({
         voiceRxFooterLayout={voiceRxMode} />
 
       }
+      {copilotMode && messages.length === 0 && <div className="velora-welcome-sync"><SyncDetails patientId={patientId} patientName={patientLabel} patientAge={patientAge} patientGender={patientGender} side="top">{sync.label ? <>Last synced <time dateTime={sync.syncedAt}>{sync.label} IST</time></> : "Last sync unavailable"}</SyncDetails></div>}
       {copilotMode && <div className="velora-trust">
         <span className="velora-privacy"><CopilotIcon name="security-safe" size={12} />Data stays private · AI-assisted, you decide</span>
       </div>}

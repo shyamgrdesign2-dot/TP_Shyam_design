@@ -27,9 +27,15 @@
 .surface :global(.velora-empty .da-chat-scroll) { flex: none; overflow: visible; }
 .surface :global(.velora-empty .da-chat-scroll > .sticky) { position: absolute; inset: 0 0 auto; }
 .surface :global(.velora-empty .velora-welcome) { flex: none; padding: 0 20px 4px; }
-.surface :global(.velora-empty .velora-composer) { position: static; }
+.surface :global(.velora-empty .velora-composer) { position: static; padding-top: 12px; }
+.surface :global(.velora-empty .chat-input-border) { min-height: 84px; padding-block: 10px; gap: 10px; }
 .surface :global(.velora-empty .velora-privacy) { position: absolute; bottom: 16px; left: 16px; right: 16px; justify-content: center; }
 @media(max-height:560px) { .surface :global(.velora-empty) { justify-content:flex-start; } }
 
 .surface :global(.velora-welcome-sync) { display:flex; justify-content:center; margin:8px 0 10px; font-size:11px; line-height:16px; color:var(--tp-slate-500); }
 .surface :global(.velora-welcome-sync > span) { display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:center; }
+
+/* Keep messages comfortably inset while preserving usable card width in the dock. */
+.expanded .surface :global(.velora-messages) {width:100%;max-width:1200px;margin-inline:auto;padding-inline:clamp(28px,4.5vw,64px);}
+.docked .surface :global(.velora-messages) {padding-inline:20px;}
+@media(max-width:767px) {.expanded .surface :global(.velora-messages) {padding-inline:20px;}}

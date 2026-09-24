@@ -1,0 +1,19 @@
+.trigger { display:inline-flex;align-items:center;gap:5px;padding:3px 0;border:0;border-radius:4px;background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:left; }
+.trigger > [data-tp-icon] {flex-shrink:0;}
+.trigger:focus-visible {outline:2px solid var(--tp-blue-500);outline-offset:3px;}
+.tooltip.tooltip {z-index:21000!important;width:320px;max-width:calc(100vw - 24px);padding:16px!important;border:1px solid var(--tp-slate-200);border-radius:12px;background:white!important;color:var(--tp-slate-700)!important;--tp-tooltip-arrow:white!important;--tesseract-slate-0:white;box-shadow:0 8px 28px #20203020;white-space:normal;text-align:left;font:12px/1.5 Inter,sans-serif;}
+.heading {display:block;font-size:14px;color:var(--tp-slate-900);font-weight:700;}
+.identity {margin-bottom:14px;}
+.demographics {margin:3px 0 0;font-size:12px;color:var(--tp-slate-600);font-weight:400;}
+.label {margin:0 0 6px;color:var(--tp-slate-500);font-weight:400;}
+.date {display:flex;align-items:center;gap:8px;padding:0 0 12px;border:0;border-bottom:1px solid var(--tp-slate-200);background:transparent;color:var(--tp-slate-800);font-weight:600;}
+.counts {margin:4px 0 12px;padding-bottom:12px;border-bottom:1px solid var(--tp-slate-200);}
+.counts > div {display:flex;justify-content:space-between;padding:3px 0;}
+.counts dd {margin:0;font-weight:600;}
+.note {display:flex;align-items:flex-start;gap:8px;margin:8px 0 0;color:var(--tp-warning-700);font-weight:500;}
+.note > :first-child {flex-shrink:0;margin-top:1px;}
+
+.dark.dark {background:#17171b!important;color:#f1f1f4!important;--tp-tooltip-arrow:#17171b!important;border-color:#34343e;}
+.dark .heading {color:white;}.dark .demographics {color:#c5c5ce;}.dark .label {color:#c5c5ce;}.dark .note {color:var(--tp-warning-300);}.dark .date {background:transparent;color:#f1f1f4;border-color:#42424d;}.dark .counts {border-color:#42424d;}
+
+.available {margin:12px 0 0;color:var(--tp-slate-500);font-weight:400;}.counts dt {display:inline-flex;align-items:center;gap:8px;}.dark .available {color:#c5c5ce;}

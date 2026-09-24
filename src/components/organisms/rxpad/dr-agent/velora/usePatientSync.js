@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { isLiveTestPatient } from './liveClient';
 import { SYNC_SUMMARY } from './fixtures';
 
-const unknown = { syncedAt: null, prescriptions: null, pathologyReports: null, radiologyReports: null, visits: null };
+const unknown = { syncedAt: null, prescriptions: null, labResults: null, radiologyReports: null, visits: null };
 const requests = new Map();
 export function usePatientSync(patientId) {
   const live = isLiveTestPatient(patientId);

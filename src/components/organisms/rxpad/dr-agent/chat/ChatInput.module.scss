@@ -16,29 +16,29 @@
   border-radius: 6px;
   padding: 3px 5px 3px 6px;
   height: 24px;
-  max-width: 175px;
+  max-width: 240px;
   min-width: 0;
 }
 
 .chipName {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--tp-slate-800, #3d3d4e);
   line-height: 12px;
 }
 
 .chipMeta {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 12px;
 }
 
 .chipMetaText {
-  color: var(--tp-slate-300, #b0b7c3);
+  color: var(--tp-slate-600, #667085);
   font-weight: 400;
 }
 
 .chipMetaDivider {
-  color: var(--tp-slate-200, #d0d5dd);
+  color: var(--tp-slate-400, #98a2b3);
   font-weight: 400;
 }
 

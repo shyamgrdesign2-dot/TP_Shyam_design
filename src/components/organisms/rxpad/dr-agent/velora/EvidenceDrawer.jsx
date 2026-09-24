@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from '@dhspl-tatvacare/tesseract-ui';
 import { CopilotIcon, EvidenceIcon } from './CopilotIcon';
+import { SyncDetails } from './SyncDetails';
+import { evidenceTextParts } from './evidenceText';
 import { EvidenceDocument } from './EvidenceDocument';
 import { DEMO_PATIENT, SYNC_AT } from './fixtures';
 import s from './EvidenceDrawer.module.scss';
@@ -32,7 +34,7 @@ export function EvidenceDrawer({ result, selected, onSelect, onClose }) {
       header={<DrawerHeader showClose={false} className={s.header}>
         <span className={s.headerIcon}><EvidenceIcon size={24} /></span>
         <div className={s.headerText}><div className={s.titleLine}><DrawerTitle className={s.title}>Evidence</DrawerTitle><span className={s.recordCount}>{count} {count === 1 ? 'record' : 'records'}</span></div>
-          <DrawerDescription className={s.description}><CopilotIcon name="clock" variant="linear" size={13} />Last synced {sync ? `${displayDate(sync, true)} IST` : 'date unavailable'}</DrawerDescription>
+          <DrawerDescription className={s.description}><SyncDetails patientName={patient.name} patientAge={patient.age} patientGender={patient.gender} snapshot={{ syncedAt: sync }}>Last synced {sync ? `${displayDate(sync, true)} IST` : 'date unavailable'}</SyncDetails></DrawerDescription>
         </div>
         <DrawerClose className={s.close} aria-label="Close evidence"><CopilotIcon name="close-square" variant="bold" size={22} /></DrawerClose>
       </DrawerHeader>}>
@@ -46,6 +48,10 @@ export function EvidenceDrawer({ result, selected, onSelect, onClose }) {
             <span className={s.disclosure}><CopilotIcon name={active ? 'arrow-short-up' : 'arrow-short-down'} variant="linear" size={16} /></span>
           </button>
           {active && <div id={`record-body-${row.id}`}>
+            <section className={s.sourceSection} aria-label="Evidence Text">
+              <h3>Evidence Text</h3>
+              <p>{row.text ? evidenceTextParts(row.text, row.highlights).map((part, i) => part.highlighted ? <mark key={i}>{part.text}</mark> : <span key={i}>{part.text}</span>) : 'Source text is unavailable for this record.'}</p>
+            </section>
             <EvidenceDocument row={row} patient={patient} live={result.live} />
             <details className={s.details}><summary>Record details<CopilotIcon name="arrow-short-down" variant="linear" size={14} /></summary><dl>{[['Document', row.title], ['Source ID', row.source_ref], ['Record type', row.code], ['Visit ID', row.caseId], ['Source table', row.tableName]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || 'Not provided'}</dd></div>)}</dl></details>
           </div>}

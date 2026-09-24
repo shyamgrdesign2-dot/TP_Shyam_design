@@ -4,6 +4,7 @@ import { useCallback, useState, useEffect, useRef, useId } from "react";
 // KeyboardEvent used for both HTMLInputElement and HTMLTextAreaElement
 import { cn } from "@/src/hooks/utils";
 import styles from "./ChatInput.module.scss";
+import { QuestionDictation } from "../velora/QuestionDictation";
 
 import { SecuritySafe } from "iconsax-reactjs";
 import { AI_GRADIENT } from "../constants";
@@ -258,7 +259,7 @@ function PatientChip({ name, meta, locked, lockedMessage, onClick, onLockedClick
   const age = metaParts[1]?.trim() || "";
 
   return (
-    <div className="relative">
+    <div className="relative inline-flex items-center gap-1">
       <button
         type="button"
         onClick={handleClick}
@@ -321,6 +322,7 @@ function PatientChip({ name, meta, locked, lockedMessage, onClick, onLockedClick
 }
 
 export function ChatInput({
+  dictateRequest,
   value,
   onChange,
   onSend,
@@ -379,6 +381,14 @@ export function ChatInput({
     setIsPaused(false);
   }, []);
 
+  const consumedDictation = useRef(null);
+  useEffect(() => {
+    if (dictateRequest && dictateRequest !== consumedDictation.current && !disabled) {
+      consumedDictation.current = dictateRequest;
+      handleMicClick();
+    }
+  }, [dictateRequest, disabled, handleMicClick]);
+
   const handlePause = useCallback(() => {
     setIsPaused((prev) => !prev);
   }, []);
@@ -419,7 +429,7 @@ export function ChatInput({
         className={cn("pointer-events-none absolute -top-[32px] left-0 right-0 h-[32px]", styles.gradientOverlay)} />
       
       {/* ── Recording mode ── */}
-      {isRecording ?
+      {isRecording && carouselPlaceholder ? <QuestionDictation onCancel={handleDiscard} onKeep={text => { onChange(text); handleDiscard(); }} /> : isRecording ?
       <div className="flex items-center gap-[6px]">
           <div
           className={cn(

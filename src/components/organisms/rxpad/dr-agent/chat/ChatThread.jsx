@@ -73,6 +73,7 @@ export function ChatThread({
       ref={containerRef}
       className={cn(
         "flex flex-col px-[8px] pt-[14px] pb-[12px]",
+        copilotMode && "velora-messages",
         !copilotMode && "bg-gradient-to-b from-[rgba(213,101,234,0.02)] via-white to-[rgba(26,25,148,0.02)]",
         className
       )}>

@@ -19,27 +19,27 @@ function record(id, code, title, eventDate, text, highlight, chips = []) {
 }
 export const RECORDS = [
   record('demo-note', 'consultation', 'Follow-up consultation', '2026-09-22',
-    'Fictional consultation. Type 2 diabetes reviewed. Patient reports taking medication regularly. No hypoglycaemic episodes reported. Repeat HbA1c in three months.',
+    'Type 2 diabetes reviewed. Patient reports taking medication regularly. No hypoglycaemic episodes reported. Repeat HbA1c in three months.',
     'Type 2 diabetes reviewed.', [{ label: 'Record', value: 'Consultation note' }]),
   record('demo-hba1c-sep', 'lab_result', 'HbA1c · September', '2026-09-22',
-    'Fictional laboratory report. HbA1c: 7.2 %. Laboratory reference range: 4.0–5.6 %. Flag: High.', 'HbA1c: 7.2 %.',
+    'HbA1c: 7.2 %. Laboratory reference range: 4.0–5.6 %. Flag: High.', 'HbA1c: 7.2 %.',
     [{ label: 'Reference', value: '4.0–5.6 %' }, { label: 'Recorded flag', value: 'High' }]),
   record('demo-metformin', 'medicine', 'Recorded prescription', '2026-09-22',
-    'Fictional prescription. Metformin 500 mg tablet. Morning: 1; afternoon: 0; evening: 0; night: 1. After meals. Duration: 30 days.', 'Metformin 500 mg tablet.',
+    'Metformin 500 mg tablet. Morning: 1; afternoon: 0; evening: 0; night: 1. After meals. Duration: 30 days.', 'Metformin 500 mg tablet.',
     [{ label: 'Schedule', value: '1-0-0-1' }, { label: 'Duration', value: '30 days' }]),
   record('demo-hba1c-jun', 'lab_result', 'HbA1c · June', '2026-06-18',
-    'Fictional laboratory report. HbA1c: 7.8 %. Laboratory reference range: 4.0–5.6 %. Flag: High.', 'HbA1c: 7.8 %.'),
+    'HbA1c: 7.8 %. Laboratory reference range: 4.0–5.6 %. Flag: High.', 'HbA1c: 7.8 %.'),
   record('demo-hba1c-mar', 'lab_result', 'HbA1c · March', '2026-03-12',
-    'Fictional laboratory report. HbA1c: 8.4 %. Laboratory reference range: 4.0–5.6 %. Flag: High.', 'HbA1c: 8.4 %.'),
+    'HbA1c: 8.4 %. Laboratory reference range: 4.0–5.6 %. Flag: High.', 'HbA1c: 8.4 %.'),
   record('demo-creatinine', 'lab_result', 'Creatinine', '2026-09-22',
-    'Fictional laboratory report. Serum creatinine: 0.9 mg/dL. Laboratory reference range: 0.7–1.3 mg/dL.', 'Serum creatinine: 0.9 mg/dL.',
+    'Serum creatinine: 0.9 mg/dL. Laboratory reference range: 0.7–1.3 mg/dL.', 'Serum creatinine: 0.9 mg/dL.',
     [{ label: 'Reference', value: '0.7–1.3 mg/dL' }]),
 ];
 // Sync coverage describes the same fictional corpus used by the answer cards.
 export const SYNC_SUMMARY = {
   syncedAt: SYNC_AT,
   prescriptions: RECORDS.filter(record => record.code === 'medicine').length,
-  pathologyReports: RECORDS.filter(record => record.code === 'lab_result').length,
+  labResults: RECORDS.filter(record => record.code === 'lab_result').length,
   radiologyReports: RECORDS.filter(record => record.code === 'radiology').length,
   visits: new Set(RECORDS.map(record => record.caseId)).size,
 };
@@ -69,8 +69,8 @@ export function buildPreviewAnswer(question, patientName = DEMO_PATIENT) {
   const refs = kind === 'trend' ? ['demo-hba1c-mar', 'demo-hba1c-jun', 'demo-hba1c-sep']
     : kind === 'medications' ? ['demo-metformin'] : kind === 'labs' ? ['demo-hba1c-sep', 'demo-creatinine']
     : ['conditions', 'advice'].includes(kind) ? ['demo-note'] : ['demo-note', 'demo-hba1c-sep', 'demo-creatinine', 'demo-metformin'];
-  const narrative = kind === 'conditions' ? 'Type 2 diabetes is documented in the latest sample consultation. [1](#evidence-demo-note)' : kind === 'advice' ? 'The sample consultation records advice to repeat HbA1c in three months. [1](#evidence-demo-note)' : kind === 'summary' ? 'Type 2 diabetes was reviewed at the last consultation. The note records regular medication use and no reported hypoglycaemic episodes. [1](#evidence-demo-note)'
-    : kind === 'medications' ? 'One prescription is included in this sample. These are recorded instructions; current use has not been confirmed.'
+  const narrative = kind === 'conditions' ? 'Type 2 diabetes is documented in the latest consultation. [1](#evidence-demo-note)' : kind === 'advice' ? 'The consultation records advice to repeat HbA1c in three months. [1](#evidence-demo-note)' : kind === 'summary' ? 'Type 2 diabetes was reviewed at the last consultation. The note records regular medication use and no reported hypoglycaemic episodes. [1](#evidence-demo-note)'
+    : kind === 'medications' ? 'One prescription is on record. These are recorded instructions; current use has not been confirmed.'
     : kind === 'labs' ? 'Two results were recorded on 22 September. Flags and reference ranges are shown exactly as recorded.'
     : 'Three HbA1c observations are available. Select a plotted value or its citation to inspect the source.';
   const blocks = ['conditions', 'advice'].includes(kind) ? ['narrative'] : kind === 'summary' ? ['narrative', 'measurements', 'prescriptions'] : kind === 'trend' ? ['narrative', 'trend'] : kind === 'labs' ? ['narrative', 'measurements'] : ['narrative', 'prescriptions'];
@@ -86,6 +86,6 @@ export function buildPreviewAnswer(question, patientName = DEMO_PATIENT) {
 
 export function previewReply(question, patientName) {
   const result = buildPreviewAnswer(question, patientName);
-  return result.unsupported ? { text: "This UI preview has sample summaries, medications, conditions, advice, lab results and an HbA1c trend. Try one of those questions." }
-    : { text: ({ summary: "Here is the sample chart overview, with the source for each finding.", medications: "The sample chart contains one prescription from 22 September.", labs: "Here are the two latest recorded results and their laboratory reference ranges.", trend: "HbA1c decreased across the three recorded visits. Each point links to its report.", conditions: "One condition is documented in the sample consultation.", advice: "Here is the follow-up advice recorded at the latest sample visit." })[result.kind], rxOutput: { kind: "chart_answer", data: { preview: result } } };
+  return result.unsupported ? { text: "You can ask for summaries, medications, conditions, advice, lab results and an HbA1c trend. Try one of those questions." }
+    : { text: ({ summary: "Here is the chart overview, with the source for each finding.", medications: "The chart contains one prescription from 22 September.", labs: "Here are the two latest recorded results and their laboratory reference ranges.", trend: "HbA1c decreased across the three recorded visits. Each point links to its report.", conditions: "One condition is documented in the consultation.", advice: "Here is the follow-up advice recorded at the latest visit." })[result.kind], rxOutput: { kind: "chart_answer", data: { preview: result } } };
 }

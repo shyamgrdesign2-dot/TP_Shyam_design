@@ -72,3 +72,12 @@ test('all six sample card variants reference evidence belonging to their own ans
     for (const row of result.evidence) for (const [start, end] of row.highlights) assert(start >= 0 && end > start && end <= Array.from(row.text).length);
   }
 });
+
+test('evidence text highlights preserve Unicode and merge overlapping source ranges', async () => {
+  const { evidenceTextParts } = await import('../src/components/organisms/rxpad/dr-agent/velora/evidenceText.js');
+  const text = 'A 🩺 finding: diabetes.';
+  const parts = evidenceTextParts(text, [[14, 22], [13, 18], [-1, 2], [0, 999]]);
+  assert.equal(parts.map(part => part.text).join(''), text);
+  assert.deepEqual(parts.filter(part => part.highlighted).map(part => part.text), ['diabetes.']);
+  assert.deepEqual(evidenceTextParts('<script>x</script>', []), [{ text: '<script>x</script>', highlighted: false }]);
+});
