@@ -136,7 +136,7 @@ Below Start new chat is the **Recent conversations** list, with its search box (
 ### What is listed
 
 - **Every conversation the doctor has had**, for every patient and every hospital search. There is no time limit. (An earlier version kept 24 hours only; that rule has been removed.)
-- **Newest first.** A conversation moves to the top as soon as it is opened or a question is asked in it, like ChatGPT or Claude.
+- **Newest first when Velora opens, then held still.** When Velora opens, the list is sorted by the latest question, newest at the top. After that, **the order does not change for the rest of the visit**. Clicking a card, or asking a question in it, never moves it, so the doctor never loses track of a card. Only a chat that was not in the list before (a new chat, or a patient opened for the first time this visit) is added at the top. The order is re-sorted the next time Velora is opened. Collapsing and expanding the sidebar keeps it.
 - The list comes from the service (`GET /sessions?offset=`), in pages; older ones load as the doctor scrolls.
 - Conversations the doctor deleted or cleared are left out (see [section 10](#10-clearing-and-deleting)).
 
@@ -158,9 +158,9 @@ Below Start new chat is the **Recent conversations** list, with its search box (
 
 ### Cards that appear before any question
 
-Two kinds of card keep a place in the list even when nothing has been asked yet:
+Some cards keep a place in the list even when nothing has been asked yet:
 
-1. **The open patient.** When a patient's chat is open and empty, their card shows at the top, selected, reading "Ask about Priya". It becomes a real conversation card as soon as a question is asked. If the doctor leaves without asking, it goes away.
+1. **Every patient opened during this visit.** The open patient's empty chat shows as "Ask about Priya", selected. **Any other patient opened during the visit keeps their card until Velora is closed**, even with no question. So a wrong pick in Start new chat costs one click back, not another trip through the picker. The card becomes a real conversation card, in the same place, as soon as a question is asked. After Velora closes, cards with no question are gone.
 2. **The visit's home** (where Velora was opened from, [section 1](#1-what-velora-is-and-where-it-opens)):
    - **Opened from a patient's page:** that patient's card stays in the list for the whole visit, even after the doctor switches to another patient and asks nothing on the home patient. Clicking it switches back to them.
    - **Opened from a common page:** the "All my patients" card stays in the list for the whole visit, even after the doctor starts a chat with a patient from Start new chat.
@@ -175,8 +175,9 @@ Two kinds of card keep a place in the list even when nothing has been asked yet:
 | …then Start new chat → Priya, asks nothing | Priya *(selected)*, All my patients |
 | Opens Velora on Kavita's page, asks nothing | Kavita *(selected)* |
 | …then Start new chat → Sunita, asks nothing | Sunita *(selected)*, Kavita |
-| …clicks Kavita | Kavita *(selected)* (Sunita disappears: no question was asked) |
-| Asks Sunita one question, then goes back to Kavita | Kavita *(selected)*, Sunita *(with its date and time)* |
+| …clicks Kavita | Sunita, Kavita *(selected)* (nothing moves; Sunita stays until Velora closes) |
+| Asks Sunita one question, then goes back to Kavita | Sunita *(with its date and time)*, Kavita *(selected)* |
+| Closes Velora and opens it again on Kavita's page | Sunita *(newest question first)*, Kavita *(selected)* |
 
 ### Search
 
@@ -296,7 +297,9 @@ All destructive actions are in ⋮ menus. Each option says what it does, and the
 
 How it works: the doctor's deletions are remembered in the browser, per doctor (`velora:hidden:{doctor}` for single conversations, `velora:cleared-at:{doctor}` for "clear all"). The list leaves them out from then on, and the open thread is reset. The list refreshes at once, so a cleared patient (for example Ramesh Patel) disappears immediately.
 
-Menus close on Escape or on any click outside them.
+**Undo.** Deleting a conversation is not made at once: a "Conversation deleted (Priya Nair) · Undo" bar shows at the bottom of the sidebar for 6 seconds, and Undo puts the card back exactly where it was. If the doctor does nothing, or closes Velora, the delete goes through.
+
+**Escape** closes only the topmost thing: an open ⋯ menu, then the new-chat sheet, and only then Velora itself. Menus also close on any click outside them.
 
 ---
 

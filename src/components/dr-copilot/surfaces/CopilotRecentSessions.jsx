@@ -47,6 +47,7 @@ const HEADER_CLEARANCE = { sidebar: "pr-[12px]", overlay: "pr-[132px]" }
 const RESTORE_TIMEOUT_MS = 15000
 
 const DAY_MS = 86400000
+const UNDO_MS = 6000
 
 /* ── Time ──────────────────────────────────────────────────────────────────
  *
@@ -237,9 +238,15 @@ function NewChatSheet({ onClose, onStart, existing, onOpenExisting }) {
   const group = useHospitalGroup()
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus({ preventScroll: true })
-    const onKey = (e) => e.key === "Escape" && onClose()
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
+    /* Captured and stopped: Escape closes this sheet only, not Velora. */
+    const onKey = (e) => {
+      if (e.key !== "Escape") return
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
+    }
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
   }, [onClose])
   const q = search.trim()
   const rows = picker.rows || []
@@ -371,14 +378,20 @@ function RowMenu({ label, items, placement = "bottom-[9px] right-[10px]", always
     const onDown = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false)
     }
-    const onKey = (e) => e.key === "Escape" && setOpen(false)
+    /* Captured and stopped: Escape closes this menu only, not Velora. */
+    const onKey = (e) => {
+      if (e.key !== "Escape") return
+      e.preventDefault()
+      e.stopPropagation()
+      setOpen(false)
+    }
     /* Captured: the popup stops mousedown at its own surface, so a bubbling
        listener never heard a click elsewhere in it and the menu stayed open. */
     document.addEventListener("pointerdown", onDown, true)
-    document.addEventListener("keydown", onKey)
+    window.addEventListener("keydown", onKey, true)
     return () => {
       document.removeEventListener("pointerdown", onDown, true)
-      document.removeEventListener("keydown", onKey)
+      window.removeEventListener("keydown", onKey, true)
     }
   }, [open])
   return (
@@ -610,7 +623,7 @@ function SessionRow({ row, group, nowMs, active, pending, failed, locked, onPick
 
 /* ── The list ──────────────────────────────────────────────────────────── */
 
-export default function CopilotRecentSessions({ pinned = null, homeAnchored = false, onOpenPatient, openNewChat = false, onNewChatOpened, onPick, onClose, onStartChat, onDelete, onClearAll, homeRow, current, refreshKey = 0, activeSessionId, variant = "overlay" }) {
+export default function CopilotRecentSessions({ orderRef: orderRefProp, pinned = [], homeAnchored = false, onOpenPatient, openNewChat = false, onNewChatOpened, onPick, onClose, onStartChat, onDelete, onClearAll, homeRow, current, refreshKey = 0, activeSessionId, variant = "overlay" }) {
   const sidebar = variant === "sidebar"
   /* "New chat" opens its own sheet inside the sidebar, over the list. */
   const [newOpen, setNewOpen] = useState(false)
@@ -778,12 +791,44 @@ export default function CopilotRecentSessions({ pinned = null, homeAnchored = fa
   /* Deleted from the row menu: gone from the list at once, while the parent
      forgets the conversation itself. */
   const [removed, setRemoved] = useState(() => new Set())
+  /* A delete waits a few seconds before it is made, with Undo on screen,
+     so a slip on the wrong card costs nothing. Closing Velora commits it. */
+  const [undoRow, setUndoRow] = useState(null)
+  const commitRef = useRef(null)
   const deleteRow = useCallback(
     (row) => {
+      if (commitRef.current) commitRef.current()
       setRemoved((prev) => new Set(prev).add(row.session_id))
-      if (onDelete) onDelete(row)
+      let timer = null
+      const commit = () => {
+        clearTimeout(timer)
+        commitRef.current = null
+        if (mountedRef.current) setUndoRow(null)
+        if (onDelete) onDelete(row)
+      }
+      timer = setTimeout(commit, UNDO_MS)
+      commitRef.current = commit
+      commitRef.timer = timer
+      setUndoRow(row)
     },
     [onDelete]
+  )
+  const undoDelete = useCallback(() => {
+    if (!undoRow) return
+    clearTimeout(commitRef.timer)
+    commitRef.current = null
+    setRemoved((prev) => {
+      const next = new Set(prev)
+      next.delete(undoRow.session_id)
+      return next
+    })
+    setUndoRow(null)
+  }, [undoRow])
+  useEffect(
+    () => () => {
+      if (commitRef.current) commitRef.current()
+    },
+    []
   )
   /* Each patient's conversations, newest first, so
      the new-chat sheet can offer the one that already exists. */
@@ -828,17 +873,67 @@ export default function CopilotRecentSessions({ pinned = null, homeAnchored = fa
     if (has) return visible
     return [...visible, { session_id: "__home__", __home: true, mode: "find_patients", scope: g, preview: homeRow.sub, updated_at: Math.floor((homeRow.updatedAt || 0) / 1000) }]
   }, [visible, sidebar, homeRow, query, current, homeAnchored])
-  /* Patients shown before any question: the open one, then the page's own. */
+  /* Patients shown before any question: the open one and every other
+     patient opened during this visit, in the order they were opened. */
   const provisional = useMemo(() => {
-    const has = (id) => visible.some((r) => r.patient && String(r.patient.patientUid) === String(id))
+    const samePatient = (r, id) => r.patient && String(r.patient.patientUid) === String(id)
+    const has = (id) => visible.some((r) => samePatient(r, id)) || state.rows.some((r) => removed.has(r.session_id) && samePatient(r, id))
     const list = []
-    if (current && !has(current.id)) list.push(current)
-    if (pinned && (!current || String(pinned.id) !== String(current.id)) && !has(pinned.id)) list.push(pinned)
-    return list
-  }, [visible, current, pinned])
+    ;(pinned || []).forEach((p) => {
+      if (!has(p.id) && !list.some((x) => String(x.id) === String(p.id))) list.push(p)
+    })
+    if (current && !has(current.id) && !list.some((x) => String(x.id) === String(current.id))) list.unshift(current)
+    const q = query.trim().toLowerCase()
+    return q ? list.filter((p) => String(p.label || "").toLowerCase().includes(q)) : list
+  }, [visible, current, pinned, query, state.rows, removed])
+  /* The sidebar's order holds still for the whole visit. Opening a card, or
+     asking in it, never moves it; only a chat that was not in the list
+     before (a new chat) takes the top. Velora reopened, the list is sorted
+     newest first again. The order lives in the dock, so collapsing and
+     expanding the sidebar keeps it. */
+  const localOrderRef = useRef(null)
+  const orderRef = orderRefProp || localOrderRef
+  const ordered = useMemo(() => {
+    if (!sidebar) return listed
+    const keyOf = (r) =>
+      r.__prov ? `p:${r.patient.patientUid}` : r.__home ? `h:${r.scope}` : r.session_id
+    const provItems = provisional.map((p) => ({ session_id: `__prov__:${p.id}`, __prov: true, patient: { patientUid: p.id, patientName: p.label } }))
+    const natural = [...provItems, ...listed]
+    if (state.status !== "ready") return natural
+    if (!orderRef.current) {
+      const m = new Map()
+      natural.forEach((r, i) => m.set(keyOf(r), i))
+      orderRef.current = { ranks: m, startedAt: Date.now() }
+      return natural
+    }
+    const { ranks, startedAt } = orderRef.current
+    let min = Math.min(0, ...ranks.values())
+    let max = Math.max(0, ...ranks.values())
+    const fresh = []
+    natural.forEach((r) => {
+      const k = keyOf(r)
+      if (ranks.has(k)) return
+      /* A first question turns a placeholder into a conversation: it keeps
+         the placeholder's place. */
+      const stand = r.patient && r.mode !== "find_patients" ? `p:${r.patient.patientUid}` : r.mode === "find_patients" ? `h:${r.scope === "mine" ? "mine" : "all"}` : null
+      if (stand && ranks.has(stand)) {
+        ranks.set(k, ranks.get(stand))
+        return
+      }
+      fresh.push(r)
+    })
+    /* New this visit goes on top, in the order it arrived; an older page of
+       history loaded by scrolling goes underneath. */
+    const top = fresh.filter((r) => r.__prov || r.__home || (Number(r.updated_at) || 0) * 1000 >= startedAt - 5000)
+    const bottom = fresh.filter((r) => !top.includes(r))
+    top.reverse().forEach((r) => ranks.set(keyOf(r), --min))
+    bottom.forEach((r) => ranks.set(keyOf(r), ++max))
+    return [...natural].sort((a, b) => ranks.get(keyOf(a)) - ranks.get(keyOf(b)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listed, provisional, sidebar, state.status])
   const groups = useMemo(() => {
-    /* One list, newest first, in the sidebar: no day headings. */
-    if (sidebar) return listed.length ? [{ key: "recent", label: "Recent", rows: listed }] : []
+    /* One list in the sidebar, in the visit's held order: no day headings. */
+    if (sidebar) return ordered.length ? [{ key: "recent", label: "Recent", rows: ordered }] : []
     const e = dayEdges(nowMs)
     const byKey = {}
     visible.forEach((row) => {
@@ -846,7 +941,7 @@ export default function CopilotRecentSessions({ pinned = null, homeAnchored = fa
       ;(byKey[key] = byKey[key] || []).push(row)
     })
     return GROUPS.filter((g) => byKey[g.key]).map((g) => ({ ...g, rows: byKey[g.key] }))
-  }, [visible, listed, sidebar, nowMs])
+  }, [visible, ordered, sidebar, nowMs])
 
   /* Fades at the scroll edges say "there is more this way", and only when
      there is. A plain gradient in the column's own colour, never a blur. */
@@ -881,7 +976,7 @@ export default function CopilotRecentSessions({ pinned = null, homeAnchored = fa
   const surface = sidebar ? "bg-tp-slate-100" : "bg-tp-slate-0"
   const fadeFrom = sidebar ? "from-tp-slate-100" : "from-tp-slate-0"
   const ready = state.status === "ready"
-  const count = listed.length
+  const count = ordered.length
   const searching = !!query.trim()
 
   return (
@@ -1048,17 +1143,6 @@ export default function CopilotRecentSessions({ pinned = null, homeAnchored = fa
         </div>
       )}
 
-      {/* Patients with a place in the list before their first question: the
-          one open now (selected), and the patient whose page Velora was
-          opened on, kept so the doctor can switch back to them. Each becomes
-          a real conversation once something is asked. */}
-      {sidebar && !query.trim() && provisional.length > 0 && (
-        <div className="flex shrink-0 flex-col gap-[6px] px-[8px] pt-[6px]">
-          {provisional.map((p) => (
-            <ProvisionalCard key={p.id} patient={p} active={!!current && String(current.id) === String(p.id)} onOpen={onOpenPatient} />
-          ))}
-        </div>
-      )}
 
       <div className="relative min-h-0 flex-1">
         <div
@@ -1126,7 +1210,16 @@ export default function CopilotRecentSessions({ pinned = null, homeAnchored = fa
                     {g.label}
                   </h3>}
                   <ul className="flex flex-col gap-[6px]">
-                    {g.rows.map((row) => (
+                    {g.rows.map((row) =>
+                      row.__prov ? (
+                        <li key={row.session_id}>
+                          <ProvisionalCard
+                            patient={{ id: row.patient.patientUid, label: row.patient.patientName }}
+                            active={!!current && String(current.id) === String(row.patient.patientUid)}
+                            onOpen={onOpenPatient}
+                          />
+                        </li>
+                      ) : (
                       <SessionRow
                         key={row.session_id}
                         row={row}
@@ -1148,7 +1241,8 @@ export default function CopilotRecentSessions({ pinned = null, homeAnchored = fa
                               : undefined
                         }
                       />
-                    ))}
+                      )
+                    )}
                   </ul>
                 </div>
               ))}
@@ -1210,6 +1304,20 @@ export default function CopilotRecentSessions({ pinned = null, homeAnchored = fa
         />
       </div>
 
+      {undoRow && (
+        <div role="status" className="copilot-menu-in mx-[10px] mb-[10px] flex shrink-0 items-center gap-[10px] rounded-[10px] bg-tp-slate-800 py-[8px] pl-[12px] pr-[6px] text-[12px] text-white shadow-[0_10px_24px_-10px_rgba(15,23,42,0.5)]">
+          <span className="min-w-0 flex-1 truncate">
+            Conversation deleted{undoRow.patient && undoRow.patient.patientName ? ` (${undoRow.patient.patientName})` : ""}
+          </span>
+          <button
+            type="button"
+            onClick={undoDelete}
+            className="h-[26px] shrink-0 rounded-[8px] px-[10px] text-[12px] font-semibold text-tp-violet-200 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+          >
+            Undo
+          </button>
+        </div>
+      )}
     </section>
   )
 }

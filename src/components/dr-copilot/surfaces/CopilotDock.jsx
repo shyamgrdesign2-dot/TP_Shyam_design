@@ -339,24 +339,40 @@ export default function CopilotDock() {
       return true;
     }
   });
-  /* Where Velora was opened: a patient's page or the common space. That
-     place keeps its card in the history for the whole visit, even after
-     the chat moves to another patient, so the doctor can switch back. */
-  const [anchor, setAnchor] = useState(null);
+  /* Every chat opened during this visit keeps its card in the history until
+     Velora closes, even if nothing was asked in it: the page Velora was
+     opened on, and any patient or hospital chat the doctor moved to. A
+     wrong pick is then one click back, not a second trip through Start new
+     chat. Newest first by when each was first opened; cleared when Velora
+     closes. */
+  const [visited, setVisited] = useState([]);
+  const [homeVisited, setHomeVisited] = useState(false);
+  /* The sidebar's held order for this visit (see CopilotRecentSessions). */
+  const recentOrderRef = useRef(null);
   useEffect(() => {
     if (!isOpenNow) {
-      setAnchor(null);
+      setVisited([]);
+      setHomeVisited(false);
+      recentOrderRef.current = null;
       return;
     }
-    setAnchor(patientUid ? { id: patientUid, label: (lastPatient && lastPatient.label) || null } : { home: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpenNow]);
-  /* The page patient's name can arrive a moment after opening. */
-  useEffect(() => {
-    if (anchor && anchor.id && !anchor.label && patientUid === anchor.id && lastPatient && lastPatient.label) {
-      setAnchor({ id: anchor.id, label: lastPatient.label });
+    if (patientUid) {
+      const label = (lastPatient && lastPatient.id === patientUid && lastPatient.label) || null;
+      /* Added once, where it first appeared: going back to a patient does
+         not move their card. */
+      setVisited((v) => (v.some((x) => x.id === patientUid) ? v : [{ id: patientUid, label }, ...v]));
+    } else {
+      setHomeVisited(true);
     }
-  }, [anchor, patientUid, lastPatient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpenNow, patientUid]);
+  /* A patient's name can arrive a moment after their chat opens. */
+  const lastLabel = lastPatient && lastPatient.label;
+  useEffect(() => {
+    if (!lastLabel || !lastPatient) return;
+    setVisited((v) => (v.some((x) => x.id === lastPatient.id && !x.label) ? v.map((x) => (x.id === lastPatient.id ? { ...x, label: lastLabel } : x)) : v));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastLabel]);
   /* Every opening starts with the history open; a collapse lasts for that
      visit only. */
   useEffect(() => {
@@ -557,9 +573,11 @@ export default function CopilotDock() {
       } else {
         const uid = String((row.patient && row.patient.patientUid) || "");
         if (uid && (getSession(uid) || {}).sessionId === row.session_id) startFresh(uid, uid);
+        /* Deleted means gone: no "Ask about" card left in its place. */
+        if (uid && uid !== String(patientUid || "")) setVisited((v) => v.filter((x) => String(x.id) !== uid));
       }
     },
-    [startFresh]
+    [startFresh, patientUid]
   );
   const clearThisChat = useCallback(() => {
     const id = (getSession(scopeSessionKey) || {}).sessionId;
@@ -574,8 +592,11 @@ export default function CopilotDock() {
     if (isCopilotMock()) clearMockSessions();
     forgetAllThreads();
     setThreads({ [threadKey]: [] });
+    /* Only the chat on screen keeps a card. */
+    setVisited((v) => v.filter((x) => x.id === patientUid));
+    setHomeVisited(!patientUid);
     setHistoryVersion((v) => v + 1);
-  }, [threadKey]);
+  }, [threadKey, patientUid]);
   const scopeName = patientUid
     ? `${firstNameOf((lastPatient && lastPatient.label) || "") || "this patient"}'s chart`
     : hospitalGroupLabel(group);
@@ -1078,8 +1099,9 @@ export default function CopilotDock() {
               <CopilotRecentSessions
                 variant="sidebar"
                 openNewChat={newChatPending}
-                pinned={anchor && anchor.id && anchor.label ? { id: anchor.id, label: anchor.label } : null}
-                homeAnchored={!!(anchor && anchor.home)}
+                orderRef={recentOrderRef}
+                pinned={visited.filter((x) => x.label)}
+                homeAnchored={homeVisited}
                 onOpenPatient={(p) => openPatientFromResult(p.id, { patientName: p.label })}
                 onNewChatOpened={() => setNewChatPending(false)}
                 onPick={restoreConversation}
