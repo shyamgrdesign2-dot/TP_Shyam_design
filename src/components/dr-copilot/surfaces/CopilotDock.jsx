@@ -339,6 +339,24 @@ export default function CopilotDock() {
       return true;
     }
   });
+  /* Where Velora was opened: a patient's page or the common space. That
+     place keeps its card in the history for the whole visit, even after
+     the chat moves to another patient, so the doctor can switch back. */
+  const [anchor, setAnchor] = useState(null);
+  useEffect(() => {
+    if (!isOpenNow) {
+      setAnchor(null);
+      return;
+    }
+    setAnchor(patientUid ? { id: patientUid, label: (lastPatient && lastPatient.label) || null } : { home: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpenNow]);
+  /* The page patient's name can arrive a moment after opening. */
+  useEffect(() => {
+    if (anchor && anchor.id && !anchor.label && patientUid === anchor.id && lastPatient && lastPatient.label) {
+      setAnchor({ id: anchor.id, label: lastPatient.label });
+    }
+  }, [anchor, patientUid, lastPatient]);
   /* Every opening starts with the history open; a collapse lasts for that
      visit only. */
   useEffect(() => {
@@ -1060,6 +1078,9 @@ export default function CopilotDock() {
               <CopilotRecentSessions
                 variant="sidebar"
                 openNewChat={newChatPending}
+                pinned={anchor && anchor.id && anchor.label ? { id: anchor.id, label: anchor.label } : null}
+                homeAnchored={!!(anchor && anchor.home)}
+                onOpenPatient={(p) => openPatientFromResult(p.id, { patientName: p.label })}
                 onNewChatOpened={() => setNewChatPending(false)}
                 onPick={restoreConversation}
                 onClose={() => setRecentOpen(false)}

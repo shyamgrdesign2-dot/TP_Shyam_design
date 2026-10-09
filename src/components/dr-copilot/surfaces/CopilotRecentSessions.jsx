@@ -467,6 +467,45 @@ function RowMenu({ label, items, placement = "bottom-[9px] right-[10px]", always
   )
 }
 
+/* A patient's card before their first question. The open one is selected;
+   another (the page Velora was opened on) switches back to that patient. */
+function ProvisionalCard({ patient, active, onOpen }) {
+  const first = String(patient.label || "").trim().split(/\s+/)[0] || "this patient"
+  const body = (
+    <span className="flex w-full items-start gap-[12px] px-[12px] pb-[10px] pt-[11px]">
+      <span
+        className={[
+          "mt-[1px] flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[10px]",
+          active ? "bg-tp-blue-100 text-tp-blue-600" : "bg-tp-slate-100 text-tp-slate-500",
+        ].join(" ")}
+      >
+        <CopilotIcon asset="users/user" variant="bulk" size={15} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
+        <span className={`truncate text-[13px] font-semibold leading-[18px] ${active ? "text-tp-blue-700" : "text-tp-slate-800"}`}>{patient.label}</span>
+        <span className="truncate text-[12.5px] leading-[17px] text-tp-slate-600">Ask about {first}</span>
+      </span>
+    </span>
+  )
+  if (active) {
+    return (
+      <div className="flex w-full flex-col overflow-hidden rounded-[12px] border-[1px] border-tp-blue-200 bg-tp-blue-50" aria-current="true">
+        {body}
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen && onOpen(patient)}
+      title={`Switch to ${patient.label}'s chat`}
+      className="flex w-full flex-col overflow-hidden rounded-[12px] border-[1px] border-tp-slate-200 bg-white text-left transition-colors hover:border-tp-slate-300 hover:bg-tp-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500"
+    >
+      {body}
+    </button>
+  )
+}
+
 /* ── Row ───────────────────────────────────────────────────────────────── */
 
 function SessionRow({ row, group, nowMs, active, pending, failed, locked, onPick, onDelete, sidebar = false }) {
@@ -571,7 +610,7 @@ function SessionRow({ row, group, nowMs, active, pending, failed, locked, onPick
 
 /* ── The list ──────────────────────────────────────────────────────────── */
 
-export default function CopilotRecentSessions({ openNewChat = false, onNewChatOpened, onPick, onClose, onStartChat, onDelete, onClearAll, homeRow, current, refreshKey = 0, activeSessionId, variant = "overlay" }) {
+export default function CopilotRecentSessions({ pinned = null, homeAnchored = false, onOpenPatient, openNewChat = false, onNewChatOpened, onPick, onClose, onStartChat, onDelete, onClearAll, homeRow, current, refreshKey = 0, activeSessionId, variant = "overlay" }) {
   const sidebar = variant === "sidebar"
   /* "New chat" opens its own sheet inside the sidebar, over the list. */
   const [newOpen, setNewOpen] = useState(false)
@@ -783,12 +822,20 @@ export default function CopilotRecentSessions({ openNewChat = false, onNewChatOp
   const listed = useMemo(() => {
     /* In a patient's chat that patient's card is the default; the empty
        hospital chat is offered only when the hospital chat is open. */
-    if (!sidebar || !homeRow || query.trim() || current) return visible
+    if (!sidebar || !homeRow || query.trim() || (current && !homeAnchored)) return visible
     const g = homeRow.mine ? "mine" : "all"
     const has = visible.some((r) => r.mode === "find_patients" && (r.scope === "mine" ? "mine" : "all") === g)
     if (has) return visible
     return [...visible, { session_id: "__home__", __home: true, mode: "find_patients", scope: g, preview: homeRow.sub, updated_at: Math.floor((homeRow.updatedAt || 0) / 1000) }]
-  }, [visible, sidebar, homeRow, query, current])
+  }, [visible, sidebar, homeRow, query, current, homeAnchored])
+  /* Patients shown before any question: the open one, then the page's own. */
+  const provisional = useMemo(() => {
+    const has = (id) => visible.some((r) => r.patient && String(r.patient.patientUid) === String(id))
+    const list = []
+    if (current && !has(current.id)) list.push(current)
+    if (pinned && (!current || String(pinned.id) !== String(current.id)) && !has(pinned.id)) list.push(pinned)
+    return list
+  }, [visible, current, pinned])
   const groups = useMemo(() => {
     /* One list, newest first, in the sidebar: no day headings. */
     if (sidebar) return listed.length ? [{ key: "recent", label: "Recent", rows: listed }] : []
@@ -1001,25 +1048,15 @@ export default function CopilotRecentSessions({ openNewChat = false, onNewChatOp
         </div>
       )}
 
-      {/* The patient open right now, before their first question: a place in
-          the list already, so the doctor sees where this chat will live. It
-          becomes their real conversation once they ask something, and is
-          gone if they leave without asking. */}
-      {sidebar && current && !query.trim() && !visible.some((r) => r.patient && String(r.patient.patientUid) === String(current.id)) && (
-        <div className="shrink-0 px-[8px] pt-[6px]">
-          <div className="flex w-full flex-col overflow-hidden rounded-[12px] border-[1px] border-tp-blue-200 bg-tp-blue-50" aria-current="true">
-            <span className="flex w-full items-start gap-[12px] px-[12px] pb-[10px] pt-[11px]">
-              <span className="mt-[1px] flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[10px] bg-tp-blue-100 text-tp-blue-600">
-                <CopilotIcon asset="users/user" variant="bulk" size={15} />
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                <span className="truncate text-[13px] font-semibold leading-[18px] text-tp-blue-700">{current.label}</span>
-                <span className="truncate text-[12.5px] leading-[17px] text-tp-slate-600">
-                  Ask about {String(current.label || "").trim().split(/\s+/)[0] || "this patient"}
-                </span>
-              </span>
-            </span>
-          </div>
+      {/* Patients with a place in the list before their first question: the
+          one open now (selected), and the patient whose page Velora was
+          opened on, kept so the doctor can switch back to them. Each becomes
+          a real conversation once something is asked. */}
+      {sidebar && !query.trim() && provisional.length > 0 && (
+        <div className="flex shrink-0 flex-col gap-[6px] px-[8px] pt-[6px]">
+          {provisional.map((p) => (
+            <ProvisionalCard key={p.id} patient={p} active={!!current && String(current.id) === String(p.id)} onOpen={onOpenPatient} />
+          ))}
         </div>
       )}
 
@@ -1055,7 +1092,7 @@ export default function CopilotRecentSessions({ openNewChat = false, onNewChatOp
             </StatePanel>
           )}
 
-          {ready && !count && !searching && sidebar && !current && (
+          {ready && !count && !searching && sidebar && !provisional.length && (
             <p className="m-0 px-[22px] py-[10px] text-[12.5px] leading-[18px] text-tp-slate-500">
               Chats with patients appear here as you start them.
             </p>
