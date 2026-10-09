@@ -1,0 +1,225 @@
+@use "../styles/tp-tokens" as tp;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  background-color: rgba(0, 0, 0, 0.4);
+
+  &[data-state="open"] {
+    animation: fadeIn 0.2s ease-out;
+  }
+  &[data-state="closed"] {
+    animation: fadeOut 0.2s ease-in;
+  }
+}
+
+.content {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 11000;
+  width: 480px;
+  max-width: 94vw;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border-radius: 14px;
+  background-color: #fff;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.15);
+
+  &[data-state="open"] {
+    animation: zoomIn 0.2s ease-out;
+  }
+  &[data-state="closed"] {
+    animation: zoomOut 0.2s ease-in;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.title {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp-slate-900);
+}
+
+.closeBtn {
+  display: inline-flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background-color: var(--tp-slate-900);
+  color: #fff;
+  transition: background-color 0.2s;
+  border: none !important;
+
+  &:hover {
+    background-color: var(--tp-slate-700);
+  }
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--tp-slate-100);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+}
+
+.warningCallout {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  border-radius: 10px;
+  background-color: var(--tp-warning-50);
+  padding: 14px 16px;
+}
+
+.warningIcon {
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: var(--tp-warning-500);
+}
+
+.warningText {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--tp-slate-700);
+}
+
+.description {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--tp-slate-600);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  border-top: 1px solid var(--tp-slate-100);
+  padding: 14px 20px;
+}
+
+.primaryBtn {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: none !important;
+
+  &.primary {
+    background-color: var(--tp-blue-600);
+    color: #fff;
+    &:hover { background-color: var(--tp-blue-700); }
+  }
+
+  &.destructive {
+    background-color: var(--tp-error-600);
+    color: #fff;
+    &:hover { background-color: var(--tp-error-700); }
+  }
+
+  &.success {
+    background-color: var(--tp-success-600);
+    color: #fff;
+    &:hover { background-color: var(--tp-success-700); }
+  }
+
+  &.warning {
+    background-color: var(--tp-warning-600);
+    color: #fff;
+    &:hover { background-color: var(--tp-warning-700); }
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.secondaryBtnMuted {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--tp-slate-200);
+  background-color: #fff;
+  padding: 0 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tp-slate-700);
+  transition: all 0.2s;
+  border: none !important;
+
+  &:hover {
+    background-color: var(--tp-slate-50);
+  }
+}
+
+.secondaryBtnLink {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background-color: transparent;
+  padding: 0 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #dc2626;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+  transition: color 0.2s;
+  border: none !important;
+
+  &:hover {
+    color: var(--tp-blue-700);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes zoomIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes zoomOut {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+}

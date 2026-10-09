@@ -1,0 +1,196 @@
+# TEMPORARY — measurement rig for docs/build-time-optimisation-plan.md §7.1, §7.2, §9.1.
+# Same shape as the §11 step-3 run (32186452054), which measured the babel cache.
+#
+# Every variant builds the SAME tree back to back on the SAME runner, with variant A as
+# an in-run control. That matters: the build step varies ±100s from runner contention,
+# so cross-run comparisons are noise at this scale, while within-run deltas against A
+# are meaningful. A still needs confirming across three runs before anything ships.
+#
+# Cannot deploy: no ACR login, no image push, no Container App update. Runs
+# `npx craco build`, not `npm run build`, so Sentry is never touched.
+
+name: Measure build variants (temporary)
+
+on:
+  push:
+    branches:
+      - perf/build-accelerators-uat
+  workflow_dispatch:
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+
+    env:
+      REACT_APP_ENV: prod
+      GENERATE_SOURCEMAP: 'false'
+      PUBLIC_URL: https://assets.tatvacare.in/
+      NODE_OPTIONS: --max-old-space-size=8192
+      DISABLE_ESLINT_PLUGIN: 'true'
+      # Actions sets CI=true, which makes CRA treat warnings as errors. The Dockerfile
+      # sets CI=false; match it or the build fails on pre-existing warnings.
+      CI: 'false'
+      # Fixed so cache.version (md5 of env.raw) is stable across variants.
+      REACT_APP_SENTRY_RELEASE: pm-doctor-portal@0.0.0+aaaaaaa
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost "${AGENT_TOOLSDIRECTORY:-/nonexistent}" || true
+          df -h /
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Comparable to run 32186452054's 134s, which was the same command before §6.1
+      # removed three packages and before sass-embedded + esbuild-loader were added.
+      # The delta is therefore net of both changes, not the §6.1 saving alone.
+      - name: npm install (timed)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          set -euo pipefail
+          start=$(date +%s)
+          npm install --legacy-peer-deps
+          echo "INSTALL_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      # package.json changed (§6.1 removals + two new devDeps) but package-lock.json was
+      # not regenerated: doing that locally needs a GitHub Packages token for the private
+      # @dhspl-tatvacare scope. Nothing in CI uses `npm ci` — the Dockerfile and both
+      # measurement workflows use `npm install --legacy-peer-deps`, which reconciles the
+      # lockfile itself — so this is not load-bearing today. It becomes load-bearing under
+      # §8, which proposes `npm ci`. The install above has already rewritten the lockfile
+      # correctly; this publishes it so it can be committed without a local token.
+      - name: Upload the reconciled package-lock.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
+          if-no-files-found: error
+
+      # Not project dependencies — see craco.config.js. Installed here only so the
+      # variants that need them can run, and --no-save so package.json stays clean.
+      - name: Install the measurement-only packages
+        run: |
+          set -euo pipefail
+          npm install --no-save --legacy-peer-deps sass-embedded esbuild-loader
+
+      - name: Variant A — baseline (control)
+        run: |
+          set -euo pipefail
+          rm -rf node_modules/.cache
+          start=$(date +%s)
+          npx craco build
+          {
+            echo "A_SECONDS=$(( $(date +%s) - start ))"
+            echo "A_BUILD_MB=$(du -sm build | cut -f1)"
+            echo "A_JS_MB=$(du -sm build/static/js | cut -f1)"
+          } >> "$GITHUB_ENV"
+
+      - name: Variant B — sass-embedded (§7.1)
+        env:
+          USE_SASS_EMBEDDED: '1'
+        run: |
+          set -euo pipefail
+          rm -rf node_modules/.cache
+          start=$(date +%s)
+          npx craco build
+          {
+            echo "B_SECONDS=$(( $(date +%s) - start ))"
+            echo "B_BUILD_MB=$(du -sm build | cut -f1)"
+          } >> "$GITHUB_ENV"
+
+      - name: Variant C — esbuild minifier (§7.2)
+        env:
+          USE_ESBUILD_MINIFY: '1'
+        run: |
+          set -euo pipefail
+          rm -rf node_modules/.cache
+          start=$(date +%s)
+          npx craco build
+          {
+            echo "C_SECONDS=$(( $(date +%s) - start ))"
+            echo "C_BUILD_MB=$(du -sm build | cut -f1)"
+            echo "C_JS_MB=$(du -sm build/static/js | cut -f1)"
+          } >> "$GITHUB_ENV"
+
+      - name: Variant D — sass-embedded + esbuild
+        env:
+          USE_SASS_EMBEDDED: '1'
+          USE_ESBUILD_MINIFY: '1'
+        run: |
+          set -euo pipefail
+          rm -rf node_modules/.cache
+          start=$(date +%s)
+          npx craco build
+          {
+            echo "D_SECONDS=$(( $(date +%s) - start ))"
+            echo "D_BUILD_MB=$(du -sm build | cut -f1)"
+          } >> "$GITHUB_ENV"
+
+      # E writes the pack cache that has never existed here; F is the payoff. If E's
+      # cache lands over ~1 GB, §9.1 dies for the §5 reason regardless of how fast F is.
+      - name: Variant E — persist webpack cache, cold (§9.1)
+        env:
+          PERSIST_WEBPACK_CACHE: '1'
+        run: |
+          set -euo pipefail
+          rm -rf node_modules/.cache
+          start=$(date +%s)
+          npx craco build
+          echo "E_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+          echo "--- cache written by variant E ---"
+          du -sh node_modules/.cache || true
+          du -sh node_modules/.cache/* || true
+          echo "E_CACHE_MB=$(du -sm node_modules/.cache | cut -f1)" >> "$GITHUB_ENV"
+          df -h /
+
+      - name: Variant F — persist webpack cache, warm (§9.1)
+        env:
+          PERSIST_WEBPACK_CACHE: '1'
+        run: |
+          set -euo pipefail
+          echo "// build-variant measurement touch $(date +%s)" >> src/index.js
+          start=$(date +%s)
+          npx craco build
+          echo "F_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+          du -sh node_modules/.cache || true
+          echo "F_CACHE_MB=$(du -sm node_modules/.cache | cut -f1)" >> "$GITHUB_ENV"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Build variant measurement"
+            echo ""
+            echo "All variants, same runner, same tree. Baseline for the babel-cache work was"
+            echo "354s cold / 234s warm in run 32186452054."
+            echo ""
+            echo "| Variant | Seconds | vs A | build/ MB |"
+            echo "|---|---:|---:|---:|"
+            echo "| A — baseline (control) | ${A_SECONDS:-n/a} | — | ${A_BUILD_MB:-n/a} |"
+            echo "| B — sass-embedded | ${B_SECONDS:-n/a} | $(( ${B_SECONDS:-0} - ${A_SECONDS:-0} )) | ${B_BUILD_MB:-n/a} |"
+            echo "| C — esbuild minify | ${C_SECONDS:-n/a} | $(( ${C_SECONDS:-0} - ${A_SECONDS:-0} )) | ${C_BUILD_MB:-n/a} |"
+            echo "| D — B + C | ${D_SECONDS:-n/a} | $(( ${D_SECONDS:-0} - ${A_SECONDS:-0} )) | ${D_BUILD_MB:-n/a} |"
+            echo "| E — pack cache, cold | ${E_SECONDS:-n/a} | $(( ${E_SECONDS:-0} - ${A_SECONDS:-0} )) | — |"
+            echo "| F — pack cache, warm | ${F_SECONDS:-n/a} | $(( ${F_SECONDS:-0} - ${A_SECONDS:-0} )) | — |"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---:|"
+            echo "| npm install | ${INSTALL_SECONDS:-n/a}s (was 134s before §6.1 + 2 new devDeps) |"
+            echo "| JS output, Terser (A) | ${A_JS_MB:-n/a} MB |"
+            echo "| JS output, esbuild (C) | ${C_JS_MB:-n/a} MB |"
+            echo "| node_modules/.cache after E | ${E_CACHE_MB:-n/a} MB |"
+            echo "| node_modules/.cache after F | ${F_CACHE_MB:-n/a} MB |"
+            echo ""
+            echo "§9.1 kill threshold: pack cache over ~1 GB means do not ship it (plan §5)."
+            echo "esbuild output size differing much from Terser is a correctness signal, not a win."
+          } >> "$GITHUB_STEP_SUMMARY"

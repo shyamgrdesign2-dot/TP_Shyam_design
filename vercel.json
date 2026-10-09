@@ -1,0 +1,12 @@
+{
+  "framework": "create-react-app",
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "CI=false DISABLE_ESLINT_PLUGIN=true NODE_OPTIONS=--max-old-space-size=7168 npx craco build",
+  "outputDirectory": "build",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

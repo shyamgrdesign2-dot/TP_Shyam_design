@@ -1,0 +1,581 @@
+/* The typeable Chart Search field. Plain CSS module: it renders inside the
+   app's own pages, outside #dr-copilot-root. */
+
+@property --copilot-field-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: true;
+}
+
+.wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  /* The stroke at rest: one quiet pink-violet, the whole way round. The beam
+     is the only thing that moves over it. */
+  --copilot-stroke-base: rgba(190, 140, 205, 0.5);
+}
+
+/* The stroke is a real border, painted by a gradient.
+   
+   A masked ::before ring cannot hold an even thickness round a corner: the
+   mask's inner rectangle keeps the outer radius, so the ring pinches where the
+   curve is tightest. That is what made the corners look thin and the whole box
+   look unfinished. Two background layers clipped differently do it properly -
+   the white fills the padding box, the gradient fills the border box, and the
+   border is exactly as thick as it is declared to be, corners included. */
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 42px;
+  padding: 0 6px 0 14px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  overflow: hidden;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    conic-gradient(
+        from var(--copilot-field-angle),
+        var(--copilot-stroke-base) 0deg,
+        var(--copilot-stroke-base) 22deg,
+        #e39ad8 42deg,
+        #d565ea 58deg,
+        #8b5cf6 74deg,
+        var(--copilot-stroke-base) 96deg,
+        var(--copilot-stroke-base) 360deg
+      )
+      border-box;
+  transition: box-shadow 180ms ease;
+  animation: copilotFieldSpin 4.5s linear infinite;
+}
+
+/* The same rotating wash the welcome cards carry. The image lives in /public,
+   which a CSS module cannot resolve, so the layer is a real element and the
+   url is set inline - see the component. Kept faint: it marks this box as the
+   way into Copilot without ever competing with the placeholder. */
+.wash {
+  position: absolute;
+  /* Inside the border, not over it. */
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.06;
+}
+
+/* Only the in-flow children need lifting above the wash. `.ghost` is already
+   absolutely positioned and must stay that way - a blanket `position:
+   relative` here dropped it into the flow beside the spark and collapsed the
+   rolling window, which is what stopped the carousel. */
+.spark,
+.input,
+.mic,
+.liveDot,
+.liveTime,
+.wave,
+.liveCancel,
+.liveAsk,
+.quietTitle,
+.quietScope {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes copilotFieldSpin {
+  to {
+    --copilot-field-angle: 360deg;
+  }
+}
+
+.field:focus-within {
+  box-shadow: 0 0 18px 1px rgba(103, 58, 172, 0.16);
+}
+
+/* A single sheen crossing the bar when it takes focus: enough to say the
+   control woke up, gone before it can become a distraction. */
+.field::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 10px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(139, 92, 246, 0.1) 46%,
+    rgba(255, 255, 255, 0.7) 52%,
+    rgba(139, 92, 246, 0.1) 58%,
+    transparent 74%
+  );
+  background-size: 220% 100%;
+  background-position: 130% 0;
+}
+
+.field:focus-within::after {
+  animation: copilotSheen 900ms cubic-bezier(0.33, 0, 0.2, 1) 1 forwards;
+}
+
+@keyframes copilotSheen {
+  0% {
+    opacity: 0;
+    background-position: 130% 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    background-position: -40% 0;
+  }
+}
+
+/* Still, at full strength, no glow: the spark is the brand mark and only
+   moves while an answer is loading in the chat. A drop shadow and a fade
+   were what made it read as blurred. */
+.spark {
+  flex-shrink: 0;
+  display: block;
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 13.5px;
+  color: var(--tp-slate-800, #29293a);
+}
+
+/* ── Rolling placeholder ──────────────────────────────────────────────────
+   Drawn on top of an empty input rather than set as its placeholder, because
+   a placeholder attribute cannot animate. Never takes the pointer, so a click
+   anywhere along the bar still lands in the input. */
+
+.ghost {
+  position: absolute;
+  z-index: 1;
+  left: 44px;
+  right: 46px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  pointer-events: none;
+  font-size: 13.5px;
+  /* One tone for the whole invitation, in a soft pink-violet: the lead and
+     the rolling tail are one sentence, and colouring them apart made the
+     placeholder read as two things. Kept low-alpha so it never competes with
+     what the doctor types. */
+  color: rgba(166, 106, 196, 0.62);
+  white-space: nowrap;
+}
+
+/* Neutral and light, so it reads as a placeholder and never as typed text;
+   set here because the app colours bare spans in ink. The name is the one
+   heavier word. */
+.ghostLead {
+  flex-shrink: 0;
+  color: var(--tp-slate-400, #A2A2A8);
+}
+
+.ghostName {
+  font-weight: 600;
+  color: var(--tp-slate-500, #717179);
+}
+
+/* A one-line window the phrases slide through. */
+.roll {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 19px;
+  overflow: hidden;
+}
+
+.rollIn,
+.rollOut {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  line-height: 19px;
+  color: rgba(166, 106, 196, 0.62);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rollIn {
+  animation: copilotRollIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.rollOut {
+  animation: copilotRollOut 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes copilotRollIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes copilotRollOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+.mic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #673aac;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.mic:hover {
+  background: rgba(103, 58, 172, 0.09);
+}
+
+/* ── Dictation ────────────────────────────────────────────────────────────
+   The field becomes the recorder rather than handing off to a separate voice
+   screen: same box, same place on the page, so there is nothing to travel to
+   and come back from. */
+
+.fieldLive {
+  padding-left: 12px;
+  background: linear-gradient(180deg, rgba(103, 58, 172, 0.05) 0%, #fff 70%);
+}
+
+.liveDot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e11d48;
+  box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.45);
+  animation: copilotPulse 1.5s ease-out infinite;
+}
+
+@keyframes copilotPulse {
+  70% {
+    box-shadow: 0 0 0 6px rgba(225, 29, 72, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0);
+  }
+}
+
+.liveTime {
+  flex-shrink: 0;
+  min-width: 34px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tp-slate-700, #454551);
+}
+
+/* Overrides the shared waveform's own 44px block sizing so it sits inside a
+   42px bar. The component takes a className for exactly this. */
+.wave {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 26px !important;
+  height: 30px !important;
+  padding: 0 !important;
+}
+
+.liveCancel,
+.liveAsk {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 120ms ease, transform 100ms ease;
+}
+
+.liveCancel {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tp-slate-500, #6b6b76);
+}
+
+.liveCancel:hover {
+  background: var(--tp-slate-100, #f1f1f5);
+  color: var(--tp-slate-800, #29293a);
+}
+
+.liveAsk {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #673aac 0%, #1a1994 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px -4px rgba(26, 25, 148, 0.5);
+}
+
+.liveAsk:active {
+  transform: scale(0.94);
+}
+
+.livePanel {
+  padding: 14px 16px 12px;
+}
+
+.liveLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: #e11d48;
+}
+
+.liveText {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--tp-slate-800, #29293a);
+}
+
+.liveIdle {
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+/* ── Suggestions dropdown ─────────────────────────────────────────────────── */
+
+.panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  padding: 0;
+  border: 1px solid var(--tp-slate-100, #f1f1f5);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(23, 23, 37, 0.16);
+  overflow: hidden;
+  animation: copilotPanelIn 140ms ease-out;
+}
+
+@keyframes copilotPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px 8px;
+}
+
+.panelLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+/* Names whose chart is about to be searched. Answers are scoped to one
+   patient, and saying so up front is cheaper than correcting it after. */
+.panelScope {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(103, 58, 172, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+  color: #673aac;
+  white-space: nowrap;
+}
+
+.rows {
+  margin: 0;
+  padding: 0 6px 6px;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.rowActive {
+  background: rgba(103, 58, 172, 0.06);
+}
+
+.rowGlyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: rgba(103, 58, 172, 0.08);
+  color: #673aac;
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rowLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tp-slate-800, #29293a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowHint {
+  font-size: 11px;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+/* Only shows on the row under the cursor, so the list stays quiet at rest. */
+.rowGo {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: #673aac;
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.rowActive .rowGo,
+.row:hover .rowGo {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.panelFoot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px 10px;
+  border-top: 1px solid var(--tp-slate-100, #f1f1f5);
+  background: var(--tp-slate-50, #f8fafc);
+  font-size: 11px;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field,
+  .field::after,
+  .spark,
+  .panel,
+  .rollIn,
+  .rollOut,
+  .liveDot {
+    animation: none;
+  }
+}
+
+/* Offered when the microphone was refused: the doctor can grant it from the
+   address bar and pick the gesture back up without starting over. */
+.retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #673aac;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Quiet state ──────────────────────────────────────────────────────────
+   The panel is open below, so this bar stops asking for input and becomes its
+   heading: same box, no ring, no cursor, naming what is open underneath. */
+
+.fieldQuiet {
+  border-color: var(--tp-slate-100, #f1f1f5);
+  background: var(--tp-slate-50, #f8fafc);
+  animation: none;
+  cursor: default;
+}
+
+.fieldQuiet::after {
+  display: none;
+}
+
+.fieldQuiet .spark {
+  opacity: 0.7;
+}
+
+.quietTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--tp-slate-500, #6b6b76);
+}
+
+.quietScope {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(103, 58, 172, 0.07);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #7c5aa8;
+}

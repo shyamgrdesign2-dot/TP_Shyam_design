@@ -1,0 +1,302 @@
+/* Tokens only. This card sits inside the legacy prescription pad, so it is
+   scoped tightly and never reaches outside its own root. */
+
+/* Mark column, then panel. Mirrors the Differential Diagnosis block this
+   replaces, so the pad does not change shape depending on which AI produced
+   the answer. */
+.shell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-3);
+  margin: var(--tesseract-space-4) 0;
+  font-family: var(--tesseract-font-body);
+}
+/* Just the agent mark, no frame. The dark violet square behind it read as a
+   heavy stroke around the logo. */
+.markCol {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--tesseract-space-10);
+  height: var(--tesseract-space-10);
+}
+
+.root {
+  --ink: var(--tesseract-fg-heading);
+  --ink2: var(--tesseract-fg-primary);
+  --ink3: var(--tesseract-fg-tertiary);
+  --violet: var(--tesseract-violet-700);
+
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-4);
+  border-radius: var(--tesseract-radius-12);
+  /* The agent's violet wash, where DDx wears the Apex indigo. Same shape,
+     different voice. Matched to the pre-run Correlation Agent card so the
+     section reads as one card across every state. */
+  background: linear-gradient(
+    180deg,
+    var(--tesseract-violet-50) 0%,
+    var(--tesseract-bg-surface) 46%
+  );
+}
+/* The Tesseract bordered-card stroke: opaque at top and bottom, faded across
+   the middle of each side. Same recipe as the pre-run card. */
+.root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tesseract-violet-500) 30%, transparent) 0%,
+    color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) 50%,
+    color-mix(in srgb, var(--tesseract-violet-500) 30%, transparent) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+/* Keep card content above the stroke pseudo-element. */
+.head,
+.chips,
+.groups,
+.foot {
+  position: relative;
+  z-index: 1;
+}
+/* The gradient BETA badge label would be flattened by the app's global span
+   repaint; hold it white. */
+.title :global([data-variant="gradient"]) span {
+  color: #ffffff !important;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-3);
+}
+.mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--tesseract-space-8);
+  height: var(--tesseract-space-8);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--tesseract-violet-900);
+}
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-0-5);
+  min-width: 0;
+}
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-body);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+.sub {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--ink3);
+}
+
+/* One chip per claim. The strength meter sits under the label rather than
+   beside it, so a long diagnosis name never squeezes the thing that says how
+   much to trust it. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2);
+}
+.chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--tesseract-space-1-5);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-violet-300);
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-bg-surface);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+/* The chip carries its own confidence colour, matching the chart. */
+.chip[data-tone="strong"] { border-color: var(--tesseract-success-300); }
+.chip[data-tone="medium"] { border-color: var(--tesseract-amber-300); }
+.chip[data-tone="low"] { border-color: var(--tesseract-error-300); }
+/* Hover is the doctor's own interaction, so it takes the product blue, never
+   the agent violet. */
+.chip:hover {
+  border-color: var(--tesseract-blue-500);
+}
+.info {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.infoGlyph {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  background-color: var(--tesseract-fg-tertiary);
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/info-circle.svg");
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/info-circle.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+.info:hover .infoGlyph {
+  background-color: var(--tesseract-blue-600);
+}
+/* The footer link is a link now, not an outline button competing with the
+   chips it sits under. */
+.foot [data-variant="link"] span {
+  color: var(--tesseract-blue-600) !important;
+}
+
+.collapse {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: var(--tesseract-space-8);
+  height: var(--tesseract-space-8);
+  border: 0;
+  border-radius: var(--tesseract-radius-full);
+  background: none;
+  cursor: pointer;
+}
+.collapse:hover { background: var(--tesseract-blue-50); }
+.chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--tesseract-fg-tertiary);
+  border-bottom: 2px solid var(--tesseract-fg-tertiary);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 140ms ease;
+}
+.chevron[data-open] {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+.chip:focus-visible {
+  outline: 2px solid var(--tesseract-blue-500);
+  outline-offset: 2px;
+}
+/* Already on the prescription: still readable, no longer a target. */
+.chip[data-on] {
+  border-color: var(--tesseract-border-soft);
+  background: var(--tesseract-slate-50);
+  cursor: default;
+}
+.chip[data-on] .chipLabel {
+  color: var(--ink3);
+  text-decoration: line-through;
+}
+/* The label takes the confidence colour too, so the chip says how much to
+   trust it whether you read the text or the meter. Violet here would have said
+   "the agent wrote this", which the card header already says. */
+.chipLabel {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--chip-ink, var(--violet));
+}
+.chip[data-tone="strong"] { --chip-ink: var(--tesseract-fg-success); }
+.chip[data-tone="medium"] { --chip-ink: var(--tesseract-fg-warning); }
+.chip[data-tone="low"] { --chip-ink: var(--tesseract-fg-error); }
+.chip[data-tone="strong"] .chipLabel { color: var(--tesseract-fg-success) !important; }
+.chip[data-tone="medium"] .chipLabel { color: var(--tesseract-fg-warning) !important; }
+.chip[data-tone="low"] .chipLabel { color: var(--tesseract-fg-error) !important; }
+
+/* The evidence scale, matched to the agent's own: green strong, blue moderate,
+   amber thin. Filled steps only, no ghosts behind them. */
+/* Same traffic light as the chart: green Strong, amber Medium, red Low. */
+.meter {
+  display: flex;
+  gap: var(--tesseract-space-1);
+  --meter-ink: var(--tesseract-fg-error);
+}
+.meter[data-tone="strong"] {
+  --meter-ink: var(--tesseract-fg-success);
+}
+.meter[data-tone="medium"] {
+  --meter-ink: var(--tesseract-fg-warning);
+}
+.bar {
+  width: var(--tesseract-space-3);
+  height: var(--tesseract-space-1);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--meter-ink);
+}
+.chip[data-on] .bar {
+  background: var(--tesseract-slate-300);
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: var(--tesseract-space-3);
+  border-top: 1px solid var(--tesseract-border-soft);
+}
+/* Post-run actions: View correlation carries the agent gradient; Create new is
+   the quieter outline beside it, with a plus. */
+.footActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+.viewCta {
+  background: var(--tesseract-gradient-ai-hero) !important;
+  border-color: transparent !important;
+}
+.viewCta span {
+  color: var(--tesseract-fg-inverse, #ffffff) !important;
+}
+.newCta span {
+  color: var(--tesseract-fg-heading, #1e2233) !important;
+}
+
+/* Tests, grouped under the diagnosis that earned them. */
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+/* The caption carries the diagnosis's own confidence colour on a left rule, so
+   a test suggested by a Low diagnosis never reads as firmly as one suggested
+   by a Strong one. */
+.groupCap {
+  margin: 0;
+  padding-left: var(--tesseract-space-2);
+  border-left: 2px solid var(--cap-ink, var(--tesseract-border-soft));
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--ink3);
+}
+.groupCap strong {
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--cap-ink, var(--ink2));
+}
+.groupCap[data-tone="strong"] { --cap-ink: var(--tesseract-fg-success); }
+.groupCap[data-tone="medium"] { --cap-ink: var(--tesseract-fg-warning); }
+.groupCap[data-tone="low"] { --cap-ink: var(--tesseract-fg-error); }

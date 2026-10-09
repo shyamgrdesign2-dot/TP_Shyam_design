@@ -1,0 +1,289 @@
+/* body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+} */
+
+/* Prefer Poppins; fall back to system stack for fast first paint */
+body {
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Styles for the onboarding drawer blur effect */
+body.drawer-open-blur {
+  overflow: hidden;
+}
+
+body.drawer-open-blur #root > *:not(.ant-drawer-root) {
+  filter: blur(5px);
+  transition: filter 0.3s ease;
+  pointer-events: none;
+  user-select: none;
+}
+
+
+/* Style the onboarding drawer */
+.onboarding-drawer .ant-drawer-content-wrapper {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+}
+
+.onboarding-drawer .ant-drawer-content {
+  border-radius: 16px 0 0 16px !important;
+  overflow: hidden !important;
+}
+
+/* Make sure the onboarding drawer is in front of the blur overlay */
+.onboarding-drawer {
+  z-index: 1001 !important;
+}
+
+/* Styles for the final setup page */
+.final-setup-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  background-image: url('https://pmdoctorportal.tatvacare.in/tp-assets/assets/images/blur-bg.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Default styling for other drawers */
+.ant-drawer-mask {
+  background-color: rgba(0, 0, 0, 0.45) !important; /* Ant Design default */
+}
+
+/* Mobile styles for the onboarding drawer */
+@media (max-width: 768px) {
+  /* Override Ant Design drawer styles at mobile breakpoint */
+  .onboarding-drawer.ant-drawer-bottom .ant-drawer-content-wrapper {
+    width: 100% !important;
+    height: 93% !important;
+    border-radius: 24px 24px 0 0 !important;
+    overflow: hidden !important;
+  }
+  
+  .onboarding-drawer.ant-drawer-bottom .ant-drawer-content {
+    height: 100% !important;
+    border-radius: 24px 24px 0 0 !important;
+    box-shadow: 0px -4px 25px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Apply to all child containers to ensure border radius propagation */
+  .onboarding-drawer.ant-drawer-bottom *:not(.ant-drawer-mask) {
+    border-top-left-radius: 24px !important;
+    border-top-right-radius: 24px !important;
+  }
+  
+  .onboarding-drawer.ant-drawer-bottom .ant-drawer-wrapper-body {
+    border-radius: 24px 24px 0 0 !important;
+    overflow: hidden !important;
+  }
+  
+  .onboarding-drawer.ant-drawer-bottom .ant-drawer-body {
+    padding: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Force the rounded corners on the panel element */
+  .onboarding-drawer .ant-drawer-content,
+  .onboarding-drawer .ant-drawer-panel,
+  .onboarding-drawer .ant-drawer-wrap,
+  .onboarding-drawer .ant-drawer-content-wrapper > div,
+  .onboarding-drawer .ant-drawer-content-wrapper > div > div {
+    border-radius: 24px 24px 0 0 !important;
+  }
+}
+
+/* Global button style overrides for document verification popup */
+
+/* Attachment drawer styles */
+.attach-drawer .ant-drawer-content {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.attach-drawer .ant-drawer-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.attach-drawer .ant-drawer-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #111827;
+}
+
+.attach-drawer .ant-drawer-body {
+  padding: 0 16px 16px;
+}
+
+.attach-drawer .ant-drawer-close {
+  padding: 16px;
+}
+
+.attach-drawer .ant-drawer-content-wrapper {
+  box-shadow: 0px -4px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+.app-version-tag {
+  position: fixed;
+  bottom: 4px;
+  left: 12px;
+  font-size: 10px;
+  color: #DCDCDC !important;
+  z-index: 9999;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Build version pinned to the bottom-right of the profile dropdown.
+   Injected via the Dropdown's dropdownRender (see src/common/Header.js), so it sits
+   inside the overlay but outside the menu and never intercepts the Log Out click. */
+.prfile-dropdown-inner {
+  position: relative;
+}
+
+.prfile-dropdown .app-version-badge {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  color: #C4C4C4;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Tesseract InputBox draws a status glyph inside the field on every non-default
+   state. The red border and the message below already say it, and on a narrow
+   field the glyph eats the room the value needs. Suppressed app-wide so error
+   states read the same everywhere. */
+[class*="_statusIcon_"] {
+  display: none !important;
+}
+
+/* Same reasoning one line down: the helper row under a field repeats the
+   state as a leading glyph. The red border and the sentence already carry
+   it, so the sentence stands on its own. */
+[class*="_footer_"] [data-tp-icon^="danger"],
+[class*="_footer_"] [data-tp-icon^="tick-circle"],
+[class*="_footer_"] [data-tp-icon^="info-circle"],
+[class*="_helper"] > [data-tp-icon] {
+  display: none !important;
+}
+
+/* One placeholder everywhere. A real input's ::placeholder renders at regular
+   weight; the design system paints its dropdown and date-trigger placeholders
+   at medium, so an empty dropdown read heavier than the empty input beside
+   it. Same tone, same weight, same size, whatever kind of control it is. */
+html[data-tp-theme] [class*="_placeholder_"] {
+  font-weight: var(--tesseract-weight-regular) !important;
+  font-size: var(--tesseract-text-body-sm) !important;
+  color: var(--tesseract-slate-400) !important;
+}
+
+/* Left-edge scroll cue for every Tesseract DataTable in the app.
+   The design system already paints the RIGHT edge, but only against a sticky
+   column — which our tables have (the Action column), so that side is left
+   to the system. Nothing owns the left edge, so a table scrolled away from
+   its first column gave no sign there was more to the left. Same gradient,
+   same trigger (data-overflow-left on the scroller), sitting above the rows
+   and below the sticky header. */
+[class*="_scrollerWrap_"] {
+  position: relative;
+}
+
+[class*="_scrollerWrap_"]:has(> [data-overflow-left="true"])::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--tesseract-size-18);
+  z-index: 15;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--tesseract-slate-900) 12%, transparent),
+    transparent
+  );
+}
+
+/* Design-system title headings (drawer headers, section-card headers, and the
+   like) are meant to carry no margin of their own, but a global base rule
+   (antd's h1..h6 { margin-bottom: 0.5em }) lands ~7px under each one, so every
+   such title reads as top-aligned inside its row and the space below looks like
+   stray padding. Clear it wherever a heading carries a DS `_title_` class so
+   these headers all centre. */
+h1[class*="_title_"],
+h2[class*="_title_"],
+h3[class*="_title_"],
+h4[class*="_title_"],
+h5[class*="_title_"],
+h6[class*="_title_"] {
+  margin: 0 !important;
+}
+
+/* Dropdown and split-button menus appear instantly, not sliding into place.
+   A global `transition: all` (from the host app's legacy CSS) lands on the menu
+   panel AND every option inside it, so when the menu is positioned on open the
+   panel and its rows animate their move — reading as a slide in from the side.
+   Menus are a pointer-driven surface; they should simply be there the instant
+   they open. Kill both transition and animation on the panel and its contents:
+   an option's hover tint losing its ~0.1s fade is a fair trade for a menu that
+   never slides. */
+[id^="dd-"],
+[id^="dd-"] *,
+[class*="_menu_w3xuh"],
+[class*="_menu_w3xuh"] * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Drawers on iOS: the design system sizes side drawers to 100vh, which on iOS
+   Safari is taller than the visible screen, so focusing an input scrolls the
+   whole page behind the drawer instead of the drawer's own body. dvh is the
+   real visible height; and overscroll-behavior keeps a touch scroll inside the
+   drawer body rather than chaining to the page. Desktop is unaffected (dvh==vh). */
+[class*="_content_1gxkz"][data-side="right"],
+[class*="_content_1gxkz"][data-side="left"] {
+  height: 100dvh !important;
+}
+
+[class*="_content_1gxkz"] [class*="_body_1gxkz"] {
+  overscroll-behavior: contain;
+}
+
+/* Date-picker quick-select: the chosen preset ("Today", "Past 7 days") reads
+   as a soft-selected chip — a light blue wash with the primary blue text —
+   rather than the heavy solid-blue fill the design system ships, which sat far
+   too dark against the plain list of the other options. The popover is
+   portaled to the body, so this override lives here rather than in a module. */
+[class*="_preset_"][data-selected="true"] {
+  background-color: var(--tesseract-blue-50) !important;
+  color: var(--tesseract-blue-700) !important;
+  font-weight: var(--tesseract-weight-medium) !important;
+}

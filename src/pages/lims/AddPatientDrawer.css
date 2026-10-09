@@ -1,0 +1,39 @@
+.lims-add-patient-drawer .ant-drawer-body {
+  padding: 0;
+  font-family: "Inter", sans-serif;
+  color: #171725;
+  overflow: auto;
+}
+.lims-add-patient-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+  border-bottom: 1px solid #ececf2;
+}
+.lims-add-patient-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.lims-add-patient-back {
+  border: 0;
+  background: transparent;
+  color: #44444f;
+}
+.lims-add-patient-divider {
+  width: 1px;
+  height: 24px;
+  background: #ececf2;
+}
+.lims-add-patient-body {
+  padding: 0;
+  background: #f1f1f5;
+  flex: 1;
+}

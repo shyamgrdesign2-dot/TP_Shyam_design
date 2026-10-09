@@ -1,0 +1,627 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--tesseract-font-body);
+}
+
+/* The mode switch leads the drawer and spans it, so the choice reads as a
+   switch over the whole form rather than one field among many. */
+.modeSwitch {
+  --tesseract-sc-radius: var(--tesseract-radius-8);
+}
+
+
+/* Two facts, two rows, each shaped like the form's own fields in their
+   disabled state: the filled slate ground says "read only" on its own, so
+   no stroke is needed to box them in. They line up with the controls below
+   instead of sitting apart from them. */
+.summaryBand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--tesseract-size-42);
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-slate-50);
+}
+
+/* The label is a size down from the value it introduces, so its line box is
+   shorter and centring the two boxes left their baselines a pixel apart:
+   "Currently booked for" sat visibly high against the time. Pinned to the
+   value's line height so all three items in the row share one metric and the
+   glyph, the label and the time sit on the same line. */
+.summaryLabel {
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: 400;
+  line-height: 21px;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.summaryRow > [data-tp-icon] {
+  align-self: center;
+}
+
+/* Hard radius contract for every control rendered inside this form:
+   radius-10 outer shells (DS dropdown triggers, segmented track, inputs),
+   radius-8 for nested segmented items/indicator. No DS default may drift. */
+.form [class*="_trigger_"],
+.form [role="radiogroup"],
+.form .results {
+  border-radius: var(--tesseract-radius-10) !important;
+}
+
+/* The patient row is a card stating a fact, not a control, so it takes the
+   softer 12px the info card below the picker uses rather than the 10px
+   contract the fields run on. */
+.form .patientPicked {
+  border-radius: var(--tesseract-radius-12) !important;
+}
+
+.form [role="radiogroup"] [class*="_item_"],
+.form [role="radiogroup"] [class*="_indicator_"] {
+  border-radius: var(--tesseract-radius-8) !important;
+}
+
+/* Read-only facts, not headings: medium is enough to hold them against the
+   label beside them without shouting. The line height is the row's shared
+   metric, matched by .summaryLabel above. */
+.summaryText {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 500;
+  line-height: 21px;
+  color: var(--tesseract-fg-primary);
+}
+
+/* Hairline rule between the time and its date, matching every other divider
+   on the page. */
+.summaryDivider {
+  display: inline-block;
+  vertical-align: middle;
+  width: 1px;
+  height: 12px;
+  margin: 0 10px;
+  background: var(--tesseract-slate-300);
+  font-size: 0;
+  color: transparent;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.fieldRow {
+  display: flex;
+  gap: 12px;
+}
+
+.fieldLabel {
+  margin: 0;
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: 500;
+  color: var(--tesseract-fg-primary);
+}
+
+.required {
+  color: var(--tesseract-error-500);
+}
+
+/* ── Sectioned slot picker (day-part tabs + time grid) ── */
+.slotPicker {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-bg-surface);
+  overflow: hidden;
+}
+
+/* The day-part tabs are the design system's Tabs; only the rule under them
+   is ours. They sit on the same white as the slot grid below: a tinted band
+   made the picker read as two stacked cards instead of one control. */
+.partTabs {
+  border-bottom: 1px solid var(--tesseract-slate-200);
+  background: var(--tesseract-slate-0);
+}
+
+.partTabs [role="tablist"] {
+  border-bottom: none;
+  padding: 0 6px;
+}
+
+.partTabs [role="tab"] {
+  font-weight: 400;
+}
+
+.partTabs [role="tab"][data-state="active"] {
+  font-weight: 600;
+}
+
+.slotBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+/* The chosen time, restated as its own card under the picker. It sits
+   outside the picker's box on purpose: inside, it read as one more line of
+   the control's chrome, and up beside the slot count it disappeared into the
+   day-part tab band. Blue, because it is confirming the blue chip above it,
+   and full width so it reads as the picker's outcome rather than a tag stuck
+   to one corner. */
+.slotChosen {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  /* No stroke: the tinted ground is enough to lift it off the white form,
+     and an outline around a one-line note read as another field. */
+  border: none;
+  border-radius: var(--tesseract-radius-12);
+  /* Violet, not blue: blue is the slot language on this screen (dashed
+     bookable blocks, the chosen chip), and a blue card underneath them read
+     as another slot rather than as a statement about one. Violet is the
+     page's own accent and keeps this as commentary. At 55% of violet-50 the
+     tint was barely there against white, so it reads a step down the ramp. */
+  background: color-mix(in srgb, var(--tesseract-violet-100) 60%, var(--tesseract-slate-0));
+  font-size: var(--tesseract-text-body-sm);
+  line-height: 1.5;
+  color: var(--tesseract-fg-primary);
+}
+
+.slotChosen > [data-tp-icon] {
+  margin-top: 2px;
+}
+
+.slotChosen strong {
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-violet-700);
+}
+
+.slotCount {
+  margin: 0;
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* Placeholder tiles while the day's availability is in flight, so the grid
+   keeps its height instead of collapsing and jumping back. */
+.slotSkeleton {
+  height: 34px;
+  border-radius: var(--tesseract-radius-8);
+  background: linear-gradient(
+    90deg,
+    var(--tesseract-slate-50) 25%,
+    var(--tesseract-slate-100) 37%,
+    var(--tesseract-slate-50) 63%
+  );
+  background-size: 400% 100%;
+  animation: slotChipShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes slotChipShimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slotSkeleton {
+    animation: none;
+  }
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 190px;
+  overflow: auto;
+}
+
+/* Wrapper that absorbs the design system's active-tab icon clone, so the
+   glyph inside keeps the cut it was given. Draws nothing itself. */
+.partIcon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.slotChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border: 1px dashed var(--tesseract-blue-300);
+  border-radius: var(--tesseract-radius-8);
+  background: color-mix(in srgb, var(--tesseract-blue-50) 55%, var(--tesseract-slate-0));
+  font-family: var(--tesseract-font-body) !important;
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: 500;
+  color: var(--tesseract-blue-700);
+  cursor: pointer;
+  transition: border-color 150ms, background-color 150ms;
+}
+
+.slotChip:hover:not([data-selected]) {
+  border-color: var(--tesseract-blue-400);
+  background: var(--tesseract-blue-50);
+}
+
+/* The tick is a masked span painted with currentcolor, so what has to be
+   fixed is `color`, not `background-color`: this drawer portals outside the
+   page's host-isolation layer, where the legacy global claims bare spans at
+   #454551, and currentcolor faithfully resolved to that, putting a dark tick
+   on a solid blue chip. Inheriting the chip's own ink is the fix. */
+.slotChip [data-tp-icon] {
+  color: inherit !important;
+}
+
+.slotChip[data-selected] {
+  border-style: solid;
+  background: var(--tesseract-blue-500);
+  border-color: var(--tesseract-blue-500);
+  color: var(--tesseract-on-dark);
+  font-weight: 600;
+}
+
+/* Slots that are on the day but not on offer. They stay legible, because
+   their job is to show the shape of the day, but every affordance is
+   withdrawn: solid faint edge instead of the dashed "open" outline, muted
+   ink, no hover, no pointer. Past time goes one shade further than taken
+   time, since it can never come back. */
+.slotChip[data-taken],
+.slotChip[data-gone] {
+  border-style: solid;
+  border-color: var(--tesseract-slate-200);
+  background: var(--tesseract-slate-50);
+  color: var(--tesseract-fg-tertiary);
+  cursor: not-allowed;
+}
+
+.slotChip[data-gone] {
+  background: none;
+  border-color: var(--tesseract-slate-100);
+  color: var(--tesseract-fg-placeholder);
+}
+
+.slotChip[data-taken]:hover,
+.slotChip[data-gone]:hover {
+  border-color: var(--tesseract-slate-200);
+  background: var(--tesseract-slate-50);
+}
+
+.slotChip[data-gone]:hover {
+  background: none;
+  border-color: var(--tesseract-slate-100);
+}
+
+/* The appointment's existing time, when the doctor has moved off it: marked
+   so they can always find their way back to it. Only while it is still open,
+   though: an appointment at 2:30 seen at 4:11 is in the past, and painting it
+   in the bookable blue offered a slot that cannot be taken. */
+.slotChip[data-original]:not(:disabled) {
+  border-style: dashed;
+  border-color: var(--tesseract-blue-300);
+  color: var(--tesseract-blue-600);
+}
+
+/* Inline warning: leading info glyph, warning tone, wraps cleanly. */
+.fieldWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.4;
+  color: var(--tesseract-warning-700);
+}
+
+.fieldHint {
+  margin: 0;
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.4;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.modeLocked {
+  pointer-events: none;
+}
+
+.fieldWarning > span[aria-hidden] {
+  margin-top: 2px;
+}
+
+/* Keep the DS dropdown triggers on the light surface (no grey texture). */
+.form [class*="_trigger_"] {
+  background: var(--tesseract-bg-surface);
+}
+
+/* One control height for the whole form. The design system's medium size is
+   42px, which the input and the dropdown both take, but the date picker's
+   trigger is built on size-40 — a 2px difference that shows the moment they
+   sit in one column. Borders come down to a matching 1px. */
+.form [id^="tp-drp-trigger"] {
+  height: var(--tesseract-size-42);
+}
+
+.form [id^="tp-drp-trigger"],
+.form [aria-haspopup="listbox"],
+.form [class*="_fieldRow_"] {
+  border-width: 1px;
+}
+
+/* A remark is free text, and the field should say so before anything is
+   typed. autoGrow sizes the textarea to its content, which starts at one
+   line and reads as a single-line input; a floor of four lines gives it the
+   shape of somewhere to write. It still grows with the text, and scrolls
+   once it reaches the maxHeight the component sets. */
+.form [class*="_textarea_"] {
+  min-height: 96px;
+}
+
+.form [class*="_fieldRow_"]:has([class*="_textarea_"]) {
+  height: auto;
+  align-items: flex-start;
+}
+
+/* Patient search */
+.searchWrap {
+  position: relative;
+}
+
+/* The leading glyph belongs to the placeholder, not to the value: it takes
+   the same tone, so an empty field reads as one grey unit. */
+.searchWrap [class*="_iconLeft_"] {
+  color: var(--tesseract-slate-400);
+}
+
+/* Placeholder text inside the DS dropdown triggers stays the light
+   placeholder tone (slate-400), matching input placeholders. */
+.form [class*="_placeholder_"] {
+  color: var(--tesseract-slate-400) !important;
+}
+
+
+/* Floating results: overlays the fields below instead of pushing them. */
+.results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-bg-surface);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--tesseract-slate-900) 10%, transparent);
+}
+
+.resultsHint {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-slate-400);
+}
+
+.resultRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.resultRow:hover {
+  background: var(--tesseract-slate-50);
+}
+
+.resultName {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 500;
+  color: var(--tesseract-fg-heading);
+}
+
+.resultGenderAge {
+  margin-left: 6px;
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 500;
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* "Add New Patient" = sticky footer of the results panel: suggestions
+   scroll behind it, the action never moves. */
+.addPatientRow {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  flex-shrink: 0;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 12px;
+  border: none;
+  border-top: 1px solid var(--tesseract-slate-100);
+  background: var(--tesseract-bg-surface);
+  font-family: var(--tesseract-font-body) !important;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 500;
+  color: var(--tesseract-blue-500);
+  cursor: pointer;
+  text-align: left;
+}
+
+.addPatientRow:hover {
+  background: var(--tesseract-blue-50);
+}
+
+/* The whole row is an action, so all of it is blue. The host globals repaint
+   span/div ink dark and win on source order, so the colour is asserted on
+   the row's own children rather than left to inherit from the button. */
+.addPatientRow span,
+.addPatientRow strong {
+  color: var(--tesseract-blue-500) !important;
+}
+
+/* What the doctor actually typed, carried into the action so the row reads
+   as the next step for their words rather than a generic escape hatch. */
+.addPatientRow .addPatientQuery {
+  font-weight: 600;
+  color: var(--tesseract-blue-700) !important;
+}
+
+/* Subtle hairline between the contact number and the patient ID, matching
+   every other divider on the page. */
+.resultMetaDivider {
+  display: inline-block;
+  vertical-align: middle;
+  width: 1px;
+  height: 10px;
+  margin: 0 8px;
+  background: var(--tesseract-slate-200);
+}
+
+.resultMeta {
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-secondary);
+}
+
+/* Selected patient — the answered state of the search field, not a new
+   component. Same 42px shell, same radius, same hairline: only the contents
+   change, from "type here" to the three facts that identify the patient. */
+.patientPicked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-bg-surface);
+  overflow: hidden;
+}
+
+.patientFact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.patientDivider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  background: var(--tesseract-slate-200);
+}
+
+/* The name, the number and the ID are three parts of one answer, so they are
+   set alike: same size, same weight, same ink. Weighting the name made the
+   row read as a heading with two footnotes rather than as one identity. */
+.patientName {
+  margin: 0;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 500;
+  color: var(--tesseract-fg-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.patientMeta {
+  margin: 0;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 500;
+  color: var(--tesseract-fg-primary);
+  white-space: nowrap;
+}
+
+/* Change sits at the far end so it never crowds the identity. */
+.patientPicked .patientClear {
+  margin-left: auto;
+}
+
+.patientClear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: 600;
+  color: var(--tesseract-blue-600);
+  cursor: pointer;
+}
+
+
+
+/* The CTA while the form is still short of something. It reads as not-yet
+   rather than as broken: pressing it is what tells you what is missing, so it
+   must not look inert. */
+.bookCta[data-incomplete] {
+  opacity: 0.55;
+}
+
+.bookCta[data-incomplete]:hover {
+  opacity: 0.78;
+}
+
+/* Date + slot picker + the "moving to" line: one answer, one stack. The
+   heading sits above the group, not above each control, so the two read as
+   halves of the same question. */
+.whenGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The locked patient in a reschedule is a field that cannot be edited, so it
+   is drawn as one: the design system's disabled input shell rather than a
+   bespoke grey strip. Same height, same radius, same border and ground as
+   the Visit Type dropdown directly beneath it, and the same muted ink, so
+   the row states "this is fixed" in the form's own vocabulary. */
+.patientPicked[data-locked] {
+  min-height: var(--tesseract-size-42);
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-12) !important;
+  background: var(--tesseract-slate-50);
+  cursor: not-allowed;
+}
+
+.patientPicked[data-locked] .patientName,
+.patientPicked[data-locked] .patientMeta {
+  color: var(--tesseract-fg-tertiary);
+}
+
+.patientPicked[data-locked] [data-tp-icon] {
+  background-color: var(--tesseract-slate-400) !important;
+}

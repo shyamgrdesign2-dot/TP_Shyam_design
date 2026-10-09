@@ -1,0 +1,396 @@
+/* Chart Search. Plain CSS module: this renders inside the app's own pages,
+   outside #dr-copilot-root, so the copilot Tailwind build never reaches it. */
+
+.root {
+  width: 100%;
+}
+
+/* ── Search box ───────────────────────────────────────────────────────────── */
+
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 52px;
+  padding: 0 8px 0 16px;
+  border: 1.5px solid var(--tp-slate-200, #e2e2ea);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(23, 23, 37, 0.04);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.searchWrap:focus-within {
+  border-color: rgba(103, 58, 172, 0.45);
+  box-shadow: 0 0 0 3px rgba(103, 58, 172, 0.1);
+}
+
+.searchIcon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+.searchInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: var(--tp-slate-800, #29293a);
+}
+
+.searchInput::placeholder {
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+.scopeChip {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: var(--tp-slate-100, #f1f1f5);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tp-slate-600, #545460);
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.askBtn {
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #d565ea 0%, #673aac 55%, #1a1994 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.askBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── Starter prompts ──────────────────────────────────────────────────────── */
+
+.prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.promptChip {
+  padding: 7px 12px;
+  border: 1px solid var(--tp-slate-100, #f1f1f5);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12.5px;
+  color: var(--tp-slate-700, #454551);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.promptChip:hover {
+  border-color: rgba(103, 58, 172, 0.3);
+  color: #673aac;
+}
+
+/* ── Progress + errors ────────────────────────────────────────────────────── */
+
+.stages {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 11.5px;
+  color: var(--tp-slate-500, #717179);
+}
+
+.stage {
+  text-transform: capitalize;
+}
+
+.error {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(200, 16, 46, 0.2);
+  border-radius: 10px;
+  background: rgba(200, 16, 46, 0.05);
+  font-size: 13px;
+  color: #c8102e;
+}
+
+/* ── Answer ───────────────────────────────────────────────────────────────── */
+
+.answerCard {
+  margin-top: 18px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--tp-slate-100, #f1f1f5);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.scopeBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--tp-slate-50, #f8fafc);
+  font-size: 11.5px;
+  color: var(--tp-slate-500, #717179);
+}
+
+.answerLabel {
+  margin: 14px 0 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+.answerBody {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--tp-slate-800, #29293a);
+}
+
+.segment {
+  margin: 0 0 8px;
+}
+
+/* The citation marker is the whole point of the answer: it is what turns a
+   sentence into something the doctor can check. */
+.cite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  margin-left: 2px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: rgba(103, 58, 172, 0.1);
+  color: #673aac;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-decoration: none;
+  vertical-align: 2px;
+}
+
+.cite:hover {
+  background: rgba(103, 58, 172, 0.2);
+}
+
+/* ── Evidence ─────────────────────────────────────────────────────────────── */
+
+.evidenceLabel {
+  margin: 20px 0 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+.noEvidence {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--tp-slate-50, #f8fafc);
+  font-size: 13px;
+  color: var(--tp-slate-500, #717179);
+}
+
+.evidence {
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--tp-slate-100, #f1f1f5);
+  border-radius: 12px;
+  background: var(--tp-slate-50, #f8fafc);
+  scroll-margin-top: 90px;
+}
+
+.evidence:target {
+  border-color: rgba(103, 58, 172, 0.4);
+  background: #fff;
+}
+
+.evidenceHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.evidenceNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #673aac;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.evidenceTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--tp-slate-800, #29293a);
+}
+
+.evidenceMeta {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--tp-slate-500, #717179);
+}
+
+.valueRow {
+  display: flex;
+  gap: 22px;
+  margin-top: 10px;
+}
+
+.valueCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.valueLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+.valueNum {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--tp-slate-800, #29293a);
+}
+
+/* ── Source ───────────────────────────────────────────────────────────────── */
+
+.sourceToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #673aac;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sourceSystem {
+  font-weight: 400;
+  color: var(--tp-slate-400, #a2a2a8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sourceBody {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--tp-slate-200, #e2e2ea);
+}
+
+.sourceGrid {
+  display: grid;
+  grid-template-columns: 108px 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.sourceKey {
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+.sourceVal {
+  margin: 0;
+  color: var(--tp-slate-700, #454551);
+  overflow-wrap: anywhere;
+}
+
+.raw {
+  margin: 10px 0 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: #171725;
+  color: #d0d5dd;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* ── Token gate ───────────────────────────────────────────────────────────── */
+
+.tokenGate {
+  padding: 18px;
+  border: 1px solid var(--tp-slate-100, #f1f1f5);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.tokenTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tp-slate-800, #29293a);
+}
+
+.tokenHint {
+  margin: 6px 0 12px;
+  font-size: 13px;
+  color: var(--tp-slate-500, #717179);
+}
+
+.tokenRow {
+  display: flex;
+  gap: 8px;
+}
+
+.tokenInput {
+  flex: 1 1 auto;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--tp-slate-200, #e2e2ea);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.tokenSave {
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #673aac;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tokenSave:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

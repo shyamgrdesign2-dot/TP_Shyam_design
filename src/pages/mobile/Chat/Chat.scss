@@ -1,0 +1,47 @@
+.mobile-chat-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #fff;
+}
+
+.mobile-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f4;
+  flex-shrink: 0;
+
+  .mobile-chat-back {
+    border: none;
+    background: transparent;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+
+    img {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .mobile-chat-title {
+    font-family: "Poppins", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #1c1c28;
+  }
+}
+
+.mobile-chat-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 64px;
+}
+
+.mobile-chat-thread-body {
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}

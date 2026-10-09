@@ -1,0 +1,430 @@
+/* Presentation chrome for Dr. Copilot.
+ *
+ * Plain CSS module rather than Tailwind: these rules position the panel in the
+ * page and must work regardless of the module's scoped utility build. The
+ * panel's own interior is Tailwind, emitted under #dr-copilot-root. */
+
+/* ── Docked to the right edge ─────────────────────────────────────────────── */
+
+/* One width, named once: the rail uses it and the page subtracts it. The
+   floor is set by content, not taste - below 384px the four starter chips
+   stop fitting two to a line and the welcome screen grows a four-line
+   ladder. The ceiling is the panel's own max-width. */
+:global(:root) {
+  --copilot-dock-w: clamp(384px, 26vw, 400px);
+}
+
+/* The dock takes width from the page rather than lying on top of it.
+   Overlaid, it read as a modal that happened to be shaped like a rail - the
+   page behind it was still full-width and half of it was covered. Squeezed,
+   it reads as a second column of the same screen, which is what VoiceRx does
+   and what it is. Full height for the same reason: a rail that starts 62px
+   down is a panel floating in the corner. */
+:global(body.copilot-docked) :global(#root) {
+  padding-right: var(--copilot-dock-w);
+  transition: padding-right 180ms ease;
+}
+
+.dock {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--copilot-dock-w);
+  /* Above the app's own fixed headers. The consultation header sits at
+     1001 and other chrome climbs to 19999, so Copilot - which is a surface
+     over the whole page, not a peer of the header - has to clear them or it
+     comes up behind the bar it was opened from. */
+  z-index: 20050;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  /* A stroke, no lift. The rail takes width from the page rather than lying
+     on it, and a drop shadow on a column that is flush with its neighbour is
+     the page telling two different stories about the same edge. */
+  border-left: 1px solid var(--tp-slate-100, #f1f1f5);
+  animation: copilot-slide-in 180ms ease-out;
+}
+
+@keyframes copilot-slide-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ── Dropdown hanging off the search field ────────────────────────────────── */
+
+/* Not a scrim at all. In the dropdown the panel is the suggestion list grown
+   up into a conversation - the same surface, in the same place - so the page
+   behind it is left exactly as it was. This layer exists only to catch the
+   click that closes it. Dimming is what the expanded view is for. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  /* Above the app's own fixed headers. The consultation header sits at
+     1001 and other chrome climbs to 19999, so Copilot - which is a surface
+     over the whole page, not a peer of the header - has to clear them or it
+     comes up behind the bar it was opened from. */
+  z-index: 20050;
+  background: transparent;
+}
+
+/* The full view is a popup and behaves like one: a real scrim, a real blur.
+   The blur is the scrim's material, not a fade at an edge: it says the page
+   behind is out of play while Velora is open.
+
+   The scrim and the panel arrive as one event. The scrim runs a touch
+   shorter than the panel on a plain ease-out, so the page has finished
+   dimming just before the panel finishes settling and the eye ends on the
+   panel, not on the background still changing. */
+.overlayFull {
+  position: fixed;
+  inset: 0;
+  /* Above the app's own fixed headers. The consultation header sits at
+     1001 and other chrome climbs to 19999, so Copilot - which is a surface
+     over the whole page, not a peer of the header - has to clear them or it
+     comes up behind the bar it was opened from. */
+  z-index: 20050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(23, 23, 37, 0.32);
+  backdrop-filter: blur(6px) saturate(115%);
+  -webkit-backdrop-filter: blur(6px) saturate(115%);
+  animation: copilot-veil-in calc(var(--copilot-dur-enter, 200ms) - 20ms) ease-out;
+}
+
+@keyframes copilot-veil-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.full {
+  position: relative;
+  display: flex;
+  /* A row, so the history column can sit beside the conversation. The panel
+     itself is the flex child that grows. */
+  flex-direction: row;
+  width: 90vw;
+  height: 90vh;
+  max-width: 1400px;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(23, 23, 37, 0.3);
+  transform-origin: center center;
+  animation: copilot-full-in var(--copilot-dur-enter, 200ms) var(--copilot-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+/* Out of the middle, not in from an edge: the panel belongs to the whole
+   page, so it grows from the centre of it.
+
+   Tuned for "instant". It used to start at 0.92 and run 220ms on a curve
+   that overshot past full size and came back. On a 90vw panel 0.92 is about
+   fifty pixels of travel on each side, and the overshoot added a wobble at
+   the end: together they read as the panel taking its time. Now it starts
+   at 0.96, so the growth is felt rather than watched, and the curve is an
+   exponential ease-out with no overshoot, so most of the change lands in
+   the first few frames. Opacity finishes in the first third, so the panel
+   is readable almost at once and the last frames are only the scale
+   settling. */
+@keyframes copilot-full-in {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* No inset of its own. The panel's children already carry their padding, and
+   adding a second one here pushed the header, the thread and the composer off
+   their own alignment. */
+.full :global(#dr-agent-panel-root) {
+  min-width: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* An extension of the search box, not a dialog adrift in the page: the panel
+   is positioned and sized to the field it was opened from (see sheetStyle in
+   CopilotDock), so opening it reads as the box growing downward. Height is
+   left to the content up to the viewport floor. */
+.sheet {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  height: min(74vh, 780px);
+  background: #fff;
+  border: 1px solid var(--tp-slate-100, #f1f1f5);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 26px 64px rgba(23, 23, 37, 0.24);
+  transform-origin: top center;
+  animation: copilot-sheet-in var(--copilot-dur-enter, 200ms) var(--copilot-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+@keyframes copilot-sheet-in {
+  from {
+    transform: scaleY(0.96) translateY(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* The ported panel hard-codes dock proportions (min-width 350 / max-width 400)
+   as an inline style on its root. In the dropdown it should fill the surface,
+   and an inline style can only be overridden with !important. Left in place
+   rather than edited into the panel so the ported component stays faithful to
+   source. */
+.sheet :global(#dr-agent-panel-root) {
+  min-width: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+  height: 100% !important;
+
+}
+
+/* ── Leaving ──────────────────────────────────────────────────────────────
+   After .full and .sheet in source on purpose: each leaving class is added
+   alongside its surface class at the same specificity, so it has to come
+   later to replace the arrival animation. The reduced-motion block below
+   follows the same rule.
+
+   CopilotDock adds these on close and unmounts once the exit has played,
+   so the popup no longer vanishes in a single frame. They play the reverse
+   of the arrival, faster, and hold the end frame (fill forwards) so nothing
+   snaps back before the unmount. Pointer events are off while leaving, so a
+   second click during the exit cannot land on the page or reopen it. */
+.overlayLeaving {
+  pointer-events: none;
+  animation: copilot-veil-out var(--copilot-dur-exit, 140ms) var(--copilot-ease-in, ease-in) forwards;
+}
+
+.fullLeaving {
+  pointer-events: none;
+  animation: copilot-full-out var(--copilot-dur-exit, 140ms) var(--copilot-ease-in, ease-in) forwards;
+}
+
+.sheetLeaving {
+  pointer-events: none;
+  animation: copilot-sheet-out var(--copilot-dur-exit, 140ms) var(--copilot-ease-in, ease-in) forwards;
+}
+
+@keyframes copilot-veil-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Back toward the centre it grew from, but only half as far: an exit only
+   has to say "gone", not retrace the whole arrival. */
+@keyframes copilot-full-out {
+  from {
+    transform: none;
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.98);
+    opacity: 0;
+  }
+}
+
+@keyframes copilot-sheet-out {
+  from {
+    transform: none;
+    opacity: 1;
+  }
+  to {
+    transform: scaleY(0.98) translateY(-4px);
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: every surface still fades in and out, because a panel
+   that appears in one frame is harder to follow, not easier. Nothing
+   scales or travels. The VoiceRx rail (.dock) is left exactly as it is. */
+@media (prefers-reduced-motion: reduce) {
+  .full,
+  .sheet {
+    animation: copilot-veil-in 120ms ease-out;
+  }
+
+  .fullLeaving,
+  .sheetLeaving {
+    animation: copilot-veil-out 100ms ease-in forwards;
+  }
+
+  .overlayLeaving {
+    animation: copilot-veil-out 100ms ease-in forwards;
+  }
+}
+
+/* ── Panel controls ──────────────────────────────────────────────────────── */
+
+/* Sits where the ported AgentHeader's own minimize used to, wearing the same
+   liquid-glass chip. The values are copied from .da-agent-collapse-tag rather
+   than reusing that class: that rule is injected by the panel at render time,
+   which would leave the two tied on specificity and decided by stylesheet
+   order. Duplicating keeps it deterministic; if the header's treatment
+   changes, change it here too. z-index clears the header's z-30 layer.
+
+   Qualified with `button` deliberately. The scoped preflight in ui/copilot.css
+   sets `background-image: none` through a selector list that includes
+   `[type="button"]` - an attribute selector, so (0,1,0), tying with a bare
+   class and winning on source order. That silently stripped the gradient.
+   `button.control` is (0,1,1) and settles it. */
+/* 10px down puts the controls on the same centre line as the header tags:
+   AgentHeader is a 52px row centring 32px tags, so they sit 10px from the
+   top. At 14px the controls hung 4px low, visible as a step across the
+   header. 14px across matches the header's own side padding. */
+.controls {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The history column is 372px; the controls sit at the conversation's own
+   right edge beside it. */
+.controlsBesideRecent {
+  right: calc(372px + 14px);
+}
+
+button.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  color: var(--tp-slate-600, #545460);
+  cursor: pointer;
+
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, rgba(255, 255, 255, 0.22) 100%),
+    linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(75, 74, 213, 0.08) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.08),
+    0 4px 12px -4px rgba(15, 23, 42, 0.08);
+  transition:
+    background var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    box-shadow var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    color var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    transform var(--copilot-dur-press, 120ms) var(--copilot-ease-standard, ease);
+}
+
+/* Same family as the header tags across from it (.copilot-glass-tag and
+   .copilot-context-chip in ui/copilot.css): 32px, 10px radius, a hairline
+   edge, a lift on hover and a dip on press. Hover and press differ by more
+   than a shade of white on purpose: over the pale glass a 10% change is
+   invisible, and a doctor who cannot see the press assumes it missed and
+   clicks again, which on close means closing twice. */
+button.control:hover {
+  color: var(--tp-slate-900, #171725);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.62) 100%),
+    linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(75, 74, 213, 0.1) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.14),
+    0 6px 16px -4px rgba(15, 23, 42, 0.14);
+}
+
+/* Pressed sinks: the drop shadow nearly goes, the fill darkens to slate, and
+   the control scales a hair, so the press reads even at a glance. */
+button.control:active {
+  transform: scale(var(--copilot-press-scale, 0.96));
+  color: var(--tp-slate-900, #171725);
+  background:
+    linear-gradient(180deg, var(--tp-slate-100, #f1f1f5) 0%, var(--tp-slate-100, #f1f1f5) 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, 0.08),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.16);
+}
+
+/* Keyboard focus. The panel-wide ring (ui/copilot.css) applies here too; it
+   is restated so this control's ring does not depend on that stylesheet
+   having loaded, since this module positions the panel on its own. */
+button.control:focus-visible {
+  outline: 2px solid var(--copilot-focus-ring-color, var(--tp-blue-500, #4b4ad5));
+  outline-offset: 2px;
+}
+
+/* A control whose panel is showing: Recent conversations while the history
+   column is open. Held in the pale violet of a selected row, with a violet
+   edge, so the doctor can see which control the open column belongs to and
+   that pressing it again will close it. Matches the open scope chip. Needs
+   aria-pressed on the button (see the motion report). */
+button.control[aria-pressed="true"],
+button.control[aria-expanded="true"] {
+  color: var(--tp-violet-700, #703a9e);
+  background:
+    linear-gradient(180deg, var(--tp-violet-50, #faf5fe) 0%, var(--tp-violet-50, #faf5fe) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(138, 77, 187, 0.36),
+    0 4px 12px -4px rgba(103, 58, 172, 0.2);
+}
+
+button.control:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* The ported header's own minimize duplicates the close beside it. Hidden
+   rather than removed, so the panel stays faithful to source and keeps its
+   control in the dock, where it is the only way out. */
+.sheet :global(.da-agent-collapse-tag),
+.dock :global(.da-agent-collapse-tag),
+.full :global(.da-agent-collapse-tag) {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .sheet :global(#dr-agent-panel-root) {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  .sheet {
+    height: min(84vh, 640px);
+  }
+
+  .full {
+    width: 96vw;
+    height: 94vh;
+  }
+}

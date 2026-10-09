@@ -1,0 +1,99 @@
+@import '../../../../styles/variables.scss';
+
+.tp-transcript-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__label {
+    margin: 0;
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  &__messages {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  &__row {
+    display: flex;
+    flex-direction: column;
+    max-width: 84%;
+
+    &--doctor {
+      align-self: flex-start;
+    }
+
+    &--patient {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 4px;
+    margin-bottom: 4px;
+  }
+
+  &__row--patient &__meta {
+    flex-direction: row-reverse;
+  }
+
+  &__speaker {
+    font-size: 11px;
+    font-weight: 600;
+
+    &--doctor {
+      color: #4b4ad5;
+    }
+
+    &--patient {
+      color: #7c3aed;
+    }
+  }
+
+  &__time {
+    font-size: 10px;
+    font-weight: 500;
+    color: #cbd5e1;
+  }
+
+  &__bubble {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.55;
+
+    &--doctor {
+      border-top-left-radius: 6px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      color: #334155;
+      box-shadow: 0 1px 2px rgba(23, 23, 37, 0.04);
+    }
+
+    &--patient {
+      border-top-right-radius: 6px;
+      background: #4b4ad5;
+      color: #ffffff;
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    background: rgba(255, 255, 255, 0.72);
+    font-size: 14px;
+    line-height: 1.55;
+    color: #94a3b8;
+    text-align: center;
+  }
+}

@@ -1,2 +1,0 @@
-export { Banner } from "./Banner";
-export { Banner as default } from "./Banner";

@@ -1,0 +1,115 @@
+.page {
+  padding: 0 var(--tesseract-space-6) var(--tesseract-space-8);
+}
+
+.section {
+  margin-top: var(--tesseract-space-6);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  margin-bottom: var(--tesseract-space-3);
+}
+
+.sectionTitle {
+  font-size: var(--tesseract-text-h5);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+  margin: 0;
+}
+
+.emptyStateCard {
+  padding: var(--tesseract-space-6) 0;
+}
+
+/* Schedule windows — left accent distinguishes In-Clinic from
+   Video/Telemedicine, reusing the same blue the appointment list already
+   uses for teleconsult markers (see videoTint in appointmentStates.js). */
+.scheduleCard {
+  border-left: 4px solid var(--tesseract-violet-600);
+  margin-bottom: var(--tesseract-space-4);
+}
+
+.scheduleCardVideo {
+  border-left-color: var(--tesseract-blue-600);
+}
+
+.scheduleCardHeaderExtra {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+
+.fieldRow {
+  display: flex;
+  gap: var(--tesseract-space-4);
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: var(--tesseract-space-4);
+}
+
+.fieldRow:last-child {
+  margin-bottom: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+
+.fieldLabel {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+}
+
+.dayPills {
+  display: flex;
+  gap: var(--tesseract-space-2);
+}
+
+.dayPill {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--tesseract-slate-200);
+  background: var(--tesseract-bg-surface);
+  color: var(--tesseract-fg-secondary);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.dayPill:hover {
+  border-color: var(--tesseract-violet-600);
+}
+
+.dayPillActive {
+  background: var(--tesseract-violet-600);
+  border-color: var(--tesseract-violet-600);
+  color: #fff;
+}
+
+.rowActions {
+  display: flex;
+  gap: var(--tesseract-space-1, 4px);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-4);
+}
+
+/* Tesseract's solid/primary Button renders its label span in slate-700 at
+   weight 600 regardless of theme — same fix InvestigationSettingsPage.module.css
+   applies, so primary CTAs read white here too. */
+.primaryCta span {
+  color: #fff !important;
+  font-weight: var(--tesseract-weight-medium) !important;
+}

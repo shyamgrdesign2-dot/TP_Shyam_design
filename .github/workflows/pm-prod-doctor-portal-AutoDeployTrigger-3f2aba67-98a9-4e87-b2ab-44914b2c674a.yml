@@ -1,0 +1,217 @@
+name: Trigger auto deployment for pm-prod-doctor-portal
+
+on:
+  push:
+    branches:
+      [ prod ]
+    paths:
+    - '**'
+    - '.github/workflows/pm-prod-doctor-portal-AutoDeployTrigger-3f2aba67-98a9-4e87-b2ab-44914b2c674a.yml'
+
+  workflow_dispatch:
+
+concurrency:
+  group: pm-prod-doctor-portal
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      REACT_APP_ENV: prod
+      # Upload → blob container react-static-prod/cdn/... Front Door exposes that at the root (/).
+      PUBLIC_URL_PROD_CDN: https://assets.tatvacare.in/
+      IMAGE_NAME: acinacr.azurecr.io/pm-prod-doctor-portal:${{ github.sha }}
+      # Sentry release naming: <package>@<semver>+<sha>. The package prefix makes Sentry
+      # parse it as semver (sortable, `release:latest` works); +sha is semver build
+      # metadata pinning the exact commit.
+      RELEASE_PACKAGE: pm-doctor-portal
+      SENTRY_ORG: digicare-health-solutions-priv
+      SENTRY_PROJECT: tatvapractice
+
+    permissions:
+      id-token: write
+      contents: write   # push the vX.Y.Z release tag
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v4
+        with:
+          # Full history + tags: needed by the duplicate-tag guard below and by
+          # `sentry-cli releases set-commits --auto` (suspect commits).
+          fetch-depth: 0
+
+      # ---- 0. Resolve this deploy's release identity ----
+      # This single string is the source of truth. It is baked into the JS bundle,
+      # used for the sourcemap upload, and used for every sentry-cli call. If the
+      # three ever differ, Sentry silently fails to symbolicate.
+      - name: Resolve release version
+        id: release
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          SHA=$(git rev-parse --short HEAD)
+
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::package.json version '$VERSION' is not X.Y.Z"
+            exit 1
+          fi
+
+          # Every prod deploy must be a distinct version. This is the forcing function
+          # for the bump: forget it in the release PR and the deploy stops here rather
+          # than quietly overwriting an existing release in Sentry.
+          #
+          # Exception: if the tag already points at THIS commit we are re-running the same
+          # deploy (workflow_dispatch re-run, or a retry after a late step failed). That is
+          # legitimate — proceed, and skip re-tagging.
+          TAG_EXISTS=0
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            if [ "$(git rev-list -n 1 "refs/tags/v$VERSION")" = "$(git rev-parse HEAD)" ]; then
+              echo "::notice::re-deploying v$VERSION — tag already points at this commit"
+              TAG_EXISTS=1
+            else
+              echo "::error::tag v$VERSION already exists on a different commit — bump \"version\" in package.json before merging to prod"
+              exit 1
+            fi
+          fi
+
+          {
+            echo "version=$VERSION"
+            echo "sha=$SHA"
+            echo "release=${RELEASE_PACKAGE}@${VERSION}+${SHA}"
+            echo "tag_exists=$TAG_EXISTS"
+          } >> "$GITHUB_OUTPUT"
+          echo "Release: ${RELEASE_PACKAGE}@${VERSION}+${SHA}"
+
+      # ---- 1. Build image and push to ACR (no Container App update yet) ----
+      # Generate version.json here in CI where git is guaranteed to be available.
+      # Do NOT rely on generate-version.js running inside the Docker build —
+      # .dockerignore typically excludes .git so git rev-parse would silently fail there.
+      # This file is baked into the image but intentionally excluded from blob upload below.
+      - name: Generate version.json
+        run: |
+          set -euo pipefail
+          SHA=$(git rev-parse --short HEAD)
+          API_VERSION=$(node -e "console.log(require('./package.json').apiCompatibilityVersion ?? 1)")
+          # `release` is informational (ops can curl /version.json to see what is live).
+          # `apiVersion` stays the ONLY force-reload trigger — a routine semver bump must
+          # not hard-refresh every doctor mid-consult. See src/hooks/useVersionCheck.js.
+          RELEASE="${{ steps.release.outputs.release }}"
+          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION,\"release\":\"$RELEASE\"}" > public/version.json
+
+      - name: Docker login to ACR
+        env:
+          REGISTRY_USER: ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$REGISTRY_PASS" | docker login acinacr.azurecr.io -u "$REGISTRY_USER" --password-stdin
+
+      - name: Build image and push to ACR
+        run: |
+          set -euo pipefail
+          # GENERATE_SOURCEMAP=true so `sentry:sourcemaps` has maps to upload — with it
+          # off the upload shipped nothing and prod stack traces stayed minified.
+          # The .map files are deleted inside the image right after upload (see Dockerfile),
+          # and the blob assets are extracted from that post-delete image, so no map is
+          # ever published to the CDN.
+          docker build \
+            --build-arg REACT_APP_ENV=prod \
+            --build-arg GENERATE_SOURCEMAP=true \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
+            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
+            --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PROD_CDN }}" \
+            -t "${{ env.IMAGE_NAME }}" .
+          docker push "${{ env.IMAGE_NAME }}"
+
+      # ---- 2. Extract built assets from the same image we just pushed ----
+      - name: Extract built assets (html minus index.html and version.json)
+        run: |
+          set -euo pipefail
+          CID=$(docker create "${{ env.IMAGE_NAME }}")
+          mkdir -p _blob_html
+          docker cp "$CID:/usr/share/nginx/html/." _blob_html/
+          docker rm -v "$CID"
+          # index.html and version.json must only be served from the container (nginx),
+          # never from blob/CDN — both need no-cache guarantees that blob cannot provide.
+          rm -f _blob_html/index.html
+          rm -f _blob_html/version.json
+
+      # ---- 3. Upload to blob BEFORE the Container App revision switch ----
+      # PMPRODDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS — JSON for azure/login `creds` (clientId, clientSecret,
+      # subscriptionId, tenantId). subscriptionId must contain pmdoctorportal storage account.
+      # RBAC: Storage Blob Data Contributor on pmdoctorportal (or scoped to react-static-prod).
+      - name: Azure Login (blob upload identity)
+        uses: azure/login@v1
+        with:
+         creds: ${{ secrets.PMPRODDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS }}
+         #client-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_CLIENT_ID }}
+         #tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
+         #subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
+
+      # upload-batch never deletes blobs missing from --source, so previously uploaded
+      # hashed chunks survive. --overwrite only affects identical paths (e.g. manifest.json,
+      # favicon.ico) which we WANT current.
+      - name: Publish build assets to Azure Blob (react-static-prod/cdn)
+        run: |
+          set -euo pipefail
+          az storage blob upload-batch \
+            --account-name pmdoctorportal \
+            --auth-mode login \
+            --destination react-static-prod \
+            --source _blob_html \
+            --destination-path cdn \
+            --overwrite
+
+      # ---- 4. Now switch the Container App to the new image (assets already in place) ----
+      - name: Azure Login (deploy identity)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Container App revision
+        run: |
+          set -euo pipefail
+          az containerapp update \
+            --name pm-prod-doctor-portal \
+            --resource-group tatva-prod \
+            --image "${{ env.IMAGE_NAME }}"
+
+      # ---- 5. Register the release in Sentry ----
+      # Runs after the deploy so the deploy timestamp is truthful. The release itself
+      # already exists (the sourcemap upload created it); `releases new` is idempotent.
+      - name: Finalize Sentry release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes @sentry/cli@2"
+
+          $CLI releases new "$RELEASE"
+
+          # Suspect Commits + "issue regressed in release X". Requires the GitHub
+          # integration to be enabled for the Sentry org; kept non-fatal so a missing
+          # integration never blocks an already-live prod deploy.
+          $CLI releases set-commits "$RELEASE" --auto \
+            || echo "::warning::sentry set-commits failed — enable the GitHub integration in Sentry for suspect commits"
+
+          $CLI releases finalize "$RELEASE"
+          $CLI releases deploys new -r "$RELEASE" -e prod
+
+      # ---- 6. Tag the commit so the deployed version is recoverable from git ----
+      - name: Tag release
+        if: steps.release.outputs.tag_exists == '0'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "$RELEASE"
+          git push origin "v$VERSION"

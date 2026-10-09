@@ -1,0 +1,130 @@
+import React from 'react';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { useLocalStorage } from '../../../../utils/localStorage';
+import { PERSISTANT_STORAGE_KEY_MEDECO_TOKEN } from '../../../../utils/constants';
+import { useCmsCareteam } from '../../../../components/chat/useCmsCareteam';
+import config from '../../../../config';
+import './BottomNavigation.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  arrowUp: HomeIcon,
+  frame: AppointmentsIcon,
+  profile2user: PatientsIcon,
+  profile2user2: PatientsIconActive,
+  chat: ChatIcon,
+  chatActive: ChatIconActive,
+  microphone3: TatvaPendantIcon,
+} = ASSETS.mobile;
+
+function BottomNavigation({ activeTab = 'appointments' }) {
+  const navigate = useNavigate();
+  const isCmsCareteamEnabled = useCmsCareteam();
+  const [getMedecoToken] = useLocalStorage(PERSISTANT_STORAGE_KEY_MEDECO_TOKEN);
+  const unreadByChannel = useSelector((state) => state.chat.unreadByChannel);
+  const lastUnseenMessageByChannel = useSelector((state) => state.chat.lastUnseenMessageByChannel);
+  const previewByChannel = useSelector((state) => state.chat.previewByChannel);
+  const hasUnreadChat = Object.values(unreadByChannel).some((count) => count > 0);
+  const hasUnseenAlertChat = Object.entries(unreadByChannel).some(([channelName, count]) => {
+    if (count <= 0) return false;
+    const lastMessage = lastUnseenMessageByChannel[channelName] || previewByChannel[channelName];
+    return lastMessage?.messageType === "alert";
+  });
+
+  const navItems = [
+    {
+      key: 'home',
+      label: 'Home',
+      icon: HomeIcon,
+      path: '/',
+    },
+    {
+      key: 'appointments',
+      label: 'Appointments',
+      icon: AppointmentsIcon,
+      path: '/',
+    },
+    {
+      key: 'patients',
+      label: 'All Patients',
+      icon: PatientsIcon,
+      iconActive: PatientsIconActive,
+      path: '/all_patients',
+    },
+    ...(isCmsCareteamEnabled
+      ? [{
+      key: 'chat',
+      label: 'Chat',
+      icon: ChatIcon,
+      iconActive: ChatIconActive,
+      path: '/chat',
+      showUnreadDot: hasUnreadChat,
+      showUnreadAlert: hasUnseenAlertChat,
+    }]
+      : []),
+    {
+      key: 'tatva-pendant',
+      label: 'Tatva Pendant',
+      icon: TatvaPendantIcon,
+      path: '/tatva-pendant',
+    },
+  ];
+
+  const handleNavClick = (item) => {
+    // If clicking home and user came from Medeco, navigate back to Medeco site
+    if (item.key === 'home') {
+      const medecoToken = getMedecoToken();
+      if (medecoToken) {
+        const medecoUrl = `${config.MEDECO_WEBVIEW_URL}/?authToken=${medecoToken}`;
+        console.log("[TP Medeco] Going to Medeco – redirect URL:", medecoUrl);
+        console.log("[TP Medeco] Using medecoToken from localStorage, length:", medecoToken?.length);
+        window.location.href = medecoUrl;
+        return;
+      }
+      console.log("[TP Medeco] Home clicked but no medecoToken – staying in app");
+    }
+    
+    // Otherwise, navigate normally
+    if (item.path) {
+      navigate(item.path);
+    }
+  };
+
+  return (
+    <div className="bottom-navigation">
+      <div className="nav-content">
+        {navItems.map((item, index) => {
+          const isActive = activeTab === item.key;
+          const iconSrc = isActive && item.iconActive ? item.iconActive : item.icon;
+          
+          return (
+            <React.Fragment key={item.key}>
+              <button
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => handleNavClick(item)}
+                data-tab={item.key}
+              >
+                <span className="nav-icon-wrap">
+                  <img src={iconSrc} alt={item.label} className="nav-icon" />
+                  {item.showUnreadAlert ? (
+                    <span className="nav-unread-dot nav-unread-alert" aria-label="Unread alert">
+                      ⚠
+                    </span>
+                  ) : (
+                    item.showUnreadDot && <span className="nav-unread-dot" aria-hidden="true" />
+                  )}
+                </span>
+                <span className="nav-label">{item.label}</span>
+              </button>
+              {index === 0 && (
+                <div className="nav-divider" />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default BottomNavigation;

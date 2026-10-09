@@ -1,0 +1,288 @@
+/* One appointment card, configurable by state and by the room it has.
+   Status is carried twice over: the left rail's colour AND its glyph, so the
+   card still reads without colour vision.
+
+   Everything on the card sits on one optical centre line: the status rail,
+   the text block (which centres as a block, whatever its line count), and the
+   trailing billing / CTA / kebab cluster. */
+.card {
+  position: absolute;
+  left: 6px;
+  width: calc(100% - 12px);
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 9px;
+  border-radius: var(--tesseract-radius-10);
+  /* Hairline outer edge so the card reads as a boundary without drawing a
+     box, with the status carried on a solid left edge as before. */
+  border: 0.5px solid color-mix(in srgb, var(--card-stroke) 45%, transparent);
+  border-left: 4px solid var(--card-accent);
+  background: var(--tesseract-blue-50);
+  --card-stroke: var(--tesseract-blue-300);
+  --card-accent: var(--tesseract-blue-500);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  transition: box-shadow 120ms;
+  /* Vertical pan must stay available: on tablets the finger is both the
+     cursor and the scrollbar, and drag-reschedule is pointer-only (see
+     startDrag). touch-action:none trapped the gesture on the card so a
+     press that began on an appointment could not scroll the day. */
+  touch-action: pan-y;
+}
+
+.card:hover {
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tesseract-slate-900) 14%, transparent);
+}
+
+/* Chip height: one line of caption type, the way a month cell reads. The
+   padding, the gaps and the divider all come in so the name gets the width
+   rather than the chrome — the full record is a hover or a click away. */
+.card[data-compact] {
+  gap: 5px;
+  padding: 0 6px;
+  border-radius: var(--tesseract-radius-6);
+  border-left-width: 3px;
+}
+
+.card[data-compact] .time,
+.card[data-compact] .name {
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: 1.2;
+}
+
+.card[data-compact] .line {
+  gap: 5px;
+}
+
+.card[data-compact] .divider {
+  height: 9px;
+}
+
+.card[data-dragging] {
+  touch-action: none;
+  z-index: 20;
+  opacity: 0.85;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--tesseract-slate-900) 24%, transparent);
+  cursor: grabbing;
+}
+
+/* Selected = its tooltip is pinned. */
+.card[data-selected] {
+  box-shadow: 0 2px 10px -2px color-mix(in srgb, var(--tesseract-blue-900) 22%, transparent);
+}
+
+.card[data-selected] {
+  border-color: var(--card-stroke);
+}
+
+/* Smallest tier: tighter chrome, one step down in type. A little more room on
+   the left keeps the time off the coloured status border so it does not read as
+   stuck to the edge; the right stays tight because that is the side the mode
+   glyph has to fit against. */
+.card[data-tier="sm"] {
+  padding: 3px 2px 3px 5px;
+  gap: 6px;
+}
+
+/* The stacked tier keeps two lines sitting as one block. Type steps down to
+   caption and the time/glyph gap tightens so that, on a heavily-overlapped
+   chip (five cards sharing a lane at ~59px), the time and the mode glyph both
+   fit and the glyph is never the thing that gets clipped. */
+.card[data-tier="sm"] .line,
+.card[data-tier="sm"] .name {
+  line-height: 1.3;
+}
+
+.card[data-tier="sm"] .time,
+.card[data-tier="sm"] .name {
+  font-size: var(--tesseract-text-caption-sm);
+}
+
+.card[data-tier="sm"] .line {
+  gap: 2px;
+}
+
+.card[data-tier="sm"] .body {
+  gap: 0;
+}
+
+.statusRail {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* A hairline rule rather than a pipe character: it sits on the text's optical
+   centre instead of riding the baseline. */
+.divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 12px;
+  background: var(--tesseract-slate-300);
+}
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.time {
+  flex-shrink: 0;
+  line-height: 1.35;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 600;
+  color: var(--tesseract-blue-700);
+}
+
+/* The name is the last thing to give way: everything else shrinks first, and
+   it keeps a floor so it never collapses to an empty ellipsis. */
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--tesseract-fg-heading);
+}
+
+/* Age and sex qualify the name, so they ride with it at a lighter weight. */
+.genderAge {
+  margin-left: 5px;
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 500;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.subText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-secondary);
+}
+
+/* The last field is free text (usually the remark), so it is the one that
+   gives way — bounded so it can never push the row wider than the card. */
+.subText:last-of-type {
+  flex-shrink: 1;
+  min-width: 40px;
+  max-width: 340px;
+}
+
+/* Same hairline rule as the first line, so the two lines share one language
+   of separation instead of mixing dots and bars. */
+.subDivider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 10px;
+  background: var(--tesseract-slate-300);
+}
+
+.trail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* On a tinted card an outline button reads as a label, not a control. The CTA
+   sits on solid white with blue text and a hairline, so it lifts off every one
+   of the four state washes identically. */
+/* The DS outline button carries its own 4%-tinted fill, which is invisible on
+   a tinted card; these have to outrank it. */
+.trail :global(button[data-variant="outline"]) {
+  background: var(--tesseract-bg-surface) !important;
+  border-color: var(--tesseract-blue-200) !important;
+  color: var(--tesseract-blue-700) !important;
+}
+
+.trail :global(button[data-variant="outline"]):hover {
+  background: var(--tesseract-blue-50) !important;
+  border-color: var(--tesseract-blue-400) !important;
+}
+
+/* The trailing cluster owns its width outright: body text truncates rather
+   than growing under the CTA. */
+.trail {
+  z-index: 1;
+}
+
+/* Per-status treatment, mirroring the table's tabs: queue = blue,
+   finished = green, cancelled = red, draft = amber, pending = warning. */
+.card[data-status="finished"] {
+  background: var(--tesseract-success-50);
+  --card-stroke: var(--tesseract-success-300);
+  --card-accent: var(--tesseract-success-500);
+}
+
+.card[data-status="finished"] .time {
+  color: var(--tesseract-success-700);
+}
+
+.card[data-status="cancelled"] {
+  background: var(--tesseract-error-50);
+  --card-stroke: var(--tesseract-error-300);
+  --card-accent: var(--tesseract-error-500);
+}
+
+.card[data-status="cancelled"] .time {
+  color: var(--tesseract-error-700);
+}
+
+.card[data-status="draft"] {
+  background: var(--tesseract-amber-50);
+  --card-stroke: var(--tesseract-amber-300);
+  --card-accent: var(--tesseract-amber-500);
+}
+
+.card[data-status="draft"] .time {
+  color: var(--tesseract-amber-700);
+}
+
+.card[data-status="pending-digitisation"] {
+  background: var(--tesseract-warning-50);
+  --card-stroke: var(--tesseract-warning-300);
+  --card-accent: var(--tesseract-warning-500);
+}
+
+.card[data-status="pending-digitisation"] .time {
+  color: var(--tesseract-warning-700);
+}

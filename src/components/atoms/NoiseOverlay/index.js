@@ -1,1 +1,0 @@
-export { NoiseOverlay } from "./NoiseOverlay";

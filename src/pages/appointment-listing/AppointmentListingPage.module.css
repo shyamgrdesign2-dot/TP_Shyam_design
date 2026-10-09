@@ -1,0 +1,1025 @@
+/* Reference-exact skin for the appointment listing page. Every dimension,
+   weight, and colour below is lifted from the Dr.Agent reference build
+   (its tp-* tokens map 1:1 onto the tesseract-* ramps). */
+
+/* Fixed shell: the banner, tabs, and toolbar never move; only the table
+   rows (or the calendar grid) scroll inside the card body. */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  /* iOS Safari counts 100vh as the tall viewport behind the address bar, so the
+     page ends up taller than the screen and the whole page scrolls to reach the
+     bottom instead of the calendar/drawer scrolling inside it. dvh is the actual
+     visible height; it falls back to the vh line above where unsupported, and on
+     desktop the two are equal. */
+  height: 100dvh;
+  /* clip, not hidden: still no page scroll, but it is not a scroll container, so
+     the banner's decorative rays (which lay out a little wider than the banner)
+     can no longer be scrolled into — that scroll was shoving the greeting off
+     the left edge. The rays themselves are kept, just clipped. */
+  overflow: clip;
+  /* Same page canvas as data-analytics (slate-100): the white card reads
+     against it without needing an outer stroke. */
+  background: var(--tesseract-slate-100);
+  font-family: var(--tesseract-font-body);
+}
+
+/* The HeroBanner's decorative rays: pulled left and brought up in opacity so
+   the grid pattern actually reads across the violet band rather than hiding at
+   the far right. The page's `overflow: clip` keeps their extra width from
+   creating any horizontal scroll. */
+.page [class*="_rays_"] {
+  opacity: 0.55;
+  transform: translateX(-120px);
+}
+
+/* Inside the app shell (Header + SidebarDoctor), the .wrapper element sizes
+   itself under the app's 52px top nav. The theme provider inserts an unstyled
+   div between .wrapper and .page, so percentage heights collapse; size against
+   the viewport with the same constant instead. The constant must match the nav
+   exactly: 56px here against a 52px nav left a 4px white strip below the card. */
+:global(.wrapper) .page {
+  height: calc(100vh - 52px);
+  max-height: calc(100vh - 52px);
+  height: calc(100dvh - 52px);
+  max-height: calc(100dvh - 52px);
+}
+
+/* The host app globally forces `color: #454551` on span/div/p/table cells
+   (body span:where(...) in the legacy stylesheet). Tesseract components rely
+   on CSS inheritance for text colour, so restore it inside this page.
+
+   The specificity here is deliberate and load-bearing. The obvious fix —
+   `.page :where(span, …)` — is a single-class selector, which ties with every
+   class rule the design system and this page declare and then wins on source
+   order. That flattened every secondary tone on the screen to body ink:
+   subtext, captions, helper lines and slot times all came out as primary
+   text, and each one had to be won back by hand. Matching the legacy rule's
+   own weight instead (`html` + element = two type selectors, no class) is
+   enough to beat it on order alone, while any real class rule outranks it.
+   Foundations tones apply themselves again.
+
+   The element list is spelled out rather than wrapped in `:where(...)`
+   because `:where()` contributes nothing to specificity: wrapped, the whole
+   selector counted as one type selector and lost to the global outright,
+   which turned white-on-dark glyphs (the "Back to now" chip) grey. Do not
+   add a class here, and do not fold the list back into `:where()`. */
+html :where(.page) span,
+html :where(.page) div,
+html :where(.page) p,
+html :where(.page) table,
+html :where(.page) tr,
+html :where(.page) th,
+html :where(.page) td {
+  color: inherit;
+}
+
+/* That `color: inherit` above is a blunt instrument: it also erases the
+   tones the design system sets on its own text, and an empty state is
+   where it shows most — the explanatory line came out as body ink at the
+   host's weight, so it read as a second heading rather than as subtext.
+   Restored to the DS values at a specificity the reset cannot beat. */
+.page [class*="_description_"] {
+  font-weight: 400;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.page [class*="_title_exgkk"] {
+  color: var(--tesseract-fg-heading);
+}
+
+/* The same legacy global also forces `font-family: Poppins !important` on
+   span/div/p/table cells and `Roboto` on inputs. Counter it at class
+   specificity so the whole page renders the DS body font (Inter). */
+.page :where(span, div, p, table, tr, th, td),
+.page input,
+.page button {
+  font-family: var(--tesseract-font-body) !important;
+}
+
+/* Same font fix for DS surfaces portaled to <body> (DatePicker popover,
+   split-button menus): their roots are hashed-class divs directly under
+   body while data-tp-theme is stamped on <html>. */
+:global(html[data-tp-theme] body > div[class^="_"]),
+:global(html[data-tp-theme] body > div[class^="_"] *) {
+  font-family: var(--tesseract-font-body) !important;
+}
+
+/* Tesseract Tooltip portals to <body>, outside .page, where the same global
+   span rule paints its white text dark-on-dark. Re-assert DS colours. */
+:global([role="tooltip"][data-variant="dark"]),
+:global([role="tooltip"][data-variant="dark"] *) {
+  color: var(--tesseract-fg-inverse) !important;
+}
+
+/* DS popovers (DatePicker, Filter panel, split-button menu) portal to <body>,
+   so the host global span rule paints their button labels dark (e.g. the
+   Apply CTA turned dark-on-blue). TesseractThemeProvider stamps data-tp-theme
+   on <html> while this page is mounted; scope the inheritance fix to every
+   hashed-class DS button under it. */
+:global(html[data-tp-theme] button[class^="_"] span),
+:global(html[data-tp-theme] button[class*=" _"] span) {
+  color: inherit;
+}
+
+/* Calendar (single) date picker: one footer action only. The interception
+   tags our own popover with .dayPopover the moment it opens (never the
+   add-patient DOB picker's), so this restyle stays scoped to this one control.
+   Hide the design system's Cancel/Apply and centre the lone Today button. */
+.dayPopover [class*="_actionsRight_"] {
+  display: none;
+}
+
+.dayPopover [class*="_actions_"] {
+  justify-content: center;
+}
+
+/* "Today" borrows the Clear slot but is not a destructive action, so it drops
+   the orange for a calm blue. A plain centred text link, no fill: the footer
+   stays a clean single line, and a doctor on another month is one tap from the
+   current day. */
+.dayPopover [class*="_actions_"] button[data-theme="warning"] {
+  justify-content: center;
+  color: var(--tesseract-blue-700) !important;
+  font-weight: 600;
+}
+
+/* A DS Badge paints its tone on the outer element and wraps its label in a
+   bare <span>. The host app's global span colour claims that inner span, so
+   every badge lost its tone and came out body-grey — visible anywhere the
+   badge is portaled outside .page, like the calendar's event popover.
+   Hand the label back to the badge it belongs to. */
+.page [class*="_badge_"] span,
+:global(html[data-tp-theme] [class*="_badge_"] span) {
+  color: inherit !important;
+}
+
+/* Toast text is white on the dark surface; the host app's global span/p
+   colour was painting it dark. Status icon keeps its own colour. */
+:global(html[data-tp-theme] [class*="_toast_"] [class*="_title_"]),
+:global(html[data-tp-theme] [class*="_toast_"] [class*="_body_"] p),
+:global(html[data-tp-theme] [class*="_toast_"] [class*="_dismiss_"]) {
+  color: var(--tesseract-fg-inverse) !important;
+}
+
+/* Toasts render inline where mounted (DS Toast is position: relative);
+   host them fixed at the top-centre of the viewport. They drop in from above
+   the edge and retreat the same way, so the motion reads as one gesture
+   rather than a pop. */
+:global(.tpToastHost) {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  /* A toast reports; it does not block. The host spans whatever the pill
+     needs and would otherwise sit over the page swallowing clicks, so it is
+     transparent to the pointer and only the pill itself is clickable. */
+  pointer-events: none;
+  animation: toastDropIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+:global(.tpToastHost > *) {
+  pointer-events: auto;
+}
+
+:global(.tpToastHost[data-leaving]) {
+  animation: toastLiftOut 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes toastDropIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes toastLiftOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -24px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.tpToastHost),
+  :global(.tpToastHost[data-leaving]) {
+    animation-duration: 1ms;
+  }
+}
+
+/* Toast copy stays on one line: the pill grows to fit its text (viewport
+   capped) instead of wrapping at the DS default width. */
+:global(.tpToastHost [class*="_toast_"]) {
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+
+:global(.tpToastHost [class*="_toast_"] [class*="_title_"]) {
+  white-space: nowrap;
+}
+
+/* Checked checkbox ticks are white on the primary fill; the host app's
+   global span colour was bleeding into the indicator via our inherit fix. */
+.page button[data-slot="checkbox"][data-state="checked"],
+:global(html[data-tp-theme] button[data-slot="checkbox"][data-state="checked"]) {
+  color: var(--tesseract-on-dark) !important;
+}
+
+/* Kebab dropdown trigger: icon-only, no chrome, no focus/open stroke. Keeps the
+   38px height so it lines up with the date/filter controls beside it, but hugs
+   the icon horizontally rather than padding out to a full square, so it doesn't
+   carry dead space around the glyph. */
+:global(.tpKebabMenu [class*="_trigger_"]) {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: var(--appt-ctl-h, 38px) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--tesseract-radius-8) !important;
+  color: var(--tesseract-fg-tertiary);
+}
+
+:global(.tpKebabMenu [class*="_trigger_"]:hover) {
+  background: var(--tesseract-slate-100) !important;
+}
+
+/* Ghost CTA contract: no stroke or shadow in ANY state (open, focus,
+   active). The only feedback is the subtle hover/open background. */
+:global(.tpKebabMenu [class*="_trigger_"][aria-expanded="true"]),
+:global(.tpKebabMenu [class*="_trigger_"][data-state="open"]),
+:global(.tpKebabMenu [class*="_trigger_"][data-open]),
+:global(.tpKebabMenu [class*="_trigger_"]:focus),
+:global(.tpKebabMenu [class*="_trigger_"]:focus-visible),
+:global(.tpKebabMenu [class*="_trigger_"]:active),
+:global(.tpKebabMenu [class*="_root_"]),
+:global(.tpKebabMenu [class*="_root_"]:focus-within) {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+:global(.tpKebabMenu [class*="_trigger_"][aria-expanded="true"]),
+:global(.tpKebabMenu [class*="_trigger_"][data-state="open"]),
+:global(.tpKebabMenu [class*="_trigger_"][data-open]) {
+  background: var(--tesseract-slate-100) !important;
+}
+
+/* The seamless dropdown draws its open/focus ring and blue tint on the root's
+   own ::before/::after. The tpKebabMenu class sits on that root element itself,
+   so these target it directly (no descendant combinator) to kill both, leaving
+   the grey trigger background as the only open-state feedback. */
+:global(.tpKebabMenu::before),
+:global(.tpKebabMenu::after) {
+  box-shadow: none !important;
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+}
+
+
+:global(.tpKebabMenu [class*="_placeholder_"]) {
+  display: none;
+}
+
+/* Keep the table's horizontal scrollbar visible as a scroll indicator. */
+:global(.wrapper) [class*="_scroller_"]::-webkit-scrollbar,
+.page [class*="_scroller_"]::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.page [class*="_scroller_"]::-webkit-scrollbar-thumb {
+  background: var(--tesseract-slate-300);
+  border-radius: var(--tesseract-radius-8);
+}
+
+.page [class*="_scroller_"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Banner CTAs (reference: 42px, radius 10, 14/600 Inter, 6px gap) ── */
+.addApptBtn {
+  height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: var(--tesseract-radius-10) !important;
+  gap: 6px !important;
+  font-size: var(--tesseract-text-body-sm) !important;
+  /* Weight is left to the design system button, so this CTA matches the same
+     button on every other page (a hard-coded 600 here diverged from the app-wide
+     weight after it was changed centrally). */
+  background-color: color-mix(in srgb, var(--tesseract-slate-0) 7%, transparent) !important;
+  border: 1.5px solid color-mix(in srgb, var(--tesseract-slate-0) 34%, transparent) !important;
+  color: var(--tesseract-on-dark) !important;
+  backdrop-filter: blur(8px);
+}
+
+.startWalkInBtn {
+  height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: var(--tesseract-radius-10) !important;
+  gap: 6px !important;
+  font-size: var(--tesseract-text-body-sm) !important;
+  /* Weight left to the design system button, matching every other page. */
+  background-color: var(--tesseract-slate-0) !important;
+  border: none !important;
+  color: var(--tesseract-blue-900) !important;
+}
+
+/* ── Card overlapping the banner ── */
+.cardWrap {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* Deep overlap keeps the visible banner strip tight above the card. */
+  margin-top: -84px;
+  padding: 0 18px 24px;
+}
+
+/* In calendar view the card runs off the bottom of the screen instead of
+   sitting on a 24px shelf of page tint. The grid always scrolls, so an edge
+   there only says "the day stops here", which is untrue, and the strip below
+   it was 24px of nothing on a screen that wants every row it can get. */
+.cardWrap:has(.body[data-view="calendar"]) {
+  padding-bottom: 0;
+}
+
+.card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: none;
+  /* A restrained 12px, not 16: the card reads as a crisp surface rather than a
+     soft, heavily rounded panel. */
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  overflow: visible;
+}
+
+/* House rule: nothing here is heavier than semibold. The design system's
+   HeroBanner sets its title inline at --tesseract-weight-bold, which is the
+   one place on this screen that reached 700. */
+.page h1,
+.page h2,
+.page h3,
+.page h4 {
+  font-weight: var(--tesseract-weight-semibold) !important;
+}
+
+/* ── Tab bar (reference anatomy) ── */
+.tabRow {
+  display: flex;
+  align-items: flex-start;
+  flex-shrink: 0;
+  /* 18px sides, matching every other row on this card. The top is trimmed to
+     8px so the card gives more of its height to the table below. */
+  padding: 8px 18px 0;
+  border-bottom: 1px solid var(--tesseract-slate-100);
+  position: relative;
+}
+
+/* When the tabs overflow, the strip should run to the very edge of the card, so
+   the last tab reads as continuing off-screen rather than being cut short with a
+   gutter of white beside it. Drop the right padding while overflowing. */
+.tabRow[data-overflow-x] {
+  padding-right: 0;
+}
+
+/* Right-edge fade, shown only while the tab strip has tabs scrolled off to the
+   right (data-overflow-x, set in JS and cleared at the end of the scroll). The
+   last tab dissolves into the card's own white rather than getting a grey
+   shadow smudged over its text — a cleaner "there is more, scroll" cue for a tab
+   strip. Sits flush at the card's right edge (right:0, padding removed above)
+   and lets clicks through. */
+.tabRow[data-overflow-x]::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 1px;
+  right: 0;
+  width: 56px;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--tesseract-bg-surface) 75%
+  );
+}
+
+/* Only the tabs scroll; the overflow menu stays pinned at the end. */
+.tabRow > .tabRowInner {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tabRowInner {
+  display: flex;
+  align-items: center;
+  min-width: max-content;
+}
+
+/* The tab row is the design system's Tabs. Only two things stay ours: the
+   hairline before the tab that behaves differently, and keeping the icons
+   on brand rather than letting them inherit the label colour. */
+/* The tab row already sits on the card's own bottom rule, so the list's
+   built-in one doubles it. */
+.tabRowInner [role="tablist"] {
+  border-bottom: none;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+/* Prod parity: the detached tab keeps its wider left inset after the divider. */
+.tabRowInner [role="tab"][data-detached] {
+  position: relative;
+  margin-left: 16px;
+  padding-left: 28px;
+}
+
+/* Fades out at both ends and carries its weight only in the middle, so it
+   separates without drawing a hard rule through the row. */
+.tabRowInner [role="tab"][data-detached]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--tesseract-slate-300) 45%,
+    var(--tesseract-slate-300) 55%,
+    transparent 100%
+  );
+}
+
+/* The design system weights every tab trigger at semibold and tells active
+   from inactive by colour alone. Six semibold labels in a row read as six
+   competing headings, so weight carries the state here: the chosen tab is
+   semibold, the rest are regular. */
+.tabRowInner [role="tab"] {
+  font-weight: var(--tesseract-weight-regular) !important;
+}
+
+.tabRowInner [role="tab"][data-state="active"] {
+  font-weight: var(--tesseract-weight-semibold) !important;
+}
+
+.tabRowInner [role="tab"] [data-tp-icon] {
+  background-color: var(--tesseract-slate-600) !important;
+}
+
+.tabRowInner [role="tab"][data-state="active"] [data-tp-icon] {
+  background-color: var(--tesseract-blue-500) !important;
+}
+
+/* ── Toolbar (reference: search left, controls right, 38px row) ── */
+.toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* Even 18px all round, the same rhythm as the tab row and body. */
+  padding: 18px;
+  /* One height for every control in this row. The design system's `sm`
+     controls don't all land on the same pixel (the segmented toggle sits at
+     36, buttons and the picker at 38), so the whole cluster reads to this
+     single token instead. Change it here and search, segmented, date pill,
+     filter and kebab move together, in both the table and calendar views. */
+  --appt-ctl-h: 38px;
+}
+
+
+.searchLabel {
+  min-width: 180px;
+  width: 100%;
+  max-width: 380px;
+}
+
+/* The leading glyph is part of the placeholder, not part of the value: it
+   takes the placeholder's own tone rather than inheriting the field's ink,
+   so an empty search field reads as one grey unit. */
+.searchLabel [class*="_iconLeft_"] {
+  color: var(--tesseract-slate-400);
+}
+
+/* The toolbar sits above a dense table, so its search keeps the compact
+   38px height rather than the design system's default field height. */
+.searchLabel [class*="_fieldRow_"] {
+  --input-height: var(--appt-ctl-h);
+  border-width: 1px;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Receptionist toolbar keeps search on the right; give it a usable width so
+   the placeholder is not clipped beside the date + filter controls. */
+.receptionistSearch {
+  min-width: 260px;
+  width: 280px;
+  max-width: 320px;
+  flex-shrink: 0;
+}
+
+/* Page-level overflow menu, now trailing the toolbar's control cluster (after
+   the filters, at the very right end) rather than up in the tab row: its Queue
+   export follows the date filter, so it belongs beside the filters, below the
+   counts they move. */
+.toolbarMenu {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── View toggle (list / calendar) ── */
+/* Icon-only view toggle: the empty label span still carries the item gap,
+   leaving phantom right padding; hide it and keep the items square. */
+.viewSeg span[class*="_label_"]:empty {
+  display: none;
+}
+
+/* size="md" already gives the 42px height and radius-10 the banner CTAs use.
+   The ring is an inset shadow rather than a border: a real border shifts the
+   padding box, and the DS positions its sliding indicator against that, which
+   left the active pill a hair off-centre. */
+/* Square segments with real breathing room inside the track: 34px items in a
+   42px shell, so the pill has padding on every side rather than hugging the
+   icon. */
+.viewSeg {
+  /* Bright enough for a dark glyph to sit on without losing the frosted
+     look; a 24% pill left the active icon camouflaged. */
+  --tesseract-sc-indicator: color-mix(in srgb, var(--tesseract-slate-0) 82%, transparent);
+  padding: 5px;
+  gap: 4px;
+  background-color: color-mix(in srgb, var(--tesseract-slate-0) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tesseract-slate-0) 28%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.viewSeg button[class*="_item_"] {
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+  justify-content: center;
+  color: color-mix(in srgb, var(--tesseract-slate-0) 62%, transparent);
+}
+
+/* Liquid glass: the pill is frosted rather than opaque, lit along its top
+   edge, so the banner gradient still reads through it. */
+.viewSeg span[class*="_indicator_"] {
+  backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tesseract-slate-0) 50%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--tesseract-slate-0) 30%, transparent),
+    0 2px 8px color-mix(in srgb, var(--tesseract-slate-900) 18%, transparent);
+}
+
+.viewSeg button[class*="_item_"][data-state="active"] {
+  color: var(--tesseract-blue-900);
+}
+
+.viewSeg button[class*="_item_"]:hover:not([data-state="active"]) {
+  color: color-mix(in srgb, var(--tesseract-slate-0) 88%, transparent);
+}
+
+/* The toolbar DatePicker's internal calendar glyph auto-resolves to the
+   health family; the house icon is time/calendar. */
+.dateWrap [data-tp-icon="calendar-1/linear"] {
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/time/calendar.svg") !important;
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/time/calendar.svg") !important;
+}
+
+/* The Filter panel is the last control on the toolbar, so its DS default of
+   left:0 pushes it off the right edge of the card. Anchor it to the
+   trigger's right edge instead. */
+.filterWrap {
+  position: relative;
+}
+
+.filterWrap :global([class*="_panel_"]) {
+  left: auto;
+  right: 0;
+}
+
+/* Active-filter count, a small badge pinned to the icon's top-right corner. */
+.filterCount {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  /* A light neutral chip with a white ring, so it lifts cleanly off the tonal
+     filter fill behind it. */
+  background: var(--tesseract-slate-500);
+  color: var(--tesseract-slate-0);
+  box-shadow: 0 0 0 3px var(--tesseract-slate-0);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── Filter trigger — icon only. The word "Filter" and the chevron are dropped
+   (the icon reads on its own and the panel says the rest), so the control is a
+   compact square that spends no toolbar width on a label. font-size:0 hides the
+   trigger's own text node while the icon keeps its explicit size. ── */
+.filterWrap [class*="_trigger_"] {
+  height: var(--appt-ctl-h);
+  width: var(--appt-ctl-h);
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-slate-100);
+  font-family: var(--tesseract-font-body);
+  font-size: 0;
+  font-weight: 500;
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+.filterWrap [class*="_trigger_"]:hover {
+  border-color: transparent;
+  background: var(--tesseract-slate-200);
+}
+
+/* Same as the date pill: no open/focus ring or shadow, just the tonal fill. */
+.filterWrap [class*="_trigger_"],
+.filterWrap [class*="_trigger_"][aria-expanded="true"],
+.filterWrap [class*="_root_"] {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.filterWrap [class*="_root_"]::before,
+.filterWrap [class*="_root_"]::after {
+  display: none !important;
+}
+
+/* Active filters read through the count badge, not a colour change — the
+   control stays the same neutral tonal fill whether or not filters are on. */
+.filterWrap[data-active] [class*="_trigger_"] {
+  border-color: transparent;
+  background: var(--tesseract-slate-100);
+  color: var(--tesseract-fg-secondary);
+}
+
+.filterWrap [class*="_caret_"] {
+  display: none !important;
+}
+
+/* The DS Filter renders its active-selection chips inline under its own
+   trigger, which breaks the toolbar row. We hide that and render the chips as
+   a full-width bar below the toolbar (see .activeFilterBar). */
+.filterWrap [class*="_activeBar_"] {
+  display: none;
+}
+
+/* ── Date picker trigger (reference: 38px, radius 10, slate borders) ── */
+.dateWrap [class*="_trigger_"] {
+  min-height: 38px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--tesseract-radius-10);
+  border-color: var(--tesseract-slate-200);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 500;
+  color: var(--tesseract-fg-secondary);
+  background: var(--tesseract-bg-surface);
+}
+
+/* Legacy Zydus date navigator (prev/next + single date picker) */
+.zydusDateNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--tesseract-radius-10);
+  border: 1px solid var(--tesseract-slate-200);
+  background: var(--tesseract-bg-surface);
+}
+
+.zydusNavBtn {
+  min-width: 34px !important;
+  padding: 0 !important;
+}
+
+.zydusDateNav :global(.ant-picker) {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  height: 34px;
+  width: 130px;
+}
+
+.zydusDateNav :global(.ant-picker-input > input) {
+  font-size: var(--tesseract-text-body-sm) !important;
+  font-weight: 500 !important;
+  color: var(--tesseract-fg-secondary) !important;
+}
+
+.zydusDateNav :global(.ant-picker-suffix) {
+  display: none !important;
+}
+
+.dateWrap [class*="_trigger_"]:hover {
+  border-color: var(--tesseract-slate-300);
+}
+
+/* Date stepper: [‹ date ›] as ONE pill. The arrows live inside the same
+   bordered box as the date, hugging it either side, and the date in the middle
+   opens the picker. The inner picker's own chrome is stripped below so the
+   three parts read as a single control. Used in both the table and calendar. */
+.dateNav {
+  display: inline-flex;
+  align-items: center;
+  height: var(--appt-ctl-h);
+  /* Tonal, not outlined: a soft neutral fill instead of a border, so the date
+     control reads as a quiet button rather than a boxed field. */
+  border: 1px solid transparent;
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-slate-100);
+  overflow: hidden;
+}
+
+.dateNav:hover {
+  background: var(--tesseract-slate-200);
+}
+
+/* Day/Week grain toggle in the toolbar, sized to the 38px control row and
+   wearing the same neutral track as the date pill and filter beside it. */
+/* The DS `sm` segmented fixes its own root height (~36) at the same
+   specificity as this class, so the track needs `!important` to grow to the
+   shared control height. Everything inside — the items and the sliding white
+   indicator — is left to the DS, which centres them with its own inset, so
+   the selected pill keeps its breathing room top and bottom. */
+.grainSeg {
+  height: var(--appt-ctl-h) !important;
+  flex-shrink: 0;
+  background: var(--tesseract-slate-100);
+}
+
+.dateNavBtn {
+  width: 30px;
+  min-width: 30px !important;
+  /* Fills the pill's content box: the pill is --appt-ctl-h tall with a 1px
+     transparent border top and bottom, so the arrows sit 2px inside it. */
+  height: calc(var(--appt-ctl-h) - 2px) !important;
+  min-height: calc(var(--appt-ctl-h) - 2px) !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--tesseract-fg-secondary) !important;
+}
+
+.dateNavBtn:hover:not(:disabled) {
+  background: var(--tesseract-slate-200) !important;
+}
+
+.dateNavBtn:disabled {
+  opacity: 0.35;
+}
+
+/* The inner picker merges into the pill: no border of its own, and no chevron
+   in the middle, so the whole thing reads as one clean input box with the two
+   arrows as its edges. The arrows already carry the edge spacing, so the
+   trigger drops its own horizontal padding and the date sits close to them. */
+.dateNav .dateWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dateNav .dateWrap [class*="_trigger_"] {
+  min-height: calc(var(--appt-ctl-h) - 2px);
+  height: calc(var(--appt-ctl-h) - 2px);
+  padding: 0 4px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.dateNav .dateWrap [class*="_trigger_"]:hover {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* The pill is the control; the design system's own open/focus ring on the
+   inner trigger read as a faint shadow beside the calendar icon. Kill every
+   ring, shadow and pseudo-element so the open state is just the tonal fill. */
+.dateNav .dateWrap [class*="_trigger_"],
+.dateNav .dateWrap [class*="_trigger_"][data-open="true"],
+.dateNav .dateWrap [class*="_trigger_"][aria-expanded="true"],
+.dateNav .dateWrap [class*="_root_"] {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.dateNav .dateWrap [class*="_root_"]::before,
+.dateNav .dateWrap [class*="_root_"]::after {
+  display: none !important;
+}
+
+.dateNav .dateWrap [class*="_chevron_"] {
+  display: none !important;
+}
+
+/* Single day: the design system's own range text is collapsed and our compact
+   label ("FRI 28 AUG") sits in its place, right after the calendar icon. It is
+   a normal in-flow element, so the pill wraps to the label's own width with no
+   dead space. It carries the click through to the trigger so tapping the date
+   still opens the picker. */
+.dateNav .dateWrap[data-overlay] [class*="_triggerText_"] {
+  display: none;
+}
+
+.dateSingleLabel {
+  display: inline-flex;
+  align-items: center;
+  /* The icon's own trailing space is the only gap; no extra left margin, and no
+     padding before the next arrow (the arrow button carries that spacing). */
+  margin-left: 0;
+  padding-right: 0;
+  cursor: pointer;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 500;
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+/* ── Active filter bar (full-width row below the toolbar) ── */
+.activeFilterBar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 18px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--tesseract-slate-100);
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-slate-50);
+}
+
+.activeFilterLabel {
+  flex-shrink: 0;
+  padding-right: 8px;
+  border-right: 1px solid var(--tesseract-slate-200);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 600;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.activeFilterClear {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: 600;
+  color: var(--tesseract-warning-700);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.activeFilterClear:hover {
+  color: var(--tesseract-warning-800);
+}
+
+/* ── Body — the only scroll region of the page ── */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 18px 18px;
+}
+
+/* The calendar is an inset panel like the table: 18px clear of the card on
+   the sides, flush at the top against the toolbar, and running off the
+   bottom edge — the grid scrolls, and stopping it short of the card would
+   claim the day ends there. Its own corners and stroke make it a panel, so
+   nothing inside it needs a second inset. */
+.body[data-view="calendar"] {
+  /* 18px both sides, aligned with the toolbar and tabs. The week fits its seven
+     columns inside this (it no longer needs to scroll on tablet), so the panel
+     sits contained in the card rather than running to the edge. */
+  padding: 0 18px 0;
+}
+
+/* The calendar panel ends flush with the card's foot, so the card squares off
+   there to meet it. Rounded corners under a full-bleed legend bar showed as
+   two slivers of page tint at the bottom ends. `clip` keeps the horizontally
+   scrolling week contained inside the card's rounded shape instead of spilling
+   past its corners. */
+.card:has(> .body[data-view="calendar"]) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  overflow: clip;
+}
+
+/* Scrolled so days run off an edge: square that top corner so the grid reads as
+   cut off and continuing, rather than tucked behind a rounded edge. Driven by
+   data-overflow-start / -end on the calendar root (set in JS). The root lives in
+   another CSS module, so match by the data attribute under the calendar body,
+   not by `.root` (which would resolve to this module's class). */
+.card:has(.body[data-view="calendar"] [data-overflow-end]) {
+  border-top-right-radius: 0;
+}
+
+.card:has(.body[data-view="calendar"] [data-overflow-start]) {
+  border-top-left-radius: 0;
+}
+
+.body > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+}
+
+
+/* ── Tablet ──────────────────────────────────────────────────────────
+   iPad mini portrait (744pt) upward. The page keeps its shape; the chrome
+   around the table gives up the room. */
+@media (max-width: 1024px) {
+  .toolbar {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    /* 18px sides here too, so the search field lines up with the table columns
+       and the tab row below the tablet breakpoint (they kept 18px). */
+    padding: 18px;
+  }
+
+  .searchLabel {
+    /* Keep the same 420px cap as on desktop rather than letting the field
+       stretch across a tablet toolbar; it only needs to shrink, never grow. */
+    max-width: 380px;
+    flex: 1 1 260px;
+  }
+
+  .banner,
+  .cardWrap {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* Coarse pointers: the row actions and the tab strip need finger-sized
+   targets, and a scrollable tab strip must not show a scrollbar. */
+@media (pointer: coarse) {
+  .tabRowInner {
+    scrollbar-width: none;
+  }
+
+  .tabRowInner::-webkit-scrollbar {
+    display: none;
+  }
+
+  .page [role="tab"] {
+    min-height: 44px;
+  }
+}

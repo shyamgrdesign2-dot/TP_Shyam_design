@@ -1,0 +1,179 @@
+/* The Correlation Agent introduction, shaped to sit where Differential
+   Diagnosis sits: a standing mark in its own column, then a tinted violet panel
+   holding the heading, the counts and the one action. */
+
+.shell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-3, 12px);
+  width: 100%;
+}
+
+.markCol {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+/* The brand mark squares its bottom-right corner, the way the Apex AI mark on
+   Differential Diagnosis does, so the two AI blocks share one silhouette. The
+   wrapper clips (overflow: hidden), so the plate follows this radius. */
+.markSquare {
+  border-radius: var(--tesseract-radius-8, 8px) var(--tesseract-radius-8, 8px) 0
+    var(--tesseract-radius-8, 8px) !important;
+}
+
+.root {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3, 12px);
+  padding: var(--tesseract-space-4, 16px);
+  border-radius: var(--tesseract-radius-12, 12px);
+  background: linear-gradient(
+    180deg,
+    var(--tesseract-violet-50) 0%,
+    var(--tesseract-bg-surface) 46%
+  );
+}
+/* The Tesseract bordered-card stroke: a 1px gradient edge, opaque at the top and
+   bottom and faded to a whisper across the middle of each side. Same recipe the
+   SectionCard uses (violet --sc-edge), so this card's border reads as one of the
+   family with the Lab results / Records sections. */
+.root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tesseract-violet-500) 30%, transparent) 0%,
+    color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) 50%,
+    color-mix(in srgb, var(--tesseract-violet-500) 30%, transparent) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1-5, 6px);
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2, 8px);
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-subtitle, 16px);
+  font-weight: var(--tesseract-weight-semibold, 600);
+  line-height: 1.3;
+  color: var(--tesseract-fg-heading);
+}
+/* The app's `body span { color: … !important }` would repaint the gradient
+   badge label; forced white, scoped to this card. */
+.title :global([data-variant="gradient"]) span {
+  color: #ffffff !important;
+}
+
+.sub {
+  margin: 0;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption, 12px);
+  line-height: 1.6;
+  color: var(--tesseract-fg-secondary);
+}
+
+.inlineLink {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: var(--tesseract-weight-semibold, 600);
+  color: var(--tesseract-violet-700);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.inlineLink:focus-visible {
+  outline: 2px solid var(--tesseract-violet-600);
+  outline-offset: 2px;
+}
+
+/* What is on file to read across, counted the way a doctor files it. */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2, 8px);
+}
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5, 6px);
+  padding: var(--tesseract-space-1-5, 6px) var(--tesseract-space-3, 12px);
+  border-radius: var(--tesseract-radius-full, 999px);
+  background: var(--tesseract-bg-surface);
+  border: 1px solid var(--tesseract-border-soft);
+  font-size: var(--tesseract-text-caption, 12px);
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+.stat[data-empty] {
+  opacity: 0.55;
+}
+.statCount {
+  font-family: var(--tesseract-font-heading);
+  font-weight: var(--tesseract-weight-bold, 700);
+  color: var(--tesseract-fg-heading);
+  font-variant-numeric: tabular-nums;
+}
+.statLabel {
+  color: var(--tesseract-fg-secondary);
+}
+.glyph {
+  display: inline-block;
+  flex: none;
+  background-color: var(--tesseract-violet-600);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* Post-run: primary View sits beside a quieter "start over". */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tesseract-space-2, 8px);
+}
+.secondary {
+  align-self: flex-start;
+}
+/* The app's global `body span` repaint would flatten the outline label; hold it
+   to a readable ink. */
+.secondary span {
+  color: var(--tesseract-fg-heading, #1e2233) !important;
+}
+
+/* The agent's own action wears the AI gradient, like every other agent CTA. */
+.cta {
+  align-self: flex-start;
+  min-width: calc(var(--tesseract-space-16, 64px) * 3);
+  background: var(--tesseract-gradient-ai-hero) !important;
+  border-color: transparent !important;
+}
+.cta:hover {
+  background: var(--tesseract-gradient-ai-hero) !important;
+}
+.cta span {
+  color: var(--tesseract-fg-inverse, #ffffff) !important;
+}

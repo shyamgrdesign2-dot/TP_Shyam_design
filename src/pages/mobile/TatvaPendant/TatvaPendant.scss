@@ -1,0 +1,463 @@
+@import '../../../styles/variables.scss';
+
+// Tatva Pendant page shell — matches tp-dolphin.vercel.app wireframe
+$tp-page-bg-top: #fbfbfe;
+$tp-page-bg-mid: #f5f6fb;
+$tp-page-bg-bottom: #f2f3f9;
+$tp-header-navy: #0f172a;
+$tp-header-muted: #64748b;
+$tp-header-subtle: #94a3b8;
+
+.mobile-tatva-pendant {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: linear-gradient(
+    180deg,
+    $tp-page-bg-top 0%,
+    $tp-page-bg-mid 42%,
+    $tp-page-bg-bottom 100%
+  );
+  font-family: 'Poppins', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: $welcomecolor;
+
+  // Wireframe ambient glow — top-left, top-right, mid (tp-dolphin /conversations)
+  .tp-ambient-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      width: 288px;
+      height: 288px;
+      border-radius: 50%;
+      filter: blur(80px);
+    }
+
+    &::before {
+      top: -96px;
+      left: -64px;
+      background: radial-gradient(circle, rgba(164, 97, 216, 0.16) 0%, transparent 70%);
+    }
+
+    &::after {
+      top: -40px;
+      right: -80px;
+      background: radial-gradient(circle, rgba(75, 74, 213, 0.14) 0%, transparent 70%);
+    }
+
+    &__mid {
+      position: absolute;
+      top: 40%;
+      left: 25%;
+      width: 288px;
+      height: 288px;
+      border-radius: 50%;
+      filter: blur(90px);
+      background: radial-gradient(circle, rgba(213, 101, 234, 0.08) 0%, transparent 70%);
+    }
+  }
+
+  .ant-input-affix-wrapper {
+    padding: 4px 11px !important;
+    border-color: $bordercolor !important;
+    border-radius: 22px !important;
+
+    &.ant-input-affix-wrapper-focused {
+      border-color: $theme !important;
+      box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.1) !important;
+    }
+
+    .ant-input {
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      color: $maincolor;
+    }
+  }
+
+  .tp-page {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 16px calc(100px + env(safe-area-inset-bottom));
+    background: transparent;
+  }
+
+  .tp-sticky-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.62) 100%);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 6px 14px -10px rgba(15, 23, 42, 0.18);
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+    transition:
+      opacity 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+      transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    &--visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    &__logo {
+      display: block;
+      width: 124px;
+      height: 22px;
+      background: linear-gradient(120deg, #818cf8 0%, #4b4ad5 50%, #6d28d9 100%);
+      pointer-events: none;
+      user-select: none;
+      -webkit-mask: url('./assets/tatva-pendant-logo.svg') no-repeat left center / contain;
+      mask: url('./assets/tatva-pendant-logo.svg') no-repeat left center / contain;
+    }
+
+    &__avatar {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: #ffffff;
+      color: #0f172a;
+      font-family: 'Poppins', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      transition: background 0.2s ease, transform 0.15s ease;
+
+      &:hover {
+        background: #f8fafc;
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+    }
+
+    &__avatar-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      z-index: 1;
+    }
+
+    &__avatar-fallback {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 0;
+    }
+  }
+
+  .tp-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin: -20px -16px 18px;
+    padding: 18px 16px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 6px 14px -10px rgba(15, 23, 42, 0.18);
+
+    &__text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    &__greeting {
+      font-size: 12px;
+      font-weight: 500;
+      color: $tp-header-muted;
+      margin-bottom: 4px;
+      line-height: 1.25;
+    }
+
+    &__name {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: $tp-header-navy;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+
+    &__subtitle {
+      margin: 4px 0 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: $tp-header-subtle;
+      line-height: 1.35;
+    }
+  }
+
+  .tp-avatar {
+    width: 54px;
+    height: 54px;
+    padding: 2.5px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $themesecondary 0%, $theme 52%, #3b82f6 100%);
+    box-shadow: 0 0 14px rgba(164, 97, 216, 0.28);
+    position: relative;
+    flex-shrink: 0;
+    display: block;
+
+    &--large {
+      width: 56px;
+      height: 56px;
+
+      .tp-avatar__inner {
+        font-size: 17px;
+      }
+    }
+
+    &__inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: $tp-header-navy;
+      color: $white;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.03em;
+    }
+
+    &__photo {
+      position: absolute;
+      top: 2.5px;
+      left: 2.5px;
+      width: calc(100% - 5px);
+      height: calc(100% - 5px);
+      object-fit: cover;
+      border-radius: 50%;
+      z-index: 2;
+    }
+
+    &__status {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 11px;
+      height: 11px;
+      background: #22c55e;
+      border: 2.5px solid $tp-page-bg-top;
+      border-radius: 50%;
+      z-index: 1;
+    }
+  }
+
+  .tp-stats-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    margin-bottom: 20px;
+  }
+
+  .tp-stat-card {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 20px;
+    padding: 14px;
+    background:
+      linear-gradient(160deg, #ffffff 0%, #f8faff 60%, #f1f3ff 100%);
+    backdrop-filter: blur(12px);
+    box-shadow:
+      0 1px 2px rgba(23, 23, 37, 0.04),
+      0 10px 26px -14px rgba(75, 74, 213, 0.22);
+    transition:
+      box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+      transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: -30%;
+      right: -30%;
+      width: 90%;
+      height: 90%;
+      pointer-events: none;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle at center,
+        rgba(255, 255, 255, 0.6) 0%,
+        rgba(255, 255, 255, 0) 70%
+      );
+      z-index: 0;
+    }
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 2px 6px rgba(75, 74, 213, 0.06),
+        0 18px 34px -14px rgba(75, 74, 213, 0.3);
+    }
+
+    &__border {
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      padding: 1px;
+      pointer-events: none;
+      background: linear-gradient(
+        150deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(75, 74, 213, 0.18) 100%
+      );
+      mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      mask-composite: exclude;
+      -webkit-mask-composite: xor;
+    }
+
+    &__icon {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin-bottom: 8px;
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(23, 23, 37, 0.06);
+
+      svg {
+        display: block;
+      }
+    }
+
+    &__value {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1;
+      color: #1e293b;
+      font-family: 'Poppins', sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+
+    &__label {
+      position: relative;
+      z-index: 1;
+      margin: 4px 0 0;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: #64748b;
+      font-family: 'Poppins', sans-serif;
+    }
+  }
+
+  .tp-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  .tp-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+
+    .tp-section-title {
+      margin: 0;
+    }
+  }
+
+  .tp-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b4ad5;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+
+    &:active {
+      opacity: 0.7;
+    }
+  }
+
+  .tp-home__loading,
+  .tp-captures__loading {
+    display: flex;
+    justify-content: center;
+    padding: 24px 0;
+  }
+
+  .tp-captures__empty {
+    text-align: center;
+    color: $grayColor;
+    font-size: 14px;
+    padding: 32px 0;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  .tp-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: 0.02em;
+
+    &--ipd {
+      background: rgba(75, 74, 213, 0.12);
+      color: #4b4ad5;
+    }
+
+    &--opd {
+      background: rgba(75, 74, 213, 0.12);
+      color: $theme;
+    }
+  }
+}

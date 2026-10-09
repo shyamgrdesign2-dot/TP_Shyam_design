@@ -1,0 +1,163 @@
+/* Harness page. Tokens only, no raw hex, even dimensions, Tesseract type scale
+   (14/400, 14/600, 12, 10/600). Mulish for headings, Inter for body, both via
+   the font tokens. Nothing here is product chrome, so it stays deliberately
+   quiet and lets the rail card and the drawer carry the eye. */
+
+.page {
+  min-height: 100%;
+  background: var(--tesseract-bg-page);
+  color: var(--tesseract-fg-primary);
+  padding: var(--tesseract-space-6) var(--tesseract-space-7) var(--tesseract-space-16);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+}
+
+.pageHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-4);
+  align-items: flex-end;
+  justify-content: space-between;
+  max-width: 1180px;
+  margin: 0 auto var(--tesseract-space-6);
+}
+
+.eyebrow {
+  font-size: var(--tesseract-text-micro);
+  line-height: var(--tesseract-text-micro-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.h1 {
+  margin: var(--tesseract-space-2) 0 0;
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-h4);
+  line-height: var(--tesseract-text-h4-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+}
+
+.stage {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  gap: var(--tesseract-space-5);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* The rail simulation is exactly 250px so the card is judged at its real
+   width. Nothing that is not in the product rail belongs inside it. */
+.railSim {
+  width: 250px;
+  flex: none;
+  background: var(--tesseract-bg-surface);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-14);
+  overflow: hidden;
+  box-shadow: var(--tesseract-shadow-sm);
+  padding-bottom: var(--tesseract-space-2);
+}
+
+.railHead {
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+  padding: var(--tesseract-space-3);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+}
+
+.railRows {
+  padding: 0 var(--tesseract-space-2);
+}
+
+.railRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-2) var(--tesseract-space-1);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--tesseract-fg-secondary);
+}
+
+.railRow:last-child {
+  border-bottom: 0;
+}
+
+.valBad,
+.valOk {
+  font-weight: var(--tesseract-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.valBad {
+  color: var(--tesseract-fg-error);
+}
+
+.valOk {
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* The commentary about the harness sits beside the rail, not inside it, so the
+   rail stays an honest imitation of the product surface. */
+.notes {
+  flex: 1 1 320px;
+  min-width: 280px;
+  max-width: 420px;
+  padding: var(--tesseract-space-5) var(--tesseract-space-6);
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-14);
+  background: var(--tesseract-bg-surface);
+  box-shadow: var(--tesseract-shadow-sm);
+}
+
+.notesHead {
+  margin: 0;
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+}
+
+.notesCopy {
+  margin: var(--tesseract-space-2) 0 0;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--tesseract-fg-secondary);
+}
+
+.notesList {
+  margin: var(--tesseract-space-5) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+}
+
+.noteRow {
+  display: grid;
+  gap: var(--tesseract-space-0-5);
+}
+
+.noteTerm {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+}
+
+.noteDesc {
+  margin: 0;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--tesseract-fg-tertiary);
+}

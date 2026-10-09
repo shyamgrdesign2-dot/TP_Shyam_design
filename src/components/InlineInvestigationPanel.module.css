@@ -1,0 +1,52 @@
+/* Raise Tesseract Drawer above antd LabParams drawers (1000 / 1100).
+   Class hashes are from @dhspl-tatvacare/tesseract-ui@1.1.0 Drawer module. */
+:global(._overlay_1gxkz_4) {
+  z-index: 1200 !important;
+}
+
+:global(._content_1gxkz_9) {
+  z-index: 1201 !important;
+}
+
+.drawerStack {
+  /* Anchor only — Drawer portals to body. */
+  display: contents;
+}
+
+.drawerContent {
+  /* Passthrough hook if Tesseract forwards className to the sheet. */
+  z-index: 1201;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-5);
+  padding: var(--tesseract-space-2) 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+
+.fieldLabel {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tesseract-space-3);
+  width: 100%;
+}
+
+/* Tesseract solid/primary Button label stays slate on filled primary —
+   force white to match other primary CTAs in this app. */
+.primaryCta span {
+  color: #fff !important;
+  font-weight: var(--tesseract-weight-medium) !important;
+}

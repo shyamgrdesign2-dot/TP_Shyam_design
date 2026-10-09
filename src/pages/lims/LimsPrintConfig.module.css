@@ -1,0 +1,456 @@
+/* ── Preview card ─────────────────────────────────────────────────────── */
+.previewCard {
+  padding: 24px 28px;
+  font-size: 10px;
+  color: #171725;
+  line-height: 1.45;
+  position: relative;
+  background: #fff;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* ── Watermark ─────────────────────────────────────────────────────── */
+.watermarkOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.watermarkImg {
+  max-width: 60%;
+  max-height: 60%;
+  opacity: 0.08;
+  object-fit: contain;
+}
+
+/* ── Uploaded letterhead ──────────────────────────────────────────── */
+.uploadedHeaderImg {
+  width: 100%;
+  display: block;
+  object-fit: contain;
+  margin-bottom: 8px;
+}
+
+.uploadedFooterImg {
+  width: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.previewFixedFooter {
+  position: absolute;
+  z-index: 1;
+}
+
+.previewPageNumberInFlow {
+  margin-top: 12px;
+  text-align: right;
+  font-size: 8px;
+  color: #696974;
+}
+
+.previewFooterBar {
+  background: #171725;
+  height: 2px;
+  width: 100%;
+}
+
+.previewPageNumber {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 8px;
+  color: #696974;
+  z-index: 1;
+}
+
+/* ── Custom header (letterhead 0) ─────────────────────────────────── */
+.previewHeaderBlock {
+  margin-bottom: 8px;
+}
+
+.previewHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.previewLogo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.previewHeaderInfo {
+  flex: 1;
+}
+
+.previewDoctorName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4f4dc8;
+}
+
+.previewSubheader {
+  font-size: 9px;
+  color: #44444f;
+  margin-top: 1px;
+}
+
+.previewClinicInfo {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.previewClinicName {
+  font-size: 11px;
+  font-weight: 600;
+  color: #171725;
+}
+
+.previewDivider {
+  height: 1px;
+  background: #e2e2ea;
+  margin: 12px 0;
+}
+
+/* ── Patient info ─────────────────────────────────────────────────── */
+.previewPatientBlock {
+  padding: 4px 0;
+}
+
+.previewPatientRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 1em;
+  color: #44444f;
+}
+
+/* ── Lab results heading ──────────────────────────────────────────── */
+.previewTitle {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: #171725;
+  margin-bottom: 10px;
+}
+
+.previewEmpty {
+  text-align: center;
+  padding: 32px 0;
+  color: #92929d;
+  font-size: 1.1em;
+}
+
+/* ── Date heading above table ─────────────────────────────────────── */
+.previewDateHeading {
+  font-weight: 600;
+  font-size: 1em;
+  color: #171725;
+  margin-bottom: 4px;
+}
+
+/* ── Report blocks ────────────────────────────────────────────────── */
+.previewReportBlock {
+  margin-bottom: 14px;
+}
+
+.previewReportHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f1f1f5;
+  padding: 3px 8px;
+  border-radius: 2px;
+  margin-bottom: 0;
+}
+
+.previewReportName {
+  font-weight: 700;
+  font-size: 1em;
+  color: #171725;
+}
+
+.previewReportMeta {
+  font-size: 0.9em;
+  color: #696974;
+}
+
+/* ── Table format ─────────────────────────────────────────────────── */
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #d5d5dc;
+  font-size: 1em;
+  table-layout: fixed;
+}
+
+.previewTable th {
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85em;
+  color: #696974;
+  padding: 3px 6px;
+  background: #f1f1f5;
+  border: 1px solid #d5d5dc;
+}
+
+.previewTable td {
+  padding: 2px 6px;
+  border: 1px solid #e2e2ea;
+  color: #171725;
+  font-size: 1em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.reportSubHeader td {
+  background: #f1f1f5;
+  font-weight: 700;
+  color: #171725;
+  padding: 3px 6px;
+  font-size: 1em;
+  border: 1px solid #d5d5dc;
+}
+
+.abnormalRow td {
+  color: #c5292a;
+}
+
+/* ── List View format ─────────────────────────────────────────────── */
+.listViewWrap {
+  padding: 2px 0;
+  font-size: 1em;
+}
+
+.listViewItem {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  border-bottom: 1px solid #f1f1f5;
+}
+
+.listViewLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.listViewName {
+  font-weight: 600;
+  color: #171725;
+  font-size: 1em;
+  white-space: nowrap;
+}
+
+.listViewResult {
+  flex-shrink: 0;
+  text-align: right;
+  color: #171725;
+  font-size: 1em;
+}
+
+.listViewRange {
+  color: #92929d;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* ── Inline format ────────────────────────────────────────────────── */
+.inlineWrap {
+  padding: 4px 6px;
+  line-height: 1.6;
+  font-size: 1em;
+  color: #171725;
+}
+
+/* ── Abnormal text (shared) ───────────────────────────────────────── */
+.abnormalText {
+  color: #c5292a;
+}
+
+/* ── Signature ────────────────────────────────────────────────────── */
+.signatureBlock {
+  margin-top: 32px;
+  padding-top: 8px;
+}
+
+.signatureImg {
+  max-width: 160px;
+  max-height: 60px;
+  object-fit: contain;
+}
+
+.signatureName {
+  font-weight: 600;
+  font-size: 10px;
+  color: #171725;
+  margin-top: 2px;
+}
+
+.signatureQual {
+  font-size: 9px;
+  color: #44444f;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────── */
+.previewFooterText {
+  font-size: 1em;
+  color: #171725;
+  text-align: left;
+  padding: 4px 0;
+}
+
+.previewQrBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+  max-width: 220px;
+}
+
+.previewQrImg {
+  width: 61px;
+  height: 61px;
+  object-fit: contain;
+}
+
+.previewQrCaption {
+  font-size: 0.9em;
+  color: #171725;
+  white-space: pre-line;
+  line-height: 1.35;
+}
+
+/* ── Config page layout ───────────────────────────────────────────── */
+.configPage {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f1f1f5;
+}
+
+.configBody {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(350px, 30%) minmax(300px, 1fr);
+  min-height: 0;
+  align-items: stretch;
+}
+
+.configSidebar {
+  background: #fff;
+  border-right: 1px solid #e2e2ea;
+  overflow-y: auto;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.configSidebarPanel {
+  min-width: 360px;
+  padding-bottom: 24px;
+}
+
+/* Let shared print-setting forms wrap inside the narrower LIMS panel */
+.configSidebar :global(.print-tabs .ant-tabs-tab) {
+  margin-left: 10px !important;
+  padding: 16px 8px !important;
+}
+
+.configSidebar :global(.print-tabs .ant-tabs-tab-btn) {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.configSidebar :global(.gender-radio),
+.configSidebar :global(.all-change-radio) {
+  flex-wrap: wrap !important;
+  gap: 6px;
+}
+
+.configSidebar :global(.gender-radio .ant-radio-button-wrapper),
+.configSidebar :global(.all-change-radio .ant-radio-button-wrapper) {
+  flex: 1 1 auto;
+  min-width: 72px;
+  white-space: normal;
+  text-align: center;
+  height: auto;
+  line-height: 1.3;
+  padding: 6px 8px;
+}
+
+.configSidebar :global(.form_addnewpatient .row),
+.configSidebar :global(.form_addnewpatient .ant-row) {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.configSidebar :global(.px-3) {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+.configPreview {
+  min-width: 0;
+  overflow: auto;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: #f1f1f5;
+}
+
+.configPreviewInner {
+  width: 100%;
+  max-width: 794px;
+  min-width: 0;
+}
+
+.configPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.configPreviewCard {
+  background: #fff;
+  border-radius: 12px;
+  overflow: visible;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  width: 100%;
+}
+
+/* Stack settings above preview on narrow / iframe widths */
+@media (max-width: 960px) {
+  .configBody {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .configSidebar {
+    max-height: 48vh;
+    border-right: none;
+    border-bottom: 1px solid #e2e2ea;
+  }
+
+  .configPreview {
+    padding: 12px 16px;
+  }
+}

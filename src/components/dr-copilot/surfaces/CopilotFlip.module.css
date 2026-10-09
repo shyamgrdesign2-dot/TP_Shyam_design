@@ -1,0 +1,70 @@
+/* The panel's two faces, and the turn between them.
+
+   Copied in shape from the Rx pad's own flip (dr-agent/rxpad/dr-agent/
+   DrAgentPanel.module.scss) so the gesture is the same one the doctor
+   already knows: 800ms, the same easing, the same half-turn per press.
+   `--flip-deg` accumulates rather than toggling between 0 and 180, so the
+   second flip carries on in the same direction instead of rewinding. */
+
+.wrapper {
+  position: relative;
+  /* Takes the surface's size, imposes none of its own. */
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform: translate3d(0, 0, 0) rotateY(var(--flip-deg, 0deg));
+  -webkit-transform: translate3d(0, 0, 0) rotateY(var(--flip-deg, 0deg));
+  will-change: transform;
+  transition: transform 800ms cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-transition: -webkit-transform 800ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overscroll-behavior: contain;
+  background: #fff;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.front {
+  transform: translate3d(0, 0, 1px);
+  -webkit-transform: translate3d(0, 0, 1px);
+}
+
+/* The back is pre-turned, so the wrapper's rotation lands it face-on. */
+.back {
+  transform: rotateY(180deg) translate3d(0, 0, 1px);
+  -webkit-transform: rotateY(180deg) translate3d(0, 0, 1px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hidden {
+  pointer-events: none;
+}
+
+/* Host for the Rx pad's VoiceRx back face. Carries data-dr-agent so the
+   VoiceRx utility rules in dr-agent-globals.css (scoped to that attribute)
+   apply, and stays inside the 3D context so BackFace's own turn still works. */
+.voiceHost {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrapper {
+    transition: none;
+  }
+}

@@ -1,0 +1,131 @@
+@import '../../../../styles/variables.scss';
+
+.tp-bottom-navigation {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+  background: #ffffff;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.04);
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: max(48px, env(safe-area-inset-bottom, 0px));
+    background: #ffffff;
+    pointer-events: none;
+  }
+
+  &__content {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  &__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 100%;
+    padding: 8px 6px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 0;
+    min-height: 0;
+    font-family: 'Poppins', sans-serif;
+    transition: transform 0.2s ease;
+
+    &--compact {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 6px;
+    }
+
+    &--active {
+      .tp-bottom-navigation__label {
+        color: #4b4ad5;
+        font-weight: 600;
+      }
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  &__divider {
+    flex: 0 0 1px;
+    width: 1px;
+    height: 40px;
+    align-self: center;
+    margin: 0;
+    background: #e2e2ea;
+  }
+
+  &__icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+  }
+
+  &__icon {
+    display: block;
+
+    &--img {
+      width: 24px;
+      height: 24px;
+      filter: brightness(0) saturate(100%) invert(27%) sepia(8%) saturate(1157%) hue-rotate(202deg) brightness(95%) contrast(89%);
+    }
+  }
+
+  &__badge {
+    position: absolute;
+    top: -6px;
+    right: -12px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #ef4444;
+    color: $white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-family: 'Poppins', sans-serif;
+    border: 2px solid #fff;
+  }
+
+  &__label {
+    font-size: 11px;
+    font-weight: 400;
+    color: #454551;
+    line-height: 14px;
+    font-family: 'Poppins', sans-serif;
+    white-space: nowrap;
+    text-align: center;
+  }
+}

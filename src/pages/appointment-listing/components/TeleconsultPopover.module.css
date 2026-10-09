@@ -1,0 +1,130 @@
+/* The video marker itself: a bare target around the glyph, no chrome, so it
+   still reads as a marker in the row rather than a button competing with the
+   row's own CTA. */
+.marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  border-radius: var(--tesseract-radius-4);
+  background: none;
+  cursor: pointer;
+}
+
+.marker:hover {
+  background: var(--tesseract-blue-50);
+}
+
+/* Click-away catcher for the pinned state; hover-only opens skip it so the
+   rest of the page stays live underneath. */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+}
+
+/* A light surface, not a dark tooltip: it carries a whole appointment and a
+   CTA, and white is what lets the tags keep their own tones. */
+.card {
+  position: fixed;
+  z-index: 1301;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--tesseract-slate-900) 16%, transparent);
+  font-family: var(--tesseract-font-body);
+  animation: teleconsultPopIn 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes teleconsultPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation-duration: 1ms;
+  }
+}
+
+/* The name leads, at the weight of a heading rather than a shout, and wraps
+   rather than truncating: a patient's name is the one thing on this card
+   worth a second line. The video glyph rides with it, which is what the
+   heading used to say and now does not need to. */
+.card .name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--tesseract-text-body-base);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--tesseract-fg-heading);
+  overflow-wrap: anywhere;
+}
+
+.nameGlyph {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* Who they are on file: subtext under the name, never competing with it. */
+.card .meta {
+  margin: -4px 0 0;
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.card .sep {
+  display: inline-block;
+  vertical-align: middle;
+  width: 1px;
+  height: 10px;
+  margin: 0 8px;
+  background: var(--tesseract-slate-300);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.card .fact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-fg-primary);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The remark is free text and can run long; two lines, then it clips with
+   its full value on hover, exactly as the table cell does. */
+.card .fact[data-remark] span:last-child {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.join {
+  width: 100%;
+}

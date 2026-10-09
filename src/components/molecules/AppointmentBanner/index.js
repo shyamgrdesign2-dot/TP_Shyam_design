@@ -1,1 +1,0 @@
-export { AppointmentBanner } from "./AppointmentBanner";

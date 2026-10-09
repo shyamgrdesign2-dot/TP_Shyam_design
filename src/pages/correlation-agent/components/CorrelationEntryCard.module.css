@@ -1,0 +1,134 @@
+/* Tokens only, even dimensions. The one deliberate deviation is the CTA fill:
+   the VoiceRx gradient instead of the blue primary, so every agent surface
+   reads as one family. See the note in CorrelationEntryCard.jsx. */
+
+.card {
+  margin: var(--tesseract-space-2, 8px);
+}
+
+/* SectionCard pads header, body and footer each by its own --sc-pad, which
+   stacks into a large gap under the heading. In a 250px rail that reads as a
+   hole, so the three regions are re-padded here as one vertical rhythm:
+   heading, then a tight body, then the action. */
+.card > header {
+  padding: var(--tesseract-space-3, 12px) var(--tesseract-space-3, 12px)
+    var(--tesseract-space-2, 8px);
+  gap: var(--tesseract-space-2, 8px);
+}
+
+.card > div {
+  padding: 0 var(--tesseract-space-3, 12px) var(--tesseract-space-2, 8px);
+}
+
+.card > footer {
+  padding: 0 var(--tesseract-space-3, 12px) var(--tesseract-space-3, 12px);
+}
+
+.card > footer > * {
+  flex: 1;
+}
+
+/* The title row. Tighter than the system default because the row carries four
+   things (mark, name, count, eye) inside 250px. */
+.card > header > div:first-child {
+  gap: var(--tesseract-space-2, 8px);
+}
+
+/* The leading mark ships in a 40px accent plate, which is what makes it read as
+   sitting high against a single line of heading. Flattened to the mark itself
+   so it centres on the heading. */
+.card > header > div:first-child > span:first-child {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  background: transparent;
+}
+
+/* The heading carries the count and the explanation, so it must not clip. */
+.card > header h3 {
+  overflow: visible;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-1, 4px);
+  min-width: 0;
+}
+
+.headingText {
+  /* Ellipsis stays as the last resort, but the name now gets the row's spare
+     width before anything else does. */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quiet by design: it explains, it does not act on the record. */
+.eye {
+  flex-shrink: 0;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2, 8px);
+}
+
+.copy {
+  margin: 0;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--tesseract-fg-secondary);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1, 4px);
+}
+
+/* THE AI GRADIENT.
+   Violet into indigo, matching the VoiceRx recorder's own fill
+   (#7C3AED / #5B21B6 / #4338CA) so every agent surface in the product is one
+   family. I had previously flattened this to violet only, reading the
+   violet-to-blue sweep as a generic machine-made gradient. It is not generic
+   here: the blue end is half of the brand asset, and removing it broke the
+   resemblance to VoiceRx that the whole thing depends on. */
+.gradientCta {
+  background: var(--tesseract-gradient-ai-hero);
+  border-color: transparent;
+}
+
+/* The Button atom sets its own label colour on the inner span, so it wins over
+   the class. Force white, scoped to this class only, so the label reads on the
+   violet gradient instead of rendering near-black. */
+.gradientCta,
+.gradientCta * {
+  color: var(--tesseract-fg-inverse) !important;
+}
+
+.gradientCta:hover {
+  background: var(--tesseract-gradient-ai-hero);
+}
+
+/* Secondary route out of the result state. It is a real action, so it stays a
+   Button, but it is stepped down to caption weight so it never competes with
+   the primary sitting below it. */
+.quiet {
+  display: flex;
+  justify-content: center;
+}
+
+.quiet button,
+.quiet button * {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-tertiary);
+}

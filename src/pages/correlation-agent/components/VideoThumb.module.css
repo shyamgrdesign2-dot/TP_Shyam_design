@@ -1,0 +1,39 @@
+/* The tutorial thumbnail. Drawn, not a bitmap — see VideoThumb.jsx. */
+
+.art {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  text-align: left;
+  line-height: 1.4;
+  border: 1px solid var(--tesseract-border-subtle, #e6e3f2);
+  border-radius: var(--tesseract-radius-12, 12px);
+  background: var(--tesseract-violet-50, #f5f2ff);
+}
+
+/* The play mark is the only saturated thing here, so the card reads as "watch"
+   without borrowing the primary CTA's weight. */
+.play {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--tesseract-violet-600, #5b3fd6);
+  color: var(--tesseract-fg-inverse, #ffffff);
+}
+
+/* Stated, never inherited: the app ships a global `body span { color: … }` that
+   repaints any span relying on currentcolor. */
+.label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tesseract-fg-primary, #17161d) !important;
+}

@@ -1,0 +1,365 @@
+/* ── Data Analytics module – scoped styles ────────────────────────────────
+   Every rule is scoped under `.da-root` (the module's outermost wrapper)
+   so nothing here can leak into host Ant Design or other PM Doctor Portal
+   pages. Portaled content (drawers, dialogs) opened by this module also
+   gets scoped via `.da-portal` on the portal container.
+
+   The host app's global text cascade forces inner spans dark on accent
+   surfaces. We restore the design system's intended contrast only within
+   this module. Mask icons paint with background-color, so we set that. */
+
+/* ── Accent contrast corrections ──────────────────────────────────────── */
+
+/* Active sidebar leaf — the solid-accent icon chip glyph → white */
+.da-root [aria-current="page"] [class*="_chip"] [data-tp-icon] {
+  background-color: var(--tesseract-fg-inverse) !important;
+}
+
+/* Active primary SegmentedControl segment (blue pill) — label → white */
+.da-root button[class*="_item_"][aria-checked="true"],
+.da-root button[class*="_item_"][aria-checked="true"] [class*="_label"] {
+  color: var(--tesseract-fg-inverse) !important;
+}
+
+/* Solid primary (blue) Tesseract buttons — inner text + icon → white */
+.da-root button[data-variant="solid"][data-theme="primary"],
+.da-root button[data-variant="solid"][data-theme="primary"] * {
+  color: var(--tesseract-fg-inverse) !important;
+}
+.da-root button[data-variant="solid"][data-theme="primary"] [data-tp-icon] {
+  background-color: var(--tesseract-fg-inverse) !important;
+}
+
+/* Outline primary buttons — text + icon should be primary blue, not neutral */
+.da-root button[data-variant="outline"][data-theme="primary"],
+.da-root button[data-variant="outline"][data-theme="primary"] * {
+  color: var(--tesseract-blue-500) !important;
+}
+.da-root button[data-variant="outline"][data-theme="primary"] [data-tp-icon] {
+  background-color: var(--tesseract-blue-500) !important;
+}
+
+/* Tonal primary buttons — text + icon should be primary blue, not neutral */
+.da-root button[data-variant="tonal"][data-theme="primary"],
+.da-root button[data-variant="tonal"][data-theme="primary"] * {
+  color: var(--tesseract-blue-600) !important;
+}
+.da-root button[data-variant="tonal"][data-theme="primary"] [data-tp-icon] {
+  background-color: var(--tesseract-blue-600) !important;
+}
+
+/* Link-variant buttons (e.g. Clear in date picker) — preserve design system colors */
+.da-root button[data-variant="link"],
+.da-root button[data-variant="link"] * {
+  font-weight: 500 !important;
+}
+
+/* ── Card surfaces ────────────────────────────────────────────────────── */
+
+/* Key-metrics KPI card: liquid-glass style with gradient border */
+.da-root .da-kpi-card {
+  border: 0.75px solid transparent !important;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--tesseract-violet-50) 40%, var(--tesseract-bg-surface, #fff)) 0%, color-mix(in srgb, var(--tesseract-violet-50) 18%, var(--tesseract-bg-surface, #fff)) 35%, var(--tesseract-bg-surface, #fff) 100%) padding-box,
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--tesseract-violet-500) 15%, transparent) 0%,
+      color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) 30%,
+      color-mix(in srgb, var(--tesseract-violet-500) 1.5%, transparent) 50%,
+      color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) 70%,
+      color-mix(in srgb, var(--tesseract-violet-500) 15%, transparent) 100%
+    ) border-box !important;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) !important;
+  position: relative;
+  overflow: hidden;
+}
+.da-root .da-kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 60% at 0% 0%, color-mix(in srgb, var(--tesseract-violet-500) 4%, transparent), transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Reduce KPI primary value font size + 2-line truncation for text values */
+.da-root .da-kpi-card [style*="font-size: 30px"] {
+  font-size: 20px !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  line-height: 1.25 !important;
+}
+
+/* On hover, reveal full KPI text (bug: truncated content not readable). */
+.da-root .da-kpi-card:hover [style*="font-size: 30px"] {
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+  overflow: visible !important;
+}
+
+/* Chart / insight card: liquid-glass style with gradient border.
+   overflow:visible so Tesseract chart tooltips are never clipped. */
+.da-root .da-chart-card {
+  border: 0.75px solid transparent !important;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--tesseract-violet-50) 40%, var(--tesseract-bg-surface, #fff)) 0%, color-mix(in srgb, var(--tesseract-violet-50) 18%, var(--tesseract-bg-surface, #fff)) 35%, var(--tesseract-bg-surface, #fff) 100%) padding-box,
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--tesseract-violet-500) 15%, transparent) 0%,
+      color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) 30%,
+      color-mix(in srgb, var(--tesseract-violet-500) 1.5%, transparent) 50%,
+      color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) 70%,
+      color-mix(in srgb, var(--tesseract-violet-500) 15%, transparent) 100%
+    ) border-box !important;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) !important;
+  position: relative;
+  overflow: visible !important;
+  min-width: 0;
+}
+.da-root .da-chart-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 60% at 0% 0%, color-mix(in srgb, var(--tesseract-violet-500) 3.5%, transparent), transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+
+/* Sidebar icons — slightly larger */
+.da-root [class*="_chip_"] [data-tp-icon] {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* Remove top padding from sidebar nav list */
+.da-root [class*="_list_16vcw"] {
+  padding-top: 0 !important;
+}
+
+/* Hide sidebar head (toggle button) and divider when always-collapsed */
+.da-root [class*="_headCollapsed_"] {
+  display: none !important;
+}
+.da-root [class*="_divider_16vcw"] {
+  display: none !important;
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────────────── */
+
+/* The Tesseract Tooltip portals to <body> (id "tp-tt-*"), outside .da-root,
+   so it can't be scoped. Its own dark-variant background applies fine, but a
+   host-app global (`body ... :where(span…) { color: #454551 }`) matches the
+   INNER text span and beats the tooltip's inherited white text — dark-on-dark.
+   Re-assert the DS colours on the tooltip and everything inside it. */
+[role="tooltip"][data-variant] {
+  font-family: var(--tesseract-font-body) !important;
+}
+[role="tooltip"][data-variant="dark"],
+[role="tooltip"][data-variant="dark"] * {
+  color: var(--tesseract-fg-inverse) !important;
+}
+[role="tooltip"][data-variant="light"],
+[role="tooltip"][data-variant="light"] * {
+  color: var(--tesseract-slate-900) !important;
+}
+
+/* ── DatePicker preset pills ─────────────────────────────────────────── */
+
+/* The DatePicker portals to <body>, outside .da-root. The DS default paints
+   the selected preset with a solid blue fill + white text. Override to a
+   soft tonal look: light blue background, blue text. */
+button[class*="_preset_"][data-selected="true"] {
+  background: var(--tesseract-blue-50) !important;
+  color: var(--tesseract-blue-600) !important;
+  font-weight: 600 !important;
+}
+
+/* ── Care sub-tabs ────────────────────────────────────────────────────── */
+
+/* Inactive trigger: primary text colour at regular weight */
+.da-root [role="tab"][data-state="inactive"],
+.da-root [role="tab"][data-state="inactive"] [class*="_label"] {
+  color: var(--tesseract-fg-secondary, var(--tesseract-slate-500)) !important;
+  font-weight: 400 !important;
+}
+
+/* Active trigger: label + icon in primary blue, semi-bold weight */
+.da-root [role="tab"][data-state="active"],
+.da-root [role="tab"][data-state="active"] [class*="_label"] {
+  color: var(--tesseract-blue-600) !important;
+  font-weight: 600 !important;
+}
+.da-root [role="tab"][data-state="active"] [aria-hidden="true"][style*="mask-image"] {
+  background-color: var(--tesseract-blue-600) !important;
+  opacity: 1;
+}
+
+/* Sub-tab strip above the filter bar: no baseline divider under the tablist
+   (the strip sits flush on the card; the hairline reads as clutter). */
+.da-root .da-subtabs [role="tablist"] {
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+.da-root .da-subtabs [role="tablist"]::before,
+.da-root .da-subtabs [role="tablist"]::after {
+  display: none !important;
+}
+
+/* ── "No data" KPI cards ─────────────────────────────────────────────── */
+
+/* When a text KPI has no data, render the value in a muted placeholder color */
+.da-root .da-kpi-card.da-kpi-nodata [style*="font-size: 30px"],
+.da-root .da-kpi-card.da-kpi-nodata [style*="font-size: 20px"] {
+  color: var(--tesseract-fg-tertiary, var(--tesseract-slate-300)) !important;
+  font-style: italic;
+}
+
+/* ── Report drawer overlay ───────────────────────────────────────────── */
+
+/* The report download drawer is a nested Drawer inside the main full-page
+   analytics Drawer. Both portals render overlay (z-50) + dialog (z-51) as
+   direct body children. The inner drawer's overlay ends up behind the outer
+   dialog because z-50 < z-51. Bump the second pair so the report drawer
+   stacks above the main drawer. The selector targets: any overlay that
+   follows a dialog (i.e. the second overlay in body, which is the inner one). */
+body > div[role="dialog"][data-state="open"] ~ div[class*="_overlay_"][data-state="open"] {
+  z-index: 52 !important;
+}
+body > div[role="dialog"][data-state="open"] ~ div[class*="_overlay_"][data-state="open"] + div[role="dialog"][data-state="open"] {
+  z-index: 53 !important;
+}
+
+/* ── Portaled SegmentedControl fix ───────────────────────────────────── */
+
+/* Active primary SegmentedControl segment in portaled drawers (outside .da-root) */
+[data-radix-popper-content-wrapper] button[class*="_item_"][aria-checked="true"],
+[data-radix-popper-content-wrapper] button[class*="_item_"][aria-checked="true"] [class*="_label"],
+div[role="dialog"] button[class*="_item_"][aria-checked="true"],
+div[role="dialog"] button[class*="_item_"][aria-checked="true"] [class*="_label"] {
+  color: var(--tesseract-fg-inverse, #fff) !important;
+}
+
+/* Solid primary buttons inside portaled drawers */
+div[role="dialog"] button[data-variant="solid"][data-theme="primary"],
+div[role="dialog"] button[data-variant="solid"][data-theme="primary"] * {
+  color: var(--tesseract-fg-inverse, #fff) !important;
+}
+div[role="dialog"] button[data-variant="solid"][data-theme="primary"] [data-tp-icon] {
+  background-color: var(--tesseract-fg-inverse, #fff) !important;
+}
+
+/* ── Chart grid (More Insights) ──────────────────────────────────────── */
+
+/* Max 2 columns; collapses to 1 on narrow viewports */
+.da-root .da-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 860px) {
+  .da-root .da-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Report cards ─────────────────────────────────────────────────────── */
+
+/* Report cards use the same responsive grid as KPI cards */
+
+/* ── Dropdown footer actions ("Select all" / "Clear") ────────────────── */
+
+/* Footer actions render as chromeless underlined links. Tone follows the
+   Button's own data-theme: the primary action ("Select all") reads in the
+   primary violet, everything else (Clear — secondary/neutral) keeps the
+   warning orange, matching the page-level "Clear all". Menus portal to
+   <body>, so this targets the Tesseract dropdown menu module classes
+   directly — the only Tesseract Dropdowns in this app are the analytics
+   filters. */
+div[class*="_menu_"] div[class*="_actions_"] button {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 6px !important;
+}
+div[class*="_menu_"] div[class*="_actions_"] button,
+div[class*="_menu_"] div[class*="_actions_"] button * {
+  color: var(--tesseract-warning-600) !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+div[class*="_menu_"] div[class*="_actions_"] button[data-theme="primary"],
+div[class*="_menu_"] div[class*="_actions_"] button[data-theme="primary"] * {
+  color: var(--tesseract-violet-600) !important;
+}
+
+/* ── Link/warning buttons (calendar "Clear", filter clears) ──────────── */
+
+/* The DS link+warning Button should read fully in the warning tone at a
+   regular/medium weight — the host cascade forces its inner span dark,
+   leaving only the underline coloured. Popovers portal to <body>, so this
+   is keyed on the DS data attributes rather than .da-root. */
+button[data-variant="link"][data-theme="warning"],
+button[data-variant="link"][data-theme="warning"] * {
+  color: var(--tesseract-warning-600) !important;
+  font-weight: 500 !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Report download toast: white icons on dark surface, full-width single-line */
+.da-report-toast [role="alert"],
+.da-report-toast [role="status"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+}
+.da-report-toast [data-surface="dark"] [data-tp-icon] {
+  background-color: #fff !important;
+}
+.da-report-toast [data-surface="dark"] p,
+.da-report-toast [data-surface="dark"] div[class*="_message"] {
+  white-space: nowrap;
+}
+.da-report-toast [data-surface="dark"] button[aria-label="Dismiss"] {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.da-report-toast [data-surface="dark"] button[aria-label="Dismiss"] [data-tp-icon] {
+  background-color: #fff !important;
+}
+
+/* Report field error state: red border on the trigger/input inside */
+.da-field-error button[class*="_trigger"],
+.da-field-error div[class*="_root_"] button {
+  border-color: var(--tesseract-error-500, #ef4444) !important;
+  box-shadow: 0 0 0 1px var(--tesseract-error-500, #ef4444) !important;
+}
+
+/* Single-select clear (X) sits after the label; trigger is space-between so
+   the X lands mid-field. Grow the label so X pins next to the chevron. */
+.da-report-drawer button[class*="_trigger_"] span[class*="_triggerText_"],
+.da-report-drawer button[class*="_trigger_"] span[class*="_placeholder_"] {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Chart colour palette ────────────────────────────────────────────────
+   Remaps Tesseract chart-series tokens inside SVGs for bar / line fills.
+   Keep amber as yellow so series index 2 (e.g. Digitized CVT) matches the
+   HTML legend swatch — legend is outside <svg> and still uses theme amber.
+   Only targets SVG elements — icon badges, text and card chrome keep
+   their design-system tokens untouched. */
+.da-root .da-chart-card svg {
+  --tesseract-blue-500: #6C6BDE;
+  --tesseract-violet-500: #BA7DE9;
+  --tesseract-amber-500: #F59E0B;
+  --tesseract-success-500: #6EE7B7;
+  --tesseract-error-500: #FB7185;
+  --tesseract-blue-300: #FEDC85;
+  --tesseract-violet-300: #B5B4F2;
+}

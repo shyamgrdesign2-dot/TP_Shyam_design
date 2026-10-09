@@ -1,0 +1,186 @@
+@use "../styles/tp-tokens" as tp;
+
+/* ── PrintRunner off-screen wrapper ─────────────────────────────────────── */
+/* Note: .dcp-print-root is a global class referenced in the @media print block */
+/* so it stays a global class in dental-canvas.css — only the inline style is removed */
+.printRoot {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 760px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: #fff;
+}
+
+/* ── Dropdown panel ──────────────────────────────────────────────────────── */
+.dropdownWrap {
+  position: relative;
+}
+
+.dropdownPanel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 320px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.2);
+  padding: 8px;
+  z-index: 100;
+  font-family: "Inter", sans-serif;
+  pointer-events: auto;
+}
+
+.dropdownTitle {
+  padding: 4px 10px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Menu item button ────────────────────────────────────────────────────── */
+.menuItem {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 10px;
+  opacity: 1;
+  transition: background-color 120ms ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(100, 116, 139, 0.08);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.menuItemIcon {
+  display: inline-flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(75, 74, 213, 0.1);
+  flex-shrink: 0;
+}
+
+.menuItemText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.menuItemLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b !important;
+  font-family: "Inter", sans-serif;
+}
+
+.menuItemSub {
+  font-size: 12px;
+  font-weight: 400;
+  color: #64748b !important;
+  font-family: "Inter", sans-serif;
+  line-height: 1.4;
+}
+
+.menuItemChevron {
+  flex-shrink: 0;
+  color: #94a3b8 !important;
+}
+
+/* ── Tooltip wrapper for disabled items ─────────────────────────────────── */
+.tooltipWrap {
+  display: block;
+  width: 100%;
+}
+
+/* ── Include patient label ───────────────────────────────────────────────── */
+.includeLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px 8px 10px;
+  margin-top: 4px;
+  border-top: 1px solid #f1f5f9;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569 !important;
+}
+
+.includeLabelText {
+  flex: 1;
+}
+
+.checkboxInput {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+  background-color: #fff;
+  margin: 0;
+  box-sizing: border-box;
+
+  &:hover {
+    border-color: var(--tp-blue-500, #4b4ad5);
+  }
+
+  &.checkboxInputChecked {
+    background-color: var(--tp-blue-500, #4b4ad5);
+    border-color: var(--tp-blue-500, #4b4ad5);
+  }
+}
+
+.checkboxCheckIcon {
+  display: block;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* ── Print trigger button ────────────────────────────────────────────────── */
+.printTriggerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #334155 !important;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+
+  &:hover {
+    background: rgba(100, 116, 139, 0.1);
+  }
+}

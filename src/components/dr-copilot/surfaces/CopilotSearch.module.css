@@ -1,0 +1,343 @@
+/* Top-bar Copilot entry point, shaped like a search field.
+ *
+ * Plain CSS module, not Tailwind: this renders inside the app's own header,
+ * outside #dr-copilot-root, so the module's scoped utility build never reaches
+ * it. Sized to sit comfortably in the 62px bar. */
+
+/* The angle the gradient stroke is rotated to. Registering it as a real typed
+   custom property is what makes it animatable: a plain --var would jump from 0
+   to 360 rather than sweep, which is why a background-position slide on a
+   1px border read as static. */
+@property --copilot-stroke-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  /* Inherited so the ::before ring below can read the value the animation
+     drives on .field; with inherits:false the ring would sit frozen at 0deg. */
+  inherits: true;
+}
+
+.field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  /* The header's one highlighted control, so it takes the width the bar has
+     spare. The cluster it sits in is right-aligned, so growing the field fills
+     the empty middle of the bar rather than pushing anything off the end. The
+     floor keeps a full hint line readable on a laptop; the ceiling stops it
+     stretching into a banner on a wide monitor. */
+  width: clamp(360px, 36vw, 600px);
+  max-width: 100%;
+  height: 42px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+
+  /* Half-transparent rather than solid white: on the violet patient banner a
+     solid fill read as a pasted-on box. Kept as a flat fill, with the gradient
+     confined to the ring below - the earlier two-layer background-clip trick
+     paints the gradient across the whole border box, so a see-through interior
+     let that colour wash through the middle of the field. */
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: box-shadow 140ms ease, background 140ms ease;
+}
+
+/* The stroke, 1px, as two rings drawn the same way.
+
+   Each ring is a real 1px transparent border painted from the border box and
+   masked to exactly that border: the padding-box mask follows the inner
+   curve of the radius, so the line is the same weight along the straight
+   edges and round every corner. (The earlier ring cut its hole with a
+   content-box mask, a square, and the stroke thickened and broke at the
+   corners.)
+
+   ::before is the line at rest, the AI gradient softened. ::after is the
+   light passing along it: a short bright streak on a transparent loop, so
+   only one piece of the line is lit at a time and there is nothing to seam. */
+.field::before,
+.field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) padding-box,
+    linear-gradient(#fff 0 0) border-box;
+  mask:
+    linear-gradient(#fff 0 0) padding-box,
+    linear-gradient(#fff 0 0) border-box;
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.field::before {
+  background: linear-gradient(90deg, rgba(213, 101, 234, 0.55), rgba(142, 98, 207, 0.55), rgba(75, 74, 213, 0.55)) border-box;
+}
+
+.field::after {
+  background: conic-gradient(
+      from var(--copilot-stroke-angle),
+      transparent 0deg,
+      transparent 250deg,
+      rgba(213, 101, 234, 0.9) 300deg,
+      #8e62cf 330deg,
+      #4b4ad5 350deg,
+      transparent 360deg
+    )
+    border-box;
+  animation: copilotStrokeSpin 5s linear infinite;
+}
+
+@keyframes copilotStrokeSpin {
+  to {
+    --copilot-stroke-angle: 360deg;
+  }
+}
+
+/* Where @property is unsupported the angle cannot animate, so fall back to a
+   static linear stroke rather than leaving a single flat conic edge showing. */
+@supports not (background: conic-gradient(from 0deg, red, blue)) {
+  .field {
+    background:
+      linear-gradient(#fff, #fff) padding-box,
+      linear-gradient(135deg, #d565ea, #673aac, #1a1994) border-box;
+    animation: none;
+  }
+}
+
+/* Consultation header variant. Sized to the End Visit CTA beside it (42px) and
+   given real width, so it reads as a field you can type into rather than a
+   button you press. The label keeps placeholder tone for the same reason. */
+.compact {
+  width: 190px;
+  height: 42px;
+  gap: 8px;
+  padding: 0 13px;
+  margin-right: 12px;
+}
+
+.compact .label {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* On a dark surface (the violet patient-details banner). A grey placeholder on
+   a see-through white fill over violet measured 1.22:1 - effectively invisible,
+   because mid-grey and mid-lavender sit at almost the same luminance. Darkening
+   the grey is not an option: the same variant also renders on white headers.
+   So on dark the field flips to the glass idiom instead, white ink on a light
+   veil, which clears 4.5:1 against the banner. */
+.onDark {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.onDark:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.onDark .label {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Collapsed patient rail: the spark alone, kept square so it lines up with the
+   icon column of the nav items below it. */
+.iconOnly {
+  width: 34px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  margin-right: 0;
+}
+
+.field:hover {
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 0 0 3px rgba(103, 58, 172, 0.08);
+}
+
+.field:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(103, 58, 172, 0.18);
+}
+
+.field:active {
+  transform: scale(0.995);
+}
+
+/* Still. The spark is the brand mark, drawn at its own size; it moves only
+   while an answer is loading, inside the chat. */
+.spark {
+  flex-shrink: 0;
+  display: block;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* On a dark surface (the violet patient-details banner). A grey placeholder on
+   a see-through white fill over violet measured 1.22:1 - effectively invisible,
+   because mid-grey and mid-lavender sit at almost the same luminance. Darkening
+   the grey is not an option: the same variant also renders on white headers.
+   So on dark the field flips to the glass idiom instead, white ink on a light
+   veil, which clears 4.5:1 against the banner. */
+.onDark {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.onDark:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.onDark .label {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Collapsed patient rail: the spark alone, kept square so it lines up with the
+   icon column of the nav items below it. */
+.iconOnly {
+  width: 34px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  margin-right: 0;
+}
+
+.field:hover {
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 0 0 3px rgba(103, 58, 172, 0.08);
+}
+
+.field:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(103, 58, 172, 0.18);
+}
+
+.field:active {
+  transform: scale(0.995);
+}
+
+.label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Set with the field's new height: 13px read as fine print in a 42px box. */
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
+  /* Placeholder tone, but at slate-500 rather than 400: the fill is see-through,
+     so on the violet patient banner the backdrop is a mid lavender and the
+     lighter grey stopped reading. This still sits clearly below body ink on a
+     white header, so it reads as an empty field in both places. */
+  color: var(--tp-slate-400, #A2A2A8);
+  animation: copilotHintIn 380ms ease-out;
+}
+
+@keyframes copilotHintIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes copilotPromptIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* None of this motion carries meaning, so all of it stops when the viewer has
+   asked for less. The prompt rotation itself is halted in JS. */
+@media (prefers-reduced-motion: reduce) {
+  .field::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* The bar gets tight before it gets narrow: shrink the field first, then hand
+   the entry point over to the Copilot tab on small screens. */
+@media (max-width: 1180px) {
+  .field {
+    width: clamp(240px, 28vw, 340px);
+  }
+
+  .compact {
+    width: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .field {
+    display: none;
+  }
+
+  /* The consultation header has no Copilot tab beside it, so the compact chip
+     stays even where the top-bar field steps aside. */
+  .compact {
+    display: inline-flex;
+  }
+}
+
+/* Room on the right for the mic, which sits over the field's end. */
+.wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.withMic {
+  padding-right: 48px;
+}
+
+.mic {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-top: -16px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tp-slate-600, #545460);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.mic:hover {
+  background: rgba(23, 23, 37, 0.06);
+}
+
+.mic:focus-visible {
+  outline: 2px solid var(--tp-blue-500, #4b4ad5);
+  outline-offset: 1px;
+}
+
+@media (max-width: 900px) {
+  .wrap {
+    display: none;
+  }
+}

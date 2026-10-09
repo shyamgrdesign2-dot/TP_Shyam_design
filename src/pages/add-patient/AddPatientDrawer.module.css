@@ -1,0 +1,140 @@
+/* Shell for the Add New Patient sidebar.
+   The drawer portals to <body>, outside the page's own counters, so the
+   legacy host globals (Poppins + #454551 on span/div/p, Roboto on inputs,
+   all !important) reach it. Everything below re-asserts Tesseract type and
+   colour at higher specificity; the layout itself lives in PatientForm. */
+
+/* Two separate jobs, at two different weights, on purpose.
+
+   Font family has to beat an `!important` global, so it stays loud. Colour
+   must not: at class specificity this rule tied with every design-system
+   class rule and won on order, flattening secondary text, helper lines and
+   placeholders to body ink throughout the form. Matched to the legacy rule's
+   own weight instead (two type selectors, no class), it beats the global on
+   source order while any real class rule still outranks it, so the
+   foundations tones apply themselves.
+
+   The element list stays outside `:where(...)`: that pseudo-class
+   contributes nothing to specificity, so wrapping it drops the rule below
+   the global it is meant to beat. Do not add a class here either. */
+html :where(.drawer) span,
+html :where(.drawer) div,
+html :where(.drawer) p,
+html :where(.drawer) h1,
+html :where(.drawer) h2,
+html :where(.drawer) h3,
+html :where(.drawer) h4,
+html :where(.drawer) label,
+html :where(.drawer) li,
+html :where(.drawer) td,
+html :where(.drawer) th {
+  color: inherit;
+}
+
+.drawer :where(span, div, p, h1, h2, h3, h4, label, li, td, th) {
+  font-family: var(--tesseract-font-body) !important;
+}
+
+/* House rule: nothing here is heavier than semibold. */
+.drawer :where(h1, h2, h3, h4, strong, b) {
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+.drawer input,
+.drawer select,
+.drawer textarea,
+.drawer button {
+  font-family: var(--tesseract-font-body) !important;
+}
+
+/* Tesseract Button paints the <button>; its inner spans must inherit that
+   rather than being repainted dark by the host globals. */
+.drawer button[data-variant] span,
+.drawer button[data-variant] > * {
+  color: inherit !important;
+}
+
+.drawer input::placeholder,
+.drawer textarea::placeholder {
+  color: var(--tesseract-slate-400);
+  font-family: var(--tesseract-font-body) !important;
+}
+
+/* Required asterisks read as required: error red, not body ink. */
+.drawer [class*="_required_"] {
+  color: var(--tesseract-error-500) !important;
+}
+
+/* One placeholder everywhere. A real input's ::placeholder is regular
+   weight; the design system paints its dropdown and date-trigger placeholder
+   at medium, which made "Select blood group" read heavier than "Enter
+   pincode" sitting next to it. Same tone, same weight, same size, so an
+   empty field looks empty whatever kind of control it is. */
+.drawer [class*="_placeholder_"] {
+  color: var(--tesseract-slate-400) !important;
+  font-weight: var(--tesseract-weight-regular) !important;
+  font-size: var(--tesseract-text-body-sm) !important;
+}
+
+/* Every control in this form shares one radius so the section cards read as
+   one surface rather than a collection of parts: radius-10 on field shells
+   (inputs, dropdown triggers, date triggers), radius-8 on nested segmented
+   items. The DS defaults drift between components, so they are pinned. */
+.drawer [class*="_trigger_"],
+.drawer [class*="_field_"],
+.drawer [class*="_inputWrap_"],
+.drawer [role="radiogroup"] {
+  border-radius: var(--tesseract-radius-10) !important;
+}
+
+.drawer [role="radiogroup"] [class*="_item_"],
+.drawer [role="radiogroup"] [class*="_indicator_"] {
+  border-radius: var(--tesseract-radius-8) !important;
+}
+
+/* One 1px hairline instead of the DS 1.5px, which at this density reads as
+   an outline rather than an edge and makes a form of twenty fields look
+   boxed-in. Width only: setting the colour here also overrode the design
+   system's own hover, focus and error borders, which silently killed the
+   blue focus ring on every field in this drawer. */
+.drawer [class*="_fieldRow_"] {
+  border-width: 1px;
+}
+
+/* One control height for the whole form. The design system's medium size is
+   42px, which the input and the dropdown both take, but the date picker's
+   trigger is built on size-40 — a 2px difference that shows the moment the
+   three sit in one row. The trigger borders come down to the same 1px while
+   we are here, so all three fields have an identical resting edge. */
+.drawer [id^="tp-drp-trigger"] {
+  height: var(--tesseract-size-42);
+}
+
+.drawer [id^="tp-drp-trigger"],
+.drawer [aria-haspopup="listbox"] {
+  border-width: 1px;
+}
+
+/* The add-on select's chevron resolves to a straight arrow against this
+   app's icon CDN, which reads as "move down" rather than "open". Point it
+   at the same chevron every other control here uses. */
+.drawer [class*="_addonChevron_"] {
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/arrow-down4.svg") !important;
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/arrow-down4.svg") !important;
+}
+
+/* The form sits on the page tint, not on white: the section cards are the
+   white surfaces, and the gap between them has to read as background.
+   The tint goes on the drawer's own scroll body rather than on an inner
+   div pulled out with negative margins — that left the strip below the
+   last card white whenever the content was shorter than the drawer. */
+.drawer > [class*="_body_"] {
+  padding: 0 !important;
+  background: var(--tesseract-slate-100);
+}
+
+.body {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 18px;
+}

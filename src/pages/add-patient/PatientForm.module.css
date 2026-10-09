@@ -1,0 +1,417 @@
+/* One spacing value throughout: 18px between sections and 18px inside
+   them, so the rhythm never changes as the eye moves down the form. */
+.form {
+  padding: 0;
+  font-family: var(--tesseract-font-body);
+  color: var(--tesseract-fg-heading);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── Section shell ──────────────────────────────────────────────────
+   The edge-faded stroke is the design system's own from 1.1.0. Only the
+   tint strength is ours: the default 6% of blue-500 washes the whole card
+   and its header, which on a form this tall reads as a coloured panel
+   rather than a surface. Two percent keeps the warmth and lets the fields
+   sit on something that still reads as white. Zero, because the header fill
+   is off and the body should simply be paper: the violet lives on the icon
+   and the card's edge, where an accent belongs. */
+/* Flat white, not a gradient to white. At intensity 0 the design system
+   still paints `transparent → white`, and over the drawer's tint that first
+   stop lets the grey read through the card's top corner. Paper is paper.
+   The corners go a step softer than the DS default and take the smooth
+   superellipse, so the card reads as rounded rather than as a rectangle
+   with its corners cut off. */
+.section {
+  --sc-intensity: 0;
+  --sc-radius: var(--tesseract-radius-20);
+  background: var(--tesseract-slate-0);
+  corner-shape: superellipse(1.6);
+}
+
+
+/* The header band keeps the design system's own padding — the 18px rhythm
+   is for the form content, and imposing it here only made the collapsed
+   sections taller than they need to be. */
+
+/* The header keeps a full-strength rule under it — that one is a divider
+   between two bands, not an outer edge, so it must not fade. */
+.section > [class*="_body_"] {
+  border-top-width: 0.5px !important;
+}
+
+/* ── SectionCard body padding ─────────────────────────────────────── */
+.sectionBody {
+  padding: 18px;
+}
+
+/* The DS body band carries its own padding; this form supplies its own so
+   the 18px rhythm holds on every edge. */
+.section > [class*="_body_"] {
+  padding: 0 !important;
+}
+
+/* ── Hero row: fields + avatar side-by-side ──────────────────────── */
+.heroRow {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+.heroFields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.heroAvatar {
+  flex: 0 0 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--tesseract-slate-50);
+  border-radius: var(--tesseract-radius-16);
+  border: 1px dashed var(--tesseract-slate-200);
+  padding: 16px 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.heroAvatar:hover {
+  background: var(--tesseract-slate-100);
+  border-color: var(--tesseract-blue-300);
+}
+
+/* ── Row / column grid ─────────────────────────────────────────────── */
+.row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: flex-start;
+}
+
+.row:last-child {
+  margin-bottom: 0;
+}
+
+.colSm {
+  flex: 0 0 140px;
+  min-width: 120px;
+}
+
+.colLg {
+  flex: 1;
+  min-width: 200px;
+}
+
+.colHalf {
+  flex: 1;
+  min-width: 0;
+}
+
+.colThird {
+  flex: 1;
+  min-width: 0;
+}
+
+.colFull {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Full name = salutation Dropdown + name InputBox, joined like agePair so the
+   control still reads as one field. Dropdown (not native <select>) keeps the
+   tablet picker from covering the whole screen. */
+.namePair {
+  display: flex;
+  gap: 0;
+  align-items: flex-start;
+}
+
+.nameSalutation {
+  flex: 0 0 108px;
+  min-width: 96px;
+}
+
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  margin-left: -1px;
+}
+
+/* Square the inner edges so the salutation dropdown and the name input read as
+   one control. Target the trigger button by class as well as the aria hooks:
+   the design system rounds the trigger at a specificity the attribute-only
+   selector was tying with and losing, leaving a rounded bump mid-field. */
+.nameSalutation button[class*="_trigger_"],
+.nameSalutation [id^="tp-drp-trigger"],
+.nameSalutation [aria-haspopup="listbox"] {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.nameInput [class*="_fieldRow_"],
+.nameInput [class*="_wrap_"] {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+.nameSalutation,
+.nameInput {
+  position: relative;
+}
+
+.nameSalutation:focus-within,
+.nameInput:focus-within {
+  z-index: 1;
+}
+
+/* ── Patient photo upload ─────────────────────────────────────────── */
+.avatarCircle {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: var(--tesseract-slate-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+  color: var(--tesseract-slate-400);
+  transition: background 0.15s;
+}
+
+.avatarCircle:hover {
+  background: var(--tesseract-slate-300);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.avatarText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.avatarHint {
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.uploadLink {
+  color: var(--tesseract-blue-600);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.uploadLink:hover {
+  color: var(--tesseract-blue-700);
+}
+
+.removeAvatarBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-error-500);
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.removeAvatarBtn:hover {
+  text-decoration: underline;
+}
+
+/* ── Field label — match Tesseract InputBox _label_ exactly ──────── */
+.fieldLabel {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium, 500);
+  color: var(--tesseract-fg-primary);
+  margin-bottom: var(--tesseract-space-1-5);
+  line-height: 1.4;
+}
+
+.required {
+  color: var(--tesseract-error-500);
+}
+
+/* ── Gender field — match InputBox label + height ─────────────────── */
+.genderField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1-5);
+}
+
+.genderLabel {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium, 500);
+  color: var(--tesseract-fg-primary);
+  line-height: 1.4;
+}
+
+.genderInputWrap {
+  height: var(--tesseract-size-42);
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  border-radius: var(--tesseract-radius-10);
+}
+
+/* The control fills the wrap rather than shrinking to its three labels, so
+   it lines up with the fields above and beside it at every width. */
+.genderInputWrap [role="radiogroup"] {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Nothing chosen yet: the sliding indicator would otherwise park on the
+   first option and read as an answer. It is withdrawn, and hairlines
+   separate the three so they read as three equal, open choices. Picking one
+   brings the indicator back and the dividers go with it. */
+.genderInputWrap[data-empty] [class*="_indicator_"] {
+  opacity: 0;
+}
+
+/* The dividers fade out at both ends and carry their weight only through
+   the middle, so they separate the three options without drawing three hard
+   rules across the control. Same treatment as the tab bar's own divider. */
+.genderInputWrap[data-empty] [role="radio"] + [role="radio"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--tesseract-slate-300) 42%,
+    var(--tesseract-slate-300) 58%,
+    transparent 100%
+  );
+}
+
+.genderInputWrap[data-empty] [role="radio"] [class*="_label_"] {
+  color: var(--tesseract-fg-secondary);
+  font-weight: 500;
+}
+
+/* Required and unanswered: the same red edge the design system's own
+   fields take, so the control fails in the form's vocabulary. */
+.genderInputWrap[data-invalid] {
+  box-shadow: 0 0 0 1px var(--tesseract-error-500);
+}
+
+/* Years and months are two halves of one answer, so they are drawn as one
+   joined control: the shells butt together, the facing corners square off
+   and the second overlaps the first by a pixel so the two hairlines become
+   a single shared divider rather than a double line. The second field's
+   label is a hard space, which keeps both shells on the same baseline. */
+.agePair {
+  display: flex;
+  gap: 0;
+}
+
+/* Joined as one control for any number of segments: only the two outer ends
+   keep a radius. Every segment but the last squares its right corners, every
+   segment but the first squares its left corners and pulls back a pixel to sit
+   on its neighbour's border, so the middle segment (Months) is square on both
+   sides and the pair reads as one field. */
+.agePair > div:not(:last-child) [class*="_fieldRow_"] {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.agePair > div:not(:first-child) {
+  margin-left: -1px;
+}
+
+.agePair > div:not(:first-child) [class*="_fieldRow_"] {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+/* The focused half rides above its neighbour so its ring is never clipped
+   by the shell overlapping it. */
+.agePair > div {
+  position: relative;
+}
+
+.agePair > div:focus-within {
+  z-index: 1;
+}
+
+/* Unit suffixes (yrs / mth / day) are fixed labels, not editable text, so they
+   sit a step darker than the grey placeholder beside them — otherwise "Years"
+   and "yrs" read as the same faint grey and the field looks like two
+   placeholders. Still lighter than a typed value, which keeps the number the
+   thing with full ink. */
+.agePair [class*="_unit_"] {
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-slate-500);
+}
+
+/* ── Error text ──────────────────────────────────────────────────────
+   Matches the design system's own helper line exactly (size, tone, spacing)
+   so a message under a segmented control and one under an input read as the
+   same kind of statement. Scoped under .form because the drawer's own
+   host-isolation layer sets `color: inherit` on every p/span at the same
+   specificity and later in the cascade, which would grey this line out. */
+.form .errorText {
+  margin: 6px 0 0;
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.4;
+  color: var(--tesseract-error-600);
+}
+
+/* ── Pincode loading spinner ─────────────────────────────────────── */
+.pinSpinner {
+  display: block;
+  width: 16px;
+  height: 16px;
+  aspect-ratio: 1;
+  border: 2px solid var(--tesseract-slate-200);
+  border-top-color: var(--tesseract-blue-500);
+  border-radius: 9999px;
+  animation: pinSpin 0.6s linear infinite;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+@keyframes pinSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* DOB picker: one footer action. The day-click interception in PatientForm.jsx
+   tags this picker's own popover with .dobPopover on open, so hiding the design
+   system's Cancel/Apply here never touches any other date picker on the page.
+   Clear stays (still the orange it always was); a day click commits and closes. */
+.dobPopover [class*="_actionsRight_"] {
+  display: none;
+}
+
+/* With Cancel/Apply gone, Clear is the only control left, so it centres in the
+   footer rather than hanging off the left edge where the row once had three. */
+.dobPopover [class*="_actions_"] {
+  justify-content: center;
+}

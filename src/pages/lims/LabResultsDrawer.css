@@ -1,0 +1,290 @@
+.lims-lab-drawer .ant-drawer-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: "Inter", sans-serif;
+  color: #171725;
+}
+
+/* ── Drawer header ──────────────────────────────────────────────── */
+.lims-drawer-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+  gap: 12px;
+  border-bottom: 1px solid #e2e2ea;
+}
+
+.lims-drawer-close {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #44444f;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.lims-drawer-close:hover {
+  color: #171725;
+}
+
+.lims-drawer-header-divider {
+  width: 1px;
+  height: 28px;
+  background: #e2e2ea;
+  flex-shrink: 0;
+}
+
+.lims-drawer-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #171725;
+  white-space: nowrap;
+}
+
+.lims-drawer-spacer {
+  flex: 1;
+}
+
+.lims-drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.lims-drawer-settings {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  color: #44444f;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: none;
+  /* Tesseract's global `[data-tp-theme] button { background: 0 }` must not hide this. */
+  opacity: 1;
+  visibility: visible;
+}
+
+.lims-drawer-settings svg {
+  color: inherit;
+}
+
+.lims-drawer-settings:hover:not(:disabled) {
+  color: #171725;
+  background: #f1f1f5;
+}
+
+.lims-drawer-settings:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/*
+ * LIMS owns the drawer chrome (title + Save). LabParams still renders its own
+ * sticky header with the custom-investigation settings gear; hide that duplicate
+ * bar and surface the gear on `.lims-drawer-header` instead.
+ */
+.lims-lab-drawer .modalCard-header {
+  display: none !important;
+}
+
+/* ── LabParams search + Add New Date bar ────────────────────────── */
+.lims-lab-drawer .ant-input-affix-wrapper {
+  border-radius: var(--tesseract-radius-200, 8px) !important;
+  border-color: var(--tesseract-slate-200, #e2e2ea) !important;
+  font-family: inherit;
+  height: 36px;
+}
+.lims-lab-drawer .ant-input-affix-wrapper:focus,
+.lims-lab-drawer .ant-input-affix-wrapper-focused {
+  border-color: var(--tesseract-blue-500, #4b4ad5) !important;
+  box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.12) !important;
+}
+.lims-lab-drawer .ant-input {
+  font-family: inherit;
+}
+
+/* ── LabParams table styling ────────────────────────────────────── */
+.lims-lab-drawer table {
+  font-family: inherit;
+}
+
+.lims-lab-drawer thead {
+  background-color: #f1f1f5 !important;
+}
+
+.lims-lab-drawer thead th {
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  color: #454551;
+}
+
+.lims-lab-drawer tbody td {
+  font-family: inherit;
+  font-size: 14px;
+  border-bottom: 1px solid #f1f1f5;
+}
+
+/* Report category rows — neutral badge-like count */
+.lims-lab-drawer tbody tr td[colspan] {
+  background: #fafafb !important;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #2c2c35;
+}
+
+/* Date column header dots — vertical orientation with spacing */
+.lims-lab-drawer .vertical-dots {
+  color: #a2a2a8;
+  transform: rotate(90deg);
+  margin-left: 8px;
+  cursor: pointer;
+}
+
+/* Collapse/expand chevron */
+.lims-lab-drawer .iconrotate180 i,
+.lims-lab-drawer .btn.p-0.ms-2 i {
+  color: #717179;
+}
+
+/* Input cells */
+.lims-lab-drawer tbody input {
+  font-family: inherit;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+/* Ant Design addonAfter → Tesseract-style unit suffix */
+.lims-lab-drawer .ant-input-group-wrapper {
+  display: flex !important;
+}
+.lims-lab-drawer .ant-input-wrapper.ant-input-group {
+  display: flex !important;
+  border: 1px solid #e2e2ea !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+.lims-lab-drawer .ant-input-wrapper.ant-input-group:focus-within {
+  border-color: #4b4ad5 !important;
+  box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.12) !important;
+}
+.lims-lab-drawer .ant-input-wrapper .ant-input-affix-wrapper {
+  border: none !important;
+  box-shadow: none !important;
+  flex: 1;
+  min-width: 0;
+}
+.lims-lab-drawer .ant-input-group-addon {
+  background: #fafafb !important;
+  border: none !important;
+  border-left: 1px solid #e2e2ea !important;
+  padding: 0 8px !important;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: fit-content;
+  color: #545460;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.lims-lab-drawer .ant-input-group-addon > span {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  width: auto !important;
+}
+
+/* ── Test count as neutral badge ────────────────────────────────── */
+/* LabParams renders count as <span> (N)</span> after report name.
+   Style it to look like a Tesseract neutral soft badge. */
+.lims-lab-drawer tbody tr td[colspan] > span:nth-child(2) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: 10px;
+  background: #e2e2ea;
+  color: #454551;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ── 3-dots dropdown: white card with black text ──────────────────── */
+.custom-tooltip.ant-tooltip {
+  max-width: 200px;
+}
+.custom-tooltip .ant-tooltip-inner {
+  background: #fff !important;
+  color: #171725 !important;
+  border-radius: 10px !important;
+  padding: 4px 0 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+}
+.custom-tooltip .ant-tooltip-arrow::before {
+  background: #fff !important;
+}
+.custom-tooltip .ant-tooltip-arrow::after {
+  border-color: #fff transparent transparent transparent !important;
+}
+.custom-tooltip .tooltip-content {
+  display: flex;
+  align-items: center;
+  color: #171725;
+  padding: 8px 16px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.custom-tooltip .tooltip-content:hover {
+  background: #fafafb;
+}
+.custom-tooltip .tooltip-content img {
+  width: 16px;
+  height: 16px;
+}
+.custom-tooltip .tooltip-content .delete-icon {
+  font-size: 14px;
+  color: #e53e3e;
+  margin-right: 8px;
+}
+.custom-tooltip .tooltip-content span {
+  color: #171725;
+}
+
+/* Stacked Custom Investigation Groups drawer — sits above Add Lab Results. */
+.lims-settings-drawer .ant-drawer-body {
+  padding: 0;
+  height: 100%;
+  overflow: auto;
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #171725;
+  background: #fff;
+}
+
+.lims-settings-theme {
+  min-height: 100%;
+  background: #fff;
+}

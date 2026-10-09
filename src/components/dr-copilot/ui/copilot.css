@@ -1,0 +1,556 @@
+/* Tailwind entry for the Dr. Copilot module.
+ *
+ * This file is compiled by a dedicated webpack rule (see craco.config.js) using
+ * tailwind.copilot.config.js, and is excluded from CRA's default CSS pipeline.
+ */
+
+/* ── Scoped preflight ─────────────────────────────────────────────────────────
+ *
+ * `@tailwind base` is deliberately NOT used: Tailwind emits preflight into the
+ * base layer unscoped, and the `important` selector does not apply to it, so it
+ * would reset every element in the surrounding Ant Design app.
+ *
+ * But the ported components were authored against preflight and assume it. Most
+ * visibly, preflight zeroes border-width on every element; without it the
+ * browser's default 2px button border shows on every chip, pill and icon button
+ * in the panel as a black outer stroke.
+ *
+ * So this is Tailwind v3's preflight, reduced to the rules the panel depends on
+ * and confined to the copilot subtree by descendant selectors.
+ *
+ * The scope is wrapped in :where() so it contributes ZERO specificity, exactly
+ * like real preflight. A bare #dr-copilot-root prefix would score (1,0,0) and
+ * beat every component class in the panel, which silently strips borders that
+ * classes such as .chat-input-border set for themselves.
+ */
+
+:where(#dr-copilot-root),
+:where(#dr-copilot-root) *,
+:where(#dr-copilot-root) ::before,
+:where(#dr-copilot-root) ::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: var(--tp-slate-200, #e4e4eb);
+}
+
+:where(#dr-copilot-root) h1,
+:where(#dr-copilot-root) h2,
+:where(#dr-copilot-root) h3,
+:where(#dr-copilot-root) h4,
+:where(#dr-copilot-root) h5,
+:where(#dr-copilot-root) h6,
+:where(#dr-copilot-root) p,
+:where(#dr-copilot-root) figure,
+:where(#dr-copilot-root) blockquote,
+:where(#dr-copilot-root) dl,
+:where(#dr-copilot-root) dd,
+:where(#dr-copilot-root) hr,
+:where(#dr-copilot-root) pre {
+  margin: 0;
+}
+
+:where(#dr-copilot-root) h1,
+:where(#dr-copilot-root) h2,
+:where(#dr-copilot-root) h3,
+:where(#dr-copilot-root) h4,
+:where(#dr-copilot-root) h5,
+:where(#dr-copilot-root) h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+:where(#dr-copilot-root) ol,
+:where(#dr-copilot-root) ul,
+:where(#dr-copilot-root) menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:where(#dr-copilot-root) a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+:where(#dr-copilot-root) button,
+:where(#dr-copilot-root) input,
+:where(#dr-copilot-root) optgroup,
+:where(#dr-copilot-root) select,
+:where(#dr-copilot-root) textarea {
+  font-family: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+:where(#dr-copilot-root) button,
+:where(#dr-copilot-root) select {
+  text-transform: none;
+}
+
+:where(#dr-copilot-root) button,
+:where(#dr-copilot-root) [type="button"],
+:where(#dr-copilot-root) [type="reset"],
+:where(#dr-copilot-root) [type="submit"] {
+  -webkit-appearance: button;
+  background-color: transparent;
+  background-image: none;
+}
+
+:where(#dr-copilot-root) :-moz-focusring {
+  outline: auto;
+}
+
+:where(#dr-copilot-root) textarea {
+  resize: vertical;
+}
+
+:where(#dr-copilot-root) input::placeholder,
+:where(#dr-copilot-root) textarea::placeholder {
+  opacity: 1;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+:where(#dr-copilot-root) button,
+:where(#dr-copilot-root) [role="button"] {
+  cursor: pointer;
+}
+
+:where(#dr-copilot-root) :disabled {
+  cursor: default;
+}
+
+:where(#dr-copilot-root) img,
+:where(#dr-copilot-root) svg,
+:where(#dr-copilot-root) video,
+:where(#dr-copilot-root) canvas,
+:where(#dr-copilot-root) audio,
+:where(#dr-copilot-root) iframe,
+:where(#dr-copilot-root) embed,
+:where(#dr-copilot-root) object {
+  display: block;
+  vertical-align: middle;
+}
+
+:where(#dr-copilot-root) img,
+:where(#dr-copilot-root) video {
+  max-width: 100%;
+  height: auto;
+}
+
+:where(#dr-copilot-root) table {
+  text-indent: 0;
+  border-color: inherit;
+  border-collapse: collapse;
+}
+
+/* One keyboard focus ring for the whole panel. Before this the panel showed
+   whatever the browser drew: a thin system ring on some buttons, nothing at
+   all on the glass controls, whose inset shadows hid it. A doctor tabbing
+   through the header could not tell where they were. Low specificity
+   (0,1,0: :where() zeroes the id, the :focus-visible pseudo-class still
+   counts), so a control that draws its own focus state still wins. Controls
+   that set their own write the same ring with Tailwind
+   (focus-visible:outline-2 outline-offset-2 outline-tp-blue-500), so the
+   panel shows one ring everywhere; the inset variant is kept only for rows
+   inside a clipped scroller, where an outside ring would be cut off.
+   :focus-visible rather than :focus, so a mouse click never leaves a ring. */
+:where(#dr-copilot-root) :focus-visible {
+  outline: 2px solid var(--copilot-focus-ring-color, #4b4ad5);
+  outline-offset: 2px;
+}
+
+@tailwind components;
+@tailwind utilities;
+
+/* ── Motion and interaction values ───────────────────────────────────────
+   Named once so every surface moves to the same rhythm. Before this each
+   rule picked its own: the popup at 220ms on a curve that overshot, the
+   scrim at 160ms, the sheet at 200ms, hovers at 180ms. Individually fine,
+   together they read as several hands.
+
+   Three speeds, by consequence. Press feedback is the fastest thing on the
+   panel because it answers a finger. State changes (hover, selected, focus)
+   sit just above it. An arrival is the slowest, and still under a quarter of
+   a second: Velora opens dozens of times a session in a busy OPD, and an
+   entrance a doctor has to wait through is latency, not polish. Exits run
+   about two thirds of the entrance, so leaving always feels quicker than
+   arriving.
+
+   Easing: arrivals decelerate hard (an exponential ease-out), so the
+   surface is mostly there within the first few frames and spends the rest
+   settling. No overshoot anywhere: a clinical tool should land, not bounce.
+   Exits accelerate away. State changes use a gentle standard curve. */
+#dr-copilot-root {
+  --copilot-dur-press: 120ms;
+  --copilot-dur-state: 160ms;
+  --copilot-dur-enter: 200ms;
+  --copilot-dur-exit: 140ms;
+
+  --copilot-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --copilot-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --copilot-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Press depth. Small enough that the control never looks like it moved
+     out from under the pointer, large enough to be seen. */
+  --copilot-press-scale: 0.96;
+
+  /* The ring is the brand blue at full strength: 6:1 against white, which
+     is what keeps it findable over the pale glass. */
+  --copilot-focus-ring-color: var(--tp-blue-500, #4b4ad5);
+
+  /* The host app's Bootstrap sets `.border { border: 1px solid
+     var(--bs-border-color) !important }`, and Tailwind's `border` utility in
+     this panel carries the same class name, so every bordered element here
+     is drawn in Bootstrap's grey whatever colour class it also carries.
+     Pointing Bootstrap's variable at the panel's own hairline token makes
+     that default edge the right grey. A coloured edge is written
+     `border-[1px] border-tp-...` rather than `border border-tp-...`: the
+     arbitrary width is a different class name, Bootstrap's rule never
+     matches it, and the colour class wins as it should. */
+  --bs-border-color: var(--tp-slate-200, #e2e2ea);
+}
+
+/* Reduced motion keeps every colour and opacity change (they carry state:
+   hovered, pressed, selected) and drops the movement. Press stops scaling,
+   and the keyframes below each carry their own fade-only fallback. */
+@media (prefers-reduced-motion: reduce) {
+  #dr-copilot-root {
+    --copilot-press-scale: 1;
+  }
+}
+
+/* ── Floating tags in the panel header ───────────────────────────────────
+   The brand and the scope sit over the thread rather than in a bar, so they
+   need a surface of their own: the liquid glass VoiceRx uses, which is what
+   keeps them legible while messages scroll underneath.
+
+   One family with the panel controls on the right (see button.control in
+   surfaces/CopilotDock.module.css): all 32px tall on a 10px radius, so the
+   header reads as a single row of tags rather than three sizes of object
+   that happen to share a line. */
+#dr-copilot-root .copilot-glass-tag {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.46) 100%),
+    linear-gradient(135deg, rgba(213, 101, 234, 0.08) 0%, rgba(103, 58, 172, 0.07) 55%, rgba(75, 74, 213, 0.07) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 1px rgba(103, 58, 172, 0.12),
+    0 4px 14px -4px rgba(103, 58, 172, 0.16);
+}
+
+/* The scope chip, lifted from the Dr. Agent prototype's floating patient
+   chip: plain white glass rather than the brand tag's violet tint, so it
+   reads as a label on the page rather than a second brand mark. It used to
+   be a 28px pill, which sat 4px short of the brand tag beside it and the
+   controls across from it; the header now carries one tag shape.
+
+   It is the one tag in the row a doctor is expected to press, so it is the
+   one that has to say so: a hairline edge at rest (white-on-white glass
+   otherwise vanishes over a white thread), a lift on hover, a dip on press,
+   and a held, tinted state while its picker is open, so the open list is
+   visibly attached to the thing that opened it. */
+#dr-copilot-root .copilot-context-chip {
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.08),
+    0 4px 12px -4px rgba(15, 23, 42, 0.1);
+  transition:
+    background var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    box-shadow var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    transform var(--copilot-dur-press, 120ms) var(--copilot-ease-standard, ease);
+}
+
+#dr-copilot-root .copilot-context-chip:hover {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.14),
+    0 6px 16px -4px rgba(15, 23, 42, 0.14);
+}
+
+#dr-copilot-root .copilot-context-chip:active {
+  transform: scale(var(--copilot-press-scale, 0.96));
+  background: var(--tp-slate-50, #f8fafc);
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 23, 42, 0.16),
+    0 2px 6px -2px rgba(15, 23, 42, 0.12);
+}
+
+/* Open: the picker below belongs to this chip. The palest violet fill, the
+   one the selected scope row inside the picker carries, and a violet edge
+   to match the chip's own icon, so the chip and the row it opened onto read
+   as the same choice. */
+#dr-copilot-root .copilot-context-chip[aria-expanded="true"] {
+  background: var(--tp-violet-50, #faf5fe);
+  box-shadow:
+    inset 0 0 0 1px rgba(138, 77, 187, 0.36),
+    0 4px 12px -4px rgba(103, 58, 172, 0.2);
+}
+
+/* The one-off ring that marks a scope change. The class is held for about a
+   second (CopilotContextBar). The ring blooms out on arrival, holds while the
+   class is on, and on removal the chip's own box-shadow transition fades it
+   back to rest, so the confirmation has a beginning and an end instead of
+   blinking on and off. Two classes, so it outranks the chip's :hover and
+   [aria-expanded] rules: a doctor whose pointer is still on the chip after a
+   switch is exactly the one who should see it confirmed. */
+#dr-copilot-root .copilot-context-chip.copilot-context-chip--flash {
+  box-shadow:
+    inset 0 0 0 1px rgba(75, 74, 213, 0.5),
+    0 0 0 3px rgba(75, 74, 213, 0.16),
+    0 4px 12px -4px rgba(15, 23, 42, 0.1);
+  animation: copilot-chip-ring 240ms var(--copilot-ease-out, ease-out);
+}
+
+@keyframes copilot-chip-ring {
+  from {
+    box-shadow:
+      inset 0 0 0 1px rgba(75, 74, 213, 0),
+      0 0 0 0 rgba(75, 74, 213, 0.32),
+      0 4px 12px -4px rgba(15, 23, 42, 0.1);
+  }
+  to {
+    box-shadow:
+      inset 0 0 0 1px rgba(75, 74, 213, 0.5),
+      0 0 0 3px rgba(75, 74, 213, 0.16),
+      0 4px 12px -4px rgba(15, 23, 42, 0.1);
+  }
+}
+
+/* The search field inside the picker. Its focus used to be a 2px halo at 8%
+   opacity, which on the picker's grey is close to invisible; a doctor could
+   not tell the field was ready for typing. Now a clear blue edge and a halo
+   that can actually be seen. */
+#dr-copilot-root .copilot-context-search {
+  transition:
+    border-color var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    background var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    box-shadow var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease);
+}
+
+/* The border colours carry !important for one reason: the host app loads
+   Bootstrap, whose `.border { border: ... !important }` matches this field
+   (it carries Tailwind's `border` class) and pins its colour to Bootstrap's
+   grey. Without it neither the hover nor the focus edge ever showed. */
+#dr-copilot-root .copilot-context-search:hover {
+  border-color: var(--tp-slate-300, #d0d5dd) !important;
+  background: var(--tp-slate-50, #f8fafc);
+}
+
+#dr-copilot-root .copilot-context-search:focus-within {
+  border-color: var(--tp-blue-500, #4b4ad5) !important;
+  box-shadow: 0 0 0 3px rgba(75, 74, 213, 0.16);
+  background: #fff;
+}
+
+/* ── Shared building blocks for JSX to adopt ─────────────────────────────
+   Not yet referenced by any component. Each one exists because the same
+   thing is currently written several ways across the panel. */
+
+/* A plain icon button for headers inside the panel: the Recent
+   conversations back and close, the evidence close, the attach close. They
+   are 26px on an 8px radius in one place and something else in the next,
+   and none has a pressed state. This is the in-surface sibling of the glass
+   controls in the panel corner: same 32px box, same 10px radius, same press,
+   minus the glass, because inside a white header glass has nothing to sit
+   over. 32px is the floor for a reliable tap on the iPad. */
+#dr-copilot-root .copilot-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--tp-slate-500, #717179);
+  background: transparent;
+  transition:
+    background var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    color var(--copilot-dur-state, 160ms) var(--copilot-ease-standard, ease),
+    transform var(--copilot-dur-press, 120ms) var(--copilot-ease-standard, ease);
+}
+
+#dr-copilot-root .copilot-icon-btn:hover {
+  color: var(--tp-slate-900, #171725);
+  background: var(--tp-slate-100, #f1f1f5);
+}
+
+#dr-copilot-root .copilot-icon-btn:active {
+  transform: scale(var(--copilot-press-scale, 0.96));
+  background: var(--tp-slate-200, #e2e2ea);
+}
+
+#dr-copilot-root .copilot-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: transparent;
+  transform: none;
+}
+
+/* A small menu or popover arriving from its trigger: the scope picker, and
+   any dropdown like it. It drops 4px from the trigger and fades, quickly,
+   from the top so it reads as hanging off the control above it. */
+#dr-copilot-root .copilot-menu-in {
+  transform-origin: top left;
+  animation: copilot-menu-in var(--copilot-dur-state, 160ms) var(--copilot-ease-out, ease-out);
+}
+
+@keyframes copilot-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* New content replacing old in the same place: the conversation when the
+   scope changes. Each scope keeps its own thread, and a hard cut from one to
+   the other can look like the messages were wiped. A short fade with a 4px
+   rise says "a different conversation", not "the same one emptied". Keyed on
+   the scope in JSX so it plays once per switch. */
+#dr-copilot-root .copilot-fade-in {
+  animation: copilot-fade-in var(--copilot-dur-enter, 200ms) var(--copilot-ease-out, ease-out);
+}
+
+@keyframes copilot-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Fade only: the content still arrives visibly, it just does not travel. */
+@keyframes copilot-fade-only {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #dr-copilot-root .copilot-menu-in,
+  #dr-copilot-root .copilot-fade-in {
+    animation-name: copilot-fade-only;
+  }
+
+  /* The ring still appears, it just does not grow into place. */
+  #dr-copilot-root .copilot-context-chip.copilot-context-chip--flash {
+    animation: none;
+  }
+}
+
+/* Tesseract tooltips portal to the page body at the library's own z-index,
+   which is below Velora's overlay: a disabled Send explained its reason
+   behind the popup, where nobody could read it. Tagged tooltips sit above
+   it. Global on purpose, since the tooltip is not inside #dr-copilot-root. */
+.copilot-tooltip {
+  z-index: 20120 !important;
+}
+
+/* The context picker comes up from the bottom of the panel as a sheet, over
+   a dimmed page, and goes back down. Short and on the shared curve; the
+   reduced-motion version only fades. */
+#dr-copilot-root .copilot-sheet-up {
+  animation: copilot-sheet-up var(--copilot-dur-enter, 200ms) var(--copilot-ease-out, ease-out) both;
+}
+#dr-copilot-root .copilot-sheet-backdrop {
+  animation: copilot-fade-only var(--copilot-dur-enter, 200ms) ease-out both;
+}
+@keyframes copilot-sheet-up {
+  from { transform: translateY(24%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #dr-copilot-root .copilot-sheet-up { animation-name: copilot-fade-only; }
+}
+
+/* A scope change: the new conversation settles in from slightly below, and
+   the line that says what changed arrives a beat later. */
+#dr-copilot-root .copilot-thread-in {
+  animation: copilot-thread-in var(--copilot-dur-enter, 200ms) var(--copilot-ease-out, ease-out) both;
+}
+#dr-copilot-root .copilot-switch-in {
+  animation: copilot-thread-in var(--copilot-dur-enter, 200ms) var(--copilot-ease-out, ease-out) 80ms both;
+}
+@keyframes copilot-thread-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #dr-copilot-root .copilot-thread-in,
+  #dr-copilot-root .copilot-switch-in { animation-name: copilot-fade-only; }
+}
+
+/* A row of a streaming answer, written in after the one above it. The delay
+   is set per row inline; with reduced motion the rows are simply there. */
+#dr-copilot-root .copilot-row-stream {
+  animation: copilot-row-stream 260ms var(--copilot-ease-out, ease-out) both;
+}
+@keyframes copilot-row-stream {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #dr-copilot-root .copilot-row-stream { animation: none; }
+}
+
+/* Velora's suggestions, in the AI gradient. The stops run from a deep
+   orchid to indigo (not pale pink) so a regular-weight label still reads. */
+#dr-copilot-root .copilot-grad-text {
+  color: #673aac;
+  background-image: linear-gradient(90deg, #b04fd0 0%, #7b4fc4 50%, #4b4ad5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Icons take their colour from where they sit. The app styles every bare
+   span in ink (body span {...}), and an icon is a span, so an icon inside a
+   coloured wrapper (a red menu item, a violet tag) was drawn grey. :where()
+   keeps this below any colour class put on the icon itself. */
+#dr-copilot-root :where([data-tp-icon]) {
+  color: inherit;
+}
+
+/* Changing scope, spatially. Into a patient: the chat arrives from the
+   right. Back out to a hospital scope: it arrives from the left. A short
+   travel and a fade, so it reads as moving between pages, not as a jolt. */
+#dr-copilot-root .copilot-thread-forward {
+  animation: copilot-thread-forward 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+#dr-copilot-root .copilot-thread-back {
+  animation: copilot-thread-back 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes copilot-thread-forward {
+  from { opacity: 0; transform: translateX(48px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes copilot-thread-back {
+  from { opacity: 0; transform: translateX(-48px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #dr-copilot-root .copilot-thread-forward,
+  #dr-copilot-root .copilot-thread-back { animation-name: copilot-fade-only; }
+}

@@ -1,0 +1,426 @@
+/*
+ * Homepage Main Sidebar V1.
+ *
+ * Isolation contract, both directions:
+ *   OUT - every selector below is nested under .root, a CSS Module local class.
+ *         Nothing here is global at top level, so this file cannot repaint
+ *         anything outside the rail.
+ *   IN  - the host ships global Bootstrap, legacy app CSS, and one rule aimed
+ *         squarely at Tesseract (see REPAIR 1). .root re-declares the inherited
+ *         properties so the host cascade stops at this boundary.
+ *
+ * Look is the design system's job. The REPAIR blocks below exist only where the
+ * host overrides the DS, or where 1.1.0 exposes no prop. Each is scoped inside
+ * .root and each says what it is undoing.
+ */
+
+.root {
+  /* Boundary for inherited text properties. Host cascade stops here. */
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 400;
+  font-style: normal;
+  line-height: normal;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  color: var(--tesseract-slate-700);
+
+  /* Own stacking + paint context, so host z-index and filters cannot reorder
+     the rail's flyouts and the rail cannot escape its own layer. */
+  isolation: isolate;
+
+  /* Anchors the collapsed-rail fade below. */
+  position: relative;
+
+  flex-shrink: 0;
+  align-self: stretch;
+  height: calc(100vh - var(--main-sidebar-v1-header-h, 56px));
+  min-height: 0;
+  background: var(--tesseract-bg-surface);
+}
+
+.root *,
+.root *::before,
+.root *::after {
+  box-sizing: border-box;
+}
+
+.rail {
+  height: 100%;
+}
+
+/*
+ * The scroll hint for the collapsed rail, matching the DS's own `_fade_`
+ * (transparent to surface at 85%, 80px tall). The DS only draws this when the
+ * sidebar is expanded, and it is mounted only while the list can still scroll.
+ */
+.bottomFade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: 80px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, var(--tesseract-slate-0) 85%);
+}
+
+/* SSO handoff blocks the screen while the target module resolves. */
+.loadingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tesseract-slate-700);
+  background: color-mix(in srgb, var(--tesseract-slate-900) 32%, transparent);
+}
+
+/*
+ * REPAIR 1 - white on the selected row, and white tag text.
+ *
+ * The host ships this rule (AppointmentListingPage.module.css, written with
+ * :global so it applies app-wide):
+ *
+ *   html[data-tp-theme] button[class^="_"] span { color: inherit }
+ *
+ * At (0,2,3) it outranks the DS's own colours on every span inside a DS button.
+ * Two casualties here: the active chip's white (a 1-class rule) and gradient
+ * badge text (a 2-class rule), both of which then inherit the rail's slate-700
+ * and render dark. Soft badges survive only because their colour sits on a
+ * 3-class rule, which is why some tags looked right and others did not.
+ *
+ * These re-assert the DS values at (0,3,1) and (0,4,1) so they win without
+ * !important. Icons are masks painted with `background-color: currentColor`, so
+ * fixing the chip's colour is what turns the icon white.
+ */
+/*
+ * Selected state — solid blue-500 chip fill under a white glyph, with a
+ * blue-500 semibold label below. No shadow, no accent bar. The label
+ * lives outside the chip so it stays legible on the rail's white surface.
+ */
+:global(html[data-tp-theme]) .root :global([class*="_chipActive_"]),
+:global(html[data-tp-theme]) .root :global([class*="_railItemActive_"]) :global([class*="_chip_"]) {
+  color: var(--tesseract-slate-0) !important;
+  background-color: var(--tesseract-blue-500) !important;
+  box-shadow: none !important;
+}
+
+/*
+ * The masked TPIcon takes `background-color: currentColor` inline, so
+ * setting `color` on it directly (and matching the bg) turns the glyph
+ * white against the accent-filled chip. Two attribute selectors clear
+ * the host's span-colour rule (see REPAIR 1).
+ */
+:global(html[data-tp-theme]) .root :global([class*="_chipActive_"]) :global([data-tp-icon]),
+:global(html[data-tp-theme]) .root :global([class*="_railItemActive_"]) :global([class*="_chip_"]) :global([data-tp-icon]) {
+  color: var(--tesseract-slate-0) !important;
+  background-color: var(--tesseract-slate-0) !important;
+}
+
+.root :global([class*="_railLabelActive_"]) {
+  color: var(--tesseract-blue-500) !important;
+  font-weight: 600 !important;
+}
+
+/*
+ * Unselected — slate-500, one shade lighter than slate-700, so idle rows
+ * do not shout for attention against the selected accent chip. Both the
+ * label and the icon glyph share the ink so every row reads at the same
+ * weight. Hover is a background tint only; text/icon colour does not
+ * shift, so a hover state cannot be misread as "selected".
+ */
+.root :global([class*="_railLabel_"]:not([class*="_railLabelActive_"])) {
+  color: var(--tesseract-slate-500) !important;
+}
+/*
+ * Scoped to the chip only. The bare rule (`_railItem_ [data-tp-icon]`) also
+ * matched the padlock glyph living inside the Locked pill in the badge
+ * slot, so the lock rendered slate-500 instead of the white the pill's
+ * inline `color` asks for. Restricting to `_chip_` leaves badge glyphs
+ * to render at their intended colour.
+ */
+.root :global([class*="_railItem_"]:not([class*="_railItemActive_"])) :global([class*="_chip_"]) :global([data-tp-icon]) {
+  color: var(--tesseract-slate-500) !important;
+  background-color: var(--tesseract-slate-500) !important;
+}
+
+:global(html[data-tp-theme]) .root :global([class*="_badge_"][data-variant="gradient"]),
+:global(html[data-tp-theme]) .root :global([class*="_badge_"][data-variant="gradient"]) span {
+  /* Force white on both the badge and its inner span. The host ships a
+     body-level `body span { color: slate-700 }` at (0,0,2) that matches the
+     inner span directly and beats inheritance from the badge. !important
+     here so a future host rule bump cannot silently push it back to dark. */
+  color: var(--tesseract-slate-0) !important;
+}
+
+/*
+ * REPAIR 1b - retune the shine so the white glyph does not camouflage on it.
+ *
+ * The DS gradient is a 500 -> 200 -> 500 diagonal, tuned to read strong on a
+ * dark canvas. On the rail's white surface, at 18px tall, the 200 mid-stop
+ * lands near-white and the white glyph sitting on it disappears. The same
+ * three-stop shape is kept so the pill still reads as one family; only the
+ * mid-stop is muted to a slate-blended tone of the base. Every hue the tag
+ * catalog can emit is covered here.
+ */
+.root :global([class*="_badge_"][data-variant="gradient"][data-color="primary"]) {
+  background-image: linear-gradient(
+    257.32deg,
+    var(--tesseract-blue-500) 0%,
+    color-mix(in srgb, var(--tesseract-blue-500) 65%, #ffffff) 47.22%,
+    var(--tesseract-blue-500) 94.44%
+  );
+}
+.root :global([class*="_badge_"][data-variant="gradient"][data-color="success"]) {
+  background-image: linear-gradient(
+    257.32deg,
+    var(--tesseract-success-500) 0%,
+    color-mix(in srgb, var(--tesseract-success-500) 65%, #ffffff) 47.22%,
+    var(--tesseract-success-500) 94.44%
+  );
+}
+.root :global([class*="_badge_"][data-variant="gradient"][data-color="warning"]) {
+  background-image: linear-gradient(
+    257.32deg,
+    var(--tesseract-warning-500) 0%,
+    color-mix(in srgb, var(--tesseract-warning-500) 65%, #ffffff) 47.22%,
+    var(--tesseract-warning-500) 94.44%
+  );
+}
+.root :global([class*="_badge_"][data-variant="gradient"][data-color="violet"]) {
+  background-image: linear-gradient(
+    257.32deg,
+    var(--tesseract-violet-500) 0%,
+    color-mix(in srgb, var(--tesseract-violet-500) 65%, #ffffff) 47.22%,
+    var(--tesseract-violet-500) 94.44%
+  );
+}
+.root :global([class*="_badge_"][data-variant="gradient"][data-color="error"]) {
+  background-image: linear-gradient(
+    257.32deg,
+    var(--tesseract-error-500) 0%,
+    color-mix(in srgb, var(--tesseract-error-500) 65%, #ffffff) 47.22%,
+    var(--tesseract-error-500) 94.44%
+  );
+}
+
+/*
+ * REPAIR 1c - match the word pill to the lock pill.
+ *
+ * DS ships the `xs` gradient pill at 16px tall with fully rounded corners.
+ * The Locked pill next to it is 22px tall with the right corners squared,
+ * so the two read as different families side-by-side. Force every rail
+ * word badge (New / Beta / Trial) to the same 22px height and the same
+ * rounded-left / squared-right silhouette so a doctor scanning the rail
+ * sees one badge shape.
+ */
+.root :global([class*="_railBadge_"]) > :global([class*="_badge_"]) {
+  /* 18px keeps the pill compact against the rail rows; asymmetric padding
+     leaves room for the label on the left and only a hair of gap against
+     the rail edge on the right where the corners are squared. */
+  min-height: 18px !important;
+  height: 18px !important;
+  padding: 0 var(--tesseract-space-1, 4px) 0 var(--tesseract-space-2, 8px) !important;
+  border-top-left-radius: 999px !important;
+  border-bottom-left-radius: 999px !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/*
+ * Hover, on unselected rows only.
+ *
+ * The DS only tints the whole row slate-50, which barely reads against a white
+ * rail. Hovering now darkens the icon chip and the glyph inside it, so the
+ * target of the click is what responds rather than the strip around it.
+ *
+ * The selected row is deliberately inert: it is already accent-filled and
+ * already reads as "where you are", so pointing at it should not restate that.
+ * Every rule below therefore excludes `_railItemActive_`.
+ *
+ * Icons are masks painted with `background-color: currentColor` set inline, and
+ * inline styles cannot be overridden from a stylesheet. Setting `color` on the
+ * chip is what moves them: `currentColor` resolves against it. The selectors
+ * are 4 classes deep to clear the host's span-colour rule (see REPAIR 1).
+ */
+.root :global([class*="_railItem_"]:not([class*="_railItemActive_"])) :global([class*="_chip_"]) {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.root
+  :global([class*="_railItem_"]:not([class*="_railItemActive_"])):hover
+  :global([class*="_chip_"]:not([class*="_chipActive_"])) {
+  background-color: var(--tesseract-slate-200);
+  /* Text/icon colour deliberately unchanged on hover so a hover state never
+     reads as "selected". Only the chip surface tints. */
+}
+
+/*
+ * The DS tints every row slate-50 on hover, the selected one included, which
+ * repaints its accent wash grey for as long as the pointer sits on it. Hold the
+ * accent tint (the DS's own `_railItemActive_` value) so the selected row does
+ * not react to the pointer at all.
+ */
+.root :global([class*="_railItemActive_"]):hover {
+  background: color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
+}
+
+/*
+ * REPAIR 2 - drop the head divider.
+ *
+ * In collapsed mode the DS renders its divider unconditionally, even with
+ * showCollapseToggle={false}, so the rail opens on a stray rule with nothing
+ * above it. 1.1.0 exposes no prop for this.
+ */
+.root :global([class*="_divider_"]) {
+  display: none;
+}
+
+/*
+ * With no toggle, no logo and no search, the DS head is an empty box that still
+ * pays its own padding (space-3 top, space-2 bottom), which showed up as dead
+ * space above the first row. Nothing renders in it, so it goes.
+ */
+.root :global([class*="_head_"]) {
+  display: none;
+}
+
+/*
+ * REPAIR 3 - let a tag hug its own text.
+ *
+ * The DS clamps every rail badge to exactly 28px:
+ *
+ *   ._railBadge_ > span[data-size]:not([data-variant=dot]) { width: 28px; … }
+ *
+ * That fits a dot or a count, but clips real words: "Trial", "Expired" and
+ * "Updated" all overflowed their pill. Width goes back to content-sized, capped
+ * so a long tag still cannot escape the 80px rail.
+ */
+.root :global([class*="_railBadge_"]) > :global(span[data-size]:not([data-variant="dot"])) {
+  width: auto;
+  min-width: var(--tesseract-size-16);
+  max-width: 68px;
+  padding: 0 var(--tesseract-space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * REPAIR 3b - hang the tag off the rail's right edge.
+ *
+ * The tag is a status marker, not a caption, so it belongs beside the chip
+ * rather than under the label: the eye reads chip + tag as one unit and the
+ * label stays a clean single/two-line name. The tag flush-lands against the
+ * rail's right edge with its right corners squared, so it reads as an object
+ * attached to the rail rather than a free-floating pill on top of the icon.
+ *
+ * Only the badge is absolute; label and row still flow, so an untagged row
+ * loses nothing and a tagged row does not push its neighbours down. Chip
+ * geometry is cached in CSS vars so a future chip resize is a one-line change
+ * here rather than three magic numbers scattered across selectors.
+ */
+.root {
+  --rail-v1-chip-size: 40px;
+  --rail-v1-chip-top: 8px;
+}
+
+.root :global([class*="_railItem_"]) {
+  position: relative;
+}
+
+.root :global([class*="_railBadge_"]) {
+  position: absolute;
+  top: calc(var(--rail-v1-chip-top) + var(--rail-v1-chip-size) / 2);
+  right: 0;
+  left: auto;
+  margin: 0;
+  align-self: auto;
+  transform: translateY(-50%);
+  z-index: 2;
+  pointer-events: none;
+  /* Own the corner radius here so the word pills and the lock pill both read
+     as one edge-attached shape. Inner spans inherit the shape. */
+  border-radius: 999px 0 0 999px;
+  overflow: hidden;
+}
+
+/*
+ * The DS Badge pill is fully rounded; square its right side so it lands
+ * flush on the rail edge. Uses the border-radius from its wrapper.
+ */
+.root :global([class*="_railBadge_"]) > :global([class*="_badge_"]),
+.root :global([class*="_railBadge_"]) > span {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+  box-shadow: none;
+}
+
+/*
+ * REPAIR 3c - the house two-line label rule.
+ *
+ * The DS pins rail labels to a single 64px nowrap line, so "Appointment"
+ * clipped to "Appointm..." and "Apollo analytics" lost half its name. Our rule
+ * is: wrap to at most two lines, break only at spaces, and truncate only what
+ * still cannot fit.
+ *
+ *   Apollo analytics -> "Apollo" / "analytics", two lines
+ *   Appointment      -> one word, one line, fits at 74px
+ *   a longer word    -> stays whole and truncates, never breaks mid-word
+ *
+ * word-break/overflow-wrap stay normal so a single word is never split; the
+ * clamp then ellipses whatever is past two lines.
+ */
+.root :global([class*="_railLabel_"]) {
+  max-width: 79px;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.15;
+}
+
+/*
+ * REPAIR 4 - no scrollbar.
+ *
+ * The nav list overflows once every module is entitled (953px of rows in a
+ * 744px viewport), and the host re-enables the scrollbar the DS hides, so an
+ * overlay scrollbar paints over the rail. The list still scrolls; it just does
+ * so without drawing anything.
+ */
+.root :global([class*="_list_"]),
+.root :global([class*="_scrollArea_"]) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/*
+ * The first row (Appointment) is the anchor of the rail, so it should sit
+ * flush with the bar above it. The DS puts a space-2 (8px) block-start pad
+ * on the list; drop it here so nothing floats above Appointment. Bottom pad
+ * stays: the last row still needs room to scroll clear of the fade,
+ * otherwise Messages / LIMS come to rest under the gradient.
+ */
+.root :global([class*="_list_"]) {
+  padding-top: 0;
+  padding-bottom: 56px;
+}
+
+.root :global([class*="_list_"])::-webkit-scrollbar,
+.root :global([class*="_scrollArea_"])::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}

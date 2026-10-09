@@ -1,0 +1,387 @@
+/*
+ * Main Header V1.
+ *
+ * Isolation contract, both directions, same as the rail's:
+ *   OUT - every selector is nested under .root, a CSS Module local class, so
+ *         nothing here can repaint the app around the bar.
+ *   IN  - the host ships global Bootstrap, legacy app CSS and one rule aimed
+ *         squarely at Tesseract (see REPAIR 1). .root re-declares the inherited
+ *         properties so the host cascade stops at this boundary.
+ *
+ * Look is the design system's job. Everything below is either that boundary, or
+ * a repair where the host overrides the DS, and each repair says what it undoes.
+ */
+
+.root {
+  /* Boundary for inherited text properties. Host cascade stops here. */
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: 400;
+  font-style: normal;
+  line-height: normal;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  color: var(--tesseract-slate-700);
+
+  /* Own stacking context: the bar's dropdowns must not be reordered by host
+     z-index, and the bar must not escape its own layer over the app. */
+  isolation: isolate;
+  position: relative;
+  z-index: 10;
+
+  flex-shrink: 0;
+  background: var(--tesseract-bg-surface);
+}
+
+.root *,
+.root *::before,
+.root *::after {
+  box-sizing: border-box;
+}
+
+.bar {
+  width: 100%;
+}
+
+/* Brand mark. The empty span beside it is the TatvaPedia popover's anchor. */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/*
+ * Controls that carry their own artwork (tutorial, AI Suite) rather than a DS
+ * glyph. Sized to the DS control box so they line up with the tonal CTAs either
+ * side of them.
+ */
+.plainAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tesseract-header-control, 42px);
+  height: var(--tesseract-header-control, 42px);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.plainAction img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/*
+ * AI Suite entry point. Reads as a normal icon-only tonal CTA in the top bar:
+ * same footprint and same corner radius as the Bell and Switch controls, so
+ * the actions cluster keeps one silhouette. The Dr. Agent gradient fills the
+ * whole button as the ground, and the spark sits centred on top with a small
+ * rotation so it does not read as a static asterisk.
+ */
+.aiSuiteButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /*
+   * Pin every geometry knob: width / min-width / max-width all locked to
+   * the header control token (42px) and aspect ratio 1/1 so the parent
+   * flex row cannot squash it into a taller-than-wide box. flex-shrink:0
+   * for the same reason.
+   */
+  width: var(--tesseract-header-control, 42px);
+  height: var(--tesseract-header-control, 42px);
+  min-width: var(--tesseract-header-control, 42px);
+  min-height: var(--tesseract-header-control, 42px);
+  max-width: var(--tesseract-header-control, 42px);
+  max-height: var(--tesseract-header-control, 42px);
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  /* radius-lg (12px) — same as the tonal Buttons the DS ships in the actions
+     cluster, so the AI Suite tile reads as one silhouette with the bell,
+     switch and clinic trigger next to it. */
+  border-radius: var(--tesseract-radius-lg, 12px);
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+}
+
+.aiSuiteBrand {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.aiSuiteBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.aiSuiteSpark {
+  position: relative;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+}
+
+.tutorialGlyph {
+  display: block;
+  cursor: pointer;
+}
+
+.tutorialButton {
+  width: var(--tesseract-header-control, 42px);
+  height: var(--tesseract-header-control, 42px);
+  cursor: pointer;
+  background: none;
+  border: none;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  display: inline-flex;
+}
+
+.tutorialButton:hover {
+  opacity: 0.85;
+}
+
+.tutorialButton > svg {
+  width: var(--tesseract-header-control, 42px);
+  height: var(--tesseract-header-control, 42px);
+}
+
+/* Notification: the DS dot rides the corner of the bell's control box. */
+.notification {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * Unread dot: the universal notification pattern - a small circle sitting
+ * on the icon's top-right corner, ringed by a 2px surface-coloured stroke
+ * so it reads separate from the icon behind it. The wrapper positions the
+ * dot; the inner Badge is forced perfectly circular and its outer stroke
+ * is drawn here rather than on the Badge itself so the geometry stays
+ * predictable across DS versions.
+ */
+.notificationDot {
+  /*
+   * Root-cause note: the earlier `box-shadow` ring was drawing a rectangular
+   * halo on some monitors because the host ships a `* { box-sizing:
+   * border-box }` reset that changed how `width` resolved for the shadow
+   * spread, and the DS Button has `overflow: hidden`, which clipped the
+   * dot when it was a child rather than a sibling (already a sibling here,
+   * but the shadow still landed on the seam of the button and looked
+   * squarish). Switched to `border` on a slightly bigger box: the border
+   * paints INSIDE the border-radius, so a `border-radius: 50%` circle
+   * stays circular at any size, no shadow, no seam. Kept 8px overall as
+   * requested.
+   */
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  min-height: 8px;
+  max-width: 8px;
+  max-height: 8px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  box-sizing: content-box;
+  border: 2px solid color-mix(in srgb, var(--tesseract-slate-500) 8%, var(--tesseract-slate-0));
+  border-radius: 50%;
+  background-color: var(--tesseract-error-500, #e11d48);
+  background-clip: padding-box;
+  pointer-events: none;
+  display: block;
+}
+
+/*
+ * Beamer injects its own unread counter into the button it is bound to. We read
+ * that node (useBeamerUnread) and draw the DS dot instead, so the bar keeps one
+ * badge language. The counter still has to exist for Beamer, it just cannot show.
+ */
+/*
+ * DS Button text override for portal'd surfaces (ConfirmDialog).
+ *
+ * The host ships a body-level `body span { color: slate-700 }` at (0,0,2)
+ * that hits the inner `<span>` inside every DS Button and clobbers the DS's
+ * own text colour. In the header itself we already re-assert colours per
+ * variant; ConfirmDialog is portal'd outside `.root` so those rules do not
+ * reach it. Force every DS Button's inner text to inherit from the button
+ * element (which the DS colours correctly by data-variant / data-theme).
+ */
+:global([role="alertdialog"]) :global([class*="_button_"]) :global(span) {
+  color: inherit !important;
+  /* Host CSS also touches `button span { font-weight }` in a few places;
+     drop back to the DS Button's own weight so CTAs don't render heavier
+     or lighter than the design system intends. */
+  font-weight: inherit !important;
+  font-family: inherit !important;
+}
+
+/*
+ * Beamer injects its own counter and the icon it renders is a red square
+ * with the unread count inside it. We paint our own DS dot, so hide every
+ * variant of the injected element. The last selector is fully global (not
+ * scoped by .root) so the counter cannot leak through even if Beamer moves
+ * where in the DOM it mounts its element.
+ */
+.root :global(.beamer_icon),
+.root :global(.beamer_icon.active),
+:global(#beamerButton .beamer_icon),
+:global(#beamerButton .beamer_icon.active),
+:global(#beamerButton > .beamer_icon) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/*
+ * Beamer also renders a default floating bell (#beamerSelector, bottom-right)
+ * even when it is already bound to another selector via config. Belt-and-braces
+ * with `button: false` in the config, hide it here so a config change cannot
+ * cause a stray bell to reappear.
+ */
+:global(#beamerSelector.beamer_defaultBeamerSelector) {
+  display: none !important;
+}
+
+.avatarTrigger {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+/*
+ * REPAIR 1 - white text inside DS buttons.
+ *
+ * The host ships this rule (AppointmentListingPage.module.css, written with
+ * :global so it applies app-wide):
+ *
+ *   html[data-tp-theme] button[class^="_"] span { color: inherit }
+ *
+ * At (0,2,3) it outranks the DS's own colours on every span inside a DS button,
+ * so a solid CTA's label would inherit the bar's slate-700 and render dark on
+ * dark. This re-asserts the DS value at a weight that wins without !important.
+ */
+:global(html[data-tp-theme]) .root :global([class*="_ctaLabel_"]) {
+  color: inherit;
+}
+
+/* ── Clinic switcher (DS Dropdown) ─────────────────────────────────────
+ *
+ * The clinic switcher is the DS Dropdown as-is — no bespoke overrides on the
+ * trigger, so every DS state (idle, hover, focus, open, selected) stays in
+ * lock-step with every other DS Dropdown in the app.
+ *
+ * `.clinicDropdown` remains only as a scoping hook. The one paint we add is
+ * on the portal'd selected option: the DS ships that state bare, so a long
+ * clinic list has no current-value cue. We give it the same tonal blue-50 /
+ * blue-500 wash the rest of the top bar uses — colours from tokens, the
+ * selector uses `[data-selected]` (stable DS contract) rather than a
+ * hashed class name.
+ */
+:global([class*="_option_"][data-selected="true"]) {
+  background-color: var(--tesseract-blue-50) !important;
+}
+:global([class*="_option_"][data-selected="true"]),
+:global([class*="_option_"][data-selected="true"]) :global([class*="_optTitle_"]),
+:global([class*="_option_"][data-selected="true"]) :global([class*="_check_"]) {
+  color: var(--tesseract-blue-500) !important;
+}
+
+/*
+ * Show the active-state stroke on hover too, so hovering previews the
+ * open state instead of the trigger staying flat until clicked.
+ */
+.clinicDropdown :global([class*="_trigger_"]):hover {
+  box-shadow: 0 0 0 1px var(--tesseract-blue-500) inset;
+}
+
+
+/*
+ * Disable open/close animation on the DS Dropdown portal AND antd popovers
+ * used in the top bar. The DS slides the menu in from the trigger side,
+ * which reads as noise for a switcher that opens hundreds of times a
+ * session. Kill the transform / opacity transition so the menu appears
+ * instantly.
+ */
+:global(div[id^="dd-"]),
+:global(.ant-popover),
+:global(.ant-dropdown) {
+  animation-duration: 0s !important;
+  transition: none !important;
+}
+:global(div[id^="dd-"]) *,
+:global(.ant-popover-inner),
+:global(.ant-dropdown-menu) {
+  animation-duration: 0s !important;
+  transition: none !important;
+}
+
+/*
+ * Truncate every clinic option's title so a long branch name never
+ * pushes the menu past its `width={280}` cap. min-width:0 lets the flex
+ * child shrink; overflow + ellipsis do the actual clip.
+ */
+:global([class*="_option_"]) :global([class*="_optTitle_"]) {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+:global([class*="_option_"]) :global([class*="_optText_"]) {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+/* ── Profile dropdown overlay ──────────────────────────────────────────── */
+
+.profileDropdown :global(.ant-dropdown-menu) {
+  font-family: var(--tesseract-font-body, "DM Sans", sans-serif) !important;
+}
+
+.profileDropdown :global(.ant-dropdown-menu-item .title-common) {
+  font-family: inherit !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.profileDropdown :global(.ant-dropdown-menu-item .titleprint) {
+  font-family: inherit !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 24px !important;
+}
+
+.profileDropdown :global(.ant-dropdown-menu-item:first-child .title-common) {
+  font-size: 13px !important;
+  color: var(--tesseract-slate-400, #94a3b8) !important;
+}
+
+.profileDropdown :global(.logout-menu-item),
+.profileDropdown :global(.logout-menu-item) .title-common,
+.profileDropdown :global(.logout-menu-item) span {
+  /* The row's span children inherit color from the host's
+     `button[class^="_"] span { color: inherit }` rule and end up neutral.
+     Force red on every descendant here so the label and the icon glyph
+     (masked with currentColor) both come out destructive. */
+  color: var(--destructive, #c8102e) !important;
+}

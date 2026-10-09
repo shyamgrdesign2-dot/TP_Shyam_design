@@ -1,0 +1,123 @@
+/* Drawn over an empty input. Plain CSS module so it works both inside
+   #dr-copilot-root and in the app's own header, which is outside it. */
+
+.ghost {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 13.5px;
+  /* A placeholder, and plainly one: the lead ("Find patients") in the pale
+     grey an empty field uses, never the ink of typed text. Only the rolling
+     part carries Velora's colour, and that is faded too. */
+  color: var(--tp-slate-400, #A2A2A8);
+}
+
+/* In a row of its own (the top bar's search) rather than over a textarea. */
+.inline {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Matched to the empty-state field, whose type is larger: the invitation is
+   drawn over the textarea, so it has to sit on the same line as the caret. */
+.lg {
+  font-size: 15.5px;
+}
+
+.lg .roll {
+  height: 22px;
+}
+
+.lg .rollIn,
+.lg .rollOut {
+  line-height: 22px;
+}
+
+/* The patient's name in the lead: a shade darker and semibold, the one part
+   of the placeholder that says whose chat this is. */
+.leadName {
+  font-weight: 600;
+  color: var(--tp-slate-500, #717179);
+}
+
+.lead {
+  flex-shrink: 0;
+  /* The app styles every bare span in ink (body span {...}), which beat the
+     ghost's own colour and left the lead looking typed. Taking the ghost's
+     colour back keeps it a placeholder in every field it is drawn in. */
+  color: inherit;
+}
+
+/* A one-line window the phrases slide through. */
+.roll {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 19px;
+  overflow: hidden;
+}
+
+.rollIn,
+.rollOut {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  line-height: 19px;
+  /* The rolling tail in the AI gradient, lightened so it reads as an
+     invitation rather than as typed text. Same in the composer and the top
+     bar: it is the same sentence in two places. */
+  color: var(--tp-violet-300, #D0A8EE);
+  background: linear-gradient(90deg, rgba(200, 107, 224, 0.62) 0%, rgba(142, 98, 207, 0.62) 55%, rgba(106, 105, 222, 0.62) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rollIn {
+  animation: rollIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.rollOut {
+  animation: rollOut 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes rollIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes rollOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rollIn,
+  .rollOut {
+    animation: none;
+  }
+}

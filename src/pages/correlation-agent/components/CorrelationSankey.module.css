@@ -1,0 +1,370 @@
+.wrap {
+  /* System colours only. Violet marks the agent's own inference, amber a
+     contradiction, error a dead end, success an in-range value. */
+  --corr-abnormal: var(--tesseract-error-500);
+  --corr-normal: var(--tesseract-success-600);
+  --corr-muted: var(--tesseract-slate-400);
+  --corr-group-line: var(--tesseract-slate-300);
+  --corr-select: var(--tesseract-violet-700);
+
+  /* The narrow bar beside each card stays saturated. It is the colour key, and
+     it is small enough that full strength there costs nothing. */
+  --corr-bar-associated: var(--tesseract-violet-500);
+  --corr-bar-contradicts: var(--tesseract-amber-500);
+  /* The reasoning column reads by RELATIONSHIP, the way the reference does:
+     pink where findings go together, amber where one argues against another.
+     Neutral grey said nothing and killed every ribbon that passed through it;
+     violet was the agent's own voice and belongs nowhere in this chart. */
+  --corr-bar-reasoning: var(--tesseract-pink-500, #d55181);
+  --corr-bar-evStrong: var(--tesseract-success-500);
+  --corr-bar-evMedium: var(--tesseract-amber-500);
+  --corr-bar-evLow: var(--tesseract-error-500);
+  --corr-bar-dead: var(--tesseract-error-500);
+
+  /* The card itself is a tinted surface, not a block of colour: the palest step
+     of its own ramp, a border one step up, and text near the dark end. This is
+     the soft Badge treatment, and it is what keeps a clinical page calm. */
+  --corr-tint-associated: var(--tesseract-violet-50);
+  --corr-tint-contradicts: var(--tesseract-amber-50);
+  --corr-tint-dead: var(--tesseract-error-50);
+  --corr-tint-reasoning: #fdf2f6;
+  --corr-tint-evStrong: var(--tesseract-success-50);
+  --corr-tint-evMedium: var(--tesseract-amber-50);
+  --corr-tint-evLow: var(--tesseract-error-50);
+
+  --corr-edge-associated: var(--tesseract-violet-200);
+  --corr-edge-contradicts: var(--tesseract-amber-300);
+  --corr-edge-dead: var(--tesseract-error-200);
+  --corr-edge-reasoning: #f0c3d5;
+  --corr-edge-evStrong: var(--tesseract-success-300);
+  --corr-edge-evMedium: var(--tesseract-amber-300);
+  --corr-edge-evLow: var(--tesseract-error-300);
+
+  --corr-ink-associated: var(--tesseract-violet-900);
+  --corr-ink-contradicts: var(--tesseract-amber-900);
+  --corr-ink-dead: var(--tesseract-error-700);
+  --corr-ink-reasoning: #7a2544;
+  --corr-ink-evStrong: var(--tesseract-success-900);
+  --corr-ink-evMedium: var(--tesseract-amber-900);
+  --corr-ink-evLow: var(--tesseract-error-900);
+
+  --corr-chip-associated: var(--tesseract-violet-200);
+  --corr-chip-contradicts: var(--tesseract-amber-200);
+  --corr-chip-dead: var(--tesseract-error-100);
+  --corr-chip-reasoning: #f7dde8;
+  --corr-chip-evStrong: var(--tesseract-success-200);
+  --corr-chip-evMedium: var(--tesseract-amber-200);
+  --corr-chip-evLow: var(--tesseract-error-200);
+
+  /* Strong fill is held back for the one selected card. */
+  /* The selected surface: one step deeper than the resting tint, so the card
+     reads as open without reading as pressed. */
+  --corr-sel-associated: var(--tesseract-violet-100);
+  --corr-sel-contradicts: var(--tesseract-amber-100);
+  --corr-sel-dead: var(--tesseract-error-100);
+  --corr-sel-reasoning: #fbe8ef;
+  --corr-sel-evStrong: var(--tesseract-success-100);
+  --corr-sel-evMedium: var(--tesseract-amber-100);
+  --corr-sel-evLow: var(--tesseract-error-100);
+
+  --corr-solid-associated: var(--tesseract-violet-600);
+  --corr-solid-contradicts: var(--tesseract-amber-700);
+  --corr-solid-dead: var(--tesseract-error-600);
+  --corr-solid-reasoning: #d55181;
+  --corr-solid-evStrong: var(--tesseract-success-600);
+  --corr-solid-evMedium: var(--tesseract-amber-600);
+  --corr-solid-evLow: var(--tesseract-error-600);
+
+  /* On the selected card the ground is solid, so the chip goes darker still and
+     inverts its text rather than becoming a smudge of the same hue. */
+  --corr-chipon-associated: var(--tesseract-violet-800);
+  --corr-chipon-contradicts: var(--tesseract-amber-900);
+  --corr-chipon-dead: var(--tesseract-error-800);
+  --corr-chipon-reasoning: #f7dde8;
+  /* The chip on a SELECTED card. It keeps a light fill so its dark ink stays
+     readable: inverting the fill to the same darkness as the label made the
+     text disappear. */
+  --corr-chipon-evStrong: var(--tesseract-success-200);
+  --corr-chipon-evMedium: var(--tesseract-amber-200);
+  --corr-chipon-evLow: var(--tesseract-error-200);
+
+  position: relative;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+/* Fit mode: the minimum goes away and the SVG takes its height from the
+   viewBox ratio, so the whole chart is on screen beside the panel. */
+.scroll[data-fit] {
+  overflow-x: hidden;
+}
+.scroll[data-fit] .svg {
+  min-width: 0;
+  height: auto;
+}
+
+.svg {
+  display: block;
+  /* Never scale below the width the labels were measured for. Narrower than
+     this the rail scrolls, so the chart stays readable at any drawer width.
+     This one number is chart geometry: it is the viewBox width. */
+  min-width: 1120px;
+  width: 100%;
+  font-family: inherit;
+}
+
+/* Ribbons multiply into each other and into the page, so a crossing reads as
+   depth instead of as a third colour laid over the top. */
+.ribbons {
+  mix-blend-mode: multiply;
+}
+
+.ribbon {
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+
+.node:focus {
+  outline: none;
+}
+.node:focus-visible rect:first-of-type {
+  stroke: var(--corr-select);
+  stroke-width: 2;
+}
+.node {
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+.node:focus-visible {
+  outline: var(--tesseract-space-0-5) solid var(--tesseract-violet-600);
+  outline-offset: var(--tesseract-space-0-5);
+}
+
+/* One weight per column, and inside the finding column one step of contrast
+   between a result that moved and a result that did not. The reference range
+   and the flag word stay the tooltip's job. */
+.tName,
+.tNameQuiet,
+.tRead,
+.tReadQuiet {
+  text-anchor: end;
+}
+/* The report a run of findings came out of, set right-aligned against its
+   bracket so the names form a clean edge down the left of the chart. */
+/* Column headings. Neutral, because naming a column is not a claim. */
+.tColHead {
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--tesseract-fg-tertiary);
+}
+.tGroup {
+  text-anchor: end;
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  fill: var(--tesseract-fg-heading);
+}
+.tGroupMeta {
+  text-anchor: end;
+  font-size: var(--tesseract-text-micro);
+  fill: var(--tesseract-fg-tertiary);
+}
+.tName {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  fill: var(--tesseract-fg-primary);
+}
+.tNameQuiet {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  fill: var(--tesseract-fg-tertiary);
+}
+/* The reading and its direction mark. Red only where the value moved. */
+.tRead {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  fill: var(--tesseract-error-600);
+  font-variant-numeric: tabular-nums;
+}
+.tReadQuiet {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  fill: var(--tesseract-fg-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+/* Card text is colour-coded to its tone, so the fill is set on the node and
+   deliberately not declared here. */
+/* THE THREE COLUMNS ARE NOT EQUALS.
+   A relationship is HOW the agent got somewhere; a diagnosis is WHERE it got
+   to. These sat one type step apart at the same weight, which is too little to
+   read as hierarchy: the eye saw three columns of near-identical cards and had
+   no idea which one was the answer. Separating them on size AND weight makes
+   the last column arrive as a conclusion. */
+.tCard {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+}
+.tLead {
+  font-size: var(--tesseract-text-body);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: -0.01em;
+}
+/* The old two-line sub-label is now one chip, so the tracker size carries it. */
+.tChip {
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: 0.06em;
+}
+
+/* The one thing in the chart you can act on. Underlined so it reads as a link
+   before anything is hovered. */
+.action {
+  cursor: pointer;
+}
+.action:focus-visible {
+  outline: var(--tesseract-space-0-5) solid var(--tesseract-violet-600);
+  outline-offset: var(--tesseract-space-0-25);
+}
+.tAction {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: var(--tesseract-space-0-5);
+}
+.tActionDone {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+.tip {
+  position: fixed;
+  z-index: 1200;
+  pointer-events: none;
+  width: max-content;
+  /* Five spacing steps wide. Wider than this and a sentence stops scanning. */
+  max-width: calc(var(--tesseract-space-16) * 5);
+  overflow-y: auto;
+  background: var(--tesseract-bg-surface);
+  border: var(--tesseract-space-0-25) solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  box-shadow: var(--tesseract-shadow-xl);
+  padding: var(--tesseract-space-3) var(--tesseract-space-3-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+/* Only the card that carries an action takes the pointer. Everything else stays
+   transparent to the mouse so hovering a node never fights the tooltip. */
+.tipLive {
+  pointer-events: auto;
+}
+
+.tpKind {
+  font-size: var(--tesseract-text-micro);
+  line-height: var(--tesseract-text-micro-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--tesseract-fg-tertiary);
+}
+.tpTitle {
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+}
+.tpRow {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-body-sm-lh);
+  color: var(--tesseract-fg-primary);
+}
+.tpRow b {
+  color: var(--tesseract-fg-heading);
+  font-weight: var(--tesseract-weight-semibold);
+}
+.tpSection {
+  display: flex;
+  flex-direction: column;
+}
+.tpLabel {
+  font-size: var(--tesseract-text-micro);
+  line-height: var(--tesseract-text-micro-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tesseract-fg-tertiary);
+  margin-bottom: var(--tesseract-space-1);
+}
+.tpQuote {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-body-sm-lh);
+  color: var(--tesseract-fg-secondary);
+  border-left: var(--tesseract-space-0-5) solid var(--tesseract-border-neutral);
+  padding-left: var(--tesseract-space-2);
+}
+/* The follow-up sits last: it is the one thing here you can act on. */
+.tpAction {
+  display: flex;
+  padding-top: var(--tesseract-space-1);
+}
+.tpHint {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-violet-300);
+}
+.tpDead {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-body-sm-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ribbon,
+  .node:focus {
+  outline: none;
+}
+.node:focus-visible rect:first-of-type {
+  stroke: var(--corr-select);
+  stroke-width: 2;
+}
+.node {
+    transition: none;
+  }
+}
+
+/* The value is the thing the doctor came for, so it leads the tooltip. */
+.tpValue {
+  font-size: var(--tesseract-text-body-xl);
+  line-height: var(--tesseract-text-body-xl-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+  font-variant-numeric: tabular-nums;
+}
+.tpValueBad {
+  font-size: var(--tesseract-text-body-xl);
+  line-height: var(--tesseract-text-body-xl-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-error);
+  font-variant-numeric: tabular-nums;
+}
+.tpFlagBad {
+  color: var(--tesseract-fg-error);
+  font-weight: var(--tesseract-weight-semibold);
+}
+.tpMeta {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-body-sm-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* The confirmatory tests, named under the diagnosis they belong to. Quiet,
+   because they are a suggestion, not the finding. */
+.tTests {
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-regular);
+  fill: var(--tesseract-fg-tertiary);
+}

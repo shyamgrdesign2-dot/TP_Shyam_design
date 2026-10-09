@@ -1,0 +1,2100 @@
+/* Tokens only, even dimensions (1px hairlines excepted).
+   The one deliberate deviation on record is the CTA fill: the VoiceRx gradient
+   instead of the blue primary, so every agent surface reads as one family.
+   Its label is forced white, see .gradientCta below. */
+
+.drawer {
+  /* Local aliases so the long rules below stay readable. Every one of them
+     resolves to a Tesseract token, never a raw value. */
+  /* Two stops in one hue family, not a violet-to-blue sweep. See the note in
+     CorrelationEntryCard.module.css: the family fill stays, the rainbow goes. */
+  --vrx-gradient-flat: var(--tesseract-gradient-ai-hero);
+  --vrx-tint: var(--tesseract-violet-50);
+  /* The shade the whole picker section sits on, so the white report tiles read
+     as the foreground objects being chosen. */
+  --vrx-shade: var(--tesseract-violet-100);
+  --vrx-ink: var(--tesseract-violet-700);
+  --ink: var(--tesseract-fg-heading);
+  --ink2: var(--tesseract-fg-primary);
+  --ink3: var(--tesseract-fg-tertiary);
+  --ink4: var(--tesseract-slate-400);
+  --line: var(--tesseract-border-neutral);
+  --lineSoft: var(--tesseract-border-soft);
+  --surface: var(--tesseract-bg-surface);
+  --surface2: var(--tesseract-bg-page);
+
+  /* The drawer body owns this box already, so fill the parent rather than
+     re-declare geometry in viewport units. Two columns: the step, and the
+     record docked beside it. */
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  background: var(--surface2);
+  color: var(--ink2);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+}
+
+/* ------------------------------------------------------------------ scroll */
+.scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--tesseract-space-4);
+}
+
+/* ------------------------------------------------------------------ shared */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1-5);
+}
+
+/* ------------------------------------------------------------------ bucket */
+.bucketWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+}
+
+/* ---------------------------------------- drawer title + info affordance */
+/* The explanation of what the agent does hangs off its name in the header,
+   revealed on click, so the step body never pays a row for it. */
+.headTitle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+.infoBtn {
+  display: inline-flex;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.infoBtn:focus-visible {
+  outline: 2px solid var(--vrx-ink);
+  outline-offset: 2px;
+  border-radius: var(--tesseract-radius-full);
+}
+/* DrawerTitle clips its own overflow for long titles, which would swallow the
+   popover. Scoped with :has() so only the title holding this affordance opens
+   up. */
+:global([class*="_title_"]):has(.headTitle) {
+  overflow: visible;
+}
+/* The action slot grows so the header's own controls have room, rather than
+   being squeezed by the title beside them. */
+:global([class*="_header_"]):has(.headBar) {
+  position: relative;
+}
+:global([class*="_action_"]):has(.headBar) {
+  flex: 1;
+  min-width: 0;
+}
+/* The anchor for every info popover. Without a positioned wrapper the popover
+   resolved `position: absolute` against whatever ancestor happened to be
+   positioned, which is how the header one ended up floating over the chart. */
+.infoWrap {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+.hintPop {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  white-space: normal;
+  text-align: left;
+  top: calc(100% + var(--tesseract-space-2));
+  left: 0;
+  /* Over the chart, the ribbons and the detail panel. It was 2, so the SVG
+     underneath showed straight through the popover and made the text
+     unreadable. */
+  z-index: 40;
+  width: calc(var(--tesseract-space-16) * 5);
+  max-width: min(360px, calc(100vw - var(--tesseract-space-8)));
+  /* The evidence legend is the tallest of these and opens from a trigger that
+     can sit low in the dock, so it scrolls rather than running off the bottom. */
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--tesseract-space-3);
+  border-radius: var(--tesseract-radius-10);
+  border: 1px solid var(--line);
+  /* An OPAQUE ground, stated. --surface is not defined on every surface this
+     popover opens over, and where it resolved to nothing the panel rendered
+     transparent with the chart legible through it. */
+  background: var(--surface, #ffffff);
+  box-shadow: var(--tesseract-shadow-md);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--ink2);
+}
+/* Near the right edge of the drawer the popover would run off; anchor it to the
+   trigger's right instead. */
+.hintPop[data-align="end"] {
+  left: auto;
+  right: 0;
+}
+.hintDot {
+  flex: none;
+  color: var(--tesseract-fg-tertiary);
+}
+/* ------------------------------------------------------------- toolbar */
+/* Lifted part for part from the appointment listing toolbar so the two read as
+   the same control: search left, date picker and Filter pinned right, all on
+   the same 38px trigger height. */
+.toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-3);
+  padding-bottom: var(--tesseract-space-1);
+}
+
+.searchLabel {
+  min-width: calc(var(--tesseract-space-16) * 2);
+  width: 100%;
+  max-width: calc(var(--tesseract-space-16) * 6);
+}
+/* The leading glyph is part of the placeholder, not part of the value, so an
+   empty search field reads as one grey unit. */
+.searchLabel [class*="_iconLeft_"] {
+  color: var(--tesseract-slate-400);
+}
+.searchLabel [class*="_fieldRow_"] {
+  --input-height: 38px;
+  border-width: 1px;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  flex-shrink: 0;
+}
+
+.dateWrap [class*="_trigger_"] {
+  min-height: 38px;
+  height: 38px;
+  padding: 0 var(--tesseract-space-3);
+  border-radius: var(--tesseract-radius-10);
+  border-color: var(--tesseract-slate-200);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+  background: var(--surface);
+}
+.dateWrap [class*="_trigger_"]:hover {
+  border-color: var(--tesseract-slate-300);
+}
+/* Same swap the listing makes: the picker ships the health-family calendar,
+   the toolbar wants the time-family one. */
+.dateWrap [data-tp-icon="calendar-1/linear"] {
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/time/calendar.svg") !important;
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/time/calendar.svg") !important;
+}
+
+.filterWrap :global([class*="_panel_"]) {
+  left: auto;
+  right: 0;
+}
+.filterWrap [class*="_activeBar_"] {
+  display: none;
+}
+.filterWrap [class*="_caret_"] {
+  display: none;
+}
+.filterWrap [class*="_trigger_"] {
+  height: 38px;
+  padding: 0 var(--tesseract-space-3);
+  gap: var(--tesseract-space-1-5);
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-10);
+  background: var(--surface);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+.filterWrap [class*="_trigger_"]:hover {
+  border-color: var(--tesseract-slate-300);
+  background: var(--tesseract-slate-50);
+}
+.filterWrap[data-active] [class*="_trigger_"] {
+  border-color: var(--tesseract-violet-300);
+  background: var(--vrx-tint);
+  color: var(--vrx-ink);
+}
+
+/* --------------------------------------------------------- the sections */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+}
+
+/* The shell is white with the faintest violet wash falling off the top edge,
+   which is the whole of its colour: no tinted header band, no tinted footer,
+   nothing that competes with the tiles it holds. */
+.section {
+  border-color: var(--tesseract-slate-200);
+  background:
+    linear-gradient(180deg, var(--tesseract-violet-50) 0%, var(--tesseract-bg-surface) 40%);
+}
+.section > :global([class*="_header_"]),
+.section > :global([class*="_body_"]) {
+  background: transparent;
+}
+/* The header is the section's whole control surface, so it should not also
+   carry a slab of padding above a grid that already has its own. */
+.section > :global([class*="_body_"]) {
+  padding-top: 0;
+}
+
+.secHead {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  flex-wrap: wrap;
+}
+/* Mulish at semibold, which is what the system asks of a heading. It was
+   inheriting the body face and reading heavier than a section label should. */
+.secName {
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-body);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+.secActions {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+/* Select-all is a checkbox with its label, not a link, because it does the same
+   thing the tile checkboxes do and should look like it. */
+.selectAll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--ink3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Its own scroller, so a long archive scrolls inside the section instead of
+   pushing the section below it off the page. */
+/* Collapsed, the list is capped to two rows in JS, so nothing needs clipping
+   and nothing scrolls. Expanded, it grows and only then earns a scrollbar. */
+.secScroll {
+  padding-right: var(--tesseract-space-1);
+}
+.secScroll[data-expanded] {
+  max-height: calc(var(--tesseract-space-16) * 10);
+  overflow-y: auto;
+}
+
+/* The toggle sits under the grid, inside the section shell, so it reads as
+   belonging to that list rather than to the drawer. */
+.moreRow {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--tesseract-space-2);
+}
+
+/* Columns, not a single stack. auto-fill means a wide drawer shows three tiles
+   across and a narrow one shows one, with no breakpoint to maintain. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--tesseract-space-2);
+  align-items: stretch;
+}
+
+/* --------------------------------------------------------------- the tile */
+/* Three bands: the name, what the panel found, and the one link that opens it.
+   White on the shell's wash, so the thing being chosen is the foreground. */
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--tesseract-radius-16);
+  background: var(--surface);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.card:hover {
+  border-color: var(--tesseract-blue-300);
+}
+/* Selected reads BLUE, not violet: violet is the agent talking, blue is the
+   doctor's own choice, and the choice is what this state records. A flat blue
+   fill was too loud across four tiles at once, so it is a wash that fades out
+   before it reaches the content. */
+.cardOn {
+  border-color: var(--tesseract-blue-400);
+  background: linear-gradient(180deg, var(--tesseract-blue-50) 0%, var(--tesseract-bg-surface) 70%);
+}
+.cardOff {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.cardOff:hover {
+  border-color: var(--line);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-3);
+  padding-bottom: var(--tesseract-space-2);
+}
+
+.cardMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-0-5);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.cardTitle {
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  line-height: var(--tesseract-text-body-sm-lh);
+  color: var(--ink);
+}
+/* The date carries the weight, because deciding whether a panel is still
+   relevant is the first thing a doctor does with this list. */
+.cardDate {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--ink2);
+}
+
+/* What kind of report it is, as a tag beside what it found, so the two facts a
+   doctor weighs sit on the same line. */
+.typeTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1);
+  padding: var(--tesseract-space-0-5) var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--ink2);
+  text-transform: capitalize;
+}
+
+.cardBody {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+  flex-wrap: wrap;
+  padding: 0 var(--tesseract-space-3) var(--tesseract-space-3);
+}
+.cardBody:empty {
+  display: none;
+}
+/* The count tags were washing out on a tinted card. They carry the only number
+   on the tile, so they get real weight. */
+.cardBody > span {
+  font-weight: var(--tesseract-weight-semibold);
+}
+/* The app ships `body span { color: ... !important }`, which reaches inside the
+   Badge and flattens its semantic colour to neutral ink. The tone is the whole
+   point of these tags, so it is forced back per colour. */
+.cardBody > span[data-color="error"],
+.cardBody > span[data-color="error"] span {
+  color: var(--tesseract-fg-error) !important;
+}
+.cardBody > span[data-color="success"],
+.cardBody > span[data-color="success"] span {
+  color: var(--tesseract-fg-success) !important;
+}
+
+/* A full-width band, not a link floating in a strip: the whole footer is the
+   target, the label is centred in it, and it takes a tint rather than a rule so
+   nothing draws a line across the card. */
+/* The whole band is the target, so it takes the hover rather than the label
+   inside it, and it is tall enough to read as a strip rather than a seam. */
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+  min-height: var(--tesseract-space-12);
+  padding: 0;
+  background: var(--tesseract-bg-page);
+}
+.card:hover .cardFoot {
+  background: var(--tesseract-blue-100);
+}
+.cardOn .cardFoot {
+  background: var(--tesseract-blue-50);
+}
+.cardFoot button {
+  width: 100%;
+  height: var(--tesseract-space-12);
+  justify-content: center;
+  background: none !important;
+}
+/* A plain blue label, not a bold underlined one: it is one of several things
+   on the card, not the thing the card is for. */
+.cardFoot button,
+.cardFoot button * {
+  color: var(--tesseract-blue-600);
+  font-weight: var(--tesseract-weight-regular);
+  white-space: nowrap;
+  text-decoration: none !important;
+}
+.cardOn .card:hover .cardFoot,
+.cardOn:hover .cardFoot {
+  background: var(--tesseract-blue-100);
+}
+/* Underlined on hover only: the arrow already says it is a target, so the rule
+   is confirmation rather than decoration. */
+.cardFoot:hover button span {
+  text-decoration: underline !important;
+}
+
+/* The third source. Dotted, so it reads as a slot to fill rather than a record
+   already on file. */
+.uploadTile {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+  padding: var(--tesseract-space-3);
+  border: 1px dashed var(--tesseract-slate-300);
+  border-radius: var(--tesseract-radius-10);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-blue-700);
+  cursor: pointer;
+  text-align: left;
+}
+/* Uploading is the doctor's own action, not the agent's, so it answers in blue
+   the way every other action in the product does. */
+.uploadTile:hover {
+  border-color: var(--tesseract-blue-400);
+  background: var(--tesseract-blue-50);
+}
+.uploadTile:focus-visible {
+  outline: 2px solid var(--tesseract-blue-600);
+  outline-offset: 2px;
+}
+.uploadGlyph {
+  display: inline-flex;
+  flex: none;
+}
+.uploadLabel {
+  white-space: nowrap;
+}
+.uploadHint {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  color: var(--ink3);
+}
+
+/* ------------------------------------------------------- the upload panel */
+.drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+  min-height: calc(var(--tesseract-space-16) + var(--tesseract-space-4));
+  border: 1px dashed var(--tesseract-violet-300);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--vrx-tint);
+  font-family: inherit;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--vrx-ink);
+  cursor: pointer;
+}
+.drop:focus-visible {
+  outline: 2px solid var(--vrx-ink);
+  outline-offset: 2px;
+}
+.fileInput {
+  display: none;
+}
+.field {
+  margin-top: var(--tesseract-space-4);
+}
+.uploadFoot {
+  margin-top: var(--tesseract-space-6);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ------------------------------------------------------- docked record pane */
+/* A sidebar, not an overlay: the picker keeps its place and narrows, the
+   record reads beside the list it was opened from. */
+.side {
+  flex: none;
+  width: min(440px, 42%);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+}
+.sideHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border-bottom: 1px solid var(--lineSoft);
+}
+.sideMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-0-5);
+  flex: 1;
+  min-width: 0;
+}
+/* ------------------------------------------------ correlation detail */
+.sideKind {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--vrx-ink);
+}
+/* The verdict leads, so it gets its own band rather than being folded into the
+   prose below it. */
+.verdictRow {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  flex-wrap: wrap;
+}
+.verdictTags {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+  flex-wrap: wrap;
+}
+
+/* The strength meter. Colour and the count of filled segments both carry the
+   rank, so colour is never the only signal. */
+/* One colour language for strength, keyed off the EVIDENCE table in the JSX.
+   Violet is deliberately absent: it marks the agent's voice, not its
+   confidence. */
+.meter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  --meter-ink: var(--tesseract-fg-error);
+}
+.meter[data-tone="strong"] {
+  --meter-ink: var(--tesseract-fg-success);
+}
+.meter[data-tone="medium"] {
+  --meter-ink: var(--tesseract-fg-warning);
+}
+.meter[data-tone="low"] {
+  --meter-ink: var(--tesseract-fg-warning);
+}
+.meterBars {
+  display: flex;
+  gap: var(--tesseract-space-1);
+}
+/* Only the filled steps are drawn. Ghost segments behind them made the reader
+   decode a scale before they could read the answer. */
+.meterBar {
+  width: var(--tesseract-space-3);
+  height: var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--meter-ink);
+}
+.meterLabel {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--meter-ink);
+}
+.warnNote {
+  margin: 0;
+  padding: var(--tesseract-space-3);
+  border-left: 2px solid var(--tesseract-warning-400);
+  border-radius: var(--tesseract-radius-6);
+  background: var(--tesseract-warning-50);
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--tesseract-fg-warning);
+}
+/* Sections are separated by a hairline rather than by five identical
+   uppercase labels stacked down a scroller, which is what made this read as
+   generated boilerplate. */
+.dSec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  padding-top: var(--tesseract-space-4);
+  border-top: 1px solid var(--lineSoft);
+}
+.dSec:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+/* Violet, because the heading is the agent naming its own reasoning. The
+   content underneath stays in reading ink, so the colour marks the voice
+   without tinting the argument. The tick that used to sit beside it was one
+   decoration too many next to the meter. */
+.dLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin: 0;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: 0.01em;
+  color: var(--vrx-ink);
+}
+.dBody {
+  margin: 0;
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+  color: var(--ink2);
+}
+/* The measured values inside the argument, so they can be found without
+   reading the sentence. */
+.dBody b,
+.dQuote b {
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+/* The counter-argument is quoted, not paraphrased, so it is set as a quote. */
+.dQuote {
+  margin: 0;
+  padding: var(--tesseract-space-3);
+  border-left: 2px solid var(--tesseract-slate-300);
+  border-radius: var(--tesseract-radius-6);
+  background: var(--tesseract-slate-50);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+  color: var(--ink2);
+}
+.dList {
+  display: flex;
+  flex-direction: column;
+}
+.dList:has(.dHyp),
+.dList:has(.dCorr),
+.dList:has(.dSource) {
+  gap: var(--tesseract-space-1);
+}
+/* The documents the argument was read out of. The only real link on this
+   panel, so it is the only one offered. */
+/* A link, not a box. It opens a document, which is the most ordinary thing a
+   link does, so it should look like every other link in the product. */
+.dSource {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+  padding: var(--tesseract-space-1) 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-blue-600);
+  text-align: left;
+  cursor: pointer;
+}
+.dSourceName {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dSource:hover .dSourceName {
+  color: var(--tesseract-blue-700);
+}
+.dSourceMeta {
+  flex: none;
+  margin-left: auto;
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+}
+/* Each row is the finding as it was actually read: name, value, range. */
+/* Rows on a shared rule, not four bordered boxes: this is a table of readings,
+   and boxing each one made a list of four look like a list of four buttons. */
+.dFinding {
+  display: grid;
+  /* minmax(0, …) on BOTH tracks. A radiology finding's "value" is a whole
+     sentence ("Normal in site, size, shape and echogenicity…"), and an `auto`
+     track plus the nowrap below let it size to that sentence: it pushed the
+     panel into a horizontal scroll and crushed the name column until "No
+     reference range" wrapped over the value beside it. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  grid-template-areas: "name value" "ref value";
+  align-items: center;
+  gap: 0 var(--tesseract-space-2);
+  width: 100%;
+  padding: var(--tesseract-space-2) 0;
+  border: 0;
+  border-bottom: 1px solid var(--lineSoft);
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dFinding:last-child {
+  border-bottom: 0;
+}
+.dFinding:hover .dFindingName {
+  color: var(--tesseract-blue-700);
+}
+.dFindingName {
+  grid-area: name;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--ink);
+}
+.dFindingRef {
+  grid-area: ref;
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+}
+.dFindingVal {
+  grid-area: value;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1);
+  /* Capped and wrapping. A number ("10.2 g/dL") is far under the cap and still
+     sits on one line; a qualitative radiology reading wraps inside its column
+     instead of widening the panel. */
+  max-width: 22ch;
+  justify-self: end;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-tertiary);
+}
+/* Same reason as the arrow: the app's global `body span` colour rule is
+   !important, and this element is a span, so out-of-range values were losing
+   their red in the detail panel. */
+.dFindingVal[data-flag="HIGH"],
+.dFindingVal[data-flag="LOW"],
+.dFindingVal[data-flag="ABNORMAL"] {
+  color: var(--tesseract-error-600) !important;
+}
+/* A correlation as it reads underneath a hypothesis: the claim, then how well
+   it held. A weakened one is marked, because a hypothesis is never stronger
+   than the links beneath it. */
+.dCorr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-0-5);
+  width: 100%;
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  border: 1px solid var(--lineSoft);
+  border-left: 2px solid var(--tesseract-success-400);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--surface);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dCorr[data-weak] {
+  border-left-color: var(--tesseract-warning-400);
+}
+.dCorr:hover {
+  background: var(--tesseract-slate-50);
+}
+.dCorrName {
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--ink);
+}
+.dCorrMeta {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+}
+
+/* The action sits in its own band pinned to the bottom of the panel, so it is
+   reachable without scrolling to the end of the argument. */
+.sideFoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  flex: none;
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.sideFootLabel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-0-5);
+  min-width: 0;
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+}
+.sideFootLabel b {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+/* The confirming tests sit under a rule, below the diagnosis they serve. */
+.confirmBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  padding-top: var(--tesseract-space-3);
+  border-top: 1px solid var(--lineSoft);
+}
+.confirmLead {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+}
+.addCta {
+  flex: none;
+  min-width: calc(var(--tesseract-space-16) + var(--tesseract-space-10));
+}
+/* One row per action. Ordering a test and recording a diagnosis are different
+   acts, so they are never merged into one button. */
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-3);
+}
+
+/* The legend behind the info icon: two scales that look alike and mean
+   different things, set out side by side so the difference is visible. */
+.legendPop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+}
+.legendGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+}
+.legendHead {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+}
+.legendRow {
+  display: grid;
+  grid-template-columns: calc(var(--tesseract-space-16) + var(--tesseract-space-6)) minmax(0, 1fr);
+  gap: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+}
+
+.dHypName {
+  font-weight: var(--tesseract-weight-medium);
+}
+.dHypMeta {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+}
+.dHyp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-violet-200);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--vrx-tint);
+  font-family: inherit;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--vrx-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.dHyp:hover {
+  border-color: var(--tesseract-violet-400);
+}
+
+.sideName {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+.sideMeta {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+}
+.sideBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* The panel is a fixed-width dock; nothing inside it earns a sideways
+     scrollbar. Long content wraps (see .dFindingVal) rather than widening it. */
+  overflow-x: hidden;
+  padding: var(--tesseract-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-5);
+}
+/* The parameter list is its own dense grid, so it opts out of the gap the
+   correlation panel's sections rely on. */
+.sideBody:has(.paramHead) {
+  gap: 0;
+}
+
+/* The parameter list: name, value with its flag, reference range. */
+.paramHead,
+.paramRow {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: var(--tesseract-space-3);
+  align-items: baseline;
+  padding: var(--tesseract-space-2) 0;
+}
+.paramHead {
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink4);
+  border-bottom: 1px solid var(--lineSoft);
+}
+.paramRow {
+  border-bottom: 1px solid var(--lineSoft);
+  font-size: var(--tesseract-text-caption);
+}
+.paramName {
+  color: var(--ink);
+  font-weight: var(--tesseract-weight-medium);
+}
+.paramValue {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  flex-wrap: wrap;
+  color: var(--ink2);
+  font-weight: var(--tesseract-weight-semibold);
+}
+.paramRef {
+  color: var(--ink3);
+}
+.paramNote {
+  margin: var(--tesseract-space-3) 0 0;
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink4);
+}
+.pdf {
+  flex: 1;
+  min-height: calc(var(--tesseract-space-16) * 8);
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--surface2);
+}
+
+/* --------------------------------------------------------- drawer footer */
+/* The generate band, pinned by the drawer itself. One small CTA, the tally
+   beside it, nothing else. */
+/* The CTA is centred in the band rather than shoved into the right corner: it
+   is the one thing this whole step exists to reach, so it sits where the eye
+   lands. The tally and the gate note ride the edges without pushing it off
+   centre, which is why both are absolutely placed. */
+.foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tesseract-space-3);
+  width: 100%;
+  min-height: var(--tesseract-space-14);
+  /* The app's floating assistant button parks over the bottom-right corner at
+     a z-index this drawer cannot outrank, so the band is kept clear of it. */
+  padding-right: var(--tesseract-space-12);
+}
+/* No card around the chart: it is the page, not a panel on it. */
+.chartWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+}
+.chartMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink4);
+}
+
+/* The decision surface under the chart. */
+.actionsCard {
+  border-color: var(--tesseract-violet-200);
+  background: linear-gradient(180deg, var(--tesseract-violet-50) 0%, var(--tesseract-bg-surface) 40%);
+}
+.actionsCard > :global([class*="_header_"]),
+.actionsCard > :global([class*="_body_"]) {
+  background: transparent;
+}
+.actionsHead {
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-body);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+.actionsCount {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+  white-space: nowrap;
+}
+
+.tally {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+.tally b {
+  color: var(--tesseract-fg-heading);
+  font-weight: var(--tesseract-weight-semibold);
+}
+/* The gate toast, docked above the footer, centred over the drawer. High enough
+   to clear the docked detail panels; pointer-events stay live so it can be
+   dismissed by hand. */
+.toastWrap {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--tesseract-space-14, 56px) + var(--tesseract-space-4, 16px));
+  transform: translateX(-50%);
+  z-index: 40;
+  width: max-content;
+  max-width: min(480px, 90%);
+  animation: toastRise 160ms ease-out;
+}
+@keyframes toastRise {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* The app ships `body span { color: ... !important }`, which reaches into every
+   Button and flattens its label to body ink. On a solid fill that renders black
+   text on a saturated ground. Forced white for every solid CTA in this feature.
+   Scoped to .drawer and .side so nothing outside the agent is touched. */
+/* SOLID ONLY. An earlier version listed .addCta here, which also matched the
+   outline "Add test" button and painted its label white on a white ground. */
+.drawer :global([data-variant="solid"]) span,
+.side :global([data-variant="solid"]) span {
+  color: var(--tesseract-fg-inverse) !important;
+}
+.drawer :global([data-variant="outline"]) span,
+.side :global([data-variant="outline"]) span {
+  color: var(--tesseract-blue-700) !important;
+}
+/* Except when it is disabled, where a white label on a grey fill is unreadable. */
+.drawer :global([data-variant="solid"][disabled]) span,
+.side :global([data-variant="solid"][disabled]) span {
+  color: var(--tesseract-fg-tertiary) !important;
+}
+
+/* The floating support widget parks over the bottom-right corner at a z-index
+   this drawer cannot outrank, so it lands on top of the CTAs. It is hidden
+   while the agent is open and restored when it closes. */
+:global(body[data-correlation-open]) :global(#app > div[class*="fixed"]) {
+  display: none !important;
+}
+
+/* VoiceRx parks a rail down the right edge of the pad, which is exactly where
+   this drawer's detail panel lands. Two agent surfaces competing for the same
+   strip helps nobody, so VoiceRx stands down while the correlation is open and
+   comes back the moment it closes. */
+:global(body[data-correlation-open]) :global([data-dr-agent="true"]),
+:global(body[data-correlation-open]) :global([class*="drAgentOverlay"]),
+:global(body[data-correlation-open]) :global([class*="DrAgentPanel_"]),
+:global(body[data-correlation-open]) :global([class*="VoiceRxDock"]),
+:global(body[data-correlation-open]) :global(.vrx-agent-brand-tag),
+:global(body[data-correlation-open]) :global([data-voice-rx-dock]) {
+  display: none !important;
+}
+
+/* The documented deviation. The Button atom colours its own label, so the
+   label is forced white here (scoped to this class) to read on the gradient. */
+/* The gradient is written out in full rather than read from --vrx-gradient-flat,
+   because that alias lives on .drawer and the drawer FOOTER is a sibling of the
+   body, outside its cascade. Reading it there resolved to nothing and the CTA
+   fell back to plain blue. */
+.gradientCta {
+  background: var(--tesseract-gradient-ai-hero) !important;
+  border-color: transparent !important;
+}
+.gradientCta,
+.gradientCta * {
+  color: var(--tesseract-fg-inverse) !important;
+}
+/* This is the button the whole step exists to arm, so it is sized like one:
+   full lg height and a width that reads as a destination. */
+.genCta {
+  min-width: calc(var(--tesseract-space-16) * 5);
+  height: var(--tesseract-space-12);
+  padding-left: var(--tesseract-space-8);
+  padding-right: var(--tesseract-space-8);
+  justify-content: center;
+  font-size: var(--tesseract-text-body);
+  font-weight: var(--tesseract-weight-semibold);
+}
+.headActions [data-variant="link"] span {
+  color: var(--tesseract-blue-600) !important;
+  font-weight: var(--tesseract-weight-medium);
+}
+/* The header CTA closes the whole run, so it is given a width that reads as a
+   destination rather than a chip. */
+/* The header sits OUTSIDE .drawer, a sibling of the body, so the blanket
+   white-label rule scoped to .drawer never reached this button and the app's
+   `body span { color: ... !important }` painted it dark on a solid fill. */
+.doneCta span,
+.doneCta span span {
+  color: var(--tesseract-fg-inverse, #ffffff) !important;
+}
+.doneCta {
+  min-width: calc(var(--tesseract-space-16) + var(--tesseract-space-8));
+  justify-content: center;
+}
+
+/* ----------------------------------------------------------------- running */
+/* The wait is spent laying out the shape the answer arrives in: the same hero
+   frame, the same three columns, the same three tier rules, greyed, with the
+   live stream running inside the chart frame. */
+/* The mark on the centre line with the log beneath it, and nothing else. The
+   ghost columns and ghost tiers that used to fill this space were scaffolding
+   pretending to be content. */
+/* Centred on the DRAWER BODY, which is not the viewport.
+   This was a fixed 320px (loader parked in the top third), then 72vh, which
+   was closer but still measured the wrong box: the scroll container is shorter
+   than the viewport, so the bar landed ~100px above true centre. Filling the
+   scroll parent is the only way to centre on the thing it actually sits in.
+   Scoped with :has so the picker and the result keep their normal layout. */
+.scroll:has(.runWrap) {
+  display: flex;
+}
+.runWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  padding: var(--tesseract-space-8) var(--tesseract-space-4);
+  /* While reading, the surface drops to the app's subtle page tone so the
+     loader sits quietly on neutral rather than a bright white panel. */
+  background: var(--tesseract-bg-page, var(--tesseract-slate-50, #f7f7fa));
+}
+
+.runHero {
+  border: 1px solid var(--line);
+  border-radius: var(--tesseract-radius-16);
+  background: var(--surface);
+  overflow: hidden;
+}
+.runHeroBar {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border-bottom: 1px solid var(--lineSoft);
+}
+.runHeroTitle {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink4);
+}
+.skelPill {
+  width: var(--tesseract-space-16);
+  height: var(--tesseract-space-4);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-slate-100);
+}
+.skelPillWide {
+  width: calc(var(--tesseract-space-16) + var(--tesseract-space-12));
+}
+.runStage {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 1.2fr;
+  gap: var(--tesseract-space-8);
+  align-items: center;
+  padding: var(--tesseract-space-6) var(--tesseract-space-4);
+}
+.runInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tesseract-space-4);
+  text-align: center;
+  max-width: calc(var(--tesseract-space-16) * 7);
+}
+
+
+/* The mark reads as working: it turns, and a violet ring breathes out of it. */
+.markWrap {
+  position: relative;
+  display: inline-flex;
+  width: var(--tesseract-space-9);
+  height: var(--tesseract-space-9);
+  align-items: center;
+  justify-content: center;
+}
+.markRing {
+  position: absolute;
+  inset: calc(var(--tesseract-space-1) * -1);
+  border-radius: var(--tesseract-radius-full);
+  border: 2px solid var(--tesseract-violet-300);
+  animation: markPulse 1.8s ease-out infinite;
+}
+@keyframes markPulse {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  70% { transform: scale(1.25); opacity: 0; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+/* A second ring, half a beat behind, so the mark breathes in two waves. */
+.markRing2 {
+  animation-delay: 0.9s;
+  border-color: var(--tesseract-violet-400);
+}
+
+/* ---- The staged Lottie loader ---------------------------------------------
+   A stage animation at the top, a rotating shimmer caption with three working
+   dots below it, then a stage-by-stage progress bar and three pips. */
+.loaderCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tesseract-space-4, 16px);
+  width: min(420px, 88%);
+  text-align: center;
+}
+.lottieWrap {
+  width: min(248px, 64vw);
+  height: min(248px, 64vw);
+  display: grid;
+  place-items: center;
+}
+.lottie {
+  width: 100%;
+  height: 100%;
+}
+
+/* The rotating caption. A light band sweeps across violet text, and the node is
+   re-keyed each rotation so a new line enters cleanly. */
+.carousel {
+  min-height: var(--tesseract-space-6, 24px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.carouselText {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5, 6px);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body, 14px);
+  font-weight: var(--tesseract-weight-medium);
+  /* Neutral ink with a soft light band travelling across it, so the caption
+     reads as a quiet status line rather than a coloured accent. */
+  background: linear-gradient(
+    90deg,
+    var(--tesseract-slate-600) 0%,
+    var(--tesseract-slate-600) 38%,
+    var(--tesseract-slate-300) 50%,
+    var(--tesseract-slate-600) 62%,
+    var(--tesseract-slate-600) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  /* text-fill-color wins over the app's global `body span { color }`, so the
+     gradient shows through instead of being repainted flat. */
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 2.2s linear infinite, carouselIn 320ms ease-out both;
+}
+.carousel[data-failed] .carouselText {
+  background: none;
+  -webkit-text-fill-color: var(--tesseract-fg-error);
+  color: var(--tesseract-fg-error) !important;
+  animation: carouselIn 200ms ease-out both;
+}
+@keyframes textShimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+@keyframes carouselIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Three working dots. */
+.dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+}
+.dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--tesseract-radius-full, 999px);
+  background: var(--tesseract-slate-400);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+.dots i:nth-child(2) { animation-delay: 0.16s; }
+.dots i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes dotPulse {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* A slim indeterminate bar: a soft gradient segment glides across a neutral
+   track. Reads as active without pretending to know how far along it is. */
+.progressTrack {
+  position: relative;
+  width: min(248px, 72%);
+  height: 5px;
+  border-radius: var(--tesseract-radius-full, 999px);
+  background: var(--tesseract-slate-100);
+  overflow: hidden;
+}
+.progressBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 42%;
+  border-radius: inherit;
+  background: var(--tesseract-gradient-ai-hero, var(--tesseract-violet-500));
+  animation: indeterminate 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.progressTrack[data-failed] .progressBar {
+  width: 100%;
+  background: var(--tesseract-error-400, #f97066);
+  animation: none;
+}
+@keyframes indeterminate {
+  0% { transform: translateX(-120%); }
+  60% { transform: translateX(160%); }
+  100% { transform: translateX(300%); }
+}
+
+/* One pip per stage. */
+.stageRow {
+  display: flex;
+  gap: var(--tesseract-space-2, 8px);
+}
+.stagePip {
+  width: 22px;
+  height: 4px;
+  border-radius: var(--tesseract-radius-full, 999px);
+  background: var(--tesseract-violet-100);
+  transition: background 300ms ease;
+}
+.stagePip[data-state="active"] { background: var(--tesseract-violet-500); }
+.stagePip[data-state="done"] { background: var(--tesseract-violet-300); }
+
+@media (prefers-reduced-motion: reduce) {
+  .carouselText { animation: carouselIn 200ms ease-out both; }
+  .progressBar { animation: none; width: 100%; opacity: 0.6; }
+  .dots i { animation: none; opacity: 0.7; }
+  .markRing2 { animation: none; }
+}
+
+/* Three ghost columns, in the order they fill: findings, then correlations,
+   then hypotheses. A column tints violet once its stage has reported. */
+.ghostCols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--tesseract-space-6);
+}
+.ghostCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+.ghostLabel {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink4);
+  margin-bottom: var(--tesseract-space-1);
+}
+.ghostColOn .ghostLabel {
+  color: var(--vrx-ink);
+  font-weight: var(--tesseract-weight-semibold);
+}
+.ghostBar {
+  height: var(--tesseract-space-2-5);
+  border-radius: var(--tesseract-radius-full);
+  background: linear-gradient(
+    90deg,
+    var(--tesseract-slate-100) 0%,
+    var(--tesseract-slate-200) 50%,
+    var(--tesseract-slate-100) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+.ghostColOn .ghostBar {
+  background: linear-gradient(
+    90deg,
+    var(--tesseract-violet-100) 0%,
+    var(--tesseract-violet-200) 50%,
+    var(--tesseract-violet-100) 100%
+  );
+  background-size: 200% 100%;
+}
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.runTiers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-4);
+}
+.runMark {
+  border-radius: var(--tesseract-radius-10) var(--tesseract-radius-10) 0 var(--tesseract-radius-10);
+}
+.runTitle {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+/* The log reads left-aligned inside a centred block: a list of steps that
+   centres each line is harder to scan than one that does not. */
+.stream {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-body-sm);
+  text-align: left;
+  align-self: stretch;
+}
+.ev {
+  display: flex;
+  gap: var(--tesseract-space-2);
+  align-items: flex-start;
+  color: var(--ink3);
+}
+.evDot {
+  width: var(--tesseract-space-2);
+  height: var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-full);
+  margin-top: var(--tesseract-space-1-5);
+  flex: none;
+  background: var(--ink4);
+}
+.evOk .evDot {
+  background: var(--tesseract-success-600);
+}
+.evRun .evDot {
+  background: var(--tesseract-violet-600);
+}
+.evFlag {
+  color: var(--tesseract-fg-error);
+  font-weight: var(--tesseract-weight-semibold);
+}
+.evFlag .evDot {
+  background: var(--tesseract-error-500);
+}
+.runNote {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink4);
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ result */
+.resultWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-4);
+}
+.hero {
+  border: 1px solid var(--line);
+  border-radius: var(--tesseract-radius-16);
+  background: var(--surface);
+  overflow: hidden;
+}
+.heroBar {
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border-bottom: 1px solid var(--lineSoft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2) var(--tesseract-space-3-5);
+  align-items: center;
+}
+.heroTitle {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2) var(--tesseract-space-4-5);
+  padding: 0 var(--tesseract-space-4) var(--tesseract-space-3);
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink3);
+}
+.lg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+.lgMuted {
+  color: var(--ink4);
+}
+.sw {
+  width: var(--tesseract-space-5);
+  height: var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-4);
+}
+.swStrong {
+  background: var(--tesseract-success-500);
+}
+.swModerate {
+  background: var(--tesseract-amber-500);
+}
+.swLow {
+  background: var(--tesseract-error-500);
+}
+.swReason {
+  background: var(--tesseract-slate-400);
+}
+.swAssoc {
+  background: var(--vrx-gradient-flat);
+}
+.swWarn {
+  background: var(--tesseract-warning-600);
+}
+.swBad {
+  background: var(--tesseract-error-500);
+}
+
+/* One line by default. The forensic detail sits under the trigger. Rendered
+   only when the run announced more than it delivered. */
+.alarm {
+  padding: 0 var(--tesseract-space-3);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-error-soft);
+  border: 1px solid var(--tesseract-error-200);
+}
+.alarmLine {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-error);
+}
+.alarmDetail {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink2);
+  margin: 0;
+  padding-bottom: var(--tesseract-space-2);
+}
+
+/* Three separate verdicts stacked down the card, not one continuous list.
+   They were siblings with no gap, so "Medium" sat flush on the empty-Strong
+   notice above it and read as its caption. */
+.tiers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-6);
+}
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+}
+.tierHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tesseract-space-2-5);
+}
+.tierName {
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+  font-size: var(--tesseract-text-body-sm);
+}
+.tierGhost .tierName,
+.tierGhost .tierCount {
+  color: var(--ink4);
+}
+.tierRule {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.tierCount {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink4);
+}
+/* The heading is the tooltip trigger, because the tier name is the word that
+   needs explaining against confidence. */
+.tierBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  font-family: inherit;
+}
+/* A tier holding two or more claims lays them out across the drawer instead of
+   stacking them down a column that is already 80% of the screen wide. */
+.tierBody {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--tesseract-space-3);
+  align-items: start;
+}
+
+/* The shell carries the interaction, the SectionCard inside carries the
+   surface, so the card shape stays a system component. */
+.hypShell {
+  display: flex;
+  border-radius: var(--tesseract-radius-14);
+  cursor: pointer;
+}
+.hypShell:focus-visible {
+  outline: 2px solid var(--vrx-ink);
+  outline-offset: 2px;
+}
+.hypShell > * {
+  width: 100%;
+}
+/* Doubled for specificity, so these strokes win over the component's own
+   border shorthand. Top and bottom read, left and right fade back. */
+.hypCard.hypCard {
+  border-top-color: var(--tesseract-border-strong);
+  border-bottom-color: var(--tesseract-border-strong);
+  border-left-color: var(--tesseract-border-soft);
+  border-right-color: var(--tesseract-border-soft);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.hypOn .hypCard.hypCard {
+  border-top-color: var(--tesseract-violet-400);
+  border-bottom-color: var(--tesseract-violet-400);
+  border-left-color: var(--tesseract-violet-100);
+  border-right-color: var(--tesseract-violet-100);
+  box-shadow: var(--tesseract-shadow-sm);
+}
+/* Two lines on the face. Anything longer is cut rather than allowed to grow. */
+.hypWhy {
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--ink3);
+  margin: var(--tesseract-space-2) 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The next test and the button that orders it read as one sentence, so the CTA
+   sits against the test it books rather than floating in a corner. */
+.hypAct {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-3);
+  flex-wrap: wrap;
+  margin-top: var(--tesseract-space-3);
+}
+.hypNext {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink2);
+}
+
+.hypMore {
+  margin-top: var(--tesseract-space-2);
+  border-top: 1px solid var(--lineSoft);
+}
+.detail {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--tesseract-space-1) var(--tesseract-space-3);
+  margin: 0;
+  font-size: var(--tesseract-text-caption);
+}
+.detail dt {
+  color: var(--ink4);
+  font-weight: var(--tesseract-weight-semibold);
+  white-space: nowrap;
+}
+.detail dd {
+  color: var(--ink3);
+  margin: 0;
+}
+.emptyTier {
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border-radius: var(--tesseract-radius-12);
+  border: 1px dashed var(--tesseract-error-200);
+  background: var(--tesseract-bg-error-soft);
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--ink2);
+}
+.emptyTier b {
+  color: var(--tesseract-fg-error);
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+/* The agent's own unanswered questions, under the decision surface. */
+.openQ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-4);
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+}
+.openQHead {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin: 0;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+.openQList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1-5);
+  margin: 0;
+  padding-left: var(--tesseract-space-5);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+  color: var(--ink2);
+}
+/* One band holding the run's provenance, set apart by a rule rather than left
+   drifting in the page margin. */
+.runFoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  padding-top: var(--tesseract-space-3);
+  border-top: 1px solid var(--tesseract-border-soft);
+}
+.runState {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin: 0;
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-primary);
+}
+/* Converged or not is the one fact here worth seeing without reading. */
+.runDot {
+  width: var(--tesseract-space-2);
+  height: var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-fg-warning);
+}
+.runDot[data-ok] {
+  background: var(--tesseract-fg-success);
+}
+
+.disclaimer {
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink4);
+  margin: 0;
+}
+
+.clearLink {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-violet-700);
+  cursor: pointer;
+}
+.hiddenNote {
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-fg-warning);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.clearLink:focus-visible {
+  outline: 2px solid var(--tesseract-violet-700);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------- the header band */
+/* The title sits left in the drawer's own slot; this holds whatever the
+   current step offers, pushed right. */
+.headBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tesseract-space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.headActions {
+  display: flex;
+  align-items: center;
+  /* Neither Change reports nor Done ever compresses. */
+  flex: none;
+  gap: var(--tesseract-space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hypCard.hypCard {
+    transition: none;
+  }
+  .ghostBar,
+  .markRing {
+    animation: none;
+  }
+}
+
+
+/* The Tesseract Drawer portals to <body> at z-index 1200, but this app runs
+   chrome as high as 19999 (src/styles/buttons.scss), so VoiceRx and the page
+   header paint over it. A wrapper cannot lift a portal, so the portalled layer
+   is raised directly, scoped with :has() to ONLY the drawer that contains this
+   feature. No other Tesseract drawer is affected. */
+:global([data-slot="drawer-overlay"]):has(~ * .drawer),
+:global([data-slot="drawer-content"]):has(.drawer),
+:global([role="dialog"]):has(.drawer) {
+  /* !important because Tesseract writes z-index INLINE on the drawer content
+     (currently 51). An inline style beats any stylesheet rule regardless of
+     specificity, so without this the drawer sits at 51 and the app header and
+     VoiceRx panel paint straight over the top of it. */
+  z-index: 20000 !important;
+}
+
+/* Belt and braces: the overlay is a sibling of the content, so :has cannot
+   always reach it from the content side. This lifts the whole portal root when
+   our drawer is mounted anywhere inside it. */
+:global(body[data-correlation-open]) :global([data-radix-portal]),
+:global(body[data-correlation-open]) :global([data-slot="drawer-overlay"]) {
+  z-index: 19999 !important;
+}
+
+/* Tesseract's own overlays, while this drawer is mounted.
+   The date picker's popover and the Select listbox are BOTH portalled to
+   document.body (`createPortal(el, document.body)` in tesseract-ui), and their
+   classes carry no z-index — only an inline `position: fixed`. Against the
+   drawer at 20000 that leaves them at `auto`, so "Till date" opened its
+   calendar BEHIND the drawer: invisible, and every click meant for a day
+   landed on the drawer instead, so nothing could ever be selected and the
+   trigger kept its placeholder.
+
+   Matched on the ids and roles the components set themselves, not on their
+   CSS-module class names — those carry a build hash that changes with every
+   Tesseract release. Scoped to `body[data-correlation-open]` so nothing outside this
+   feature is restacked. Above the whole ladder below, because a popover the
+   doctor just opened belongs on top of whatever opened it. */
+:global(body[data-correlation-open]) :global([id^="tp-drp-popover-"]),
+:global(body[data-correlation-open]) :global([id^="tp-tt-"]),
+:global(body[data-correlation-open]) :global([role="listbox"]) {
+  z-index: 20250 !important;
+}
+
+/* Upload Medical Records, opened from inside this drawer.
+   The correlation drawer deliberately stays open behind it, so the Ant drawer
+   has to clear 20000 rather than sit at its default 1000. Scoped to the body
+   marker, so every other Ant drawer in the app keeps its normal stacking.
+
+   !important is load-bearing, exactly as it is for the modal rules below. The
+   host does not leave this drawer at Ant's default: PrescriptionNew and
+   ConsultationLayout both pass zIndex={OBSTETRIC_NESTED_UPLOAD_DRAWER_Z_INDEX}
+   (1250), which Ant writes INLINE on .ant-drawer. An inline style beats any
+   stylesheet rule regardless of specificity, so without this the upload drawer
+   stayed at 1250 — far under the correlation drawer at 20000 — and opened
+   behind the screen that launched it. It only became visible once the
+   correlation drawer was closed. */
+:global(body[data-correlation-upload] .ant-drawer) {
+  z-index: 20050 !important;
+}
+
+/* Anything the upload drawer itself raises has to clear the drawer, not just
+   the correlation drawer under it. The "you may lose the data" confirm is an
+   Ant modal at the default 1000, so it opened behind the screen that asked the
+   question. A confirm the doctor cannot see is worse than no confirm: it looks
+   like the close button did nothing. */
+:global(body[data-correlation-upload] .ant-modal-root),
+:global(body[data-correlation-upload] .ant-modal-wrap),
+:global(body[data-correlation-upload] .ant-modal-mask),
+:global(body[data-correlation-upload] .ant-modal) {
+  /* Ant writes this z-index inline, so a plain rule loses to it. The override
+     is scoped to the marker attribute and lasts only while that upload is on
+     screen. */
+  z-index: 20100 !important;
+}
+
+/* Toasts confirm the upload landed, so they sit above everything here. */
+:global(body[data-correlation-upload] .ant-message) {
+  z-index: 20150 !important;
+}
+
+/* Ant portals its Select and DatePicker popups to <body>, not into the drawer,
+   so they carry their own z-index (~1050) and open behind the upload screen
+   that owns the field. Record Type was unusable for exactly this reason. They
+   sit above the modal too, since a picker can be opened from inside one. */
+:global(body[data-correlation-upload] .ant-select-dropdown),
+:global(body[data-correlation-upload] .ant-picker-dropdown),
+:global(body[data-correlation-upload] .ant-dropdown),
+:global(body[data-correlation-upload] .ant-tooltip) {
+  z-index: 20200 !important;
+}
+
+/* Below this the three header regions cannot all keep their words. The step
+   labels are the ones that can go: the numbered dots still show where you are,
+   and the current step is named by the content underneath. */
+@media (max-width: 1180px) {
+}
+
+/* THE RUN TICKER.
+   One line, clipped to its own height, so a new stage rises in from below and
+   the old one leaves upward. Nothing accumulates, so the block never grows and
+   the eye has one place to look. */
+/* Two lines of room, so a long stage name wraps instead of being sliced off at
+   both ends by the clip that makes the animation work. */
+.runTicker {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  width: 100%;
+  max-width: calc(var(--tesseract-space-16) * 8);
+  min-height: calc(var(--tesseract-space-8) * 2);
+  padding: 0 var(--tesseract-space-4);
+  margin-top: var(--tesseract-space-4);
+}
+.runLine {
+  display: block;
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-subtitle, 16px);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+  text-align: center;
+  text-wrap: balance;
+  animation: runLineIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/* A stage that reported a problem keeps the same motion and changes only its
+   colour, so a warning never reads as a different kind of event. */
+.runLine[data-tone="flag"] {
+  color: var(--tesseract-fg-warning);
+}
+@keyframes runLineIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .runLine {
+    animation: none;
+  }
+}
+
+/* Not yet pressable, still the same button. */
+.gradientCta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Icon and label on one line, since the glyph is a child rather than the
+   Button's own icon slot. */
+.changeCta [class*="_content_"] {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+
+/* A progress bar carrying the AI gradient. The run has no honest percentage,
+   so the fill sweeps rather than fills: it says "working" without claiming to
+   know how far along it is. */
+.runBar {
+  position: relative;
+  width: calc(var(--tesseract-space-16) * 4);
+  height: var(--tesseract-space-1);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-violet-100);
+  overflow: hidden;
+}
+.runBar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--tesseract-gradient-ai-hero);
+  animation: runSweep 1400ms cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes runSweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .runBar::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+/* Beta chip in the drawer header — the warning-gradient tab, matching the rail
+   badge, so the caution is consistent wherever the feature appears. */
+.headBeta {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--tesseract-space-2);
+  padding: 1px 8px;
+  border-radius: var(--tesseract-radius-full);
+  background-image: linear-gradient(
+    257.32deg,
+    var(--tesseract-warning-600) 0%,
+    var(--tesseract-warning-300) 47.22%,
+    var(--tesseract-warning-600) 94.44%
+  );
+  color: var(--tesseract-slate-0);
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-bold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+/* The beta line inside the info popover, set apart from the what-it-does copy. */
+.hintBeta {
+  display: block;
+  margin-top: var(--tesseract-space-2);
+  padding-top: var(--tesseract-space-2);
+  border-top: 1px solid var(--tesseract-border-soft);
+  color: var(--tesseract-fg-warning);
+  font-weight: var(--tesseract-weight-medium);
+}

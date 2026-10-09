@@ -1,0 +1,226 @@
+@use "../styles/tp-tokens" as tp;
+
+.drawerPanel {
+  display: flex;
+  flex-direction: column;
+  background: #f4f5f7;
+}
+
+.primaryButton {
+  height: 42px;
+  min-width: 120px;
+  border-radius: 10px;
+  padding: 0 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--tp-blue-600);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+
+  &:hover {
+    background: var(--tp-blue-700);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.drawerBody {
+  flex: 1;
+  overflow-y: auto;
+  background: #f4f5f7;
+  padding: 16px 24px;
+
+  > * + * {
+    margin-top: 14px;
+  }
+}
+
+.summaryBox {
+  border-radius: 12px;
+  border: 1px solid rgba(var(--tp-slate-200-rgb), 0.8);
+  background: #fff;
+  padding: 14px 16px;
+}
+
+.summaryTitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tp-slate-900);
+}
+
+.summaryList {
+  margin-top: 8px;
+
+  > * + * {
+    margin-top: 6px;
+  }
+}
+
+.summaryRow {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.summaryLabel {
+  font-weight: 600;
+  color: var(--tp-slate-500);
+}
+
+.summaryValue {
+  margin-left: 6px;
+  font-weight: 500;
+  color: var(--tp-slate-700);
+  overflow-wrap: break-word;
+}
+
+.summaryValueMuted {
+  margin-left: 6px;
+  color: var(--tp-slate-400);
+  overflow-wrap: break-word;
+}
+
+.formCard {
+  border-radius: 12px;
+  border: 1px solid rgba(var(--tp-slate-200-rgb), 0.8);
+  background: #fff;
+  padding: 16px;
+}
+
+.formCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.formCardIcon {
+  flex-shrink: 0;
+  color: var(--tp-blue-600);
+}
+
+.formCardTitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tp-blue-600);
+}
+
+.gridCols3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.notesField {
+  margin-top: 14px;
+}
+
+.inputWrapper {
+  position: relative;
+}
+
+.inputIcon {
+  pointer-events: none;
+  position: absolute;
+  inset-block: 0;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--tp-slate-400);
+}
+
+.pickerInputWrapper {
+  position: relative;
+  height: 42px;
+}
+
+.pickerDisplay {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid var(--tp-slate-200);
+  background: #fff;
+  padding: 0 36px 0 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--tp-slate-800);
+}
+
+.pickerInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  opacity: 0;
+
+  &::-webkit-calendar-picker-indicator {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+}
+
+.select {
+  width: 100%;
+  height: 42px;
+  appearance: none;
+  border-radius: 10px;
+  border: 1px solid var(--tp-slate-200);
+  background: #fff;
+  padding: 0 36px 0 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--tp-slate-800);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: var(--tp-blue-500);
+    box-shadow: 0 0 0 2px rgba(var(--tp-blue-500-rgb), 0.2);
+  }
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tp-slate-500);
+}
+
+.textarea {
+  width: 100%;
+  resize: none;
+  border-radius: 10px;
+  border: 1px solid var(--tp-slate-200);
+  background: #fff;
+  padding: 12px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--tp-slate-800);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+
+  &::placeholder {
+    color: var(--tp-slate-400);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--tp-blue-500);
+    box-shadow: 0 0 0 2px rgba(var(--tp-blue-500-rgb), 0.2);
+  }
+}

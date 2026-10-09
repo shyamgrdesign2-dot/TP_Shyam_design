@@ -1,0 +1,197 @@
+/* Matches the Drawing Canvas intro shape: centred mark, title, one paragraph
+   with an inline Know more, a single primary action, then the video card. */
+
+/* The panel is the card: the introduction centres in whatever height is left
+   and the video sits on the bottom edge. min-height rather than height so a
+   short viewport scrolls instead of clipping. */
+.root {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: var(--tesseract-space-4, 16px);
+  padding: var(--tesseract-space-4, 16px);
+  overflow-y: auto;
+}
+/* The rail's own wrappers size to content, so the grid above has nothing to
+   fill. This gives it the height it needs. */
+:global(.snv-section-anim):has(.root),
+:global(.snv-section-anim):has(.root) > div {
+  height: 100%;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  gap: var(--tesseract-space-2, 8px);
+}
+
+.mark {
+  border-radius: var(--tesseract-radius-16, 16px);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-subtitle, 16px);
+  font-weight: var(--tesseract-weight-semibold, 600);
+  line-height: 1.3;
+  color: var(--tesseract-fg-heading);
+}
+
+.body {
+  margin: 0;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-caption, 12px);
+  line-height: 1.6;
+  color: var(--tesseract-fg-secondary);
+}
+
+.inlineLink {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: var(--tesseract-weight-semibold, 600);
+  color: var(--tesseract-fg-heading);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Start a correlation is the agent's own action, so it wears the AI gradient
+   like every other agent CTA. It was rendering as flat product blue, which made
+   the one button that launches the agent look like a generic form submit. */
+.cta {
+  margin-top: var(--tesseract-space-2, 8px);
+  background: var(--tesseract-gradient-ai-hero) !important;
+  border-color: transparent !important;
+}
+.cta:hover {
+  background: var(--tesseract-gradient-ai-hero) !important;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--tesseract-text-micro, 10px);
+  color: var(--tesseract-fg-tertiary);
+}
+
+
+
+
+
+.inlineLink:focus-visible {
+  outline: 2px solid var(--tesseract-violet-600);
+  outline-offset: 2px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Counted from the data, not asserted, so it can never overstate what is there. */
+.summary {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-3, 12px);
+  width: 100%;
+  margin-top: var(--tesseract-space-2, 8px);
+  padding: var(--tesseract-space-3, 12px);
+  border-radius: var(--tesseract-radius-12, 12px);
+  background: var(--tesseract-bg-surface);
+  border: 1px solid var(--tesseract-border-soft);
+  text-align: left;
+}
+.summaryIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--tesseract-space-9, 36px);
+  height: var(--tesseract-space-9, 36px);
+  border-radius: var(--tesseract-radius-10, 10px);
+  background: var(--tesseract-violet-50);
+  color: var(--tesseract-violet-700);
+}
+.summaryMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2, 8px);
+  min-width: 0;
+}
+.summaryLead {
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-fg-primary);
+}
+.summaryLead b {
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+}
+.summaryTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1-5, 6px);
+}
+.summaryTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1, 4px);
+  padding: var(--tesseract-space-0-5, 2px) var(--tesseract-space-2, 8px);
+  border-radius: var(--tesseract-radius-full, 999px);
+  background: var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+
+.summaryCount {
+  flex: none;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--tesseract-space-2, 8px);
+  border-radius: var(--tesseract-radius-8, 8px);
+  display: grid;
+  place-items: center;
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-body, 14px);
+  font-weight: var(--tesseract-weight-bold, 700);
+  color: var(--tesseract-fg-inverse);
+  background: var(--tesseract-violet-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryText {
+  font-size: var(--tesseract-text-caption, 12px);
+  line-height: 1.5;
+  color: var(--tesseract-fg-secondary);
+}
+
+.summaryKinds {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: var(--tesseract-text-micro, 10px);
+  font-weight: var(--tesseract-weight-semibold, 600);
+  text-transform: capitalize;
+  color: var(--tesseract-violet-700);
+}
+
+
+/* The app ships `body span { color: ... !important }`, which reaches into the
+   Button and paints its label body-ink on a solid fill. Forced white here. */
+.cta span {
+  color: var(--tesseract-fg-inverse, #ffffff) !important;
+}
+
+/* The summary glyph is the agent naming its own record set, so it takes the
+   agent's violet rather than the inherited neutral ink. */
+.summaryIcon {
+  color: var(--tesseract-violet-700) !important;
+}

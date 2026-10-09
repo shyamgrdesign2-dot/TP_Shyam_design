@@ -1,0 +1,62 @@
+/**
+ * plan-print-styles.css — Print-friendly layout for treatment plans.
+ * Hides navigation, sidebars, and non-essential UI when printing.
+ */
+
+@media print {
+  /* Hide app chrome */
+  header,
+  nav,
+  [data-sidebar],
+  [data-topnav],
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  /* Hide buttons and interactive elements */
+  button:not([data-print-visible]),
+  .tp-split-button,
+  [data-radix-dropdown-menu-trigger] {
+    display: none !important;
+  }
+
+  /* Clean background */
+  body,
+  main,
+  [data-treatment-plan] {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Remove shadows and borders for cleaner print */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* Full width */
+  .tp-plan-content {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* Page breaks */
+  .plan-card {
+    break-inside: avoid;
+  }
+
+  .service-card {
+    break-inside: avoid;
+  }
+
+  /* Force table borders for print */
+  table {
+    border-collapse: collapse;
+  }
+
+  td,
+  th {
+    border: 1px solid #e2e8f0 !important;
+    padding: 6px 10px !important;
+  }
+}

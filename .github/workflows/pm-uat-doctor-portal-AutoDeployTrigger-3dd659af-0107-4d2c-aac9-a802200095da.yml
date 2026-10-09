@@ -1,0 +1,410 @@
+name: Trigger auto deployment for pm-uat-doctor-portal
+
+on:
+  push:
+    branches:
+      - uat
+    paths:
+      - '**'
+      - '.github/workflows/pm-uat-doctor-portal-AutoDeployTrigger-3dd659af-0107-4d2c-aac9-a802200095da.yml'
+
+  workflow_dispatch:
+
+concurrency:
+  group: pm-uat-doctor-portal
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      REACT_APP_ENV: uat
+      # Upload → blob container react-static-uat/cdn/... Front Door exposes that as /cdn/... (not /react-static-uat/cdn/).
+      PUBLIC_URL_UAT_CDN: https://pm-doctor-portal-qa-ceg2g0auf6gmgpam.a02.azurefd.net/cdn/
+      IMAGE_NAME: acinacr.azurecr.io/pm-uat-doctor-portal:${{ github.sha }}
+      # Non-prod releases are keyed on the commit, NOT package.json semver. The `uat`
+      # branch is ahead of what shipped, so reusing the semver would attribute unreleased
+      # UAT errors to a shipped prod version and pollute the semver release list.
+      RELEASE_PACKAGE: pm-doctor-portal
+      SENTRY_ORG: digicare-health-solutions-priv
+      SENTRY_PROJECT: tatvapractice
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: write   # delete the previous build-cache entry before saving the new one
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Resolve release version
+        id: release
+        run: |
+          set -euo pipefail
+          SHA=$(git rev-parse --short HEAD)
+          echo "release=${RELEASE_PACKAGE}@${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Release: ${RELEASE_PACKAGE}@${SHA}"
+
+      # ---- 1. Build on the runner, then wrap the output in an image ----
+      # The build used to happen inside the multi-stage Dockerfile. It was moved out so
+      # the CRA caches survive between deploys: actions/cache works on the runner
+      # filesystem and cannot see inside a docker build, so every deploy previously
+      # recompiled 444k lines from a cold babel cache. See
+      # docs/build-time-optimisation-plan.md §8 — measured at ~120s, plus ~17s of
+      # `node:20` image pull that no longer happens.
+      #
+      # UAT first, deliberately. Prod keeps the multi-stage Dockerfile until this has
+      # run here enough times to trust.
+      #
+      # Generate version.json here in CI where git is guaranteed to be available.
+      # Do NOT rely on generate-version.js running inside the Docker build —
+      # .dockerignore typically excludes .git so git rev-parse would silently fail there.
+      # This file is baked into the image but intentionally excluded from blob upload below.
+      - name: Generate version.json
+        run: |
+          set -euo pipefail
+          SHA=$(git rev-parse --short HEAD)
+          API_VERSION=$(node -e "console.log(require('./package.json').apiCompatibilityVersion ?? 1)")
+          RELEASE="${{ steps.release.outputs.release }}"
+          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION,\"release\":\"$RELEASE\"}" > public/version.json
+
+      # Node 20 to match the `node:20` image the build used to run in.
+      # cache: 'npm' caches ~/.npm — the npm cache, not node_modules.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 99 MB measured (run 32186452054), so restore and save cost seconds against the
+      # ~120s of compile it saves. Keyed on the lockfile so a dependency change starts
+      # clean; the sha makes each deploy write its own entry, and restore-keys fall back
+      # to the most recent compatible one.
+      #
+      # Now holds BOTH caches: babel-loader (~99 MB on disk) and webpack's own pack cache
+      # (~967 MB on disk), which PERSIST_WEBPACK_CACHE in the build step below finally
+      # makes real. The entry is ~157 MB compressed — actions/cache zstd-compresses it and
+      # webpack pack files compress about 7:1 — so the entry grows from ~43 MB, not to a
+      # gigabyte. Measured save 6s, restore 12s (run 32219922816).
+      # ONE cache entry, refreshed every run, instead of one entry per commit.
+      #
+      # The key deliberately has no ${{ github.sha }} in it. With a per-commit key every
+      # deploy wrote a brand-new entry and nothing ever removed the old ones: measured
+      # 474 MB -> 509 MB -> 525 MB over three deploys. At ~525 MB, roughly 19 entries fill
+      # the 10 GB repo quota, at which point GitHub evicts by least-recently-used — and the
+      # first things evicted are the older entries, including the ~280 MB npm cache that
+      # saves 85s on install. Cache growth would quietly have started costing time.
+      #
+      # actions/cache never overwrites an existing key, so keeping the entry fresh means
+      # deleting it before saving. That is what the "Refresh the build cache" step below
+      # does, and why this is split into restore + save rather than the combined action.
+      # Resolved ONCE, here, and reused by restore / delete / save.
+      #
+      # hashFiles() is evaluated when each step runs, and `npm install` rewrites
+      # package-lock.json in between — package.json and the lockfile are out of sync since
+      # the unused packages were removed without regenerating it. So computing the key
+      # inline gave restore one hash and save a different one, and the entry that was
+      # written was never the entry that was looked up. It still limped along on the
+      # prefix fallback, which is exactly the kind of thing that works until it doesn't.
+      - name: Resolve build cache key
+        id: cachekey
+        run: echo "key=${{ runner.os }}-craco-${{ hashFiles('package-lock.json') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules/.cache
+          key: ${{ steps.cachekey.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-craco-
+
+      # The committed .npmrc maps the @dhspl-tatvacare scope to GitHub Packages but
+      # carries no auth line — the Dockerfile used to append the token itself, inside the
+      # build, and delete the file afterwards. With the build on the runner there is no
+      # such step, and setting NODE_AUTH_TOKEN alone does nothing here because this
+      # .npmrc has no ${NODE_AUTH_TOKEN} placeholder to expand. (The prod branch's .npmrc
+      # does have one; that difference is what this missed first time round.)
+      #
+      # The token goes into the runner's user-level ~/.npmrc, never the repo's committed
+      # .npmrc — a token written into the working tree is one `git add -A` away from
+      # being pushed. The runner is ephemeral and the value is a masked secret.
+      - name: Authenticate npm to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::GH_PACKAGES_TOKEN is empty — @dhspl-tatvacare packages cannot be installed"
+            exit 1
+          fi
+          printf '//npm.pkg.github.com/:_authToken=%s\n' "$NODE_AUTH_TOKEN" >> ~/.npmrc
+
+      # `npm install --legacy-peer-deps`, not `npm ci`, to match what the Dockerfile did.
+      # package-lock.json has not been verified as in sync; switching to `npm ci` is a
+      # separate change that needs that checked first.
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          npm install --legacy-peer-deps
+
+      # Mirrors the env the Dockerfile build stage set. Two that matter:
+      #   CI=false          — Actions sets CI=true, which makes CRA treat warnings as
+      #                       errors, and this repo builds with pre-existing warnings.
+      #
+      # REACT_APP_SENTRY_RELEASE is deliberately NOT set here any more. Every REACT_APP_*
+      # var lands in env.raw, which is webpack's cache.version, so a per-commit release
+      # string invalidated the entire filesystem cache on every deploy. The release is
+      # stamped into build/index.html after the build instead — see the next step and
+      # docs/build-time-optimisation-plan.md §9.1. SENTRY_RELEASE stays, because
+      # sentry-cli still needs it for the sourcemap upload, and both derive from the same
+      # value so they cannot drift.
+      #
+      # Dropped from the old docker build: REACT_APP_CLARITY_ID_UAT and
+      # REACT_APP_MOENGAGE_LOGS_UAT. Both were passed as --build-arg but the Dockerfile
+      # declared no matching ARG, so neither ever reached the build, and no code in src
+      # reads either name. Carrying them over would have been a behaviour change.
+      - name: Build
+        env:
+          GENERATE_SOURCEMAP: 'true'
+          PUBLIC_URL: ${{ env.PUBLIC_URL_UAT_CDN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ steps.release.outputs.release }}
+          # Dr. Copilot search-service token (preprod, Zydus index owner). A constant per
+          # environment, so it changes cache.version once, not per commit. Without it the
+          # Copilot panel shows "could not authenticate". See docs/dr-copilot/DEV-HANDOFF.md.
+          REACT_APP_COPILOT_TOKEN: ${{ secrets.COPILOT_SEARCH_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=8192
+          DISABLE_ESLINT_PLUGIN: 'true'
+          CI: 'false'
+          # Makes craco close the webpack compiler after the build, which is the only
+          # reason webpack's `store: 'pack'` cache gets flushed at all —
+          # react-scripts/scripts/build.js calls compiler.run() and never compiler.close(),
+          # so the cache configured at webpack.config.js:242 has never been written here.
+          # See craco.config.js and plan §4, §9.1.
+          #
+          # This only pays off because #3961 stopped inlining the release as a REACT_APP_*
+          # var. cache.version is md5(env.raw) and env.raw carries every REACT_APP_*, so a
+          # per-commit release string invalidated the whole pack on every deploy. Putting
+          # one back — for any reason — silently reverts this to a cold build every time.
+          PERSIST_WEBPACK_CACHE: '1'
+        run: |
+          set -euo pipefail
+          npm run build
+          # `npm run build` uploads the sourcemaps to Sentry as its last step. Drop them
+          # afterwards so they reach neither the image nor the CDN — same as the
+          # Dockerfile's `find /app/build -name "*.map" -delete`.
+          find build -name '*.map' -type f -delete
+
+      # Substituted AFTER the webpack build, on purpose. The release changes every
+      # commit; putting it anywhere webpack can see would either invalidate the entire
+      # filesystem cache (as REACT_APP_SENTRY_RELEASE did) or let a warm cache serve a
+      # stale value from a cached module. index.html is regenerated every build, is
+      # served no-store by nginx, and is excluded from the blob upload — so it is the one
+      # place a per-deploy value can live safely.
+      #
+      # Only index.html is touched. The token also appears in the JS bundle, as the
+      # literal appVersion.js compares against for local dev; rewriting it there would
+      # break that check.
+      - name: Stamp the release into index.html
+        env:
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          if ! grep -q '%%APP_RELEASE%%' build/index.html; then
+            echo "::error::build/index.html has no %%APP_RELEASE%% placeholder — public/index.html lost it, or the build did not regenerate index.html. Sentry would report no release."
+            exit 1
+          fi
+          # The release string is [A-Za-z0-9@.+-] only, so | is a safe delimiter.
+          sed -i "s|%%APP_RELEASE%%|${RELEASE}|g" build/index.html
+          if grep -q '%%APP_RELEASE%%' build/index.html; then
+            echo "::error::placeholder survived substitution in build/index.html"
+            exit 1
+          fi
+          # THE check. The first version of this step used __APP_RELEASE__ as the
+          # placeholder, which also appears as the property name on the same line, so a
+          # global substitution rewrote `window.__APP_RELEASE__ =` into
+          # `window.pm-doctor-portal@sha =` — invalid JS, script never runs, release
+          # silently empty everywhere. The other three checks all passed on that build.
+          if ! grep -q 'window\.__APP_RELEASE__' build/index.html; then
+            echo "::error::the window.__APP_RELEASE__ assignment is gone from build/index.html — substitution clobbered the property name, and the release would be silently empty at runtime"
+            exit 1
+          fi
+          if ! grep -qF "$RELEASE" build/index.html; then
+            echo "::error::release '$RELEASE' is not present in build/index.html after substitution"
+            exit 1
+          fi
+          echo "Stamped release: $RELEASE"
+
+      # Delete the previous entry so the save below actually writes. Non-fatal: a failure
+      # here just means the cache stays at its previous contents, which costs a little
+      # build time on the next run and breaks nothing.
+      - name: Refresh the build cache
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CACHE_KEY: ${{ steps.cachekey.outputs.key }}
+        run: |
+          set -euo pipefail
+          gh cache delete "$CACHE_KEY" --repo "${{ github.repository }}" \
+            && echo "deleted previous cache entry $CACHE_KEY" \
+            || echo "::notice::no previous cache entry to delete (first run for this lockfile)"
+
+      - name: Save the build cache
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules/.cache
+          key: ${{ steps.cachekey.outputs.key }}
+
+      - name: Docker login to ACR
+        env:
+          REGISTRY_USER: ${{ secrets.PMUATDOCTORPORTAL_REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.PMUATDOCTORPORTAL_REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$REGISTRY_PASS" | docker login acinacr.azurecr.io -u "$REGISTRY_USER" --password-stdin
+
+      # Dockerfile.runtime is nginx + COPY build/. Its context is trimmed to build/ and
+      # nginx.conf by Dockerfile.runtime.dockerignore, which BuildKit uses in preference
+      # to .dockerignore — hence DOCKER_BUILDKIT=1 being explicit rather than assumed.
+      - name: Build and push the runtime image
+        env:
+          DOCKER_BUILDKIT: '1'
+        run: |
+          set -euo pipefail
+          docker build -f Dockerfile.runtime -t "${{ env.IMAGE_NAME }}" .
+          docker push "${{ env.IMAGE_NAME }}"
+
+      # ---- 2. Stage the blob payload ----
+      # This used to pull the files back out of the pushed image with docker create/cp.
+      # The build output is already on disk now, so it is a copy.
+      - name: Stage built assets (html minus index.html and version.json)
+        run: |
+          set -euo pipefail
+          rm -rf _blob_html
+          cp -r build _blob_html
+          # index.html and version.json must only be served from the container (nginx),
+          # never from blob/CDN — both need no-cache guarantees that blob cannot provide.
+          rm -f _blob_html/index.html
+          rm -f _blob_html/version.json
+
+      # ---- 3. Upload to blob BEFORE the Container App revision switch ----
+      # PMUATDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS — JSON for azure/login `creds` (clientId, clientSecret,
+      # subscriptionId, tenantId). subscriptionId must contain pmdoctorportal storage account.
+      # RBAC: Storage Blob Data Contributor on pmdoctorportal (or scoped to react-static-uat).
+      - name: Azure Login (blob upload identity)
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.PMUATDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS }}
+
+      # TRIAL: azcopy instead of `az storage blob upload-batch`, on UAT only.
+      #
+      # On prod this step takes ~109s. The cost is per-file overhead across ~1000 small
+      # files rather than bandwidth, so azcopy (parallel, Go) should be far faster.
+      #
+      # It is being trialled here rather than on prod because of one specific hazard:
+      # azcopy writes Content-Type on every blob it uploads. If it infers those differently
+      # from `az`, the upload still SUCCEEDS and the site then serves .js with the wrong
+      # type, which browsers refuse to execute. Nothing in the logs would point at it.
+      # The verification step below turns that silent failure into a failed build.
+      #
+      # --compare-hash=MD5 is required, not an optimisation: sync compares last-modified
+      # time by default, and every file gets a fresh mtime from the rebuilt image, so the
+      # default would re-upload everything and save nothing.
+      # --delete-destination=false keeps blobs absent from the source, matching the
+      # previous behaviour so chunks used by the live version survive.
+      - name: Publish build assets to Azure Blob (react-static-uat/cdn)
+        env:
+          AZCOPY_AUTO_LOGIN_TYPE: AZCLI
+        run: |
+          set -euo pipefail
+          if ! command -v azcopy >/dev/null 2>&1; then
+            echo "azcopy not preinstalled — fetching"
+            curl -sL https://aka.ms/downloadazcopy-v10-linux -o /tmp/azcopy.tgz
+            tar -xzf /tmp/azcopy.tgz -C /tmp
+            sudo install -m 755 /tmp/azcopy_linux_amd64_*/azcopy /usr/local/bin/azcopy
+          fi
+          azcopy --version
+
+          time azcopy sync "_blob_html" \
+            "https://pmdoctorportal.blob.core.windows.net/react-static-uat/cdn" \
+            --recursive \
+            --delete-destination=false \
+            --compare-hash=MD5 \
+            --put-md5 | tee /tmp/azcopy.out
+
+          # Only files azcopy actually uploaded say anything about how azcopy behaves.
+          TRANSFERRED=$(grep -oE 'Total Number of Copy Transfers: [0-9]+' /tmp/azcopy.out | grep -oE '[0-9]+$' || echo 0)
+          echo "TRANSFERRED=$TRANSFERRED" >> "$GITHUB_ENV"
+          echo "azcopy uploaded $TRANSFERRED file(s)"
+
+      # Reads Content-Type back from the blob itself (not through the CDN, which could
+      # return a cached value) and fails the build on any mismatch — BEFORE the Container
+      # App switch, so UAT keeps serving the old revision if azcopy got this wrong.
+      #
+      # Samples ONLY from static/, deliberately. Those filenames are content-hashed, so a
+      # changed build always produces new names that azcopy must upload — which means the
+      # check is actually exercising azcopy.
+      #
+      # The first version of this gate used `find . -name '*.js' | head -1`, which returned
+      # serviceworker.js — an unchanged public/ file that azcopy never re-uploads. It was
+      # reading back metadata `az` had set on an earlier deploy, so it would have passed
+      # even if azcopy were completely broken.
+      - name: Verify Content-Type survived the upload
+        run: |
+          set -euo pipefail
+          if [ "${TRANSFERRED:-0}" -eq 0 ]; then
+            echo "::warning::azcopy uploaded 0 files, so nothing here exercises it. Content-Type unverified this run; existing blobs keep their previous metadata."
+            exit 0
+          fi
+
+          check() {
+            local rel="$1" want="$2"
+            [ -n "$rel" ] || { echo "  (no sample under static/ for $want — skipped)"; return 0; }
+            local got
+            got=$(az storage blob show \
+              --account-name pmdoctorportal --auth-mode login \
+              --container-name react-static-uat --name "cdn/$rel" \
+              --query "properties.contentSettings.contentType" -o tsv)
+            printf '  %-52s %s\n' "$rel" "$got"
+            if [ "$got" != "$want" ]; then
+              echo "::error::Content-Type mismatch for $rel — expected '$want', blob has '$got'. azcopy is not safe to promote."
+              exit 1
+            fi
+          }
+
+          cd _blob_html
+          # content-hashed, so guaranteed re-uploaded whenever the build output changes
+          check "$(find static/js  -name '*.js'  -type f 2>/dev/null | head -1)" "application/javascript"
+          check "$(find static/css -name '*.css' -type f 2>/dev/null | head -1)" "text/css"
+          # webpack-emitted media, also hashed; skipped cleanly when a type is absent
+          check "$(find static/media -name '*.svg'   -type f 2>/dev/null | head -1)" "image/svg+xml"
+          check "$(find static/media -name '*.png'   -type f 2>/dev/null | head -1)" "image/png"
+          check "$(find static/media -name '*.woff2' -type f 2>/dev/null | head -1)" "font/woff2"
+          echo "Content-Type preserved on every sampled type that azcopy uploaded."
+
+      # ---- 4. Now switch the Container App to the new image (assets already in place) ----
+      - name: Azure Login (deploy identity)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.PMUATDOCTORPORTAL_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.PMUATDOCTORPORTAL_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.PMUATDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Container App revision
+        run: |
+          set -euo pipefail
+          az containerapp update \
+            --name pm-uat-doctor-portal \
+            --resource-group tatva-uat \
+            --image "${{ env.IMAGE_NAME }}"
+
+      # Non-fatal: Sentry bookkeeping must never fail an already-live deploy.
+      - name: Record Sentry deploy (uat)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          npx --yes @sentry/cli@2 releases deploys new -r "$RELEASE" -e uat \
+            || echo "::warning::sentry deploy record failed for $RELEASE"

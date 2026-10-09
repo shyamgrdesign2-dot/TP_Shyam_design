@@ -1,0 +1,770 @@
+/* Scoped to .dental-canvas-root to avoid bleeding into the Next.js app.
+   NO global resets, NO body/html styles — host TP app owns those. */
+@keyframes dentalCanvasZonePopIn { from { transform: scale(0.85) translateY(4px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+@keyframes dentalCanvasAnnotFadeIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes dentalCanvasTitleSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.dental-canvas-root {
+  display: grid;
+  grid-template-columns: 1fr;
+  height: 100%;
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  color: #1a1a2e !important;
+  background: transparent;
+}
+.dental-canvas-root.dentition-mode { grid-template-columns: 1fr; }
+/* Compact mode: hide internal ExaminationPanel (host provides its own sections) */
+.dental-canvas-root.compact { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .dental-canvas-root { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
+  .dental-canvas-root.dentition-mode { grid-template-rows: 1fr; }
+}
+.dental-canvas-root * { box-sizing: border-box; }
+.dental-canvas-root button { font-family: inherit; }
+/* Ensure scoped keyframe names used below */
+.dental-canvas-root .zone-navigator { animation-name: dentalCanvasZonePopIn; }
+
+/* ── 3D Viewer ── */
+.dental-canvas-root .viewer {
+  position: relative;
+  background: transparent;
+  overflow: hidden;
+  touch-action: none;
+  container-type: inline-size;
+  /* Keeps the WebGL layer above the bottom chart strip (header + scope are top-aligned). */
+  padding-bottom: 28px;
+}
+.dental-canvas-root.has-tooth-selector .viewer {
+  padding-bottom: 152px;
+}
+.dental-canvas-root .viewer canvas { touch-action: none; }
+
+/* ── Viewer Header ── */
+.dental-canvas-root .viewer-header { position: absolute; top: 12px; left: 16px; z-index: 10; }
+.dental-canvas-root .tooth-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f3558 !important;
+  background-color: rgba(244, 244, 247, 1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 10px;
+  border: none;
+  border-image: none;
+}
+.dental-canvas-root .tooth-name--dentition {
+  position: relative;
+  overflow: hidden;
+  padding-left: 16px;
+  background-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.dental-canvas-root .tooth-name--dentition::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 8px 0 0 8px;
+  background: #8b5cf6;
+}
+.dental-canvas-root .tooth-name-text {
+  display: inline-block;
+  animation: dentalCanvasTitleSlideIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dental-canvas-root .tooth-fdi {
+  font-weight: 700;
+  color: #334155 !important;
+  margin-left: 4px;
+  font-size: 12px;
+  background: unset;
+  background-color: rgba(218, 218, 220, 1);
+  border: none;
+  border-image: none;
+  border-radius: 5px;
+  padding: 1px 7px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Zone Navigator with Arrows ── */
+.dental-canvas-root .zone-navigator {
+  position: absolute; top: 42px; left: 16px; z-index: 10;
+  display: flex; align-items: center; gap: 6px;
+  animation: dentalCanvasZonePopIn 0.25s ease-out;
+}
+.dental-canvas-root .zone-nav-arrow {
+  width: 28px; height: 28px; border: 1px solid #dde0e6; border-radius: 8px;
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #666; transition: all 0.15s;
+}
+.dental-canvas-root .zone-nav-arrow:hover { background: #f0f5ff; border-color: #4a9eff; color: #4a9eff; }
+.dental-canvas-root .zone-nav-arrow:active { transform: scale(0.92); }
+.dental-canvas-root .zone-nav-current {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
+  padding: 6px 14px; border-radius: 10px; border: 1.5px solid #dde0e6;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  cursor: pointer; transition: all 0.2s; min-width: 140px; justify-content: center;
+}
+.dental-canvas-root .zone-nav-current:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.1); }
+.dental-canvas-root .zone-nav-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dental-canvas-root .zone-nav-label { font-size: 13px; font-weight: 700; color: #222 !important; }
+.dental-canvas-root .zone-nav-surface { font-size: 12px; color: #888 !important; font-weight: 500; }
+.dental-canvas-root .zone-nav-hint { font-size: 12px; color: #bbb !important; font-weight: 500; }
+
+
+
+
+/* ── Diagnosis Summary Overlay ── */
+.dental-canvas-root .diagnosis-summary-overlay {
+  position: absolute; top: 12px; right: 16px; z-index: 10;
+  display: flex; flex-direction: column; gap: 5px; max-width: 280px; align-items: flex-end;
+}
+.dental-canvas-root .summary-badges { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; }
+.dental-canvas-root .summary-badge {
+  font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 10px;
+  backdrop-filter: blur(8px); white-space: nowrap;
+}
+.dental-canvas-root .summary-badge.tooth-badge {
+  background: rgba(74, 111, 165, 0.15); color: #4a6fa5 !important; border: 1px solid rgba(74, 111, 165, 0.25);
+}
+.dental-canvas-root .summary-zone-list {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-end;
+}
+.dental-canvas-root .summary-zone-row {
+  font-size: 11px; line-height: 1.5; text-align: right;
+  background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(6px);
+  padding: 1px 9px; border-radius: 6px;
+}
+.dental-canvas-root .summary-zone-name {
+  font-weight: 600; color: #666 !important; margin-right: 2px;
+}
+.dental-canvas-root .summary-zone-findings {
+  font-weight: 400; color: #999 !important;
+}
+
+/* ── Tooth Selector (Dental Chart) ── */
+.dental-canvas-root .tooth-selector { position: absolute; bottom: 0; left: 0; right: 0; z-index: 10; margin: 0; padding: 0; }
+.dental-canvas-root .tooth-selector-surface {
+  position: absolute;
+  right: 4px;
+  bottom: calc(100% + 6px);
+  z-index: 12;
+}
+.dental-canvas-root .tooth-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  background: transparent; backdrop-filter: none;
+  border-radius: 0; padding: 5px 10px 10px;
+  box-shadow: none;
+  border: none;
+  overflow: hidden;
+}
+.dental-canvas-root .tooth-chart-scope-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  row-gap: 5px;
+  margin: 0;
+  padding: 4px 6px;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+.dental-canvas-root .tooth-chart-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dental-canvas-root .tooth-chart-quadrant-wrap {
+  margin: 0;
+  padding: 0;
+  background: #f1f5f9;
+  min-width: 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.dental-canvas-root .tooth-chart-quadrant-teeth {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 6px;
+}
+.dental-canvas-root .tooth-chart-quadrant-teeth > .tooth-chart-row-single + .tooth-chart-row-single {
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+.dental-canvas-root .tooth-chart-row { display: flex; align-items: center; gap: 3px; }
+/* One FDI row per quadrant (18→11, then 21→28, …) — no 4×2 wrap. */
+.dental-canvas-root .tooth-chart-row-single {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.dental-canvas-root .tooth-chart-row-single .tooth-pick {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.dental-canvas-root .tooth-quadrant { display: flex; gap: 3px; flex: 1; min-width: 0; }
+.dental-canvas-root .chart-midline { width: 1px; height: 18px; background: #e2e8f0; margin: 0 3px; }
+.dental-canvas-root .chart-horizontal-line { height: 1px; background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent); margin: 2px 0; }
+.dental-canvas-root .quadrant-label {
+  font-size: 8px; color: #94a3b8; font-weight: 700; width: 22px; text-align: center;
+  letter-spacing: 0.5px;
+}
+.dental-canvas-root .tooth-pick {
+  flex: 1 1 22px; min-width: 22px; height: 22px; border: 0.5px solid rgba(226,232,240,0.6); border-radius: 5px;
+  background: #fff; font-size: 10px; font-weight: 700; color: #475569; cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  font-family: 'Inter', sans-serif;
+}
+.dental-canvas-root .tooth-pick:hover {
+  border-color: #60a5fa; color: #2563eb; background: #eff6ff;
+  transform: translateY(-1px);
+}
+.dental-canvas-root .tooth-pick.active {
+  background: var(--tp-blue-500); color: #fff;
+  border-color: var(--tp-blue-500);
+  box-shadow: none;
+}
+.dental-canvas-root .tooth-pick.active:hover {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+.dental-canvas-root .tooth-pick.has-diagnosis:not(.active) {
+  border-color: rgba(226,232,240,0.6);
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+.dental-canvas-root .tooth-pick.has-diagnosis:hover:not(.active) {
+  border-color: rgba(226,232,240,0.6);
+  background: #ede9fe;
+}
+
+/* Scope bar chips (UR / Full / …) — match `.tooth-pick` selected + “has data” styling */
+.dental-canvas-root .scope-chip {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 22px;
+  padding: 0 2px;
+  border: 0.5px solid rgba(226, 232, 240, 0.6);
+  border-radius: 5px;
+  background: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dental-canvas-root .scope-chip:hover:not(.active) {
+  border-color: #60a5fa;
+  color: #2563eb;
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+.dental-canvas-root .scope-chip.active {
+  background: var(--tp-blue-500);
+  color: #fff;
+  border-color: var(--tp-blue-500);
+  box-shadow: none;
+}
+.dental-canvas-root .scope-chip.active:hover {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+.dental-canvas-root .scope-chip.has-mark:not(.active) {
+  border-color: rgba(226, 232, 240, 0.6);
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+.dental-canvas-root .scope-chip.has-mark:hover:not(.active) {
+  border-color: rgba(226, 232, 240, 0.6);
+  background: #ede9fe;
+}
+
+/* ── Tooth Diagnosis Section ── */
+.dental-canvas-root .tooth-diagnosis-section { padding: 16px 24px; border-bottom: 1px solid #f0f1f3; }
+.dental-canvas-root .tooth-diagnosis-section .diagnosis-label { margin-bottom: 10px; }
+.dental-canvas-root .tooth-diagnosis-section .diagnosis-chips { margin-bottom: 14px; }
+.dental-canvas-root .tooth-notes { min-height: 60px; }
+
+/* ── Zone Diagnosis Section ── */
+.dental-canvas-root .zone-diagnosis-section { flex: 1; display: flex; flex-direction: column; }
+.dental-canvas-root .section-divider { height: 0; }
+
+/* ── Panel ── */
+.dental-canvas-root .panel {
+  background: #fff; border-left: 1px solid #e5e7eb;
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.dental-canvas-root .panel-header { padding: 24px 24px 16px; border-bottom: 1px solid #f0f1f3; }
+.dental-canvas-root .panel-header h1 { font-size: 18px; color: #111; margin-bottom: 4px; font-weight: 700; }
+.dental-canvas-root .panel-header p { font-size: 13px; color: #888; }
+
+/* ── Empty state ── */
+.dental-canvas-root .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; text-align: center; color: #aaa; }
+.dental-canvas-root .empty-state svg { width: 56px; height: 56px; margin-bottom: 16px; opacity: 0.25; }
+.dental-canvas-root .empty-state p { font-size: 14px; line-height: 1.6; color: #999; }
+
+/* ── Findings form ── */
+.dental-canvas-root .findings-form { padding: 24px; flex: 1; }
+.dental-canvas-root .findings-form h3 { font-size: 15px; color: #111; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.dental-canvas-root .findings-form h3 .dot { width: 12px; height: 12px; border-radius: 50%; }
+.dental-canvas-root .diagnosis-label,.dental-canvas-root .notes-label { font-size: 11px; color: #999; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+.dental-canvas-root .diagnosis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+.dental-canvas-root .chip {
+  padding: 6px 14px; border-radius: 18px; font-size: 12px; cursor: pointer;
+  border: 1px solid #e0e2e8; background: #f8f9fb; color: #666;
+  transition: all 0.2s; font-weight: 500;
+}
+.dental-canvas-root .chip:hover { border-color: #c0c4cc; color: #333; background: #f0f2f5; }
+.dental-canvas-root .chip.active { color: #fff; border-color: transparent; }
+.dental-canvas-root .notes-area {
+  width: 100%; min-height: 100px; background: #f8f9fb; border: 1px solid #e0e2e8;
+  border-radius: 10px; color: #333; padding: 12px 14px; font-size: 13px;
+  font-family: inherit; resize: vertical; outline: none; transition: border-color 0.2s;
+}
+.dental-canvas-root .notes-area:focus { border-color: #4a9eff; background: #fff; }
+.dental-canvas-root .notes-area::placeholder { color: #bbb; }
+
+/* ── Summary ── */
+.dental-canvas-root .summary { border-top: 1px solid #f0f1f3; padding: 20px 24px; background: #fafbfc; }
+.dental-canvas-root .summary h4 { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; font-weight: 700; }
+.dental-canvas-root .summary-item { margin-bottom: 10px; padding: 10px 12px; background: #fff; border-radius: 10px; border-left: 3px solid; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.dental-canvas-root .summary-item .zone-name { font-size: 13px; font-weight: 600; color: #222; margin-bottom: 3px; }
+.dental-canvas-root .summary-item .zone-diagnoses { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 3px; }
+.dental-canvas-root .summary-item .zone-diagnoses span { font-size: 10px; padding: 2px 7px; border-radius: 8px; background: #f0f2f5; color: #666; }
+.dental-canvas-root .summary-item .zone-notes { font-size: 12px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Back to Dentition Button ── */
+.dental-canvas-root .back-to-dentition {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: 1px solid #dde0e6; border-radius: 8px;
+  background: rgba(255,255,255,0.92); cursor: pointer; color: #555;
+  margin-right: 8px; vertical-align: middle; transition: all 0.15s;
+}
+.dental-canvas-root .back-to-dentition:hover { background: #f0f1f3; color: #333; }
+
+/* ── Tooth Pick Diagnosis Dot ── */
+.dental-canvas-root .tooth-pick { position: relative; }
+.dental-canvas-root .tooth-pick-dot {
+  position: absolute; bottom: 2px; right: 2px;
+  width: 6px; height: 6px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.9);
+}
+
+/* ── Back to Full View Button ── */
+.dental-canvas-root .back-to-full-view-btn {
+  display: block; margin: 6px auto 0; padding: 4px 14px;
+  font-size: 11px; font-weight: 600; color: #4a9eff;
+  background: rgba(74, 158, 255, 0.08); border: 1px solid rgba(74, 158, 255, 0.2);
+  border-radius: 8px; cursor: pointer; transition: all 0.15s;
+}
+.dental-canvas-root .back-to-full-view-btn:hover { background: rgba(74, 158, 255, 0.15); }
+
+/* ── Mini Dentition Preview ── */
+.dental-canvas-root .mini-dentition-preview {
+  position: relative;
+  width: 96px;
+  background: #F1F1F5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s;
+  padding: 5px 22px 4px 7px;
+  overflow: visible;
+  opacity: 0.92;
+}
+.dental-canvas-root .mini-dentition-preview .mini-preview-title { font-size: 9px; }
+.dental-canvas-root .mini-dentition-preview .mini-preview-svg { height: 24px; }
+.dental-canvas-root .mini-dentition-preview.mini-dentition-preview-tl {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 15;
+}
+.dental-canvas-root .mini-dentition-preview .mini-preview-arrow {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  left: auto !important;
+  transform: none !important;
+  background: transparent !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+.dental-canvas-root .mini-preview-arrow {
+  position: absolute;
+  left: 6px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+  pointer-events: none;
+  color: #3c3bb5;
+}
+.dental-canvas-root .mini-dentition-preview:hover {
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+.dental-canvas-root .mini-dentition-preview:hover .mini-preview-arrow {
+  background: rgba(255, 255, 255, 0.9);
+}
+.dental-canvas-root .mini-preview-title {
+  font-size: 10px; font-weight: 600; color: #334155;
+  letter-spacing: 0.1px; text-transform: none;
+  text-align: left;
+  margin-bottom: 2px;
+  display: block;
+}
+.dental-canvas-root .mini-preview-svg {
+  width: 100%; height: 32px; display: block;
+  background: transparent;
+}
+
+/* Quick surface selector: layout lives in QuickSurfaceSelector.module.scss */
+
+/* Narrow canvas: keep tooth targets tappable and avoid crunching. */
+@container (max-width: 660px) {
+  .dental-canvas-root .tooth-chart {
+    margin: 0;
+    padding: 5px 10px 10px;
+    gap: 4px;
+  }
+
+  .dental-canvas-root .tooth-chart-row {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 6px;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .chart-midline {
+    display: none;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .quadrant-label:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    width: 22px;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .tooth-quadrant:first-of-type {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .tooth-quadrant:last-of-type {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .quadrant-label:last-child {
+    grid-column: 1;
+    grid-row: 2;
+    width: 22px;
+    min-width: 22px;
+    text-align: center;
+  }
+}
+
+/* ── Oral Region Tag (OralRegionTag3D in DentitionView) ──────────────────── */
+.oral-region-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(107, 114, 128, 0.78);
+  color: #fff !important;
+  font-family: Inter, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  line-height: 1.3;
+  cursor: default;
+}
+
+.oral-tag-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.oral-tag-tip {
+  position: absolute;
+  min-width: 200px;
+  max-width: 280px;
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff !important;
+  border-radius: 8px;
+  border-left: 3px solid rgba(255, 255, 255, 0.35);
+  padding: 10px 13px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  font-family: 'Inter', sans-serif;
+  white-space: normal;
+  pointer-events: none;
+  text-align: left;
+}
+
+.oral-tag-leader {
+  position: absolute;
+}
+
+.oral-tag-tip-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.oral-tag-tip-badge {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.oral-tag-tip-label {
+  font-weight: 700;
+  font-size: 12px;
+  color: #f1f5f9 !important;
+}
+
+.oral-tag-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.oral-tag-sec {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 7px 9px;
+}
+
+.oral-tag-sec-head {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #cbd5e1 !important;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.oral-tag-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.oral-tag-row {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.oral-tag-row-name { font-weight: 700; color: #f1f5f9 !important; }
+.oral-tag-row-meta { color: #cbd5e1 !important; font-weight: 400; }
+
+/* ── Scope Hotspot button (ScopeHotspot in DentitionView) ───────────────── */
+.scope-hotspot-btn {
+  cursor: pointer;
+  min-width: 44px;
+  height: 28px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: rgba(15, 23, 42, 0.66);
+  color: #f8fafc !important;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 12px;
+  box-shadow: 0 4px 14px rgba(2, 6, 23, 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.scope-hotspot-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(30, 41, 59, 0.78);
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.3);
+}
+.scope-hotspot-btn--emphasized {
+  min-width: 64px;
+  height: 30px;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.78);
+  font-size: 12px;
+}
+.scope-hotspot-btn--emphasized:hover {
+  background: rgba(15, 23, 42, 0.88);
+}
+
+/* ── Annotation badge + panel (Annotations.jsx) ─────────────────────────── */
+.annot-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.annot-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: -0.3px;
+  background: var(--annot-badge-bg, rgba(70, 70, 75, 0.65));
+  color: var(--annot-badge-color, rgba(255, 255, 255, 0.9)) !important;
+  box-shadow: var(--annot-badge-shadow, 0 1px 3px rgba(0, 0, 0, 0.25));
+  border: var(--annot-badge-border, 1.5px solid rgba(255, 255, 255, 0.35));
+  z-index: 1;
+}
+.annot-badge--expanded { z-index: 10; }
+
+.annot-expanded {
+  display: flex;
+  align-items: center;
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+}
+
+.annot-connector {
+  width: 55px;
+  height: 0;
+  border-top: 1.5px dashed rgba(100, 100, 110, 0.5);
+  flex-shrink: 0;
+}
+
+.annot-panel {
+  min-width: 150px;
+  max-width: 200px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 8px;
+  padding: 10px 13px;
+  color: #fff !important;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  animation: dentalCanvasAnnotFadeIn 0.15s ease-out;
+  border-left: 3px solid var(--annot-zone-color, #8b5cf6);
+}
+
+.annot-panel-header {
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.3;
+  margin-bottom: 0;
+  color: #fff !important;
+}
+.annot-panel-header--with-content { margin-bottom: 7px; }
+
+.annot-zone-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--annot-zone-color, #8b5cf6);
+}
+
+.annot-sec { margin-bottom: 0; }
+.annot-sec--spaced { margin-bottom: 7px; }
+
+.annot-sec-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: rgba(255, 255, 255, 0.55) !important;
+  margin-bottom: 3px;
+}
+
+.annot-tag-row { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.annot-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ddd !important;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.annot-notes {
+  font-size: 12px;
+  color: #aaa;
+  line-height: 1.4;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── ArchTooth treatment history tags ────────────────────────────────────── */
+.arch-history-row { display: flex; align-items: center; gap: 3px; }
+
+.arch-history-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: Inter, sans-serif;
+  background: rgba(107, 114, 128, 0.78);
+  color: #fff !important;
+  line-height: 1.3;
+  backdrop-filter: blur(3px);
+  letter-spacing: 0.01em;
+}

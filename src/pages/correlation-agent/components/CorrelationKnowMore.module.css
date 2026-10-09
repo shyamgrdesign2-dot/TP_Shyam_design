@@ -1,0 +1,297 @@
+/* Tokens only, even dimensions (1px hairlines excepted). The one deliberate
+   deviation on record is the CTA fill: the VoiceRx gradient instead of the blue
+   primary, so every agent surface reads as one family. */
+
+.wrap {
+  --ck-violet: var(--tesseract-violet-700);
+  --ck-tint: var(--tesseract-violet-50);
+  --ink: var(--tesseract-fg-heading);
+  --ink2: var(--tesseract-fg-primary);
+  --ink3: var(--tesseract-fg-tertiary);
+  --line: var(--tesseract-border-neutral);
+  --lineSoft: var(--tesseract-border-soft);
+  --surface: var(--tesseract-bg-surface);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  background: var(--tesseract-bg-page);
+  color: var(--ink2);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+}
+
+.headTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+
+.tabsWrap {
+  display: flex;
+  align-items: center;
+}
+
+/* ------------------------------------------------------------------- body */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--tesseract-space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-8);
+}
+
+/* Each section names itself in the margin the way the other Know More drawers
+   do, so the tab in the header and the label on the page agree. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+  scroll-margin-top: var(--tesseract-space-4);
+}
+.sideHead {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--ck-violet);
+}
+.sectionTitle {
+  margin: 0;
+  font-family: var(--tesseract-font-heading);
+  font-size: var(--tesseract-text-h5);
+  font-weight: var(--tesseract-weight-semibold);
+  line-height: var(--tesseract-text-h5-lh);
+  color: var(--ink);
+}
+.para {
+  margin: 0;
+  color: var(--ink2);
+}
+
+/* ------------------------------------------------------------------ basics */
+.lede {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-4);
+  padding: var(--tesseract-space-4);
+  border: 1px solid var(--tesseract-violet-200);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--ck-tint);
+}
+.lede p {
+  margin: 0;
+  color: var(--ink2);
+}
+
+/* The four stages the agent runs, numbered because they genuinely are a
+   sequence: nothing is challenged before it is linked. */
+.flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--tesseract-space-3);
+}
+.flowStep {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--surface);
+}
+.flowNum {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--tesseract-space-7);
+  height: var(--tesseract-space-7);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--ck-tint);
+  color: var(--ck-violet);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+}
+.flowMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  min-width: 0;
+}
+.flowTitle {
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+.flowBody {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--ink3);
+}
+
+.note {
+  margin: 0;
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border-left: 2px solid var(--tesseract-violet-300);
+  border-radius: var(--tesseract-radius-6);
+  background: var(--ck-tint);
+  font-size: var(--tesseract-text-caption);
+  color: var(--ink2);
+}
+
+/* ------------------------------------------------------------------- trust */
+/* Plain cards with a coloured glyph and nothing else: no chip, no tinted band.
+   Three identical violet-headed panels is the shape that reads as generated. */
+.trustGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--tesseract-space-3);
+  align-items: stretch;
+}
+.trustCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--surface);
+}
+.trustIcon {
+  color: var(--ck-violet);
+}
+.trustTitle {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+.trustBody {
+  margin: 0;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--ink3);
+}
+
+/* ----------------------------------------------------------------- process */
+/* Just the thumbnail, at a size worth looking at. It already carries its own
+   play mark and its own title, so a card around it duplicated both. */
+.video {
+  display: block;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  max-width: calc(var(--tesseract-space-16) * 8);
+  width: 100%;
+  border-radius: var(--tesseract-radius-16);
+  overflow: hidden;
+  transition: transform 140ms ease;
+}
+.video:hover {
+  transform: translateY(-2px);
+}
+.video:focus-visible {
+  outline: 2px solid var(--ck-violet);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------------- tips */
+.tips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+.tip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--surface);
+}
+.tipMark {
+  flex: none;
+  color: var(--tesseract-fg-success);
+}
+.tipMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  min-width: 0;
+}
+.tipTitle {
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--ink);
+}
+.tipBody {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--ink3);
+}
+
+/* ----------------------------------------------------------------- support */
+.support {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  align-self: flex-start;
+  flex-wrap: wrap;
+  padding: var(--tesseract-space-4) var(--tesseract-space-6);
+  border-radius: var(--tesseract-radius-16);
+  background: var(--ck-tint);
+}
+.supportLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--ck-violet);
+  text-decoration: none;
+}
+.supportLink:hover {
+  text-decoration: underline;
+}
+.supportSplit {
+  width: 1px;
+  height: var(--tesseract-space-5);
+  background: var(--tesseract-violet-200);
+}
+
+.disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tesseract-space-2);
+  margin: 0;
+  padding-bottom: var(--tesseract-space-4);
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--ink3);
+}
+
+/* -------------------------------------------------------------------- foot */
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+  padding: var(--tesseract-space-3) var(--tesseract-space-6);
+  border-top: 1px solid var(--lineSoft);
+  background: var(--surface);
+}
+
+/* The documented deviation: the VoiceRx gradient instead of the blue primary,
+   so every agent surface reads as one family. The Button atom colours its own
+   label, so white is forced here or it renders dark on the gradient. */
+.gradientCta {
+  /* Matches the other two agent CTAs. Two stops, one hue family. */
+  background: var(--tesseract-gradient-ai-hero);
+  border-color: transparent;
+  min-width: calc(var(--tesseract-space-16) + var(--tesseract-space-8));
+}
+.gradientCta,
+.gradientCta * {
+  color: var(--tesseract-white, #ffffff);
+}

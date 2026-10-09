@@ -1,1 +1,0 @@
-export { ShineBorder } from "./ShineBorder";

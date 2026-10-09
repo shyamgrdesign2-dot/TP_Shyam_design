@@ -1,0 +1,143 @@
+/* Mission-specific KPI overrides (shared da-root scope). */
+.da-root .da-kpi-card.da-kpi-disabled {
+  opacity: 0.52;
+  pointer-events: none;
+  filter: grayscale(0.35);
+  background: var(--tesseract-slate-50, #f8fafc) !important;
+  box-shadow: none !important;
+}
+
+.da-root .da-kpi-card.da-kpi-disabled::before {
+  display: none;
+}
+
+.da-root .da-kpi-card.da-kpi-disabled [style*="font-size: 30px"],
+.da-root .da-kpi-card.da-kpi-disabled [style*="font-size: 20px"] {
+  color: var(--tesseract-slate-400, #94a3b8) !important;
+}
+
+/* Row beside sidebar: lock height so nested overflow-y can engage. */
+.ma-shell-row {
+  height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px);
+  overflow: hidden;
+  min-height: 0;
+}
+
+@supports (height: 100dvh) {
+  .ma-shell-row {
+    height: calc(100dvh - 56px);
+    max-height: calc(100dvh - 56px);
+  }
+}
+
+/* AppointmentList content pane for Mission Analytics — no wrapper scroll. */
+.ma-shell-content {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Direct child (theme root / route element) must fill shell height. */
+.ma-shell-content > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ma-embedded-theme-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Embedded page fills the shell pane. */
+.da-root.ma-embedded {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.da-root.ma-embedded .ma-embedded-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Keep hero from eating the scroll budget. */
+.da-root.ma-embedded .ma-embedded-main > *:first-child {
+  flex-shrink: 0;
+}
+
+.da-root.ma-embedded .ma-embedded-card-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  padding: 0 24px 16px;
+  margin-top: -45px;
+  position: relative;
+  z-index: 1;
+}
+
+.da-root.ma-embedded .ma-embedded-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--tesseract-bg-surface, #fff);
+  border-radius: var(--tesseract-radius-16, 16px);
+  box-shadow: var(--tesseract-shadow-lg);
+  overflow: hidden;
+}
+
+.da-root.ma-embedded .ma-embedded-filters {
+  flex-shrink: 0;
+}
+
+/* Only KPIs + charts scroll; filters stay pinned. */
+.da-root.ma-embedded .ma-embedded-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 4px 20px 24px;
+  background: var(--tesseract-bg-surface, #fff);
+}
+
+.da-root .ma-hero-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.da-root .ma-hero-actions button {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: var(--tesseract-slate-800, #1e293b) !important;
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

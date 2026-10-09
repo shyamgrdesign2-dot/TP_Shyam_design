@@ -1,110 +1,87 @@
-# TatvaPractice — VoiceRx-L
+# Pm-Doctor-Portal
 
-Medical consultation workspace for clinicians: appointment queue, RxPad
-prescription pad, Dr.Agent AI assistant, and VoiceRx voice-to-EMR
-transcription. Built for iPad and desktop.
+Doctor portal website, React.
 
-> **Stack:** Next.js 16 (App Router, Turbopack) · React 19 · JSX (no TypeScript in product code) · Tailwind v4 + SCSS Modules · Radix UI primitives · iconsax-reactjs · TipTap · Web Speech API.
+---
 
-## Quick start
+## On this branch: `feat/new-appointment-v1-shyam`
+
+A rebuilt appointment listing screen on the Tesseract design system, with a
+Google-Calendar-style schedule alongside the existing table.
+
+**Route:** `/appointments-x` (the legacy appointment screen is untouched and
+still live at its own route — this is a parallel implementation.)
+
+### Read this first
+
+| Document | What it answers |
+| --- | --- |
+| **[docs/appointment-listing/README.md](docs/appointment-listing/README.md)** | Start here. Index, setup, and current status |
+| [docs/appointment-listing/PRD.md](docs/appointment-listing/PRD.md) | What problems this solves and every behaviour it promises |
+| [docs/appointment-listing/SCOPE.md](docs/appointment-listing/SCOPE.md) | Every file added, the blast radius on existing code, environment traps, open decisions |
+| [docs/appointment-listing/TEST-PLAN.md](docs/appointment-listing/TEST-PLAN.md) | ~145 test cases, priority-ordered, written to be run by a person or an agent |
+| [docs/appointment-listing-backend-map.md](docs/appointment-listing-backend-map.md) | Endpoint-by-endpoint contract for every call the screen makes |
+
+### What it adds
+
+- **Table view** rebuilt on Tesseract, plus a Patient ID column and a
+  teleconsult popover that shows the call before you join it.
+- **Calendar view** — day / week / month, the doctor's availability drawn under
+  the appointments, pinch and trackpad zoom, drag-to-reschedule on pointer
+  devices and tap-to-move on touch.
+- **Confirm Appointment** and **Reschedule** drawers, sharing one component.
+- **Add New Patient** drawer, opened from the patient search.
+- **Reschedule is now one write** — `PUT /api/v1/appointment/{pam_id}` moves an
+  appointment in place, replacing the book-then-cancel pair that left a window
+  where the patient held two appointments and minted a new `pam_id`.
+
+Every value on the screen comes from a production API. There is no mock data
+in the module.
+
+### Running it
+
+The design system is on a **private GitHub Packages registry**, so install
+needs a token with `read:packages`:
 
 ```bash
-npm install
-npm run dev          # Turbopack dev server
-npm run build        # Production build (16 routes)
-npm run lint         # ESLint (zero errors, atomic-design boundaries enforced)
+gh auth refresh -h github.com -s read:packages
 ```
 
-## What's in this repo
-
-```
-src/                  Single source of truth. ALL application code lives here.
-  app/                Next.js App Router — URLs + API routes.
-                      (See src/app/routes-and-pages.md)
-  components/         Atomic-design library: atoms / molecules / organisms.
-                      (See src/components/component-library.md)
-  design-system/      Tokens, SCSS mixins, MUI theme.
-                      (See src/design-system/design-tokens-and-theme.md)
-  hooks/              Shared React hooks. (See src/hooks/hooks-reference.md)
-
-public/               Static assets (icons, animations, lottie, brand).
+```bash
+NODE_AUTH_TOKEN=$(gh auth token) npm install --legacy-peer-deps
 ```
 
-## Documentation map
+```bash
+npm run start:dev
+```
 
-Every doc below has a **Scope · Audience · Read-when** header at the
-top so you (and any AI tool) know whether to open it. The matrix
-covers four audiences: **FE** = frontend dev, **BE** = backend dev,
-**D** = designer, **PM** = product manager. AI assistants should
-treat any doc tagged for the audience they're acting as as required
-context.
+Needs a local `.env.dev`. Then open `/appointments-x`.
 
-| Doc | FE | BE | D | PM | Purpose |
-|---|:-:|:-:|:-:|:-:|---|
-| **Project orientation** | | | | | |
-| [`CLAUDE.md`](./CLAUDE.md) | ✓ | ✓ | ✓ | ✓ | Project orientation — stack, layout, import conventions, routes, design rules. **Start here.** |
-| [`design.md`](./design.md) | ✓ | | ✓ | ✓ | Visual contract — sizing rules, typography, color, icons. **Read before writing UI.** |
-| [`engineering.md`](./engineering.md) | ✓ | ✓ | | | How the app is wired — directory layout, state, data flow, animation, audio. |
-| [`integration.md`](./integration.md) | ✓ | ✓ | | ✓ | Backend hand-off — JS shapes the frontend speaks; how to plug in a real API. |
-| **`src/` tree** | | | | | |
-| [`src/src-overview.md`](./src/src-overview.md) | ✓ | ✓ | ✓ | ✓ | One-screen orientation to the `src/` tree. |
-| [`src/app/routes-and-pages.md`](./src/app/routes-and-pages.md) | ✓ | ✓ | | ✓ | Route map, page→component pattern, API endpoints. |
-| [`src/hooks/hooks-reference.md`](./src/hooks/hooks-reference.md) | ✓ | | | | Shared hooks reference (`cn`, mobile, touch, toast). |
-| **Design system** | | | | | |
-| [`src/design-system/design-tokens-and-theme.md`](./src/design-system/design-tokens-and-theme.md) | ✓ | | ✓ | | SCSS tokens, CSS variables, mixins, MUI theme bridge. |
-| **Component library (`src/components/`)** | | | | | |
-| [`src/components/component-library.md`](./src/components/component-library.md) | ✓ | | ✓ | | Atomic-design philosophy, import rules, when to use what. |
-| [`src/components/atoms/atoms-catalog.md`](./src/components/atoms/atoms-catalog.md) | ✓ | | ✓ | | Catalog of every atom with use-cases. |
-| [`src/components/molecules/molecules-catalog.md`](./src/components/molecules/molecules-catalog.md) | ✓ | | ✓ | | Catalog of every molecule. |
-| [`src/components/organisms/organisms-map.md`](./src/components/organisms/organisms-map.md) | ✓ | ✓ | ✓ | ✓ | Feature-level organism map (RxPad, VoiceRx, TypeRx, shared). |
-| **Feature deep-dives** | | | | | |
-| [`src/components/organisms/rxpad/rxpad-subsystem.md`](./src/components/organisms/rxpad/rxpad-subsystem.md) | ✓ | ✓ | ✓ | ✓ | RxPad consultation feature — shell, form, sections, sidebar, custom modules, templates, end-visit, sync data bus. |
-| [`src/components/organisms/voicerx/voicerx-subsystem.md`](./src/components/organisms/voicerx/voicerx-subsystem.md) | ✓ | ✓ | ✓ | ✓ | Voice subsystem — recorders, voice-lock, transcript flow, audio model. |
-| [`src/components/organisms/rxpad/dr-agent/docs/dr-agent-docs-index.md`](./src/components/organisms/rxpad/dr-agent/docs/dr-agent-docs-index.md) | ✓ | ✓ | ✓ | ✓ | Dr.Agent AI panel — index over 15 specs covering cards, intents, sizing, demo flow, response management. |
+### Four things that look like bugs and are not
 
-## Routes (production surface)
+Read [SCOPE.md § 7](docs/appointment-listing/SCOPE.md#7-environment-traps)
+before raising any of these:
 
-| URL | What it does |
-|---|---|
-| `/` | Homepage → re-exports `/tp-appointment-screen` (appointments dashboard). |
-| `/tp-appointment-screen` | Appointment queue with tabs, filters, AI workflow. |
-| `/all-patients` | Practice-wide patient directory. |
-| `/follow-ups` | Patients with scheduled return visits. |
-| `/patient-details` | Patient profile + medical context. |
-| `/rxpad/voice` | VoiceRx in-visit consultation (canonical Rx workflow). |
-| `/rxpad/type` | Type-driven Rx workflow. |
-| `/rxpad/end-visit` | End-of-visit summary, signed Rx preview. |
-| `/rxpad` | Redirect → `/rxpad/voice`. |
-| `/print-preview` | A4 prescription print preview. |
-| `/api/iconsax-icon` | Server proxy — fetches one Iconsax glyph for a custom-module name. |
+1. **`npm ci` does not work here.** `package-lock.json` is gitignored and stale
+   on `prod`, with no `@dhspl-tatvacare` entry at all. Always
+   `npm install --legacy-peer-deps`.
+2. **`npm run build` fails** in `@cloudflare/realtimekit` with a Babel
+   `transform-classes` error. This is reproducible on an untouched `prod`
+   checkout and is unrelated to this branch.
+3. **Import errors for exports that plainly exist** (usually
+   `ConsultationLayout.js` against the dental slices) mean webpack is holding
+   the module graph from the branch that was checked out when the dev server
+   started. Restart it.
+4. The `babel-preset-react-app` peer-dependency warning is noise, not an error.
 
-## Conventions in two minutes
+### Status
 
-- **Atomic design boundaries are enforced by ESLint.** `atoms/` cannot import `molecules/` or `organisms/`; `molecules/` cannot import `organisms/`.
-- **Imports use `@/src/...`** — never `@/components/...` or `@/lib/...` (those folders no longer exist).
-- **Even-pixel sizes only.** No 9, 11, 13, 15, 17, 23 px. Hairline 1 px is the only odd-pixel exception. See `design.md`.
-- **Colors via tokens.** `var(--tp-blue-500)`, `var(--tp-slate-700)`, etc. Never hard-code hex in components.
-- **Icons:** iconsax-reactjs is primary; lucide-react for utility glyphs. Linear variant inside CTAs.
-- **No direct MUI** in product code. Use Radix primitives or pure HTML.
+Read paths are verified in a live browser against UAT. **Write paths —
+confirming a booking, committing a reschedule, saving a new patient — are
+implemented and reviewed but have never been fired**, because each writes real
+data. They are P0 in the test plan and should be the first thing tested.
 
-## Voice-lock rule (single-mic invariant)
-
-When any voice surface is active — module-level mic, per-cell mic, or
-the global VoiceRx FAB — every other mic is automatically disabled.
-This is coordinated through `useRxPadSync().activeVoiceModule`. See
-[`src/components/organisms/voicerx/voicerx-subsystem.md`](./src/components/organisms/voicerx/voicerx-subsystem.md).
-
-## Open the right doc for your task
-
-| If you're… | Read |
-|---|---|
-| New to the project | `CLAUDE.md` → `src/src-overview.md` |
-| Designing a new component | `design.md` + `src/components/component-library.md` |
-| Adding an atom or molecule | `src/components/atoms/atoms-catalog.md` or `…/molecules/molecules-catalog.md` |
-| Wiring a new feature | `engineering.md` + `src/components/organisms/organisms-map.md` |
-| Working in RxPad | `src/components/organisms/rxpad/rxpad-subsystem.md` |
-| Plugging in a real backend | `integration.md` |
-| Editing the AI panel | `src/components/organisms/rxpad/dr-agent/docs/dr-agent-docs-index.md` |
-| Touching voice | `src/components/organisms/voicerx/voicerx-subsystem.md` |
-| Adding/changing a route | `src/app/routes-and-pages.md` |
-| Picking colors / spacing / type | `src/design-system/design-tokens-and-theme.md` |
+Two backend decisions are still open: the reschedule endpoint accepts no visit
+type, category or remark, so edits to those are silently discarded; and there
+is no concurrency guard on a move. Both are written up in
+[SCOPE.md § 6](docs/appointment-listing/SCOPE.md#6-open-backend-questions).

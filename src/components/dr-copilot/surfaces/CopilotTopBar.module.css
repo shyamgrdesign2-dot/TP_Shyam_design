@@ -1,0 +1,92 @@
+/* Patient-detail header: back control + Chart Search, full bleed.
+   Mirrors the consultation header's shape so the two pages feel like one app. */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  /* Taller, because the bar now carries two things: the field, and the four
+     questions under it. */
+  height: 104px;
+  /* Barely tinted rather than plain white. The chips are the panel's own -
+     a whisper-light fill inside a translucent white stroke, drawn to sit on
+     Copilot's rotating wash - and on flat white they have no edge at all.
+     This is the ground they were designed for, at the quietest setting that
+     still gives them one. */
+  background: linear-gradient(180deg, #fcfaff 0%, #ffffff 78%);
+  border-bottom: 1px solid var(--tp-slate-100, #f1f1f5);
+}
+
+/* Divider-behind-back, as the consultation header does it. */
+.backCell {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 14px;
+  border-right: 1px solid var(--tp-slate-100, #f1f1f5);
+}
+
+.back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tp-slate-700, #454551);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.back:hover {
+  background: var(--tp-slate-100, #f1f1f5);
+}
+
+/* The search takes the rest of the bar, edge to edge, with the questions
+   stacked beneath it. */
+.inner {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  /* Vertical padding, not just centring. Centred in a fixed height the two
+     rows drifted to the edges as the bar grew; real padding keeps the field
+     and the chips off the top and bottom rules whatever the height is. */
+  padding: 12px 16px;
+}
+
+/* The chips draw themselves; this only places them, hard left under the
+   field rather than centred on it. */
+.starters {
+  min-width: 0;
+}
+
+.starters > div {
+  justify-content: flex-start !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+@media (max-width: 900px) {
+  .backCell {
+    padding: 0 10px;
+  }
+
+  .inner {
+    padding: 0 10px;
+  }
+
+  /* The base field steps aside below 900px for the crowded app header; here it
+     is the only control on the bar, so it stays. */
+  .field {
+    display: inline-flex !important;
+  }
+}

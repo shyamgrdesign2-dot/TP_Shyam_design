@@ -1,0 +1,138 @@
+/* Shared violet page hero (Tesseract HeroBanner) + banner CTA skin.
+   Matches appointment-listing banner CTAs. */
+
+.wrap {
+  position: relative;
+  width: 100%;
+  /* Spacer under the banner so legacy .appointment-wrap (margin-top: -80px)
+     still overlaps the purple band the way it did the yellow welcome strip. */
+  padding-bottom: 5px;
+}
+
+.wrap[data-compact="true"] {
+  padding-bottom: 56px;
+}
+
+/* Host app globally forces dark ink on div/p/span. Restore inheritance so
+   the violet HeroBanner (and patient info in its actions) stay white-on-dark
+   — same pattern as AppointmentListingPage.module.css. */
+html :where(.wrap) span,
+html :where(.wrap) div,
+html :where(.wrap) p {
+  color: inherit;
+}
+
+/* ProfilePopover patient name / age on the purple Patient Details banner.
+   sidebar.scss sets .patientName to #171725 !important; beat that here. */
+.wrap :global(.patientName),
+.wrap :global(.text-2),
+.wrap :global(.header-patient-details),
+.wrap :global(.header-patient-details *),
+.wrap :global(.icon-right) {
+  color: #ffffff !important;
+}
+
+/* Outline CTA on dark banner — e.g. Add Appointment */
+.outlineBtn {
+  height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: var(--tesseract-radius-10, 10px) !important;
+  gap: 6px !important;
+  font-size: var(--tesseract-text-body-sm, 14px) !important;
+  font-weight: var(--tesseract-weight-medium, 500) !important;
+  background-color: color-mix(in srgb, var(--tesseract-slate-0, #fff) 7%, transparent) !important;
+  border: 1.5px solid color-mix(in srgb, var(--tesseract-slate-0, #fff) 34%, transparent) !important;
+  color: var(--tesseract-on-dark, #fff) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Solid CTA on dark banner — e.g. Start Walk-In */
+.solidBtn {
+  height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: var(--tesseract-radius-10, 10px) !important;
+  gap: 6px !important;
+  font-size: var(--tesseract-text-body-sm, 14px) !important;
+  font-weight: var(--tesseract-weight-medium, 500) !important;
+  background-color: var(--tesseract-slate-0, #fff) !important;
+  border: none !important;
+  color: var(--tesseract-blue-900, #1e3a5f) !important;
+}
+
+/* Legacy bootstrap / antd / custom banner buttons when not yet on Tesseract Button */
+.actions :global(.btn-primary),
+.actions :global(.btn-primary3),
+.actions :global(.btn-create-bill),
+.actions :global(.btn.btn-primary),
+.actions :global(button.btn-create-bill),
+.actions :global(.ant-btn-primary) {
+  height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: var(--tesseract-weight-medium, 500) !important;
+  background-color: #fff !important;
+  border: none !important;
+  color: #1e3a5f !important;
+  box-shadow: none !important;
+}
+
+.actions :global(.btn-outline-primary),
+.actions :global(.btn-manage-bill),
+.actions :global(.btn-message),
+.actions :global(button.btn-manage-bill),
+.actions :global(.btn.btn-outline-primary),
+.actions :global(.ant-btn-default) {
+  height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: var(--tesseract-weight-medium, 500) !important;
+  background-color: rgba(255, 255, 255, 0.07) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.34) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.actions :global(.btn-outline-primary:hover),
+.actions :global(.btn-manage-bill:hover),
+.actions :global(.btn-message:hover) {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.actions :global(.btn-primary:hover),
+.actions :global(.btn-primary3:hover),
+.actions :global(.btn-create-bill:hover) {
+  background-color: #f3f4f6 !important;
+  color: #1e3a5f !important;
+}
+
+.actions :global(.btn-primary span),
+.actions :global(.btn-primary3 span),
+.actions :global(.btn-create-bill span),
+.actions :global(.btn-outline-primary span),
+.actions :global(.btn-manage-bill span),
+.actions :global(.btn-message span),
+.actions :global(.btn-primary i),
+.actions :global(.btn-outline-primary i),
+.actions :global(.btn-manage-bill i),
+.actions :global(.btn-create-bill i) {
+  color: inherit !important;
+}
+
+/* Tutorial chip stays white-on-dark-friendly */
+.actions :global(.tutorial .bg-white),
+.actions :global(.tutorial span) {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #1e3a5f !important;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}

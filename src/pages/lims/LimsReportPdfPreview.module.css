@@ -1,0 +1,25 @@
+.pdfPreview {
+  width: 100%;
+  min-height: calc(100vh - 120px);
+  border-radius: 12px;
+}
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 320px;
+  color: #717179;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 24px;
+  color: #717179;
+  text-align: center;
+}
