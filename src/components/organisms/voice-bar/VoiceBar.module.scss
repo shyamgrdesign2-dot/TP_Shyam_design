@@ -1,5 +1,7 @@
-// VoiceBar — Whisper-style floating dictation strip
-// Tokens from var(--tp-*). Even-pixel sizing throughout.
+// VoiceBar — Whisper-style floating dictation strip.
+// Compact black "dynamic island". White wave + status sit DIRECTLY on the
+// black shell (no white inner panel). Tokens from var(--tp-*). Even-pixel
+// sizing throughout.
 
 .host {
   position: fixed;
@@ -26,140 +28,195 @@
   animation: voiceScrimIn 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-// ── Bar shell ────────────────────────────────────────────────────────────────
+// ── Bar shell — black "dynamic island", 12px radius ─────────────────────────
+// Layout (visible state):
+//   ┌──────────────────────────────────────────────────────────┐
+//   │ [✕] [🎤slash?]   ▁▂▄▆▇▆▄▂▁  wave              [✓]         │
+//   │                  Listening · speak naturally              │
+//   └──────────────────────────────────────────────────────────┘
 .bar {
   position: relative;
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 14px;
-  width: 100%;
-  max-width: 720px;
-  padding: 10px 12px 10px 16px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  border: 1px solid var(--tp-slate-200, #E2E8F0);
-  border-radius: 18px;
+  gap: 8px;
+  width: auto;
+  max-width: 380px;
+  min-width: 300px;
+  padding: 6px 8px;
+  background: var(--tp-slate-900, #0F172A);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   box-shadow:
-    0 24px 48px -16px rgba(15, 23, 42, 0.22),
-    0 8px 16px -8px rgba(15, 23, 42, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    0 24px 56px -16px rgba(15, 23, 42, 0.45),
+    0 8px 18px -8px rgba(15, 23, 42, 0.30),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+
+// Wave + status column — TRANSPARENT, sits directly on the dark shell.
+// Tighter than the earlier layout: the static status doesn't need 52px.
+.signal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  height: 40px;
+  padding: 2px 4px;
 }
 
 .barIn {
   animation: voiceBarIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-// ── Mic cell — small violet badge with subtle pulse ──────────────────────────
-.micCell {
-  position: relative;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.micRing {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  background: linear-gradient(
-    135deg,
-    rgba(213, 101, 234, 0.18) 0%,
-    rgba(103, 58, 172, 0.22) 50%,
-    rgba(26, 25, 148, 0.16) 100%
-  );
-  color: var(--ai-violet, #673AAC);
-}
-
-.micPulse {
-  position: absolute;
-  inset: -4px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(103, 58, 172, 0.35) 0%, rgba(103, 58, 172, 0) 70%);
-  animation: micPulse 1.8s ease-out infinite;
-  pointer-events: none;
-}
-
-// ── Wave bars — mic-amplitude driven, with subtle baseline ────────────────────
+// ── Wave bars — white, on black shell ───────────────────────────────────────
 .wave {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  width: 132px;
-  height: 28px;
+  gap: 2px;
+  width: 100%;
+  height: 16px;
 }
 
 .waveBar {
   width: 2px;
   min-height: 2px;
   border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    var(--ai-pink, #D565EA) 0%,
-    var(--ai-violet, #673AAC) 60%,
-    var(--ai-indigo, #1A1994) 100%
-  );
-  // Smooth between rAF ticks so the bars don't jitter.
+  background: #fff;
   transition: height 80ms linear;
 }
 
-// ── Transcript — flex-1, truncates to ellipsis when long ─────────────────────
-.transcript {
-  flex: 1;
+// When the mic is muted/blocked, the bars sit flat and dim so the muted state
+// is unambiguous even without reading the status text.
+.waveBarMuted {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+// ── Status line under the wave — on black, so light text ────────────────────
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 0;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--tp-slate-700, #475569);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  color: rgba(255, 255, 255, 0.72);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  // Inner fade-mask so long transcripts dissolve into the right edge instead
-  // of slamming against the action buttons.
-  mask-image: linear-gradient(90deg, #000 0%, #000 84%, transparent 100%);
-  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 84%, transparent 100%);
 }
 
-.transcriptHint {
+.statusDot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ai-pink, #D565EA);
+  box-shadow: 0 0 0 0 rgba(213, 101, 234, 0.6);
+  animation: voiceBarStatusPulse 1.4s ease-in-out infinite;
+}
+@keyframes voiceBarStatusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(213, 101, 234, 0.55); }
+  50%      { box-shadow: 0 0 0 5px rgba(213, 101, 234, 0); }
+}
+
+.statusFinal {
+  font-weight: 600;
+  color: #fff;
+}
+
+.statusInterim {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+// ── Listening … with animated three-dot pulse ───────────────────────────────
+// Replaces the static "Listening · speak naturally" copy. The dots ride a
+// staggered keyframe so the user reads "we're paying attention" without text
+// clutter.
+.statusListening {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 5px;
+
+  span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--ai-pink, #D565EA);
+    opacity: 0.35;
+    animation: voiceBarDots 1.1s ease-in-out infinite;
+  }
+  span:nth-child(2) { animation-delay: 0.16s; }
+  span:nth-child(3) { animation-delay: 0.32s; }
+}
+@keyframes voiceBarDots {
+  0%, 80%, 100% { opacity: 0.30; transform: translateY(0); }
+  40%           { opacity: 1;    transform: translateY(-2px); }
+}
+
+// Error / muted text — soft red that reads on a dark surface without
+// shouting. Avoid pure tp-error-600 here; it's too saturated on black.
+.statusError {
+  font-size: 12px;
+  font-weight: 600;
+  color: #FCA5A5;
+  letter-spacing: 0.005em;
+}
+
+// ── Processing state — replaces wave + status while we close out ────────────
+.processing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.85);
   font-size: 13px;
-  font-style: italic;
-  color: var(--tp-slate-400, #94A3B8);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.20);
+  border-top-color: #fff;
+  animation: voiceBarSpin 0.85s linear infinite;
+}
+.processingLabel { white-space: nowrap; }
+@keyframes voiceBarSpin {
+  to { transform: rotate(360deg); }
 }
 
-.transcriptFinal {
-  font-weight: 500;
-  color: var(--tp-slate-800, #1E293B);
-}
-
-.transcriptInterim {
-  color: var(--tp-slate-400, #94A3B8);
-}
-
-.transcriptError {
-  font-size: 13px;
-  color: var(--tp-error-600, #DC2626);
-}
-
-// ── Action buttons (X / ✓) ───────────────────────────────────────────────────
+// ── Action buttons (sit on the black shell) ─────────────────────────────────
+// Compact: 36×36. Colors invert (light glyph on dark shell, white solid for ✓).
 .actionBtn {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition:
     background 160ms ease,
@@ -172,64 +229,166 @@
 }
 
 .actionCancel {
-  color: var(--tp-slate-500, #64748B);
-  background: var(--tp-slate-100, #F1F5F9);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
 
   &:hover {
-    color: var(--tp-slate-800, #1E293B);
-    background: var(--tp-slate-200, #E2E8F0);
+    color: #fff;
+    background: rgba(255, 255, 255, 0.16);
   }
 }
 
 .actionAccept {
-  color: #ffffff;
-  background: linear-gradient(
-    135deg,
-    var(--ai-pink, #D565EA) 0%,
-    var(--ai-violet, #673AAC) 50%,
-    var(--ai-indigo, #1A1994) 100%
-  );
-  box-shadow:
-    0 4px 14px -4px rgba(103, 58, 172, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  color: var(--tp-slate-900, #0F172A);
+  background: #fff;
 
-  &:hover { filter: brightness(1.05); }
+  &:hover { background: rgba(255, 255, 255, 0.92); }
 }
 
-// ── Keyboard hint chip ───────────────────────────────────────────────────────
-.kbdHint {
-  position: absolute;
-  bottom: -22px;
-  left: 50%;
-  transform: translateX(-50%);
+// ── Mic switcher button + dropdown ──────────────────────────────────────────
+// Sits in the bar layout BETWEEN the ✕ cancel and the wave/status column.
+// The button itself is wider than a plain actionBtn since it carries a
+// mic icon + a ▾ chevron; the dropdown anchors to the bar's top edge so it
+// pops UP from the button.
+.switcherWrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.actionSwitcher {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.78);
-  text-shadow: 0 1px 2px rgba(15, 23, 42, 0.6);
-  pointer-events: none;
-  white-space: nowrap;
+  width: auto;
+  padding: 0 8px 0 10px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+
+  &:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.16);
+  }
+}
+.actionSwitcherMuted {
+  color: #FCA5A5;
+  background: rgba(252, 165, 165, 0.10);
+  border-color: rgba(252, 165, 165, 0.16);
+
+  &:hover { color: #FECACA; background: rgba(252, 165, 165, 0.16); }
+}
+.switcherChevron {
+  transition: transform 140ms ease;
+}
+.switcherChevronOpen {
+  transform: rotate(180deg);
 }
 
-.kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 16px;
-  min-width: 18px;
-  padding: 0 5px;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+// The popover — sits above the button (the bar lives at the bottom of the
+// viewport so we open upward). 240px wide, dark surface, subtle border.
+.switcherMenu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: 240px;
+  padding: 8px;
+  background: var(--tp-slate-900, #0F172A);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 20px 48px -16px rgba(15, 23, 42, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  z-index: 10;
+}
+.switcherEyebrow {
   font-size: 10px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(15, 23, 42, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
-  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 6px 8px 8px;
+}
+.switcherEmpty {
+  padding: 8px 10px 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.switcherItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.switcherItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.switcherItemActive {
+  background: rgba(167, 139, 250, 0.18);
+  color: #fff;
+}
+.switcherDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.20);
+  flex-shrink: 0;
+  .switcherItemActive & {
+    background: var(--ai-pink, #D565EA);
+    box-shadow: 0 0 0 3px rgba(213, 101, 234, 0.18);
+  }
+}
+.switcherLabel {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.kbdLabel { opacity: 0.78; }
+// Muted-mic indicator — appears only when permission is denied. Sits between
+// the ✕ and the wave area, in a soft-red shade so it reads as "blocked" at
+// a glance. Cursor=help; the HoverTooltip wraps it with the explanation.
+.actionMicMuted {
+  color: #FCA5A5;
+  background: rgba(252, 165, 165, 0.10);
+  border-color: rgba(252, 165, 165, 0.16);
+  cursor: help;
+}
+.actionMicMuted:hover {
+  background: rgba(252, 165, 165, 0.16);
+  color: #FECACA;
+}
+
+// Body styling for the "Why?" tooltip when permission is denied. Sits on
+// the HoverTooltip atom's dark surface.
+.deniedTipBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 260px;
+  text-align: left;
+
+  strong {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    color: #fff;
+  }
+  span {
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.78);
+  }
+}
 
 // ── Animations ───────────────────────────────────────────────────────────────
 @keyframes voiceScrimIn {
@@ -250,16 +409,114 @@
   }
 }
 
-@keyframes micPulse {
-  0%   { transform: scale(0.85); opacity: 0.75; }
-  70%  { transform: scale(1.18); opacity: 0;    }
-  100% { transform: scale(1.18); opacity: 0;    }
+// ── Cancel-pending state ─────────────────────────────────────────────────────
+// ✕ flips the card to this state: SAME dark shell, status text in white,
+// Undo CTA as a white pill on the right, 10s reverse progress bar pinned
+// to the bottom edge.
+.barCancelled {
+  background: var(--tp-slate-900, #0F172A);
+  border-color: rgba(255, 255, 255, 0.08);
+  padding: 12px 16px 16px;
+  gap: 14px;
+  min-width: 420px;
+  max-width: 560px;
+  color: #fff;
+}
+
+.cancelCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background-color 140ms ease, transform 100ms ease;
+
+  &:hover .cancelMark {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  &:active { transform: scale(0.94); }
+  &:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.55);
+    outline-offset: 2px;
+  }
+}
+.cancelMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+  transition: background-color 140ms ease;
+}
+
+.cancelText {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.cancelTitle {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: #fff;
+}
+.cancelSub {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.undoBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--tp-slate-900, #0F172A);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  border: none;
+  cursor: pointer;
+  transition: background-color 140ms ease, transform 100ms ease;
+}
+.undoBtn:hover  { background: rgba(255, 255, 255, 0.92); }
+.undoBtn:active { transform: scale(0.97); }
+
+.undoProgressTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.10);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  overflow: hidden;
+}
+.undoProgressFill {
+  height: 100%;
+  background: #fff;
+  // width set inline (driven by rAF)
 }
 
 // ── Reduced-motion fallback ──────────────────────────────────────────────────
 @media (prefers-reduced-motion: reduce) {
   .barIn { animation: none; }
   .scrim { animation: none; }
-  .micPulse { animation: none; opacity: 0; }
   .waveBar { transition: none; }
+  .spinner { animation: none; border-top-color: rgba(255,255,255,0.6); }
 }

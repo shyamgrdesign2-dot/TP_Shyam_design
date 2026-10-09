@@ -30,6 +30,7 @@ import { DASHBOARD_NAV_ITEMS } from "@/src/components/organisms/shared/dashboard
 import { PatientActionsMenu } from "@/src/components/organisms/shared/PatientActionsMenu";
 import { AppointmentBanner } from "@/src/components/molecules/AppointmentBanner";
 import { DateRangePicker } from "@/src/components/molecules/DateRangePicker";
+import { TaskDashboardSidebar } from "@/src/components/organisms/shared/TaskDashboardSidebar";
 
 const MOCK_FOLLOWUPS = [
   { id: "apt-ramesh-ckd", name: "Ramesh Kumar", gender: "M", age: 76, contact: "+91-9876012345", pid: "P80290101", lastVisit: "2025-12-04", followUpDate: "2026-01-04", status: "Overdue" },
@@ -65,9 +66,17 @@ const FOLLOW_UP_ACTIONS = ["view", "send-reminder"];
 
 export function FollowUpsPage() {
   const router = useRouter();
-  const [activeRailItem, setActiveRailItem] = useState("follow-ups");
+  const [activeRailItem, _setRail] = useState(() => {
+    try { return sessionStorage.getItem("tp-dashboard-rail") || "follow-ups"; }
+    catch { return "follow-ups"; }
+  });
+  const setActiveRailItem = (id) => {
+    _setRail(id);
+    try { sessionStorage.setItem("tp-dashboard-rail", id); } catch {}
+  };
   const [query, setQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("till-date");
+  const [taskSidebar, setTaskSidebar] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -122,7 +131,7 @@ export function FollowUpsPage() {
 
   return (
     <div className="min-h-screen bg-tp-slate-100 font-sans text-tp-slate-900">
-      <AppTopHeader />
+      <AppTopHeader onNotificationClick={() => setTaskSidebar(true)} />
 
       <div className="flex h-[calc(100vh-62px)]">
         <aside className="hidden h-full shrink-0 md:block">
@@ -314,6 +323,8 @@ export function FollowUpsPage() {
           </div>
         </main>
       </div>
+
+      <TaskDashboardSidebar open={taskSidebar} onClose={() => setTaskSidebar(false)} />
     </div>
   );
 }

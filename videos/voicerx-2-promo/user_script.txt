@@ -1,0 +1,15 @@
+Meet the older VoiceRx — a live transcript, structured clinical notes, but the whole consultation lived inside one mic.
+
+Introducing VoiceRx 2.0.
+
+Every module has its own mic — symptoms, examinations, diagnosis — tap, speak, and watch the structured fields fill themselves in.
+
+The full RxPad sits beside you. Past visits, history, and the live conversation — all on one canvas.
+
+Capture the conversation, then copy into the exact fields you need, or edit them right there by voice.
+
+Double-tap Shift for the VoiceBar — a global Whisper-style dictation strip that drops text into any input, anywhere in the app.
+
+Less clicking. Less switching. More time with the patient.
+
+VoiceRx 2.0 — the new way to do a visit.

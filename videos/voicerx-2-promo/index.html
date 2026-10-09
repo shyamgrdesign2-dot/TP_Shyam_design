@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,500;0,600;0,700;0,800;0,900;1,500;1,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 1920px; height: 1080px; overflow: hidden;
+      background: #F8F6F1;
+      font-family: "Inter", -apple-system, sans-serif;
+      color: #0F172A; -webkit-font-smoothing: antialiased;
+    }
+    :root {
+      --bg: #F8F6F1;
+      --ink: #0F172A; --ink-2: #1E293B;
+      --slate-400: #94A3B8; --slate-500: #64748B; --slate-700: #334155;
+      --line: #E2E8F0;
+      --tp-blue: #4B4AD5;
+      --ai-pink: #D565EA; --ai-violet: #673AAC; --ai-indigo: #1A1994;
+    }
+    #root { position: relative; width: 1920px; height: 1080px; }
+    .scene { position: absolute; inset: 0; opacity: 0; }
+    .display { font-family: "Mulish", sans-serif; letter-spacing: -0.02em; }
+    .mono { font-family: "JetBrains Mono", monospace; }
+
+    /* ════════════════════════ Scene 1 — Slam + Stamp opener ════════════════════════ */
+    .s1-wrap {
+      position: absolute; left: 50%; top: 38%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    .s1-row {
+      display: flex; gap: 36px; justify-content: center; align-items: baseline;
+      font: 800 220px/0.95 "Mulish", sans-serif;
+      letter-spacing: -0.05em;
+    }
+    .s1-stop, .s1-typing {
+      display: inline-block;
+      color: var(--slate-500);
+    }
+    .s1-typing { position: relative; }
+    .s1-strike {
+      position: absolute; left: -4%; right: -4%; top: 50%; height: 22px;
+      background: var(--ai-pink); border-radius: 4px;
+      transform: scaleX(0); transform-origin: left center;
+    }
+
+    .s1-stamp {
+      position: absolute; left: 50%; top: 68%;
+      transform: translateX(-50%);
+      display: flex; gap: 28px; justify-content: center;
+      font: 900 160px/1 "Mulish", sans-serif;
+      letter-spacing: -0.04em;
+    }
+    .s1-stamp .word {
+      display: inline-block; opacity: 0;
+      transform: scale(2.2) rotate(-6deg);
+      background: linear-gradient(135deg, #D565EA, #673AAC);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
+    }
+    .s1-stamp .word.dot {
+      background: var(--ai-pink);
+      -webkit-text-fill-color: transparent;
+      -webkit-background-clip: text; background-clip: text;
+    }
+
+    /* ════════════════════════ Walkthrough stage (scenes 2-8) ════════════════════════ */
+    .stage {
+      position: absolute; inset: 0;
+      overflow: hidden;
+    }
+    .stage .canvas-blur, .stage .canvas-sharp {
+      position: absolute; left: 50%; top: 50%;
+      width: 1900px; height: 1100px;
+      transform: translate(-50%, -50%);
+      object-fit: cover;
+    }
+    .stage .canvas-blur {
+      filter: blur(14px) brightness(0.78) saturate(0.85);
+    }
+    /* Spotlight reveal: sharp canvas only visible inside a circle */
+    .stage .canvas-sharp {
+      --mx: 50%; --my: 50%; --r: 240px;
+      mask-image: radial-gradient(circle var(--r) at var(--mx) var(--my), black 75%, transparent 100%);
+      -webkit-mask-image: radial-gradient(circle var(--r) at var(--mx) var(--my), black 75%, transparent 100%);
+      filter: brightness(1.04) saturate(1.05);
+    }
+    .spotlight-ring {
+      position: absolute;
+      width: 480px; height: 480px; border-radius: 50%;
+      border: 2px solid rgba(213,101,234,0.55);
+      box-shadow: 0 0 0 6px rgba(213,101,234,0.10), 0 0 60px rgba(213,101,234,0.35);
+      pointer-events: none; opacity: 0;
+    }
+    .cursor {
+      position: absolute; width: 32px; height: 32px;
+      background: var(--tp-blue); border-radius: 50%;
+      box-shadow: 0 0 0 6px rgba(75,74,213,0.20), 0 0 24px rgba(75,74,213,0.55);
+      pointer-events: none; opacity: 0; z-index: 5;
+    }
+    .cursor::after {
+      content: ""; position: absolute; left: 50%; top: 50%;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #fff; transform: translate(-50%,-50%);
+    }
+
+    /* Callout card */
+    .callout {
+      position: absolute; padding: 18px 24px;
+      background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      max-width: 380px; opacity: 0;
+      box-shadow: 0 28px 60px rgba(15,23,42,0.18);
+      z-index: 4;
+    }
+    .callout .step {
+      display: inline-block; margin-bottom: 8px;
+      font: 700 11px/1 "JetBrains Mono", monospace;
+      letter-spacing: 0.3em; text-transform: uppercase;
+      color: var(--ai-violet);
+      padding: 4px 8px; background: rgba(103,58,172,0.10); border-radius: 4px;
+    }
+    .callout .title {
+      font: 700 24px/1.2 "Mulish", sans-serif;
+      color: var(--ink); margin-bottom: 6px; letter-spacing: -0.01em;
+    }
+    .callout .sub {
+      font: 500 16px/1.45 "Inter", sans-serif;
+      color: var(--slate-500);
+    }
+    /* Connector line from callout to spotlight */
+    .connector {
+      position: absolute; width: 60px; height: 2px;
+      background: linear-gradient(90deg, var(--ai-pink), transparent);
+      opacity: 0;
+    }
+
+    /* Brand bug */
+    .brand-bug { position: absolute; top: 56px; left: 64px; height: 28px; opacity: 0; z-index: 10; }
+
+    /* ════════════════════════ Scene 9 — Outro ════════════════════════ */
+    .s9-eyebrow {
+      font: 700 18px/1 "JetBrains Mono", monospace;
+      letter-spacing: 0.4em; color: var(--slate-500);
+      text-transform: uppercase; text-align: center; opacity: 0;
+    }
+    .s9-title {
+      margin-top: 28px;
+      font: 800 280px/0.92 "Mulish", sans-serif; letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #D565EA 0%, #673AAC 50%, #1A1994 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      text-align: center;
+    }
+    .s9-tag {
+      margin-top: 28px;
+      font: 500 38px/1 "Mulish", sans-serif;
+      color: var(--slate-500); text-align: center; opacity: 0;
+    }
+    .s9-by {
+      margin-top: 48px;
+      font: 700 16px/1 "JetBrains Mono", monospace;
+      letter-spacing: 0.4em; color: var(--slate-500);
+      text-transform: uppercase; text-align: center; opacity: 0;
+    }
+    .s9-logo { display: block; margin: 22px auto 0; height: 80px; opacity: 0; }
+  </style>
+</head>
+<body>
+  <div id="root" data-composition-id="main" data-start="0" data-duration="60" data-width="1920" data-height="1080">
+
+  <audio class="clip" id="music" src="./assets/v5/music.mp3"
+         data-start="0" data-duration="60" data-track-index="20"></audio>
+
+  <img class="brand-bug clip" id="brand-bug" src="./assets/tatva-logo.png" alt=""
+       data-start="0.5" data-duration="55" data-track-index="0" />
+
+  <!-- ════════════════════════ Scene 1 — Slam + Stamp (0 → 4.37) ════════════════════════ -->
+  <div class="scene clip" id="s1" data-start="0" data-duration="4.37" data-track-index="1"
+       data-layout-allow-overlap="true">
+    <div class="s1-wrap">
+      <div class="s1-row">
+        <span class="s1-stop" id="s1-stop">Stop</span>
+        <span class="s1-typing" id="s1-typing">typing<span class="s1-strike" id="s1-strike"></span></span>
+      </div>
+    </div>
+    <div class="s1-stamp" id="s1-stamp">
+      <span class="word" id="s1-w1">Just</span>
+      <span class="word" id="s1-w2">speak</span>
+      <span class="word dot" id="s1-w3">.</span>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ Scene 2 — Walkthrough: Open VoiceRx (4.37 → 11.01) ════════════════════════ -->
+  <div class="scene clip" id="s2" data-start="4.37" data-duration="6.64" data-track-index="1">
+    <div class="stage">
+      <img class="canvas-blur" src="./capture/livedemo/08-full-canvas.png" alt="" />
+      <img class="canvas-sharp" id="s2-sharp" src="./capture/livedemo/08-full-canvas.png" alt="" />
+      <div class="spotlight-ring" id="s2-ring"></div>
+      <div class="cursor" id="s2-cursor"></div>
+      <div class="callout" id="s2-callout">
+        <span class="step">STEP 01</span>
+        <div class="title">Open VoiceRx</div>
+        <div class="sub">One panel sits inside your EMR — patient context already loaded.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ Scene 3 — Walkthrough: Pick mode + speak (11.01 → 22.45) ════════════════════════ -->
+  <div class="scene clip" id="s3" data-start="11.01" data-duration="11.44" data-track-index="1">
+    <div class="stage">
+      <img class="canvas-blur" id="s3-blur" src="./capture/livedemo/02-active-agent-live.png" alt="" />
+      <img class="canvas-sharp" id="s3-sharp" src="./capture/livedemo/02-active-agent-live.png" alt="" />
+      <div class="spotlight-ring" id="s3-ring"></div>
+      <div class="cursor" id="s3-cursor"></div>
+      <div class="callout" id="s3-callout">
+        <span class="step">STEP 02 · LIVE</span>
+        <div class="title">Speak naturally</div>
+        <div class="sub">The Siri wave reacts in real-time. Every word lands as text — medical terms recognized.</div>
+      </div>
+      <div class="callout" id="s3-callout2" style="opacity:0;">
+        <span class="step">SECURE · CLINICAL</span>
+        <div class="title">Captured in the visit</div>
+        <div class="sub">Nothing leaves the room. The visit context stays with the patient.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ Scene 4 — Walkthrough: Submit + processing (22.45 → 30.07) ════════════════════════ -->
+  <div class="scene clip" id="s4" data-start="22.45" data-duration="7.62" data-track-index="1">
+    <div class="stage">
+      <img class="canvas-blur" src="./capture/livedemo/02-active-agent-live.png" alt="" />
+      <img class="canvas-sharp" id="s4-sharp" src="./capture/livedemo/02-active-agent-live.png" alt="" />
+      <div class="spotlight-ring" id="s4-ring"></div>
+      <div class="cursor" id="s4-cursor"></div>
+      <div class="callout" id="s4-callout">
+        <span class="step">STEP 03 · SUBMIT</span>
+        <div class="title">One tap to process</div>
+        <div class="sub">AI cleans the transcript, structures it, and prepares your Rx.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ Scene 5 — Walkthrough: Clinical notes (30.07 → 37.69) ════════════════════════ -->
+  <div class="scene clip" id="s5" data-start="30.07" data-duration="7.62" data-track-index="1">
+    <div class="stage">
+      <img class="canvas-blur" src="./capture/livedemo/04-clinical-notes.png" alt="" />
+      <img class="canvas-sharp" id="s5-sharp" src="./capture/livedemo/04-clinical-notes.png" alt="" />
+      <div class="spotlight-ring" id="s5-ring"></div>
+      <div class="cursor" id="s5-cursor"></div>
+      <div class="callout" id="s5-callout">
+        <span class="step">STEP 04 · STRUCTURED</span>
+        <div class="title">Clinical notes — ready</div>
+        <div class="sub">Symptoms, examinations, diagnosis, medications, labs, vitals — every section organized.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ Scene 6 — Walkthrough: Per-module mic (37.69 → 44.37) ════════════════════════ -->
+  <div class="scene clip" id="s6" data-start="37.69" data-duration="6.68" data-track-index="1">
+    <div class="stage">
+      <img class="canvas-blur" src="./capture/livedemo/06-medication-mic-active.png" alt="" />
+      <img class="canvas-sharp" id="s6-sharp" src="./capture/livedemo/06-medication-mic-active.png" alt="" />
+      <div class="spotlight-ring" id="s6-ring"></div>
+      <div class="cursor" id="s6-cursor"></div>
+      <div class="callout" id="s6-callout">
+        <span class="step">PER-MODULE</span>
+        <div class="title">Edit just one section</div>
+        <div class="sub">Tap any module's mic — only that section fills from your dictation.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ Scene 7 — Walkthrough: Copy to RxPad (44.37 → 50.09) ════════════════════════ -->
+  <div class="scene clip" id="s7" data-start="44.37" data-duration="5.72" data-track-index="1">
+    <div class="stage">
+      <img class="canvas-blur" src="./capture/livedemo/04-clinical-notes.png" alt="" />
+      <img class="canvas-sharp" id="s7-sharp" src="./capture/livedemo/04-clinical-notes.png" alt="" />
+      <div class="spotlight-ring" id="s7-ring"></div>
+      <div class="cursor" id="s7-cursor"></div>
+      <div class="callout" id="s7-callout">
+        <span class="step">FINAL · COPY</span>
+        <div class="title">Drop into the Rx</div>
+        <div class="sub">One tap pushes every section into your prescription form. Done.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ Scene 8 — Wide ecosystem reveal (50.09 → 56.72) ════════════════════════ -->
+  <div class="scene clip" id="s8" data-start="50.09" data-duration="6.63" data-track-index="1">
+    <div class="stage">
+      <img class="canvas-blur" src="./capture/livedemo/08-full-canvas.png" alt="" id="s8-blur" />
+      <img class="canvas-sharp" id="s8-sharp" src="./capture/livedemo/08-full-canvas.png" alt=""
+           style="--mx: 50%; --my: 50%; --r: 1800px;" />
+      <div class="callout" id="s8-callout"
+           style="left: 60px; top: 60px; max-width: 460px;">
+        <span class="step">VOICERX · IN YOUR EMR</span>
+        <div class="title">Your whole visit — one panel</div>
+        <div class="sub">Past visits · live transcript · per-module mic · ready-to-paste Rx — never leave the chart.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ Scene 9 — Outro (56.73 → 60) ════════════════════════ -->
+  <div class="scene clip" id="s9" data-start="56.73" data-duration="3.27" data-track-index="1"
+       data-layout-allow-overlap="true">
+    <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); text-align:center;">
+      <div class="s9-eyebrow" id="s9-eye">SPEAK · THE VISIT</div>
+      <div class="display s9-title" id="s9-title">VoiceRx</div>
+      <div class="s9-tag" id="s9-tag">don't type. just speak.</div>
+      <div class="s9-by" id="s9-by">A PRODUCT BY</div>
+      <img class="s9-logo" id="s9-logo" src="./assets/tatva-logo.png" alt="TatvaPractice" />
+    </div>
+  </div>
+
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["main"] = tl;
+
+    // Helpers
+    function blurIn(sel, t, dur) {
+      dur = dur || 0.5;
+      tl.fromTo(sel,
+        { opacity: 0, filter: "blur(14px)", y: 14 },
+        { opacity: 1, filter: "blur(0px)", y: 0, duration: dur, ease: "power3.out" }, t);
+    }
+    // Move cursor + spotlight together
+    function moveSpot(cursorSel, ringSel, sharpSel, calloutSel, t, x, y, callX, callY, calloutShownT) {
+      tl.set(cursorSel, { left: x, top: y, opacity: 1 }, t);
+      tl.set(ringSel, { left: x - 240, top: y - 240, opacity: 0 }, t);
+      tl.set(sharpSel, { "--mx": x + "px", "--my": y + "px" }, t);
+      tl.to(ringSel, { opacity: 1, duration: 0.4 }, t + 0.05);
+      tl.set(calloutSel, { left: callX, top: callY }, t);
+      if (calloutShownT !== undefined) {
+        tl.fromTo(calloutSel,
+          { opacity: 0, y: 16, scale: 0.95 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.4)" }, calloutShownT);
+      }
+    }
+    function moveSpotTo(cursorSel, ringSel, sharpSel, t, x, y, dur) {
+      dur = dur || 0.9;
+      tl.to(cursorSel, { left: x, top: y, duration: dur, ease: "power2.inOut" }, t);
+      tl.to(ringSel, { left: x - 240, top: y - 240, duration: dur, ease: "power2.inOut" }, t);
+      tl.to(sharpSel, { "--mx": x + "px", "--my": y + "px", duration: dur, ease: "power2.inOut" }, t);
+    }
+    function clickPulse(cursorSel, ringSel, t) {
+      tl.to(cursorSel, { scale: 0.7, duration: 0.10 }, t);
+      tl.to(cursorSel, { scale: 1, duration: 0.16, ease: "back.out(1.6)" }, t + 0.10);
+      tl.to(ringSel, { scale: 1.18, duration: 0.5, ease: "power2.out" }, t);
+      tl.to(ringSel, { scale: 1, duration: 0.3 }, t + 0.5);
+    }
+
+    // ─── Brand bug ───
+    tl.fromTo("#brand-bug", { opacity: 0 }, { opacity: 0.55, duration: 0.4 }, 0.5);
+    tl.to("#brand-bug", { opacity: 0, duration: 0.3 }, 56.0);
+
+    // ════════════════════ Scene 1 (0–4.37) — Slam + Stamp ════════════════════
+    tl.set("#s1", { opacity: 1 }, 0);
+    // "Stop" from left, "typing" from right, slam together
+    tl.fromTo("#s1-stop",
+      { x: -800, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.55, ease: "power4.out" }, 0.10);
+    tl.fromTo("#s1-typing",
+      { x: 800, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.55, ease: "power4.out" }, 0.10);
+    // Tiny slam-pulse on impact
+    tl.to(["#s1-stop", "#s1-typing"], { scale: 0.96, duration: 0.08, ease: "power2.in" }, 0.65);
+    tl.to(["#s1-stop", "#s1-typing"], { scale: 1, duration: 0.18, ease: "back.out(2)" }, 0.73);
+    // Strike-through after slam (onset 0.42)
+    tl.to("#s1-strike", { scaleX: 1, duration: 0.5, ease: "power3.inOut" }, 1.10);
+    // "Just" "speak" "." stamp word-by-word with overshoot + rotate-settle (onsets 2.23, 3.39)
+    tl.to("#s1-w1",
+      { opacity: 1, scale: 1, rotation: 0, duration: 0.28, ease: "back.out(2.2)" }, 1.80);
+    tl.to("#s1-w2",
+      { opacity: 1, scale: 1, rotation: 0, duration: 0.28, ease: "back.out(2.2)" }, 2.23);
+    tl.to("#s1-w3",
+      { opacity: 1, scale: 1, rotation: 0, duration: 0.28, ease: "back.out(2.2)" }, 2.66);
+    // Beat pulse at 3.39
+    tl.to(["#s1-w1", "#s1-w2", "#s1-w3"], { scale: 1.06, duration: 0.10 }, 3.39);
+    tl.to(["#s1-w1", "#s1-w2", "#s1-w3"], { scale: 1, duration: 0.18, ease: "power2.out" }, 3.49);
+    tl.to("#s1", { opacity: 0, duration: 0.30 }, 4.07);
+
+    // ════════════════════ Scene 2 (4.37–11.01) — Open VoiceRx ════════════════════
+    tl.set("#s2", { opacity: 1 }, 4.37);
+    // Spotlight starts at VoiceRx label position (top-right area of 1920x1080 frame)
+    moveSpot("#s2-cursor", "#s2-ring", "#s2-sharp", "#s2-callout",
+             4.37, 1380, 280, 900, 380, 5.0);
+    // Cursor moves from above to VoiceRx button
+    tl.fromTo("#s2-cursor", { left: 1380, top: 80, opacity: 0 },
+      { left: 1380, top: 280, opacity: 1, duration: 0.6, ease: "power2.out" }, 4.6);
+    // Click pulse on onset 6.04
+    clickPulse("#s2-cursor", "#s2-ring", 6.04);
+    // Pan over to mode sheet position (lower center)
+    moveSpotTo("#s2-cursor", "#s2-ring", "#s2-sharp", 7.20, 960, 700, 1.2);
+    // Sub-callout: panel opens
+    tl.to("#s2-callout", { opacity: 0, duration: 0.3 }, 9.85);
+    tl.to("#s2", { opacity: 0, duration: 0.3 }, 10.71);
+
+    // ════════════════════ Scene 3 (11.01–22.45) — Speak (HERO) ════════════════════
+    tl.set("#s3", { opacity: 1 }, 11.01);
+    // Hero zoom on Siri wave (bottom of active-agent shot, ~y=870)
+    moveSpot("#s3-cursor", "#s3-ring", "#s3-sharp", "#s3-callout",
+             11.01, 960, 880, 1320, 760, 11.6);
+    tl.fromTo("#s3-cursor",
+      { left: 960, top: 600, opacity: 0 },
+      { left: 960, top: 880, opacity: 1, duration: 0.8, ease: "power2.out" }, 11.2);
+    // Spotlight ring pulses with the Siri wave
+    tl.to("#s3-ring", { scale: 1.10, duration: 0.6, ease: "power2.inOut", repeat: 6, yoyo: true }, 12.0);
+    // Pan up to live transcript area, swap callout
+    moveSpotTo("#s3-cursor", "#s3-ring", "#s3-sharp", 14.81, 960, 480, 1.4);
+    tl.to("#s3-callout", { opacity: 0, duration: 0.3 }, 15.5);
+    tl.set("#s3-callout2", { left: 1320, top: 380 }, 15.8);
+    tl.fromTo("#s3-callout2",
+      { opacity: 0, y: 16, scale: 0.95 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.4)" }, 15.9);
+    // Hold on transcript, beat pulse at 21.27
+    tl.to("#s3-ring", { scale: 1.05, duration: 0.10 }, 21.27);
+    tl.to("#s3-ring", { scale: 1, duration: 0.18, ease: "power2.out" }, 21.37);
+    tl.to(["#s3-callout2", "#s3-ring", "#s3-cursor"], { opacity: 0, duration: 0.3 }, 22.0);
+    tl.to("#s3", { opacity: 0, duration: 0.3 }, 22.15);
+
+    // ════════════════════ Scene 4 (22.45–30.07) — Submit ════════════════════
+    tl.set("#s4", { opacity: 1 }, 22.45);
+    // Spotlight on Submit button (bottom-right of active-agent shot)
+    moveSpot("#s4-cursor", "#s4-ring", "#s4-sharp", "#s4-callout",
+             22.45, 1160, 920, 1380, 820, 23.0);
+    tl.fromTo("#s4-cursor",
+      { left: 1160, top: 600, opacity: 0 },
+      { left: 1160, top: 920, opacity: 1, duration: 1.0, ease: "power2.out" }, 22.6);
+    // Click pulse at onset 25.08
+    clickPulse("#s4-cursor", "#s4-ring", 25.08);
+    // Beat pulse at 26.26
+    tl.to("#s4-ring", { scale: 1.15, duration: 0.10 }, 26.26);
+    tl.to("#s4-ring", { scale: 1, duration: 0.20, ease: "power2.out" }, 26.36);
+    tl.to(["#s4-callout", "#s4-ring", "#s4-cursor"], { opacity: 0, duration: 0.3 }, 29.5);
+    tl.to("#s4", { opacity: 0, duration: 0.3 }, 29.77);
+
+    // ════════════════════ Scene 5 (30.07–37.69) — Clinical notes ════════════════════
+    tl.set("#s5", { opacity: 1 }, 30.07);
+    // Spotlight on Symptoms section near top (onset 30.91)
+    moveSpot("#s5-cursor", "#s5-ring", "#s5-sharp", "#s5-callout",
+             30.07, 960, 380, 1380, 280, 30.91);
+    tl.fromTo("#s5-cursor",
+      { left: 960, top: 100, opacity: 0 },
+      { left: 960, top: 380, opacity: 1, duration: 0.7, ease: "power2.out" }, 30.2);
+    // Pan down through medications + labs (onsets 32.95, 33.88)
+    moveSpotTo("#s5-cursor", "#s5-ring", "#s5-sharp", 32.95, 960, 620, 1.0);
+    moveSpotTo("#s5-cursor", "#s5-ring", "#s5-sharp", 33.88, 960, 820, 0.9);
+    tl.to(["#s5-callout", "#s5-ring", "#s5-cursor"], { opacity: 0, duration: 0.3 }, 37.0);
+    tl.to("#s5", { opacity: 0, duration: 0.3 }, 37.39);
+
+    // ════════════════════ Scene 6 (37.69–44.37) — Per-module mic ════════════════════
+    tl.set("#s6", { opacity: 1 }, 37.69);
+    // Spotlight on the mic indicator (right side of medication module shot)
+    moveSpot("#s6-cursor", "#s6-ring", "#s6-sharp", "#s6-callout",
+             37.69, 1380, 540, 600, 440, 38.6);
+    tl.fromTo("#s6-cursor",
+      { left: 1380, top: 200, opacity: 0 },
+      { left: 1380, top: 540, opacity: 1, duration: 0.8, ease: "power2.out" }, 37.85);
+    clickPulse("#s6-cursor", "#s6-ring", 40.57);
+    // Beat pulse at 41.49
+    tl.to("#s6-ring", { scale: 1.12, duration: 0.10 }, 41.49);
+    tl.to("#s6-ring", { scale: 1, duration: 0.18, ease: "power2.out" }, 41.59);
+    tl.to(["#s6-callout", "#s6-ring", "#s6-cursor"], { opacity: 0, duration: 0.3 }, 43.8);
+    tl.to("#s6", { opacity: 0, duration: 0.3 }, 44.07);
+
+    // ════════════════════ Scene 7 (44.37–50.09) — Copy to Rx ════════════════════
+    tl.set("#s7", { opacity: 1 }, 44.37);
+    // Spotlight on "Copy all to RxPad" button (bottom of clinical-notes shot)
+    moveSpot("#s7-cursor", "#s7-ring", "#s7-sharp", "#s7-callout",
+             44.37, 960, 920, 1380, 820, 45.30);
+    tl.fromTo("#s7-cursor",
+      { left: 960, top: 600, opacity: 0 },
+      { left: 960, top: 920, opacity: 1, duration: 0.9, ease: "power2.out" }, 44.5);
+    clickPulse("#s7-cursor", "#s7-ring", 48.18);
+    tl.to(["#s7-callout", "#s7-ring", "#s7-cursor"], { opacity: 0, duration: 0.3 }, 49.5);
+    tl.to("#s7", { opacity: 0, duration: 0.3 }, 49.79);
+
+    // ════════════════════ Scene 8 (50.09–56.72) — EMR ecosystem wide ════════════════════
+    tl.set("#s8", { opacity: 1 }, 50.09);
+    // Sharp full-canvas (no spotlight blur — opens up the view)
+    tl.fromTo("#s8-blur",
+      { opacity: 1 },
+      { opacity: 0.45, duration: 0.8, ease: "power2.inOut" }, 50.2);
+    tl.fromTo("#s8-sharp",
+      { scale: 1.08 },
+      { scale: 1, duration: 4.0, ease: "power1.inOut" }, 50.4);
+    tl.set("#s8-callout", {}, 50.09);
+    tl.fromTo("#s8-callout",
+      { opacity: 0, x: -30 },
+      { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, 51.53);
+    // Beat at 52.92
+    tl.to("#s8-callout", { scale: 1.03, duration: 0.10 }, 52.92);
+    tl.to("#s8-callout", { scale: 1, duration: 0.18, ease: "power2.out" }, 53.02);
+    tl.to("#s8", { opacity: 0, duration: 0.3 }, 56.43);
+
+    // ════════════════════ Scene 9 (56.73–60) — Outro ════════════════════
+    tl.set("#s9", { opacity: 1 }, 56.73);
+    blurIn("#s9-eye", 56.83, 0.35);
+    tl.fromTo("#s9-title",
+      { opacity: 0, scale: 1.25, filter: "blur(20px)" },
+      { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.7, ease: "power3.out" }, 57.05);
+    blurIn("#s9-tag", 57.85, 0.4);
+    tl.to("#s9-by", { opacity: 1, duration: 0.35 }, 58.4);
+    tl.to("#s9-logo", { opacity: 0.95, duration: 0.4 }, 58.7);
+    tl.to({}, { duration: 0.5 }, 59.5);
+  </script>
+
+  </div>
+</body>
+</html>

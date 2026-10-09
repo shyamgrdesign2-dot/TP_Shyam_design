@@ -188,6 +188,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
   // Read + cleared in each recorder's onSubmit handler so we know whether the
   // upcoming handleVoiceSubmit call was triggered by the recording-cap timer.
   const voiceAutoSubmittedRef = useRef(false);
+  // Anchor for the Quick-Dictation coach mark — fires on first focus of the
+  // Additional Notes textarea, persisted across sessions.
+  const additionalNotesRef = useRef(null);
 
   const handleVoiceSubmit = useCallback((moduleId, _transcript, autoSubmitted = false) => {
     // Module-specific mock transcripts — shown in the shiner processing
@@ -1465,47 +1468,28 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
       {/* Default order: Additional Notes first, Follow-up second.
            The doctor can reorder these in Customise settings. */}
       <div className="grid grid-cols-1 gap-4">
-        {/* Additional Notes — always above Follow-up by default */}
+        {/* Additional Notes — always above Follow-up by default.
+             The per-module mic recorder was retired here: doctors discover
+             dictation via the Quick-Dictation indicator (bottom-center) +
+             the coach mark that fires on first focus of this textarea. */}
         <TPRxPadSection
           title="Additional Notes"
           icon={<Notepad2 size={24} variant="Bulk" color="var(--tp-violet-500)" />}
           showHeaderActions
           moduleId="additionalNotes"
-          onVoiceClick={() => handleVoiceToggle("additionalNotes")}
-          voiceActive={voiceModuleId === "additionalNotes"}
           onTemplateClick={additionalNotesTemplateHandlers.onTemplateClick}
           onSaveClick={additionalNotesTemplateHandlers.onSaveClick}
           saveDisabled={!additionalNotesHasContent}
           onClearClick={() => setAdditionalNotes("")}
           clearDisabled={!additionalNotesHasContent}>
 
-          {voiceModuleId === "additionalNotes" ?
-            <VoiceRxModuleRecorder
-              sectionLabel="Additional Notes"
-              onCancel={() => setVoiceModuleId(null)}
-              onAutoSubmit={() => { voiceAutoSubmittedRef.current = true; }}
-              onSubmit={(transcript) => {
-                const auto = voiceAutoSubmittedRef.current;
-                voiceAutoSubmittedRef.current = false;
-                setVoiceModuleId(null);
-                handleVoiceSubmit("additionalNotes", transcript, auto);
-              }}
-              radiusClassName="rounded-[14px]" /> :
-            null}
-          {voiceModuleProcessing?.moduleId === "additionalNotes" ?
-            <VoiceRxSectionProcessing
-              transcript={voiceModuleProcessing.transcript}
-              sectionLabel="Additional Notes"
-              wasAutoSubmitted={voiceModuleProcessing.wasAutoSubmitted} /> :
-            null}
-          <div className={voiceModuleId === "additionalNotes" || voiceModuleProcessing?.moduleId === "additionalNotes" ? "hidden" : ""}>
-            <textarea
-              value={additionalNotes}
-              onChange={(event) => setAdditionalNotes(event.currentTarget.value)}
-              rows={4}
-              className="w-full rounded-[10px] border border-tp-slate-300 bg-white px-3 py-2 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-400 transition-colors hover:border-tp-slate-400 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20"
-              placeholder="Add patient-specific notes, observations, or counselling points" />
-          </div>
+          <textarea
+            ref={additionalNotesRef}
+            value={additionalNotes}
+            onChange={(event) => setAdditionalNotes(event.currentTarget.value)}
+            rows={4}
+            className="w-full rounded-[10px] border border-tp-slate-300 bg-white px-3 py-2 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-400 transition-colors hover:border-tp-slate-400 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20"
+            placeholder="Add patient-specific notes, observations, or counselling points" />
         </TPRxPadSection>
 
         <TPRxPadSection

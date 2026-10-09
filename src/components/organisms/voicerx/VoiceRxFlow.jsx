@@ -12,6 +12,7 @@ import { FlashSnackbar } from "@/src/components/molecules/FlashSnackbar";
 import { RxPad } from "@/src/components/organisms/rxpad/form/RxPad";
 import { RxCustomiseSidebar } from "@/src/components/organisms/rxpad/RxCustomiseSidebar";
 import { RxPadSyncProvider, useRxPadSync } from "@/src/components/organisms/rxpad/rxpad-sync-context";
+import { VoiceRxIndicator } from "@/src/components/organisms/voice-bar/VoiceRxIndicator";
 import { RX_CONTEXT_OPTIONS } from "@/src/components/organisms/rxpad/dr-agent/constants";
 import { patientHasSymptomCollectorData } from "@/src/components/organisms/rxpad/dr-agent/mock-data";
 import { SecondarySidebar as TPRxPadSecondarySidebar } from "@/src/components/organisms/rxpad/secondary-sidebar/SecondarySidebar";
@@ -579,6 +580,12 @@ function VoiceRxFlowInner() {
       {/* Flash toasts driven by ?flash=<key> — e.g. "visit-started" from
            the appointments screen, "rx-saved" from end-visit. */}
       <FlashSnackbar />
+
+      {/* VoiceRx Quick-Dictation indicator + tooltip + history sidebar.
+           Scoped to this organism, so the pill only appears while the
+           doctor is inside the VoiceRx consultation page. Patient context
+           is forwarded so each history entry can be tagged. */}
+      <VoiceRxIndicator patient={patient ? { id: patient.id, name: patient.label } : null} />
     </TPRxPadShell>);
 
 }

@@ -41,6 +41,7 @@ import { AppointmentBanner } from "@/src/components/molecules/AppointmentBanner"
 import { TutorialPlayIcon } from "@/src/components/atoms/TutorialPlayIcon/TutorialPlayIcon";
 // Dr. Agent imports removed — agent feature retired, only VoiceRx lives in RxPad route.
 import { DateRangePicker } from "@/src/components/molecules/DateRangePicker";
+import { TaskDashboardSidebar } from "@/src/components/organisms/shared/TaskDashboardSidebar";
 
 const REF_LOGO = "/assets/b38df11ad80d11b9c1d530142443a18c2f53d406.png";
 
@@ -503,7 +504,14 @@ const TAB_EMPTY_ICONS = {
 
 export function DrAgentPage() {
   const router = useRouter();
-  const [activeRailItem, setActiveRailItem] = useState(navItems[0].id);
+  const [activeRailItem, _setRail] = useState(() => {
+    try { return sessionStorage.getItem("tp-dashboard-rail") || navItems[0].id; }
+    catch { return navItems[0].id; }
+  });
+  const setActiveRailItem = (id) => {
+    _setRail(id);
+    try { sessionStorage.setItem("tp-dashboard-rail", id); } catch {}
+  };
   const [activeTab, setActiveTab] = useState("queue");
   const [query, setQuery] = useState("");
   const [tabDateFilters, setTabDateFilters] = useState({});
@@ -652,9 +660,11 @@ export function DrAgentPage() {
 
   // Dr. Agent panel state removed — agent feature retired, only VoiceRx lives in RxPad route.
 
+  const [taskSidebar, setTaskSidebar] = useState(false);
+
   return (
     <div className="min-h-screen bg-tp-slate-100 font-sans text-tp-slate-900">
-      <AppTopHeader />
+      <AppTopHeader onNotificationClick={() => setTaskSidebar(true)} />
 
       <div className="flex h-[calc(100vh-62px)]">
         <aside className="hidden h-full shrink-0 md:block">
@@ -1239,6 +1249,8 @@ export function DrAgentPage() {
         onApply={(consult, vtf) => {setSlotConsult(consult);setVtFilter(vtf);setFilterOpen(false);}} />
 
       }
+
+      <TaskDashboardSidebar open={taskSidebar} onClose={() => setTaskSidebar(false)} />
     </div>);
 
 }

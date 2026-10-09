@@ -1,0 +1,177 @@
+/* Quick Dictator tutorial drawer.
+   The sidebar header + shell come from the TP molecules (Sidebar +
+   SidebarHeader); this stylesheet styles only the body — the intro block,
+   the numbered step list, and the footer recap. Even-pixel sizing, tokens
+   via var(--tp-*), 12px card radii. */
+
+.tutorialBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 20px 28px;
+}
+
+/* ── Intro block ────────────────────────────────────────────────────────── */
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0 4px;
+}
+.introEyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--tp-violet-600, #6938EF);
+}
+.introTitle {
+  margin: 0;
+  font-family: Mulish, var(--font-heading, sans-serif);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--tp-slate-900, #0F172A);
+}
+.introCopy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--tp-slate-600, #475569);
+}
+
+/* ── Steps list — left-rail glyph + dotted timeline ─────────────────────── */
+/* Each step renders as: [glyph badge | dotted line down]  [text body].
+   The connector is a vertical dotted segment between consecutive glyphs;
+   it sits inside the step's rail so it hugs the glyph midline. The last
+   step skips its connector. */
+.stepList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;        /* spacing comes from rail padding, so the dotted line is continuous */
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 4px 4px 16px;
+}
+.step:last-child { padding-bottom: 0; }
+
+/* Left rail — glyph centered, connector slot below. */
+.stepRail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: stretch;
+  min-height: 100%;
+}
+.stepGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--tp-violet-600, #6938EF) 0%, var(--tp-indigo-600, #4338CA) 100%);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 6px 14px -6px rgba(105, 56, 239, 0.45);
+  font-family: "JetBrains Mono", "SF Mono", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.stepConnector {
+  flex: 1;
+  width: 2px;
+  min-height: 28px;
+  background-image: linear-gradient(
+    180deg,
+    var(--tp-slate-300, #CBD5E1) 0%,
+    var(--tp-slate-300, #CBD5E1) 50%,
+    transparent 50%,
+    transparent 100%
+  );
+  background-size: 2px 8px;
+  background-repeat: repeat-y;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 4px;
+}
+.stepTitle {
+  margin: 0;
+  font-family: Mulish, var(--font-heading, sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--tp-slate-900, #0F172A);
+}
+.stepCopy {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--tp-slate-600, #475569);
+}
+
+/* Stacked ⇧+⇧ glyph for step 1. */
+.shiftPair {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.kbdLarge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--tp-slate-900, #0F172A);
+  color: #fff;
+  font-family: "JetBrains Mono", "SF Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.kbdPlus {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--tp-slate-500, #64748B);
+}
+
+/* ── Recap footer ──────────────────────────────────────────────────────── */
+.recap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--tp-violet-50, #F4EFFF);
+  border: 1px solid var(--tp-violet-200, #E0D4FF);
+}
+.recapKeys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.recapCopy {
+  font-size: 12.5px;
+  line-height: 1.55;
+  font-weight: 600;
+  color: var(--tp-violet-900, #2A1E5C);
+}

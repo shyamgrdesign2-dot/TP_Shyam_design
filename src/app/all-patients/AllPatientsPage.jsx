@@ -36,6 +36,7 @@ import { PatientActionsMenu } from "@/src/components/organisms/shared/PatientAct
 import { AppointmentBanner } from "@/src/components/molecules/AppointmentBanner";
 import { DateRangePicker } from "@/src/components/molecules/DateRangePicker";
 import { Plus } from "@/src/components/atoms/icons/lucide";
+import { TaskDashboardSidebar } from "@/src/components/organisms/shared/TaskDashboardSidebar";
 
 // Patient ID convention: `P80` prefix + 6-digit suffix (e.g. P80123456).
 const MOCK_PATIENTS = [
@@ -72,12 +73,20 @@ const ALL_PATIENTS_ACTIONS = [
 
 export function AllPatientsPage() {
   const router = useRouter();
-  const [activeRailItem, setActiveRailItem] = useState("all-patients");
+  const [activeRailItem, _setRail] = useState(() => {
+    try { return sessionStorage.getItem("tp-dashboard-rail") || "all-patients"; }
+    catch { return "all-patients"; }
+  });
+  const setActiveRailItem = (id) => {
+    _setRail(id);
+    try { sessionStorage.setItem("tp-dashboard-rail", id); } catch {}
+  };
   const [query, setQuery] = useState("");
   // Default to the "Till Date" preset — every patient up to and
   // including today. Doctor can switch to a tighter window via the
   // picker. Matches the "till-date" id added to DateRangePicker.
   const [dateFilter, setDateFilter] = useState("till-date");
+  const [taskSidebar, setTaskSidebar] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -141,7 +150,7 @@ export function AllPatientsPage() {
 
   return (
     <div className="min-h-screen bg-tp-slate-100 font-sans text-tp-slate-900">
-      <AppTopHeader />
+      <AppTopHeader onNotificationClick={() => setTaskSidebar(true)} />
 
       <div className="flex h-[calc(100vh-62px)]">
         <aside className="hidden h-full shrink-0 md:block">
@@ -388,6 +397,8 @@ export function AllPatientsPage() {
           </div>
         </main>
       </div>
+
+      <TaskDashboardSidebar open={taskSidebar} onClose={() => setTaskSidebar(false)} />
     </div>
   );
 }

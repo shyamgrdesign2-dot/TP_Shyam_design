@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px;
+        overflow: hidden;
+        background: #0F0E1A;
+        font-family: "Inter", sans-serif;
+        color: #fff;
+        -webkit-font-smoothing: antialiased;
+      }
+      :root {
+        --tp-blue-500: #4B4AD5;
+        --tp-slate-700: #475569;
+        --tp-slate-800: #1E293B;
+        --tp-slate-100: #F1F5F9;
+        --ai-pink: #D565EA;
+        --ai-violet: #673AAC;
+        --ai-indigo: #1A1994;
+        --ai-grad: linear-gradient(135deg, #D565EA 0%, #673AAC 50%, #1A1994 100%);
+      }
+      .display { font-family: "Mulish", sans-serif; letter-spacing: -0.02em; }
+      .scene { position: absolute; inset: 0; opacity: 0; }
+      .grad-text {
+        background: linear-gradient(135deg, #D565EA 0%, #673AAC 50%, #1A1994 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .bg-amb {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(60% 50% at 30% 30%, rgba(213,101,234,0.25) 0%, transparent 65%),
+          radial-gradient(60% 60% at 75% 70%, rgba(26,25,148,0.55) 0%, transparent 70%),
+          linear-gradient(180deg, #0B0A18 0%, #14122A 100%);
+      }
+
+      /* ── Scene 1 ── */
+      .s1-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+      .s1-frame {
+        width: 1500px; height: 880px;
+        border-radius: 24px;
+        background-image: url('./assets/screens/08-full-canvas-with-panel.jpg');
+        background-size: cover; background-position: center;
+        filter: saturate(0.35) brightness(0.7) contrast(0.95);
+        box-shadow: 0 40px 80px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.06);
+      }
+      .s1-tint {
+        position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(15,14,26,0.55) 0%, rgba(15,14,26,0.15) 50%, rgba(15,14,26,0.65) 100%);
+        pointer-events: none;
+      }
+      .s1-label {
+        position: absolute;
+        bottom: 110px; left: 50%; transform: translateX(-50%);
+        font-family: "Mulish";
+        font-size: 64px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        text-align: center;
+        color: rgba(255,255,255,0.92);
+      }
+      .s1-label .small {
+        display: block;
+        font-size: 22px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.5);
+        margin-top: 14px;
+      }
+
+      /* ── Scene 2 ── */
+      .s2-stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .s2-eyebrow {
+        font-family: "Inter";
+        font-size: 26px; font-weight: 600;
+        letter-spacing: 0.32em; text-transform: uppercase;
+        color: rgba(255,255,255,0.7);
+        margin-bottom: 36px;
+      }
+      .s2-title {
+        font-family: "Mulish";
+        font-size: 220px; font-weight: 900;
+        letter-spacing: -0.04em; line-height: 0.95;
+        text-align: center;
+      }
+      .s2-title .vox { display: inline-block; }
+      .s2-sub {
+        font-family: "Inter";
+        font-size: 28px; font-weight: 500;
+        color: rgba(255,255,255,0.6);
+        margin-top: 30px;
+        letter-spacing: 0.04em;
+      }
+      .s2-particles { position: absolute; inset: 0; pointer-events: none; }
+      .s2-particle {
+        position: absolute;
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--ai-pink);
+        box-shadow: 0 0 12px var(--ai-pink);
+      }
+
+      /* ── Scene 3 ── */
+      .s3-stage { position: absolute; inset: 0; padding: 80px; }
+      .s3-head {
+        font-family: "Mulish";
+        font-size: 52px; font-weight: 800;
+        letter-spacing: -0.02em;
+        text-align: center;
+        margin-bottom: 60px;
+      }
+      .s3-row { display: flex; gap: 36px; justify-content: center; }
+      .s3-card {
+        width: 520px; height: 600px;
+        border-radius: 24px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        overflow: hidden;
+        display: flex; flex-direction: column;
+        position: relative;
+      }
+      .s3-card-head {
+        padding: 22px 24px;
+        font-family: "Inter";
+        font-size: 22px; font-weight: 700;
+        color: rgba(255,255,255,0.92);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        display: flex; align-items: center; gap: 12px;
+      }
+      .s3-mic-dot {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: var(--ai-grad);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 16px;
+        box-shadow: 0 0 24px rgba(213,101,234,0.5);
+      }
+      .s3-card-body { flex: 1; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+      .s3-row-item {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 14px;
+        background: rgba(255,255,255,0.04);
+        border-radius: 12px;
+        font-family: "Inter";
+        font-size: 18px;
+        color: rgba(255,255,255,0.85);
+        opacity: 0;
+      }
+      .s3-row-item .check {
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        background: var(--ai-grad);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 14px;
+      }
+      .siri-wave {
+        position: absolute;
+        bottom: 18px; left: 50%; transform: translateX(-50%);
+        display: flex; align-items: center; justify-content: center;
+        gap: 4px;
+        height: 32px;
+        width: 80%;
+      }
+      .siri-bar {
+        width: 4px;
+        background: linear-gradient(180deg, var(--ai-pink) 0%, var(--ai-indigo) 100%);
+        border-radius: 4px;
+        height: 6px;
+      }
+
+      /* ── Scene 4 ── */
+      .s4-stage {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        padding: 60px;
+      }
+      .s4-frame {
+        width: 1620px; height: 870px;
+        border-radius: 22px;
+        background-image: url('./assets/screens/08-full-canvas-with-panel.jpg');
+        background-size: cover; background-position: center;
+        box-shadow: 0 40px 90px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.06);
+        position: relative;
+      }
+      .s4-tag {
+        position: absolute;
+        padding: 10px 18px;
+        border-radius: 100px;
+        background: rgba(255,255,255,0.95);
+        color: #1E293B;
+        font-family: "Inter";
+        font-size: 18px; font-weight: 600;
+        display: flex; align-items: center; gap: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        opacity: 0;
+      }
+      .s4-tag::before {
+        content: "";
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        background: var(--ai-violet);
+        box-shadow: 0 0 10px var(--ai-violet);
+      }
+      .s4-title {
+        position: absolute;
+        top: 40px; left: 50%; transform: translateX(-50%);
+        font-family: "Mulish";
+        font-size: 46px; font-weight: 800;
+        letter-spacing: -0.02em;
+        text-align: center;
+      }
+
+      /* ── Scene 5 ── */
+      .s5-stage { position: absolute; inset: 0; padding: 60px; }
+      .s5-head {
+        text-align: center;
+        font-family: "Mulish";
+        font-size: 46px; font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 50px;
+      }
+      .s5-row {
+        display: flex; gap: 40px; justify-content: center; align-items: center;
+        margin-top: 30px;
+      }
+      .s5-card {
+        width: 520px; height: 600px;
+        border-radius: 22px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        overflow: hidden;
+        position: relative;
+      }
+      .s5-card img { width: 100%; height: 100%; object-fit: cover; object-position: top center; opacity: 0.92; }
+      .s5-arrow {
+        font-size: 60px; color: var(--ai-pink); font-weight: 800;
+        text-shadow: 0 0 24px rgba(213,101,234,0.6);
+      }
+      .s5-cap {
+        position: absolute;
+        bottom: 24px; left: 24px; right: 24px;
+        padding: 12px 16px;
+        background: rgba(255,255,255,0.96);
+        color: #1E293B;
+        border-radius: 12px;
+        font-family: "Inter";
+        font-size: 16px; font-weight: 600;
+        text-align: center;
+      }
+
+      /* ── Scene 6 ── */
+      .s6-stage {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        justify-content: center; align-items: center;
+        padding: 60px;
+      }
+      .s6-head {
+        font-family: "Mulish";
+        font-size: 56px; font-weight: 800;
+        letter-spacing: -0.02em;
+        text-align: center;
+        margin-bottom: 40px;
+      }
+      .s6-kbd-row { display: flex; gap: 14px; margin-bottom: 50px; opacity: 0; }
+      .s6-kbd {
+        font-family: "Mulish";
+        font-size: 80px; font-weight: 800;
+        width: 140px; height: 140px;
+        border-radius: 22px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.18);
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
+      }
+      .s6-plus { font-size: 60px; align-self: center; opacity: 0.5; }
+      .s6-bar {
+        width: 1280px; height: 90px;
+        background: rgba(255,255,255,0.96);
+        border-radius: 22px;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        display: flex; align-items: center; gap: 18px;
+        padding: 0 20px;
+        opacity: 0;
+      }
+      .s6-mic {
+        width: 56px; height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(213,101,234,0.18) 0%, rgba(103,58,172,0.28) 100%);
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .s6-mic svg { color: var(--ai-violet); }
+      .s6-wave { display: flex; align-items: center; gap: 3px; width: 180px; height: 40px; }
+      .s6-wave .wbar {
+        width: 3px;
+        background: linear-gradient(180deg, var(--ai-pink) 0%, var(--ai-violet) 60%, var(--ai-indigo) 100%);
+        border-radius: 3px;
+        height: 6px;
+      }
+      .s6-text {
+        flex: 1;
+        font-family: "Inter";
+        font-size: 22px;
+        color: #1E293B;
+        font-weight: 500;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .s6-tick {
+        width: 56px; height: 56px;
+        border-radius: 14px;
+        background: var(--ai-grad);
+        display: inline-flex; align-items: center; justify-content: center;
+        color: #fff;
+        font-size: 30px;
+        box-shadow: 0 6px 18px rgba(103,58,172,0.55);
+      }
+
+      /* ── Scene 7 ── */
+      .s7-stage {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 38px;
+      }
+      .s7-line {
+        font-family: "Mulish";
+        font-size: 120px; font-weight: 900;
+        letter-spacing: -0.03em;
+        opacity: 0;
+        text-align: center; line-height: 1;
+      }
+      .s7-line .accent { color: var(--ai-pink); }
+
+      /* ── Scene 8 ── */
+      .s8-stage {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+      }
+      .s8-wordmark {
+        font-family: "Mulish";
+        font-size: 260px; font-weight: 900;
+        letter-spacing: -0.04em; line-height: 0.9;
+        text-align: center;
+      }
+      .s8-sub {
+        font-family: "Inter";
+        font-size: 36px; font-weight: 500;
+        color: rgba(255,255,255,0.7);
+        margin-top: 36px;
+      }
+      .s8-lockup {
+        position: absolute;
+        bottom: 80px; left: 50%; transform: translateX(-50%);
+        display: flex; align-items: center; gap: 14px;
+        font-family: "Mulish";
+        font-size: 22px; font-weight: 700;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        color: rgba(255,255,255,0.7);
+        opacity: 0;
+      }
+      .s8-lockup .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ai-grad); }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="60"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div class="bg-amb" aria-hidden></div>
+
+      <!-- ─────────── Scene 1: Older VoiceRx (0–7s) ─────────── -->
+      <div id="s1" class="clip scene" data-start="0" data-duration="7" data-track-index="1">
+        <div class="s1-stage">
+          <div class="s1-frame"></div>
+        </div>
+        <div class="s1-tint"></div>
+        <div class="s1-label display">
+          The older VoiceRx<span class="small">One mic. Everything in one place.</span>
+        </div>
+      </div>
+
+      <!-- ─────────── Scene 2: Title (7–11.5s) ─────────── -->
+      <div id="s2" class="clip scene" data-start="7" data-duration="4.5" data-track-index="1">
+        <div class="s2-particles" id="s2p"></div>
+        <div class="s2-stage">
+          <div class="s2-eyebrow" id="s2-eyebrow">INTRODUCING</div>
+          <h1 class="s2-title display">
+            <span class="vox grad-text" id="s2-v">VoiceRx</span><span class="vox grad-text" id="s2-2">&nbsp;2.0</span>
+          </h1>
+          <div class="s2-sub" id="s2-sub">a faster, calmer way to do a visit</div>
+        </div>
+      </div>
+
+      <!-- ─────────── Scene 3: Per-module mics (11.5–20s) ─────────── -->
+      <div id="s3" class="clip scene" data-start="11.5" data-duration="8.5" data-track-index="1">
+        <div class="s3-stage">
+          <h2 class="s3-head display">A <span class="grad-text">mic</span> in every module.</h2>
+          <div class="s3-row">
+            <div class="s3-card" id="s3c-1">
+              <div class="s3-card-head"><span class="s3-mic-dot">🎤</span> Symptoms</div>
+              <div class="s3-card-body">
+                <div class="s3-row-item s3-it"><span class="check">✓</span> Pedal oedema (1 week, mild)</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> Fatigue (2 weeks, moderate)</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> Reduced appetite</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> Headache</div>
+              </div>
+              <div class="siri-wave" data-wave-host></div>
+            </div>
+            <div class="s3-card" id="s3c-2">
+              <div class="s3-card-head"><span class="s3-mic-dot">🎤</span> Examinations</div>
+              <div class="s3-card-body">
+                <div class="s3-row-item s3-it"><span class="check">✓</span> BP 138/86</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> Pulse 84</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> Neuro WNL</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> ENT clear</div>
+              </div>
+              <div class="siri-wave" data-wave-host></div>
+            </div>
+            <div class="s3-card" id="s3c-3">
+              <div class="s3-card-head"><span class="s3-mic-dot">🎤</span> Diagnosis</div>
+              <div class="s3-card-body">
+                <div class="s3-row-item s3-it"><span class="check">✓</span> CKD G5 on PD</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> T2DM</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> HTN, stage 1</div>
+                <div class="s3-row-item s3-it"><span class="check">✓</span> Tension headache</div>
+              </div>
+              <div class="siri-wave" data-wave-host></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────── Scene 4: Side-by-side canvas (20–28s) ─────────── -->
+      <div id="s4" class="clip scene" data-start="20" data-duration="8" data-track-index="1">
+        <div class="s4-stage">
+          <div class="s4-frame">
+            <div class="s4-tag" id="t-past" style="top: 80px; left: 80px;">Past visits</div>
+            <div class="s4-tag" id="t-conv" style="top: 80px; right: 80px;">Live conversation</div>
+            <div class="s4-tag" id="t-rx" style="bottom: 80px; left: 50%; transform: translateX(-50%);">Full RxPad — one canvas</div>
+          </div>
+          <div class="s4-title display" id="s4-title">The <span class="grad-text">full RxPad</span> sits beside you.</div>
+        </div>
+      </div>
+
+      <!-- ─────────── Scene 5: Capture → copy → edit (28–38s) ─────────── -->
+      <div id="s5" class="clip scene" data-start="28" data-duration="10" data-track-index="1">
+        <div class="s5-stage">
+          <h2 class="s5-head display">Capture → <span class="grad-text">copy</span> → edit.</h2>
+          <div class="s5-row">
+            <div class="s5-card" id="s5-a">
+              <img src="./assets/screens/04-conversation-mode-active.jpg" />
+              <div class="s5-cap">Capture the conversation</div>
+            </div>
+            <div class="s5-arrow" id="s5-ar1">→</div>
+            <div class="s5-card" id="s5-b">
+              <img src="./assets/screens/08-full-canvas-with-panel.jpg" />
+              <div class="s5-cap">Copy to RxPad</div>
+            </div>
+            <div class="s5-arrow" id="s5-ar2">→</div>
+            <div class="s5-card" id="s5-c">
+              <img src="./assets/screens/05-sidebar-mic-overlay.jpg" />
+              <div class="s5-cap">Edit by voice</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────── Scene 6: VoiceBar (38–48s) ─────────── -->
+      <div id="s6" class="clip scene" data-start="38" data-duration="10" data-track-index="1">
+        <div class="s6-stage">
+          <h2 class="s6-head display"><span class="grad-text">Double-tap Shift.</span></h2>
+          <div class="s6-kbd-row" id="s6-kbd">
+            <div class="s6-kbd display">⇧</div>
+            <div class="s6-plus">+</div>
+            <div class="s6-kbd display">⇧</div>
+          </div>
+          <div class="s6-bar" id="s6-bar">
+            <div class="s6-mic">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="2" width="6" height="13" rx="3"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <path d="M12 19v3"/>
+              </svg>
+            </div>
+            <div class="s6-wave" id="s6-wave"></div>
+            <div class="s6-text" id="s6-text">Dictate clinical notes anywhere…</div>
+            <div class="s6-tick">✓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────── Scene 7: Outcome (48–55s) ─────────── -->
+      <div id="s7" class="clip scene" data-start="48" data-duration="7" data-track-index="1">
+        <div class="s7-stage">
+          <div class="s7-line display" id="s7-l1">Less <span class="accent">clicking</span>.</div>
+          <div class="s7-line display" id="s7-l2">Less <span class="accent">switching</span>.</div>
+          <div class="s7-line display" id="s7-l3">More <span class="accent">time</span> with the patient.</div>
+        </div>
+      </div>
+
+      <!-- ─────────── Scene 8: End frame (55–60s) ─────────── -->
+      <div id="s8" class="clip scene" data-start="55" data-duration="5" data-track-index="1">
+        <div class="s8-stage">
+          <h1 class="s8-wordmark grad-text display" id="s8-wm">VoiceRx 2.0</h1>
+          <div class="s8-sub display" id="s8-sub">the new way to do a visit.</div>
+          <div class="s8-lockup" id="s8-lock">
+            <span class="dot"></span> TatvaPractice
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── Voiceover (one per scene) ─────────── -->
+    <audio id="vo-1" class="clip" data-start="0"    data-duration="7.62" data-track-index="10" src="./assets/voice/scene_1.wav"></audio>
+    <audio id="vo-2" class="clip" data-start="7.7"  data-duration="2.88" data-track-index="10" src="./assets/voice/scene_2.wav"></audio>
+    <audio id="vo-3" class="clip" data-start="11.5" data-duration="8.51" data-track-index="10" src="./assets/voice/scene_3.wav"></audio>
+    <audio id="vo-4" class="clip" data-start="20.2" data-duration="7.47" data-track-index="10" src="./assets/voice/scene_4.wav"></audio>
+    <audio id="vo-5" class="clip" data-start="28.2" data-duration="6.83" data-track-index="10" src="./assets/voice/scene_5.wav"></audio>
+    <audio id="vo-6" class="clip" data-start="38.2" data-duration="8.51" data-track-index="10" src="./assets/voice/scene_6.wav"></audio>
+    <audio id="vo-7" class="clip" data-start="48.2" data-duration="3.39" data-track-index="10" src="./assets/voice/scene_7.wav"></audio>
+    <audio id="vo-8" class="clip" data-start="55.4" data-duration="3.52" data-track-index="10" src="./assets/voice/scene_8.wav"></audio>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const E = "power3.out";
+
+      // ── Deterministic pseudo-random (LCG, no Math.random) ──
+      // Returns a number in [0, 1) seeded only by an integer index.
+      function prand(i) {
+        let x = ((i + 1) * 2654435761) & 0xffffffff;
+        x = ((x ^ (x >>> 16)) * 0x85ebca6b) & 0xffffffff;
+        x = ((x ^ (x >>> 13)) * 0xc2b2ae35) & 0xffffffff;
+        x = (x ^ (x >>> 16)) >>> 0;
+        return (x % 100000) / 100000;
+      }
+
+      // ── Particles (28, deterministic positions) ──
+      (function particles() {
+        const host = document.getElementById('s2p');
+        const hues = ['#D565EA', '#9C4DDC', '#1A1994'];
+        for (let i = 0; i < 28; i++) {
+          const p = document.createElement('span');
+          p.className = 's2-particle';
+          const x = prand(i * 7 + 11) * 1920;
+          const y = 200 + prand(i * 13 + 5) * 700;
+          p.style.left = x + 'px';
+          p.style.top  = y + 'px';
+          p.style.opacity = 0;
+          const hue = hues[i % 3];
+          p.style.background = hue;
+          p.style.boxShadow = '0 0 14px ' + hue;
+          host.appendChild(p);
+          tl.fromTo(p,
+            { opacity: 0, scale: 0.4 },
+            { opacity: 1, scale: 1.2,
+              duration: 1.2 + prand(i * 19 + 3) * 1.2,
+              ease: "sine.out",
+              repeat: 1, yoyo: true,
+              repeatDelay: prand(i * 23 + 7) * 0.4 },
+            7 + prand(i * 29 + 13) * 1.2);
+        }
+      })();
+
+      // ────────── SCENE 1 (0–7s)
+      tl.set('#s1', { opacity: 0 }, 0)
+        .to('#s1', { opacity: 1, duration: 0.6, ease: E }, 0)
+        .from('#s1 .s1-frame', { scale: 1.08, duration: 6.5, ease: "power1.out" }, 0)
+        .from('#s1 .s1-label', { y: 30, opacity: 0, duration: 0.9, ease: E }, 1.2)
+        .from('#s1 .s1-label .small', { y: 18, opacity: 0, duration: 0.7, ease: E }, 1.8)
+        .to('#s1', { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 6.5)
+        .set('#s1', { opacity: 0 }, 7.0);
+
+      // ────────── SCENE 2 (7–11.5s)
+      tl.set('#s2', { opacity: 1 }, 7)
+        .from('#s2-eyebrow', { y: -14, opacity: 0, duration: 0.5, ease: E }, 7.2)
+        .from('#s2-v',   { y: 60, opacity: 0, duration: 0.9, ease: "power4.out" }, 7.45)
+        .from('#s2-2', { y: 60, opacity: 0, duration: 0.9, ease: "power4.out" }, 7.65)
+        .from('#s2-sub', { y: 14, opacity: 0, duration: 0.6, ease: E }, 8.2)
+        .to('#s2', { opacity: 0, duration: 0.4, ease: "power2.inOut" }, 11.1)
+        .set('#s2', { opacity: 0 }, 11.5);
+
+      // ────────── SCENE 3 (11.5–20s)
+      tl.set('#s3', { opacity: 1 }, 11.5)
+        .from('#s3 .s3-head', { y: 28, opacity: 0, duration: 0.7, ease: E }, 11.7)
+        .from('#s3c-1', { y: 50, opacity: 0, duration: 0.7, ease: E }, 12.0)
+        .from('#s3c-2', { y: 50, opacity: 0, duration: 0.7, ease: E }, 12.2)
+        .from('#s3c-3', { y: 50, opacity: 0, duration: 0.7, ease: E }, 12.4);
+
+      // Siri-wave bars per module card (24 each, deterministic heights via prand seeds)
+      const waveHosts = Array.from(document.querySelectorAll('#s3 [data-wave-host]'));
+      waveHosts.forEach((host, hi) => {
+        for (let i = 0; i < 24; i++) {
+          const bar = document.createElement('span');
+          bar.className = 'siri-bar';
+          host.appendChild(bar);
+        }
+        host.querySelectorAll('.siri-bar').forEach((b, i) => {
+          const seed = hi * 100 + i;
+          const cycle = 0.18 + prand(seed * 5 + 2) * 0.18;
+          // Scene 3 active window ≈ 7s (12.6 → 19.6); finite cycles.
+          const reps = Math.max(1, Math.floor(7 / (cycle * 2)) - 1);
+          tl.to(b, {
+            height: 4 + prand(seed * 3 + 1) * 22 + 'px',
+            duration: cycle,
+            ease: "sine.inOut",
+            repeat: reps, yoyo: true,
+          }, 12.6);
+        });
+      });
+
+      // Cascade row items
+      ['#s3c-1','#s3c-2','#s3c-3'].forEach((card, ci) => {
+        const items = document.querySelectorAll(card + ' .s3-it');
+        items.forEach((it, i) => {
+          tl.to(it, { opacity: 1, duration: 0.45, ease: E }, 13.0 + ci * 1.3 + i * 0.22);
+        });
+      });
+
+      tl.to('#s3', { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 19.5)
+        .set('#s3', { opacity: 0 }, 20.0);
+
+      // ────────── SCENE 4 (20–28s)
+      tl.set('#s4', { opacity: 1 }, 20)
+        .from('#s4-title', { y: -18, opacity: 0, duration: 0.6, ease: E }, 20.1)
+        .from('#s4 .s4-frame', { scale: 1.05, opacity: 0, duration: 0.7, ease: E }, 20.0)
+        .to('#t-past', { opacity: 1, duration: 0.45, ease: E }, 21.0)
+        .from('#t-past', { scale: 0.86, duration: 0.45, ease: E }, 21.0)
+        .to('#t-conv', { opacity: 1, duration: 0.45, ease: E }, 21.7)
+        .from('#t-conv', { scale: 0.86, duration: 0.45, ease: E }, 21.7)
+        .to('#t-rx', { opacity: 1, duration: 0.45, ease: E }, 22.6)
+        .from('#t-rx', { scale: 0.86, duration: 0.45, ease: E }, 22.6)
+        .to('#s4', { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 27.4);
+
+      // ────────── SCENE 5 (28–38s)
+      tl.set('#s5', { opacity: 1 }, 28)
+        .from('#s5 .s5-head', { y: 24, opacity: 0, duration: 0.5, ease: E }, 28.1)
+        .from('#s5-a', { y: 40, opacity: 0, duration: 0.55, ease: E }, 28.5)
+        .from('#s5-ar1', { opacity: 0, x: -20, duration: 0.4 }, 29.0)
+        .from('#s5-b', { y: 40, opacity: 0, duration: 0.55, ease: E }, 29.4)
+        .from('#s5-ar2', { opacity: 0, x: -20, duration: 0.4 }, 29.9)
+        .from('#s5-c', { y: 40, opacity: 0, duration: 0.55, ease: E }, 30.3)
+        .to('#s5-ar1', { scale: 1.25, duration: 0.4, yoyo: true, repeat: 1, ease: "power2.inOut" }, 31.2)
+        .to('#s5-ar2', { scale: 1.25, duration: 0.4, yoyo: true, repeat: 1, ease: "power2.inOut" }, 32.0)
+        .to('#s5', { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 37.4);
+
+      // ────────── SCENE 6 (38–48s)
+      tl.set('#s6', { opacity: 1 }, 38)
+        .from('#s6 .s6-head', { y: 26, opacity: 0, duration: 0.6, ease: E }, 38.1)
+        .to('#s6-kbd', { opacity: 1, duration: 0.4 }, 38.5)
+        .from('#s6-kbd .s6-kbd:nth-child(1)', { y: -20, opacity: 0, duration: 0.45, ease: E }, 38.5)
+        .from('#s6-kbd .s6-kbd:nth-child(3)', { y: -20, opacity: 0, duration: 0.45, ease: E }, 38.9)
+        .to('#s6-kbd .s6-kbd', { scale: 0.94, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.inOut" }, 39.6)
+        .to('#s6-kbd .s6-kbd', { scale: 0.94, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.inOut" }, 40.2)
+        .to('#s6-bar', { opacity: 1, duration: 0.5, ease: E }, 40.7)
+        .from('#s6-bar', { y: 50, duration: 0.5, ease: E }, 40.7);
+
+      // VoiceBar wave bars (26, deterministic)
+      (function makeBarWave() {
+        const host = document.getElementById('s6-wave');
+        for (let i = 0; i < 26; i++) {
+          const b = document.createElement('span');
+          b.className = 'wbar';
+          host.appendChild(b);
+        }
+        host.querySelectorAll('.wbar').forEach((b, i) => {
+          const cycle = 0.18 + prand(i * 7 + 3) * 0.16;
+          // Scene 6 wave active ≈ 6.4s (41.0 → 47.4); finite cycles.
+          const reps = Math.max(1, Math.floor(6.4 / (cycle * 2)) - 1);
+          tl.to(b, {
+            height: 6 + prand(i * 11 + 17) * 30 + 'px',
+            duration: cycle,
+            ease: "sine.inOut",
+            repeat: reps, yoyo: true,
+          }, 41.0);
+        });
+      })();
+
+      // Text cycle inside VoiceBar
+      const samples = [
+        'Dictate clinical notes anywhere…',
+        'Patient reports headache for 3 days…',
+        'BP 138 over 86, pulse 84…',
+        'Order CBC, KFT, electrolytes…',
+      ];
+      samples.forEach((s, i) => {
+        tl.call(() => { document.getElementById('s6-text').textContent = s; }, [], 41.5 + i * 1.4);
+      });
+
+      tl.to('#s6', { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 47.4);
+
+      // ────────── SCENE 7 (48–55s)
+      tl.set('#s7', { opacity: 1 }, 48)
+        .to('#s7-l1', { opacity: 1, duration: 0.5, ease: E }, 48.2)
+        .from('#s7-l1', { y: 26, duration: 0.5, ease: E }, 48.2)
+        .to('#s7-l2', { opacity: 1, duration: 0.5, ease: E }, 50.0)
+        .from('#s7-l2', { y: 26, duration: 0.5, ease: E }, 50.0)
+        .to('#s7-l3', { opacity: 1, duration: 0.5, ease: E }, 51.8)
+        .from('#s7-l3', { y: 26, duration: 0.5, ease: E }, 51.8)
+        .to('#s7', { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 54.5)
+        .set('#s7', { opacity: 0 }, 55.0);
+
+      // ────────── SCENE 8 (55–60s)
+      tl.set('#s8', { opacity: 1 }, 55)
+        .from('#s8-wm', { scale: 0.85, opacity: 0, duration: 0.7, ease: "back.out(1.4)" }, 55.0)
+        .from('#s8-sub', { y: 18, opacity: 0, duration: 0.55, ease: E }, 55.5)
+        .to('#s8-lock', { opacity: 1, duration: 0.5, ease: E }, 56.5)
+        .from('#s8-lock', { y: 10, duration: 0.5, ease: E }, 56.5);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

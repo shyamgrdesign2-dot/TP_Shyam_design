@@ -7,14 +7,14 @@
 }
 
 .trigger {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: Inter, sans-serif;
+  padding: var(--tp-space-2-5) var(--tp-space-4);
+  font-size: var(--tp-text-body-sm);
+  font-weight: var(--tp-weight-semibold);
+  font-family: var(--tp-font-body);
   color: var(--tp-slate-500, #717179);
   background-color: transparent;
   border: none;
-  border-bottom: 3px solid transparent;
+  border-bottom: var(--tp-size-2) solid transparent;
   cursor: pointer;
   transition: color 150ms ease, border-color 150ms ease;
   white-space: nowrap;
@@ -40,6 +40,6 @@
 }
 
 .content {
-  padding: 16px 0;
+  padding: var(--tp-space-4) 0;
   outline: none;
 }

@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>VoiceRx — Storyboard v5 (real components + kinetic type)</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --ink: #0F172A;
+    --ink-2: #334155;
+    --muted: #64748B;
+    --line: #E2E8F0;
+    --ai-pink: #D565EA;
+    --ai-violet: #673AAC;
+    --ai-indigo: #1A1994;
+    --amber: #B45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 64px 96px;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.6 -apple-system, "SF Pro Text", Inter, sans-serif;
+  }
+  h1 { font: 600 32px/1.2 "Playfair Display", Georgia, serif; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--ai-violet); }
+  .lede { color: var(--muted); margin: 0 0 4px; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+  .pillrow { display:flex; gap:6px; flex-wrap:wrap; margin: 8px 0 28px; }
+  .pill {
+    font-size: 11px; padding: 4px 10px; border-radius: 999px;
+    background: #fff; border: 1px solid var(--line); color: var(--ink-2);
+  }
+  .pill.hot { background: #FEF3C7; border-color: #FDE68A; color: var(--amber); }
+  .pill.ai { background: rgba(213,101,234,0.08); border-color: rgba(213,101,234,0.25); color: var(--ai-violet); }
+
+  .scene {
+    background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    padding: 24px 28px; margin: 0 0 18px;
+    display: grid; grid-template-columns: 56px 1fr 360px; gap: 22px; align-items: start;
+  }
+  .num { font: 600 28px/1 "Playfair Display", Georgia, serif; color: var(--ai-violet); }
+  .scene h2 { margin: 0 0 4px; font: 600 18px/1.3 -apple-system, Inter, sans-serif; }
+  .scene .why { color: var(--muted); margin: 0 0 12px; font-size: 13px; }
+  .scene ul { margin: 6px 0 0 0; padding-left: 18px; color: var(--ink-2); }
+  .scene ul li { margin: 2px 0; }
+  .scene .tags { margin-top: 10px; display:flex; gap:6px; flex-wrap:wrap; }
+  .scene .tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.04em;
+    text-transform: uppercase; background: #F1F5F9; color: var(--ink-2);
+  }
+  .scene .tag.real { background: rgba(213,101,234,0.1); color: var(--ai-violet); }
+
+  .preview {
+    background: var(--bg); border: 1px dashed var(--line); border-radius: 12px;
+    min-height: 200px; padding: 16px; position: relative; overflow: hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .preview small {
+    position:absolute; bottom: 6px; left: 10px;
+    font-size: 10px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase;
+  }
+
+  /* Transition card between scenes */
+  .transition {
+    display:flex; align-items:center; gap:14px;
+    background: linear-gradient(90deg, rgba(103,58,172,0.06), rgba(213,101,234,0.06));
+    border: 1px dashed rgba(103,58,172,0.25); border-radius: 10px;
+    padding: 10px 16px; margin: -10px 0 18px 56px;
+    font-size: 12px; color: var(--ai-violet);
+  }
+  .transition .lbl {
+    font: 600 10px/1 -apple-system, Inter, sans-serif; letter-spacing: 0.12em;
+    text-transform: uppercase; background: var(--ai-violet); color:#fff;
+    padding: 4px 8px; border-radius: 4px;
+  }
+
+  .playfair { font-family: "Playfair Display", Georgia, serif; }
+  .vrx-title { font: italic 600 38px/1 "Playfair Display", Georgia, serif; color: var(--ink); }
+
+  .real-shot {
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 12px 36px rgba(15,23,42,0.08); padding: 0;
+    overflow: hidden;
+  }
+  .real-shot img { display:block; }
+
+  .outro { text-align:center; }
+  .outro .by { font-size: 10px; letter-spacing: 0.32em; color: var(--muted); text-transform: uppercase; margin: 14px 0 6px; }
+  .outro img.tp { height: 28px; opacity: 0.9; }
+
+  .change, .open {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 20px; margin-top: 18px;
+  }
+  .change h3 { margin: 0 0 8px; font-size: 14px; }
+  .change ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; }
+  .open { background: #FFFBEB; border-color: #FDE68A; color: var(--amber); }
+  .open b { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<h1>VoiceRx — <em>storyboard v5</em></h1>
+<p class="lede">Real components. Kinetic type. One story: <b>wave → words → into the Rx</b>.</p>
+<p class="meta">~50s · 16:9 · beat-driven · transitions carry the story (each scene morphs out of the previous one)</p>
+
+<div class="pillrow">
+  <span class="pill ai">Real captures from <code>capture/realcomps/</code></span>
+  <span class="pill">Wispr Flow curve as visual spine</span>
+  <span class="pill">Playfair italic hero</span>
+  <span class="pill hot">Geometry-continuous transitions (no hard cuts)</span>
+</div>
+
+<!-- 01 -->
+<div class="scene">
+  <div class="num">01</div>
+  <div>
+    <h2>Cold open · the name</h2>
+    <p class="why">Single beat. Italic <i>V</i> hooks the eye.</p>
+    <ul>
+      <li>Top-left brand bug: TatvaPractice wordmark, 28px, 60% opacity.</li>
+      <li>Center: <b>VoiceRx</b> draws letter-by-letter, Playfair italic, slate-900.</li>
+      <li>Tagline under it: <i>"speak the visit."</i></li>
+    </ul>
+    <div class="tags"><span class="tag">type-in</span><span class="tag">slow-breath</span></div>
+  </div>
+  <div class="preview">
+    <div style="text-align:center;">
+      <div class="vrx-title">VoiceRx</div>
+      <div class="playfair" style="font-style:italic;color:var(--muted);margin-top:6px;font-size:13px;">speak the visit.</div>
+    </div>
+    <small>scene 01 · 0–4s</small>
+  </div>
+</div>
+<div class="transition">
+  <span class="lbl">transition</span>
+  The italic <b>x</b> of "VoiceRx" un-tucks and stretches horizontally — it <i>becomes</i> the Wispr curve that carries scene 02's hero line in.
+</div>
+
+<!-- 02 -->
+<div class="scene">
+  <div class="num">02</div>
+  <div>
+    <h2>The hero · real dock wave morphs into real transcript text</h2>
+    <p class="why">★ Make-or-break shot. We start with the <b>real Siri-wave dock</b> (03-dock-with-wave.png) centered. The wave bars then <b>extrude horizontally along the Wispr arc</b> and resolve as the <b>real transcript text</b> from 02-transcript-zone.png flowing along the curve.</p>
+    <ul>
+      <li><b>Real component A:</b> <code>03-dock-with-wave.png</code> — the actual dock, Submit button, Siri wave, live from app.</li>
+      <li><b>Real component B:</b> transcript copy <i>lifted from</i> <code>02-transcript-zone.png</code> ("Patient reports mild fever for two days, no cough…") — typed along the same curve.</li>
+      <li>Below, ghosted Playfair italic: <i>"speak. the words follow."</i></li>
+    </ul>
+    <div class="tags"><span class="tag real">real: dock</span><span class="tag real">real: transcript</span><span class="tag">wave→text morph</span><span class="tag">★ key shot</span></div>
+  </div>
+  <div class="preview" style="min-height:280px;flex-direction:column;gap:12px;">
+    <div style="width:60%;">
+      <img src="./capture/cutouts/01-dock-row-cutout.png" alt="real dock cutout" style="width:100%;display:block;" />
+    </div>
+    <svg viewBox="0 0 560 60" width="80%" height="50">
+      <path id="c2" d="M10,40 Q160,-10 280,30 T550,20" stroke="var(--ai-pink)" stroke-dasharray="2 4" stroke-width="1.2" fill="none" />
+      <text font-size="12" fill="var(--ink)">
+        <textPath href="#c2">Patient reports mild fever for two days, no cough…</textPath>
+      </text>
+    </svg>
+    <small>scene 02 · 4–12s · ★ hero</small>
+  </div>
+</div>
+<div class="transition">
+  <span class="lbl">transition</span>
+  The flowing transcript text breaks apart mid-arc; words scatter, then re-gather inside a glass toggle pill — "Two ways to listen" forms from the debris.
+</div>
+
+<!-- 03 -->
+<div class="scene">
+  <div class="num">03</div>
+  <div>
+    <h2>Two modes · told inside one sentence</h2>
+    <p class="why">No card. The sentence rewrites itself as the glass toggle rocks.</p>
+    <ul>
+      <li>Type-in: <i>"Two ways to listen."</i></li>
+      <li>Sentence A: <b>"Speak naturally"</b> — the word <b>Ambient</b> has a live waveform under it; finishes <i>"and I'll catch the whole visit."</i></li>
+      <li>Toggle rocks. Sentence B: <b>"Dictate a section"</b> — <b>Dictation</b> carries a blinking cursor; finishes <i>"and only that section fills."</i></li>
+    </ul>
+    <div class="tags"><span class="tag">type-rewrite</span><span class="tag">inline-microviz</span><span class="tag">glass-toggle</span></div>
+  </div>
+  <div class="preview">
+    <div style="text-align:center;width:100%;">
+      <div style="display:flex;gap:14px;justify-content:center;margin-bottom:14px;">
+        <div style="padding:6px 14px;border-radius:999px;background:rgba(255,255,255,0.55);backdrop-filter:blur(8px);border:1px solid var(--ai-violet);color:var(--ai-violet);font-size:13px;">● Ambient</div>
+        <div style="padding:6px 14px;border-radius:999px;background:rgba(255,255,255,0.55);backdrop-filter:blur(8px);border:1px solid var(--line);font-size:13px;color:var(--ink-2);">Dictation</div>
+      </div>
+      <div style="font-size:14px;color:var(--ink-2);max-width:90%;margin:0 auto;">
+        Speak naturally — <span style="color:var(--ai-violet);font-weight:600;">Ambient ⌇⌇⌇</span> — and I'll catch the whole visit.
+      </div>
+    </div>
+    <small>scene 03 · 12–20s</small>
+  </div>
+</div>
+<div class="transition">
+  <span class="lbl">transition</span>
+  The toggle pill compresses vertically and morphs into the dock geometry — same width, same radius, same shadow. Continuous shape, no cut.
+</div>
+
+<!-- 04 -->
+<div class="scene">
+  <div class="num">04</div>
+  <div>
+    <h2>The capture · real dock, alone on the canvas</h2>
+    <p class="why">Real <code>03-dock-with-wave.png</code> alone. Curved Playfair callout whispers "press, and start talking."</p>
+    <ul>
+      <li>Real dock front and center. Wave reacts in time with the beat.</li>
+      <li>From upper-left, dotted curved arrow with italic Playfair: <i>"press, and start talking →"</i></li>
+      <li>Submit CTA isolates and pulses once on the downbeat.</li>
+    </ul>
+    <div class="tags"><span class="tag real">real: dock</span><span class="tag">curve-callout</span></div>
+  </div>
+  <div class="preview" style="min-height:220px;">
+    <div style="position:relative;width:70%;">
+      <img src="./capture/cutouts/01-dock-row-cutout.png" alt="real dock cutout" style="width:100%;display:block;" />
+      <svg style="position:absolute;top:-30px;left:-40px;width:220px;height:90px;pointer-events:none;" viewBox="0 0 220 90">
+        <path id="c4" d="M5,15 Q100,5 180,65" stroke="var(--ai-violet)" stroke-dasharray="3 4" stroke-width="1.4" fill="none" />
+        <text font-size="12" fill="var(--ai-violet)" font-style="italic" font-family="Playfair Display,Georgia,serif">
+          <textPath href="#c4">press, and start talking →</textPath>
+        </text>
+      </svg>
+    </div>
+    <small>scene 04 · 20–26s</small>
+  </div>
+</div>
+<div class="transition">
+  <span class="lbl">transition</span>
+  The wave bars in the dock unspool upward and become the typed transcript inside the shiner — the shiner literally inherits the wave.
+</div>
+
+<!-- 05 -->
+<div class="scene">
+  <div class="num">05</div>
+  <div>
+    <h2>Words appear · real shiner, real transcript</h2>
+    <p class="why">Real <code>04-shiner-loader.png</code> + real <code>02-transcript-zone.png</code>. Floating on bg, no panel chrome.</p>
+    <ul>
+      <li>Real shiner card floats in center, soft shadow.</li>
+      <li>Transcript text from the real transcript zone types in on a gentle inner curve.</li>
+      <li>Italic caption to the right: <i>"cleaned, punctuated, ready."</i></li>
+    </ul>
+    <div class="tags"><span class="tag real">real: shiner</span><span class="tag real">real: transcript</span><span class="tag">curve-echo</span></div>
+  </div>
+  <div class="preview" style="min-height:240px;">
+    <div style="display:flex;gap:14px;align-items:center;width:100%;justify-content:center;">
+      <div style="width:55%;max-height:200px;overflow:hidden;">
+        <img src="./capture/cutouts/03-shiner-cutout.png" alt="real shiner cutout" style="width:100%;display:block;" />
+      </div>
+      <div class="playfair" style="font-style:italic;color:var(--ai-violet);font-size:12px;max-width:120px;">cleaned, punctuated, ready.</div>
+    </div>
+    <small>scene 05 · 26–34s</small>
+  </div>
+</div>
+<div class="transition">
+  <span class="lbl">transition</span>
+  Whip-pan downward; the shiner text condenses into the "Copy all to RxPad" CTA pill — all those words packed into one button.
+</div>
+
+<!-- 06 -->
+<div class="scene">
+  <div class="num">06</div>
+  <div>
+    <h2>One tap · real form shimmer-fills</h2>
+    <p class="why">Real <code>08-copy-shimmer-form.png</code> shows the actual RxPad modules shimmering as text fills. Just the row stack — no surrounding chrome.</p>
+    <ul>
+      <li>Copy CTA isolated above. Tap → real shimmer cascade kicks in.</li>
+      <li>Real form rows (Symptoms, Examinations, Diagnosis) shimmer-fill left-to-right with the actual app's shimmer animation.</li>
+      <li>Italic line above stack: <i>"straight into the prescription."</i></li>
+    </ul>
+    <div class="tags"><span class="tag real">real: copy-shimmer form</span><span class="tag">cascade</span><span class="tag">payoff</span></div>
+  </div>
+  <div class="preview" style="min-height:260px;flex-direction:column;gap:10px;">
+    <div style="width:40%;">
+      <img src="./capture/cutouts/04-copy-cta-cutout.png" alt="real Copy CTA cutout" style="width:100%;display:block;" />
+    </div>
+    <div style="width:80%;max-height:170px;overflow:hidden;">
+      <img src="./capture/cutouts/05-form-rows-cutout.png" alt="real form rows cutout" style="width:100%;display:block;" />
+    </div>
+    <small>scene 06 · 34–44s · payoff</small>
+  </div>
+</div>
+<div class="transition">
+  <span class="lbl">transition</span>
+  The filled module rows fade; the "VoiceRx" wordmark rises through them as if the prescription itself is signed in italic.
+</div>
+
+<!-- 07 -->
+<div class="scene">
+  <div class="num">07</div>
+  <div>
+    <h2>Outro · the brand holds</h2>
+    <p class="why">Same Playfair lockup as 01, now with real TatvaPractice wordmark.</p>
+    <ul>
+      <li>Center: <b>VoiceRx</b> Playfair italic, slate-900.</li>
+      <li>Eyebrow: <i>BY</i></li>
+      <li>Real TatvaPractice wordmark fades in beneath, 56px tall.</li>
+    </ul>
+    <div class="tags"><span class="tag">hold</span><span class="tag">brand-lockup</span></div>
+  </div>
+  <div class="preview">
+    <div class="outro">
+      <div class="vrx-title">VoiceRx</div>
+      <div class="by">BY</div>
+      <img class="tp" src="./assets/tatva-logo.png" alt="TatvaPractice" />
+    </div>
+    <small>scene 07 · 44–50s</small>
+  </div>
+</div>
+
+<div class="change">
+  <h3>What changed in v5 (your latest notes)</h3>
+  <ul>
+    <li><b>Real components everywhere.</b> Scenes 02, 04, 05, 06 all use actual PNG captures from <code>capture/realcomps/</code>. No more SVG recreations.</li>
+    <li><b>Opening shot is the real Siri-wave dock</b> — not a fake mockup. That wave physically morphs into the real transcript text on the Wispr curve.</li>
+    <li><b>Geometry-continuous transitions between every scene</b> — letter → curve, curve → toggle, toggle → dock, wave → text, text → button, button → wordmark. Shown inline between each scene card.</li>
+    <li><b>Mic bypass note added for recaptures</b> — the per-module mic still shows the "allow access" banner; on next capture pass, I'll stub <code>getUserMedia</code> + pre-seed scripted transcript so the live wave shows clean.</li>
+  </ul>
+</div>
+
+<div class="open">
+  <b>Before render, your call:</b>
+  &nbsp;1) The current captures still have some panel-chrome edges (shiner is ~2000px tall). Should I rerun the puppeteer script with <b>tighter component crops + the mic bypass</b> for cleaner real-component shots?
+  &nbsp;2) BGM placeholder synth or wait for you to drop a track at <code>assets/bgm.mp3</code>?
+  &nbsp;3) 16:9 first, then 9:16 — or render both in parallel?
+</div>
+
+</body>
+</html>

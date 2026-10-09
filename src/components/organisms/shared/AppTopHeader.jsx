@@ -28,7 +28,7 @@ const DUMMY_CLINICS = [
   { id: "care", name: "Care Diagnostics" },
 ];
 
-export function AppTopHeader() {
+export function AppTopHeader({ onNotificationClick } = {}) {
   const [isClinicMenuOpen, setClinicMenuOpen] = useState(false);
   const [activeClinic, setActiveClinic] = useState(DUMMY_CLINICS[0].id);
   const [clinicSearch, setClinicSearch] = useState("");
@@ -93,7 +93,8 @@ export function AppTopHeader() {
         <button
           type="button"
           className="relative inline-flex size-[42px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200"
-          aria-label="Notifications">
+          aria-label="Notifications"
+          onClick={onNotificationClick}>
           <Notification size={20} variant="Linear" strokeWidth={1.5} />
           <span className="absolute -top-0.5 right-1 size-2.5 rounded-full border-2 border-white bg-red-500" />
         </button>
