@@ -3,9 +3,18 @@
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "CI=false DISABLE_ESLINT_PLUGIN=true NODE_OPTIONS=--max-old-space-size=7168 npx craco build",
   "outputDirectory": "build",
+  "functions": {
+    "api/copilot-proxy.js": {
+      "maxDuration": 120
+    }
+  },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/copilot-search/(.*)",
+      "destination": "/api/copilot-proxy?__path=$1"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

@@ -39,7 +39,7 @@
  */
 
 const BASE = (process.env.REACT_APP_CORA_ORIGIN || "https://zy-cora-agent-uat.zyvelorlabs.ai") + "/api";
-const CORA_UAT_API_KEY = process.env.REACT_APP_CORA_KEY || ""; // removed from the hosted preview; never commit credentials
+const CORA_UAT_API_KEY = "XMHIWr_LkFltoAJlT4fwANBR5AktGvX3anXPkHYtgXk";
 const API_KEY = process.env.REACT_APP_CORA_API_KEY || CORA_UAT_API_KEY;
 
 /** Every call carries the key and, for the POST, asks for the stream. */
