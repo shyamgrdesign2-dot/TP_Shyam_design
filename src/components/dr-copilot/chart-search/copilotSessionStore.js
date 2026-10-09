@@ -18,15 +18,14 @@ import { isCopilotMock } from "./copilotMock"
  *              Clinical conversation should not outlive the tab it was had in.
  *   Key        doctor + patient. Another doctor signing in on the same tab
  *              never inherits a thread, and each patient keeps their own.
- *   Lifetime   24 hours since the last question or answer. A doctor who
- *              leaves a patient at ten and comes back at four finds the
- *              conversation where they left it; the next morning starts
- *              fresh. The same window the Recent conversations list keeps.
+ *   Lifetime   until the tab closes or the doctor clears it; the Recent
+ *              conversations list keeps every conversation.
  *   Size       the last 60 messages of a thread.
  */
 
 const PREFIX = "drCopilot:v1:"
-export const COPILOT_IDLE_TTL_MS = 24 * 60 * 60 * 1000
+/* No idle limit: a thread stays until the tab closes or it is cleared. */
+export const COPILOT_IDLE_TTL_MS = Infinity
 const MAX_MESSAGES = 60
 const PORTAL_TOKEN_KEY = "persistant.storage.key.auth-token"
 

@@ -235,6 +235,11 @@ export function DrAgentPanel({
   /* One step back to the previous conversation, shown in the brand tag. */
   onBack = null,
   backLabel = "",
+  /* Shown first in the header's left group (the history sidebar toggle). */
+  headerLeading = null,
+  headerEnd = null,
+  /* The history sidebar is open beside the panel and shows the brand. */
+  hideBrand = false,
   /* A restore in flight: the panel is about to be replaced wholesale, so the
      composer waits rather than letting a question land in the old thread. */
   busy = false,
@@ -1326,6 +1331,9 @@ export function DrAgentPanel({
         trailing={scopeStrip}
         onBack={onBack}
         backLabel={backLabel}
+        leading={headerLeading}
+        end={headerEnd}
+        hideBrand={hideBrand}
       />
       </div>
 

@@ -1,4 +1,4 @@
-import { chartLabelOf, firstNameOf } from "../shared/patientName"
+import { firstNameOf } from "../shared/patientName"
 import React from "react"
 import { cn } from "../../dr-agent/utils"
 import { CopilotIcon } from "../ui/CopilotIcon"
@@ -842,7 +842,6 @@ export function WelcomeScreen({
      short entrance: the doctor sees the screen change with the scope rather
      than four labels silently swapping under them. */
   const scopeKey = `${context}:${patientName || ""}`
-  const chartLabel = chartLabelOf(patientName)
 
   return (
     <div className="relative flex flex-1 flex-col items-center justify-center px-[12px] py-[14px]">
@@ -904,9 +903,11 @@ export function WelcomeScreen({
         {isPatientContext && patientName ? (
           <>
             You are asking about{" "}
-            <ScopeWord key={scopeKey} scope="patient" label={chartLabel} onClick={onScopeClick}>
-              {chartLabel}
-            </ScopeWord>
+            {/* Fixed to this patient: another patient's chat starts from the
+                sidebar, or by asking about them by name. */}
+            <span key={scopeKey} className="font-semibold text-tp-slate-800">
+              {patientName}
+            </span>
           </>
         ) : isHospitalScope ? (
           /* The hospital scope finds patients and cannot answer about one
@@ -914,9 +915,9 @@ export function WelcomeScreen({
              chips says that finding them is what this scope does. */
           <>
             You are asking about{" "}
-            <ScopeWord key={scopeKey} scope="hospital" label={hospitalLabel} onClick={onScopeClick}>
+            <span key={scopeKey} className="font-semibold text-tp-slate-800">
               {hospitalLabel}
-            </ScopeWord>
+            </span>
           </>
         ) : context === "billing" ? (
           <>Ask anything about <span className="font-semibold text-tp-slate-700">billing</span> today</>

@@ -55,8 +55,10 @@ export function requestCopilotScope(target, question, patient) {
 /** Opening the scope picker from somewhere else in the panel. */
 export const COPILOT_SCOPE_MENU_EVENT = "copilot:open-scope-menu"
 
-export function requestCopilotScopeMenu() {
-  window.dispatchEvent(new CustomEvent(COPILOT_SCOPE_MENU_EVENT))
+/* `{ fresh: true }` opens it as "start a new chat with": the pick starts
+   that patient's (or scope's) conversation over. */
+export function requestCopilotScopeMenu(options) {
+  window.dispatchEvent(new CustomEvent(COPILOT_SCOPE_MENU_EVENT, { detail: options || {} }))
 }
 
 /* ── Which patients a hospital-wide question covers ───────────────────────

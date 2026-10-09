@@ -84,6 +84,52 @@ function clinicFollowUps(asked) {
     .map((s) => ({ label: s.short, message: s.label }));
 }
 
+const RECENTS_KEY = "velora:recents-open";
+
+/* Reopens the history sidebar from the conversation's top-left corner, where
+   the sidebar's own collapse control sits when it is open. */
+function SidebarToggle({ onClick }) {
+  return (
+    <Tooltip
+      className="copilot-tooltip"
+      side="bottom"
+      content={
+        <span style={{ display: "block", maxWidth: 240 }}>
+          <span style={{ display: "block", fontWeight: 600 }}>Recent conversations</span>
+          <span style={{ display: "block", opacity: 0.85, marginTop: 2 }}>Today's chats, for every patient and search.</span>
+        </span>
+      }
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Show recent conversations"
+        className="copilot-glass-tag flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[10px] text-tp-slate-600 transition-colors hover:text-tp-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500"
+      >
+        <CopilotIcon name="sidebar-left" variant="linear" size={17} />
+      </button>
+    </Tooltip>
+  );
+}
+
+/* With the sidebar collapsed, "New chat" sits at the right end of the
+   header: it opens the sidebar on its patient picker. */
+function NewChatButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Start new chat"
+      className="copilot-glass-tag flex h-[32px] shrink-0 items-center gap-[6px] rounded-[10px] pl-[9px] pr-[12px] text-[12.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500"
+    >
+      <span className="copilot-grad-icon flex">
+        <CopilotIcon name="message-add" variant="linear" size={16} />
+      </span>
+      <span className="copilot-grad-text">New chat</span>
+    </button>
+  );
+}
+
 export default function CopilotDock() {
   const copilot = useCopilot();
   const livePatients = useCopilotPatients();
@@ -280,7 +326,32 @@ export default function CopilotDock() {
    * uses. Restoring also adopts that conversation's session, so the next
    * question continues it rather than starting a new one beside it.
    */
-  const [recentOpen, setRecentOpen] = useState(false);
+  /* Recent conversations is a sidebar on the left, open by default like a
+     chat app's history, and it stays as the doctor leaves it: collapsed once,
+     it stays collapsed across patients and visits until opened again. */
+  /* Bumped by every clear or delete, so the history sidebar reloads instead
+     of showing the conversations it fetched before. */
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const [recentOpen, setRecentOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(RECENTS_KEY) !== "0";
+    } catch (e) {
+      return true;
+    }
+  });
+  /* Every opening starts with the history open; a collapse lasts for that
+     visit only. */
+  useEffect(() => {
+    if (isOpenNow) setRecentOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpenNow]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RECENTS_KEY, recentOpen ? "1" : "0");
+    } catch (e) {
+      /* storage blocked: the sidebar simply opens by default next time */
+    }
+  }, [recentOpen]);
   const [restoring, setRestoring] = useState(false);
   const restoreConversation = useCallback(
     (row) => {
@@ -339,7 +410,9 @@ export default function CopilotDock() {
               ? { patientId: undefined, patientLabel: undefined }
               : { patientId: uid, patientLabel: (data.patient && data.patient.patientName) || undefined }),
           });
-          setRecentOpen(false);
+          /* The sidebar stays where it is in the full view; only the
+             dropdown's overlay, which covers the thread, steps aside. */
+          if (copilot.presentation !== COPILOT_FULL) setRecentOpen(false);
         })
         .finally(() => setRestoring(false));
     },
@@ -432,6 +505,44 @@ export default function CopilotDock() {
     if (scopeSessionKey !== threadKey) forgetThread(scopeSessionKey);
     setThreads((prev) => ({ ...prev, [threadKey]: [] }));
   }, [threadKey, scopeSessionKey]);
+  /* Start a scope over: its thread and its service session go, so the next
+     question opens a new conversation. Used by "New chat" in the sidebar,
+     which picks the patient (or hospital scope) first. When the hospital
+     scope is the target but a different group is on screen now, the parked
+     copy of that group's thread is cleared instead. */
+  const startFresh = useCallback(
+    (threadId, sessionId, groupKey) => {
+      forgetThread(threadId);
+      if (sessionId && sessionId !== threadId) forgetThread(sessionId);
+      setThreads((prev) => {
+        const next = { ...prev };
+        if (groupKey && groupKey !== groupRef.current) next[`__group_${groupKey}`] = [];
+        else next[threadId] = [];
+        return next;
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  /* A conversation deleted from its row menu: hidden from history, removed
+     from demo data, and if it is a thread held here, forgotten too. */
+  const deleteConversation = useCallback(
+    (row) => {
+      if (!row) return;
+      hideSession(row.session_id);
+      if (isCopilotMock()) clearMockSessions([row.session_id]);
+      setHistoryVersion((v) => v + 1);
+      const clinic = row.mode === "find_patients";
+      if (clinic) {
+        const g = row.scope === "mine" ? "mine" : "all";
+        if ((getSession(clinicScopeId(g)) || {}).sessionId === row.session_id) startFresh(HOMEPAGE_COMMON_ID, clinicScopeId(g), g);
+      } else {
+        const uid = String((row.patient && row.patient.patientUid) || "");
+        if (uid && (getSession(uid) || {}).sessionId === row.session_id) startFresh(uid, uid);
+      }
+    },
+    [startFresh]
+  );
   const clearThisChat = useCallback(() => {
     const id = (getSession(scopeSessionKey) || {}).sessionId;
     if (id) {
@@ -445,6 +556,7 @@ export default function CopilotDock() {
     if (isCopilotMock()) clearMockSessions();
     forgetAllThreads();
     setThreads({ [threadKey]: [] });
+    setHistoryVersion((v) => v + 1);
   }, [threadKey]);
   const scopeName = patientUid
     ? `${firstNameOf((lastPatient && lastPatient.label) || "") || "this patient"}'s chart`
@@ -477,6 +589,22 @@ export default function CopilotDock() {
     setThreads((prev) => withRestored(withRestored(prev, threadKey), HOMEPAGE_COMMON_ID));
   }, [threadKey, withRestored]);
 
+  /* Every question asked, across all held threads: the history refreshes
+     on it, so the conversation just used moves to the top. */
+  const questionsAsked = useMemo(
+    () => Object.values(threads).reduce((n, list) => n + (Array.isArray(list) ? list.filter((m) => m && m.role === "user").length : 0), 0),
+    [threads]
+  );
+
+  /* The hospital chat's last question and when it was asked, for its card. */
+  /* The collapsed header's new-chat button: open the sidebar on its picker. */
+  const [newChatPending, setNewChatPending] = useState(false);
+  const homeLast = useMemo(() => {
+    const list = Array.isArray(threads[HOMEPAGE_COMMON_ID]) ? threads[HOMEPAGE_COMMON_ID] : [];
+    const q = [...list].reverse().find((m) => m && m.role === "user");
+    return q ? { text: q.text || q.content || "", at: q.createdAt ? Date.parse(q.createdAt) : 0 } : null;
+  }, [threads]);
+
   const onThreadsChange = useCallback(
     (update) =>
       setThreads((prev0) => {
@@ -501,11 +629,7 @@ export default function CopilotDock() {
    */
   const [threadMotion, setThreadMotion] = useState("none");
   const scopeRef = useRef(null);
-  /* Where the doctor has been, newest last, so the brand tag can offer one
-     step back at a time, like a browser's back. A step back is not itself
-     recorded, or back would bounce between the last two forever. */
-  const [trail, setTrail] = useState([]);
-  const goingBackRef = useRef(false);
+
   useEffect(() => {
     const now = {
       id: patientUid || null,
@@ -515,45 +639,11 @@ export default function CopilotDock() {
     const prev = scopeRef.current;
     scopeRef.current = now;
     if (!prev || (prev.id === now.id && prev.group === now.group)) return;
-    if (goingBackRef.current) {
-      goingBackRef.current = false;
-      setThreadMotion("back");
-      return;
-    }
-    setTrail((t) => [...t.filter((x) => !(x.id === prev.id && x.group === prev.group)), prev].slice(-10));
     setThreadMotion(now.id ? "forward" : prev.id ? "back" : "forward");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientUid, group]);
-  /* Each opening starts a fresh trail. Opened on a patient's page, that
-     patient is home: there is nowhere to go back to, and a question about
-     many patients is answered in that patient's chat. Only moves made inside
-     Velora, after it opened, can be stepped back through. */
-  const wasOpenRef = useRef(isOpenNow);
-  useEffect(() => {
-    if (isOpenNow && !wasOpenRef.current) {
-      setTrail([]);
-      scopeRef.current = { id: patientUid || null, group: patientUid ? null : group, label: patientUid ? (lastPatient && lastPatient.label) || null : null };
-    }
-    wasOpenRef.current = isOpenNow;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpenNow]);
-  const backTo = trail.length ? trail[trail.length - 1] : null;
-  const backLabel = backTo
-    ? backTo.id
-      ? `${firstNameOf(backTo.label || "") || "the patient"}'s chat`
-      : hospitalGroupLabel(backTo.group)
-    : "";
-  const goBack = useCallback(() => {
-    if (!backTo || !copilot) return;
-    goingBackRef.current = true;
-    setTrail((t) => t.slice(0, -1));
-    if (backTo.id) {
-      copilot.open({ presentation: copilot.presentation, patientId: backTo.id, patientLabel: backTo.label || undefined });
-    } else {
-      setHospitalGroup(backTo.group || "all");
-      switchToClinic();
-    }
-  }, [backTo, copilot, switchToClinic]);
+  /* No back control: every conversation is in the history sidebar, which
+     is where the doctor moves between them. */
 
   /* A question that names a different patient is offered their chart
      before anything is asked: the answer is in that chart, not this one.
@@ -812,8 +902,22 @@ export default function CopilotDock() {
            back to its bundled demo engines and invent a chart. */
         replyOverride={patientUid ? copilotReply : clinicReplyWithBridge}
         threadMotion={threadMotion}
-        onBack={backTo ? goBack : null}
-        backLabel={backLabel}
+        hideBrand={isFull && recentOpen}
+        headerEnd={
+          isFull && !recentOpen ? (
+            <NewChatButton
+              onClick={() => {
+                setNewChatPending(true);
+                setRecentOpen(true);
+              }}
+            />
+          ) : null
+        }
+        headerLeading={
+          isFull && !recentOpen ? (
+            <SidebarToggle onClick={() => setRecentOpen(true)} />
+          ) : null
+        }
         /* A patient list can now appear in a patient's chat too, so opening
            a patient from it works in every scope. */
         onOpenPatient={openPatientFromResult}
@@ -832,11 +936,18 @@ export default function CopilotDock() {
             patients={isCopilotMock() ? [] : patients}
             activePatientId={patientUid}
             group={group}
-            onPickClinic={(g) => {
-              setHospitalGroup(g || "all");
+            onPickClinic={(g, opts) => {
+              const want = g || "all";
+              /* From "New chat": a fresh conversation for that scope, not the
+                 one it already holds. */
+              if (opts && opts.fresh) startFresh(HOMEPAGE_COMMON_ID, clinicScopeId(want), want);
+              setHospitalGroup(want);
               switchToClinic();
             }}
-            onPickPatient={(p) => openPatientFromResult(p && p.id, { patientName: p && p.label })}
+            onPickPatient={(p, opts) => {
+              if (opts && opts.fresh && p && p.id) startFresh(String(p.id), String(p.id));
+              openPatientFromResult(p && p.id, { patientName: p && p.label });
+            }}
             patientQuestions={questionCount(lastPatient && lastPatient.id)}
             clinicQuestions={questionCount(HOMEPAGE_COMMON_ID)}
           />
@@ -940,24 +1051,63 @@ export default function CopilotDock() {
             aria-label="Velora"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <PanelControls copilot={copilot} isFull={isFull} onClose={requestClose} lockPresentation={voiceSessionActive} onRecent={() => setRecentOpen((v) => !v)} recentOpen={recentOpen} onNewChat={startNewChat} onClearChat={clearThisChat} onClearToday={clearToday} scopeName={scopeName} />
+            {!isFull && <PanelControls copilot={copilot} isFull={isFull} onClose={requestClose} lockPresentation={voiceSessionActive} onRecent={() => setRecentOpen((v) => !v)} recentOpen={recentOpen} onNewChat={startNewChat} onClearChat={clearThisChat} onClearToday={clearToday} scopeName={scopeName} />}
+            {/* History on the left, as a chat app keeps it: open by default,
+                collapsed from its own top-left corner, and reopened from the
+                same corner of the conversation. In the dropdown it overlays
+                instead, with a way back. */}
+            {isFull && recentOpen && (
+              <CopilotRecentSessions
+                variant="sidebar"
+                openNewChat={newChatPending}
+                onNewChatOpened={() => setNewChatPending(false)}
+                onPick={restoreConversation}
+                onClose={() => setRecentOpen(false)}
+                onStartChat={(choice) => {
+                  if (choice.kind === "scope") {
+                    setHospitalGroup(choice.group);
+                    switchToClinic();
+                  } else if (choice.patient) {
+                    openPatientFromResult(choice.patient.id, { patientName: choice.patient.label });
+                  }
+                }}
+                onDelete={deleteConversation}
+                onClearAll={clearToday}
+                refreshKey={`${historyVersion}:${questionsAsked}`}
+                current={patientUid ? { id: patientUid, label: (lastPatient && lastPatient.label) || "This patient" } : null}
+                homeRow={{
+                  label: hospitalGroupLabel(group),
+                  sub: (homeLast && homeLast.text) || (group === "mine" ? "Find patients among the ones you treat" : "Find patients across the hospital"),
+                  updatedAt: (homeLast && homeLast.at) || 0,
+                  mine: group === "mine",
+                  active: !patientUid,
+                  onOpen: () => switchToClinic(),
+                  onClear: () => {
+                    const id = (getSession(clinicScopeId(group)) || {}).sessionId;
+                    if (id) {
+                      hideSession(id);
+                      if (isCopilotMock()) clearMockSessions([id]);
+                    }
+                    startFresh(HOMEPAGE_COMMON_ID, clinicScopeId(group), group);
+                    setHistoryVersion((v) => v + 1);
+                  },
+                }}
+                activeSessionId={activeSessionId}
+              />
+            )}
             {/* Citations open the evidence sidebar over the page. The dock
                 gets no provider and expands evidence in place instead. */}
             <EvidenceViewerProvider>
               <CopilotSurface panel={panel} />
             </EvidenceViewerProvider>
-            {/* History on the right, beside the conversation: the controls
-                that open it are on the right, and the eye goes there to find
-                it. In the dropdown it overlays instead, with a way back. */}
-            {isFull && recentOpen && (
-              <CopilotRecentSessions
-                variant="sidebar"
-                onPick={restoreConversation}
-                onClose={() => setRecentOpen(false)}
-                activeSessionId={activeSessionId}
-              />
-            )}
           </div>
+          {/* The popup's close floats outside it, on the veil, so it reads as
+              closing Velora and not as closing the chat in front. */}
+          {isFull && (
+            <div className={styles.floatingControls} onMouseDown={(e) => e.stopPropagation()}>
+              <PanelControls copilot={copilot} isFull={isFull} onClose={requestClose} lockPresentation={voiceSessionActive} onRecent={() => setRecentOpen((v) => !v)} recentOpen={recentOpen} onNewChat={startNewChat} onClearChat={clearThisChat} onClearToday={clearToday} scopeName={scopeName} />
+            </div>
+          )}
         </div>
       ) : (
         <aside className={styles.dock} ref={surfaceRef} aria-label="Velora">
@@ -1215,13 +1365,13 @@ function PanelControls({
     /* With history open beside the full view, the controls belong to the
        conversation, not to the history column: they move left with the
        conversation's edge instead of floating over the column's header. */
-    <div className={[styles.controls, isFull && recentOpen ? styles.controlsBesideRecent : ""].filter(Boolean).join(" ")}>
+    <div className={styles.controls}>
       {/* The doctor's earlier conversations, both scopes, kept 30 days by the
           service. Beside close because it is about this panel's history. */}
-      {onRecent && (
+      {onRecent && !isFull && (
         <ControlTip
           title={recentOpen ? "Hide recent conversations" : "Recent conversations"}
-          body={recentOpen ? "Close the list of today's chats." : "Reopen any chat from the last 24 hours, for a patient or for a search."}
+          body={recentOpen ? "Close the list of your conversations." : "Reopen any conversation, for a patient or for a search."}
         >
         <button
           type="button"
@@ -1252,7 +1402,7 @@ function PanelControls({
         <ExpandIcon />
       </button>
       )}
-      {onNewChat && (
+      {onNewChat && !isFull && (
         <MoreMenu
           scopeName={scopeName}
           onNewChat={onNewChat}

@@ -295,6 +295,8 @@ export default function CopilotContextBar({
      at the thread. */
   const [present, setPresent] = useState(false)
   const [search, setSearch] = useState("")
+  /* Opened from "New chat": the pick starts a fresh conversation. */
+  const [fresh, setFresh] = useState(false)
   /* The highlighted row, as an index into `options`; -1 is none. */
   const [active, setActive] = useState(-1)
   const wrapRef = useRef(null)
@@ -361,7 +363,10 @@ export default function CopilotContextBar({
   /* The empty state names the scope and offers to change it; this is the
      tag opening because that text was clicked. */
   useEffect(() => {
-    const onAsk = () => setOpen(true)
+    const onAsk = (e) => {
+      setFresh(!!(e && e.detail && e.detail.fresh))
+      setOpen(true)
+    }
     window.addEventListener(COPILOT_SCOPE_MENU_EVENT, onAsk)
     return () => window.removeEventListener(COPILOT_SCOPE_MENU_EVENT, onAsk)
   }, [])
@@ -487,14 +492,16 @@ export default function CopilotContextBar({
   const pick = (option, viaKey) => {
     if (!option || option.disabled) return
     close(!!viaKey)
+    const opts = fresh ? { fresh: true } : undefined
+    setFresh(false)
     if (option.kind === "clinic" || option.kind === "mine") {
       const want = option.kind === "mine" ? "mine" : "all"
-      if ((!clinic || group !== want) && onPickClinic) onPickClinic(want)
+      if ((fresh || !clinic || group !== want) && onPickClinic) onPickClinic(want, opts)
       return
     }
     const p = option.patient
     const isCurrent = !clinic && p.id === activePatientId
-    if (!isCurrent && onPickPatient) onPickPatient(p)
+    if ((fresh || !isCurrent) && onPickPatient) onPickPatient(p, opts)
   }
 
   const move = (dir) => {
@@ -603,84 +610,33 @@ export default function CopilotContextBar({
 
   return (
     <div className="relative inline-block max-w-full" ref={wrapRef} onBlur={onWrapBlur}>
-      {/* Says, before anything is clicked, exactly whose context this chat
-          is in, with enough to tell two patients of one name apart. */}
-      <Tooltip
-        className="copilot-tooltip"
-        side="bottom"
-        content={
-          <span style={{ display: "block", maxWidth: 260 }}>
-            <span style={{ display: "block", fontWeight: 600 }}>
-              {clinic ? `This chat is about ${label}` : `This chat's context is set to ${label}`}
-            </span>
-            {!clinic && tipMeta && <span style={{ display: "block", opacity: 0.85, marginTop: 2 }}>{tipMeta}</span>}
-            <span style={{ display: "block", opacity: 0.85, marginTop: 2 }}>
-              {clinic
-                ? mineOn
-                  ? "Answers search the patients you have treated. Click to change."
-                  : "Answers search every patient in the hospital. Click to change."
-                : "Answers come from this patient's record only. Click to change."}
-            </span>
-          </span>
-        }
-      >
-      <button
-        ref={chipRef}
-        type="button"
-        onClick={() => (open ? close(false) : setOpen(true))}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={mounted ? popupId : undefined}
-        aria-label={`Velora is answering about ${label}${meta ? `, ${meta}` : ""}. Change`}
+      {/* The chat's heading: whose chat this is, fixed to it. A patient's
+          tag adds age, sex and ID to tell two of one name apart. Another
+          chat starts from the sidebar, or by asking about a patient by name,
+          which offers them to pick. */}
+      <span
+        role="status"
+        aria-label={`Velora is answering about ${label}${tipMeta ? `, ${tipMeta}` : ""}`}
         className={[
-          "copilot-context-chip group inline-flex max-w-[280px] items-center gap-[6px] pl-[10px] pr-[5px] outline-none",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500",
+          "copilot-context-chip copilot-scope-heading inline-flex max-w-[360px] items-center gap-[6px] px-[10px]",
           flash ? "copilot-context-chip--flash" : "",
         ].join(" ")}
       >
-        {/* A fixed square, centred both ways: the glyph used to sit in a
-            line box taller than itself, so it rode high and read small. */}
         <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-tp-slate-600">
-          {mineOn ? (
-            <CopilotIcon asset="users/profile-2user" variant="bulk" size={16} style={{ display: "block" }} />
-          ) : clinic ? (
-            <CopilotIcon asset="medical/hospital-building-4" variant="bulk" size={16} style={{ display: "block" }} />
-          ) : (
-            <CopilotIcon asset="users/user" variant="bulk" size={16} style={{ display: "block" }} />
-          )}
+          <CopilotIcon
+            asset={mineOn ? "users/profile-2user" : clinic ? "medical/hospital-building-4" : "users/user"}
+            variant="bulk"
+            size={16}
+            style={{ display: "block" }}
+          />
         </span>
         <span className="truncate text-[12.5px] font-medium leading-[16px] text-tp-slate-800">{label}</span>
-        {meta && (
-          <>
-            <span aria-hidden="true" className="h-[12px] w-px shrink-0 bg-tp-slate-200" />
-            <span className="shrink-0 whitespace-nowrap text-[11.5px] font-medium leading-[16px] text-tp-slate-500">
-              {meta}
-            </span>
-          </>
-        )}
-        {/* Accordion arrow, per the design system: chevron-down, linear, in
-            a small well of its own so it reads as "this opens" at rest and
-            not only on hover. It turns over while the picker is open. */}
-        <span
-          aria-hidden="true"
-          className={[
-            "flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[7px] transition-colors duration-[var(--copilot-dur-state)] motion-reduce:transition-none",
-            open
-              ? "bg-tp-violet-100 text-tp-violet-600"
-              : "bg-tp-slate-100 text-tp-slate-500 group-hover:bg-tp-slate-200 group-hover:text-tp-slate-700",
-          ].join(" ")}
-        >
-          <span
-            className={[
-              "flex transition-transform duration-[var(--copilot-dur-enter)] ease-out motion-reduce:transition-none",
-              open ? "rotate-180" : "",
-            ].join(" ")}
-          >
-            <CopilotIcon name="chevron-down" variant="linear" size={12} />
+        {!clinic && tipMeta && (
+          <span className="shrink-0 whitespace-nowrap text-[12px] leading-[16px] tabular-nums text-tp-slate-500">
+            ({tipMeta})
           </span>
-        </span>
-      </button>
-      </Tooltip>
+        )}
+      </span>
 
       {mounted && panelEl && createPortal(
         <div
@@ -714,7 +670,7 @@ export default function CopilotContextBar({
           <span aria-hidden="true" className="mx-auto mt-[8px] h-[4px] w-[36px] shrink-0 rounded-full bg-tp-slate-300" />
           <div className="flex shrink-0 items-center justify-between gap-[10px] px-[18px] pb-[8px] pt-[8px]">
             <p id={titleId} className="m-0 text-[14px] font-semibold leading-[20px] text-tp-slate-800">
-              Choose what Velora answers about
+              {fresh ? "Start a new chat with" : "Choose what Velora answers about"}
             </p>
             <button
               type="button"

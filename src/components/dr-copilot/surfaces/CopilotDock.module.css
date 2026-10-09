@@ -428,3 +428,29 @@ button.control:disabled {
     height: 94vh;
   }
 }
+
+/* The full popup's close, floating on the veil just outside the popup's
+   top-right corner. The popup is centred at 90vw x 90vh (capped at 1400px
+   wide), so its corner is 5vh down and 5vw (or the cap's margin) in. */
+.floatingControls {
+  position: absolute;
+  top: calc(5vh - 4px);
+  right: max(calc(5vw - 48px), calc((100vw - 1400px) / 2 - 48px));
+  z-index: 2;
+}
+.floatingControls .controls {
+  position: static;
+}
+.floatingControls button.control {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  color: var(--tp-slate-700, #454551);
+  background: #fff;
+  box-shadow: 0 10px 28px -8px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+.floatingControls button.control:hover {
+  background: #fff;
+  color: var(--tp-slate-900, #171725);
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(15, 23, 42, 0.1);
+}

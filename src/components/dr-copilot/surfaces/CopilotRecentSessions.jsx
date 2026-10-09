@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { listCopilotSessions } from "../chart-search/copilotApi"
 import { CopilotIcon } from "../ui/CopilotIcon"
 import { isVisibleSession } from "../chart-search/copilotHistoryPrefs"
+import { useCopilotPatientPicker } from "./useCopilotPatientPicker"
+import { canScopeToMine, useHospitalGroup } from "./copilotScopeStore"
 
 /**
  * The conversations this doctor has had, newest first.
@@ -93,17 +95,16 @@ function safeFormat(ms, options) {
 
 const CLOCK = { hour: "numeric", minute: "2-digit", hour12: true }
 
-function shortTime(ms, group, nowMs) {
+/* "Today, 9 Oct" / "Yesterday, 8 Oct": the line under the question. */
+function dayLine(ms, nowMs) {
   if (!ms) return ""
-  if (group === "today") {
-    const diff = Math.max(0, nowMs - ms) / 1000
-    if (diff < 90) return "Just now"
-    if (diff < 3600) return `${Math.round(diff / 60)} min ago`
-    return safeFormat(ms, CLOCK)
-  }
-  if (group === "yesterday") return safeFormat(ms, CLOCK)
-  if (group === "week") return safeFormat(ms, { weekday: "short", ...CLOCK })
-  return safeFormat(ms, { day: "numeric", month: "short" })
+  const d = new Date(ms)
+  const today = new Date(nowMs)
+  const yest = new Date(nowMs - 86400000)
+  const date = safeFormat(ms, { day: "numeric", month: "short" })
+  if (d.toDateString() === today.toDateString()) return `Today, ${date}`
+  if (d.toDateString() === yest.toDateString()) return `Yesterday, ${date}`
+  return safeFormat(ms, { weekday: "short", day: "numeric", month: "short" })
 }
 
 function fullTime(ms) {
@@ -151,7 +152,7 @@ function ScopeMark({ clinic, active }) {
       aria-hidden="true"
       className={[
         "mt-[1px] flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[10px] transition-colors duration-[var(--copilot-dur-state)]",
-        active ? "bg-tp-violet-100 text-tp-violet-600" : "bg-tp-slate-100 text-tp-slate-500",
+        active ? "bg-tp-blue-100 text-tp-blue-600" : "bg-tp-slate-100 text-tp-slate-500",
       ].join(" ")}
     >
       {clinic ? (
@@ -223,24 +224,281 @@ function StatePanel({ icon, tone, title, children, action }) {
 const SECONDARY_BUTTON =
   "inline-flex h-[32px] items-center justify-center gap-[6px] rounded-[10px] border-[1px] border-tp-slate-200 bg-tp-slate-0 px-[12px] text-[12.5px] font-semibold text-tp-slate-700 transition-colors duration-[var(--copilot-dur-state)] hover:border-tp-slate-300 hover:bg-tp-slate-50 hover:text-tp-slate-900 active:bg-tp-slate-100 disabled:cursor-default disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500"
 
+/* ── New chat ──────────────────────────────────────────────────────────── */
+
+/* Who to talk about: rises from the bottom of the sidebar and covers it,
+   so starting a chat never leaves the column the doctor is working in.
+   Picking a patient who already has a chat today opens that chat, history
+   and all; anyone else starts fresh. */
+function NewChatSheet({ onClose, onStart, existing, onOpenExisting }) {
+  const [search, setSearch] = useState("")
+  const picker = useCopilotPatientPicker({ enabled: true, search })
+  const inputRef = useRef(null)
+  const group = useHospitalGroup()
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.focus({ preventScroll: true })
+    const onKey = (e) => e.key === "Escape" && onClose()
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onClose])
+  const q = search.trim()
+  const rows = picker.rows || []
+  const scopes = [
+    ...(canScopeToMine() ? [{ group: "mine", label: "All my patients", note: "The patients you have treated", asset: "users/profile-2user" }] : []),
+    { group: "all", label: "All hospital patients", note: "Every patient in the hospital", asset: "medical/hospital-building-4" },
+  ]
+  return (
+    <>
+      <button type="button" aria-label="Close" onClick={onClose} className="copilot-sheet-backdrop absolute inset-0 z-[20] bg-[rgba(15,23,42,0.18)]" />
+      <div role="dialog" aria-label="Start a new conversation" className="copilot-sheet-up absolute inset-x-0 bottom-0 z-[21] h-[60%] flex flex-col overflow-hidden rounded-t-[16px] bg-white shadow-[0_-12px_32px_-12px_rgba(15,23,42,0.3)]">
+        <span aria-hidden="true" className="mx-auto mt-[8px] h-[4px] w-[34px] shrink-0 rounded-full bg-tp-slate-300" />
+        <div className="flex shrink-0 items-start gap-[8px] px-[16px] pb-[8px] pt-[8px]">
+          <div className="min-w-0 flex-1">
+            <p className="m-0 text-[14px] font-semibold leading-[20px] text-tp-slate-900">New conversation</p>
+            <p className="m-0 text-[12px] leading-[17px] text-tp-slate-500">Select a patient to start a new conversation.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-500 hover:bg-tp-slate-100">
+            <CopilotIcon name="close-square" variant="bold" size={18} />
+          </button>
+        </div>
+        <div className="shrink-0 px-[12px] pb-[8px]">
+          <label className="copilot-context-search flex h-[36px] items-center gap-[8px] rounded-[10px] border-[1px] border-tp-slate-200 bg-white px-[10px]">
+            <span className="flex shrink-0 items-center text-tp-slate-500">
+              <CopilotIcon name="search-normal" variant="linear" size={15} />
+            </span>
+            <input
+              ref={inputRef}
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Patient name, patient ID or mobile number"
+              aria-label="Search for a patient"
+              className="h-full w-full min-w-0 bg-transparent text-[12.5px] text-tp-slate-800 outline-none placeholder:text-tp-slate-400"
+            />
+            {picker.searching && (
+              <span aria-hidden="true" className="h-[12px] w-[12px] shrink-0 animate-spin rounded-full border-[1.5px] border-tp-slate-200 border-t-tp-violet-500 motion-reduce:animate-none" />
+            )}
+          </label>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-[8px] pb-[12px]">
+          {!q && (
+            <>
+              {scopes.map((sc) => (
+                <button
+                  key={sc.group}
+                  type="button"
+                  onClick={() => onStart({ kind: "scope", group: sc.group })}
+                  className="flex w-full items-center gap-[10px] rounded-[10px] px-[8px] py-[8px] text-left transition-colors hover:bg-tp-slate-50"
+                >
+                  <span className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-600">
+                    <CopilotIcon asset={sc.asset} variant="bulk" size={16} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold leading-[18px] text-tp-slate-800">{sc.label}</span>
+                    <span className="block text-[11.5px] leading-[16px] text-tp-slate-500">{sc.note}</span>
+                  </span>
+                  {sc.group === group && <span className="shrink-0 text-[11px] text-tp-slate-400">Current</span>}
+                </button>
+              ))}
+              <div aria-hidden="true" className="mx-[8px] mt-[8px] h-px bg-tp-slate-200" />
+              <p className="m-0 flex items-center gap-[6px] px-[10px] pb-[4px] pt-[12px] text-[11px] font-semibold uppercase tracking-[0.4px] text-tp-slate-400">
+                <CopilotIcon name="calendar-1" variant="linear" size={13} />
+                Today&apos;s appointments
+              </p>
+            </>
+          )}
+          {rows.length ? (
+            rows.map((p) => {
+              /* Already talked about: a quiet count at the right, and the
+                 row goes back to the latest of those chats instead of
+                 starting another. */
+              const prior = (existing && existing.get(String(p.id))) || []
+              return (
+              <div key={p.id} className="relative">
+              <button
+                type="button"
+                onClick={() => (prior.length && onOpenExisting ? onOpenExisting(prior[0]) : onStart({ kind: "patient", patient: p }))}
+                title={prior.length ? `Open ${p.label}'s latest conversation` : undefined}
+                className="flex w-full items-start gap-[10px] rounded-[10px] px-[8px] py-[8px] text-left transition-colors hover:bg-tp-slate-50"
+              >
+                <span className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-tp-slate-100 text-tp-slate-500">
+                  <CopilotIcon asset="users/user" variant="bulk" size={16} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 items-baseline gap-[6px]">
+                    <span className="truncate text-[13px] font-semibold leading-[18px] text-tp-slate-800">{p.label}</span>
+                    {p.isToday && q && <span className="shrink-0 rounded-[6px] bg-tp-success-50 px-[5px] text-[10.5px] font-semibold text-tp-success-700">Today</span>}
+                  </span>
+                  <span className="block truncate text-[11.5px] leading-[16px] tabular-nums text-tp-slate-500">
+                    {[p.age != null ? `${p.age}y` : null, p.gender, p.pid, p.phone].filter(Boolean).join(" | ")}
+                  </span>
+                </span>
+                {prior.length > 0 && (
+                  <span className="shrink-0 pt-[2px] text-[11px] text-tp-slate-400">
+                    {prior.length === 1 ? "1 chat" : `${prior.length} chats`}
+                  </span>
+                )}
+              </button>
+              </div>
+              )
+            })
+          ) : (
+            <p className="m-0 px-[10px] py-[12px] text-[12.5px] leading-[18px] text-tp-slate-500">
+              {q.length < 2
+                ? "No appointments today. Search by name, patient ID or mobile number."
+                : picker.searching
+                  ? "Searching…"
+                  : `No patient matches “${q}”.`}
+            </p>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+/* ── Row menu ──────────────────────────────────────────────────────────── */
+
+/* A ⋯ at a row's top-right, shown on hover or focus: what can be done to
+   that one conversation, kept out of the way of opening it. */
+function RowMenu({ label, items, placement = "bottom-[9px] right-[10px]", alwaysVisible = false, inline = false, compact = false }) {
+  const [open, setOpen] = useState(false)
+  /* A destructive item with `confirm` asks once, in the menu itself. */
+  const [confirming, setConfirming] = useState(null)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    const onKey = (e) => e.key === "Escape" && setOpen(false)
+    /* Captured: the popup stops mousedown at its own surface, so a bubbling
+       listener never heard a click elsewhere in it and the menu stayed open. */
+    document.addEventListener("pointerdown", onDown, true)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("pointerdown", onDown, true)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+  return (
+    <div ref={ref} className={inline ? "relative z-[3]" : `absolute z-[2] ${placement}`}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setConfirming(null)
+          setOpen((v) => !v)
+        }}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={[
+          compact ? "h-[22px] w-[22px] rounded-[6px]" : "h-[26px] w-[26px] rounded-[8px]",
+          "flex items-center justify-center text-tp-slate-500 transition-[opacity,background-color] hover:bg-tp-slate-200 hover:text-tp-slate-800 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-tp-blue-500",
+          open ? "bg-tp-slate-200 opacity-100" : alwaysVisible ? "opacity-100" : "opacity-0 group-hover/row:opacity-100",
+        ].join(" ")}
+      >
+        <CopilotIcon asset="settings/3-dots-more" family="straight" variant="bold" size={15} style={{ transform: "rotate(90deg)" }} />
+      </button>
+      {open && (
+        <div role="menu" className={`copilot-menu-in absolute ${inline ? "left-0" : "right-0"} top-[30px] z-[5] w-[240px] overflow-hidden rounded-[12px] border-[1px] border-tp-slate-200 bg-white p-[4px] shadow-[0_14px_36px_-12px_rgba(15,23,42,0.3)]`}>
+          {confirming ? (
+            <div className="px-[10px] py-[8px]">
+              <p className="m-0 text-[12px] leading-[17px] text-tp-slate-600">{confirming.confirm}</p>
+              <div className="mt-[8px] flex justify-end gap-[6px]">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setConfirming(null)
+                  }}
+                  className="h-[28px] rounded-[8px] px-[10px] text-[12px] font-semibold text-tp-slate-600 hover:bg-tp-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const run = confirming.onSelect
+                    setConfirming(null)
+                    setOpen(false)
+                    run()
+                  }}
+                  className="h-[28px] rounded-[8px] bg-tp-error-600 px-[10px] text-[12px] font-semibold text-white hover:bg-tp-error-700"
+                >
+                  {confirming.label}
+                </button>
+              </div>
+            </div>
+          ) : items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (item.confirm) {
+                  setConfirming(item)
+                  return
+                }
+                setOpen(false)
+                item.onSelect()
+              }}
+              className={[
+                "flex w-full gap-[8px] rounded-[8px] px-[10px] py-[8px] text-left text-[12.5px] font-semibold transition-colors",
+                item.note ? "items-start" : "items-center",
+                item.danger ? "text-tp-error-700 hover:bg-tp-error-50" : "text-tp-slate-700 hover:bg-tp-slate-50",
+              ].join(" ")}
+            >
+              <span className={`flex h-[18px] shrink-0 items-center ${item.danger ? "text-tp-error-600" : "text-tp-slate-500"}`}>
+                <CopilotIcon name={item.danger ? "trash" : "edit-2"} variant="linear" size={15} style={{ display: "block" }} />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="leading-[18px]">{item.label}</span>
+                {item.note && <span className="mt-[1px] text-[11.5px] font-normal leading-[16px] text-tp-slate-500">{item.note}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── Row ───────────────────────────────────────────────────────────────── */
 
-function SessionRow({ row, group, nowMs, active, pending, failed, locked, onPick }) {
+function SessionRow({ row, group, nowMs, active, pending, failed, locked, onPick, onDelete, sidebar = false }) {
   const clinic = row.mode === "find_patients"
   const patientName = row.patient && row.patient.patientName
   const mine = clinic && row.scope === "mine"
   const scopeLabel = clinic ? (mine ? "All my patients" : "All hospital patients") : patientName || "Patient chart"
   const preview = cleanPreview(row.preview)
   const ms = (Number(row.updated_at) || 0) * 1000
-  const when = shortTime(ms, group, nowMs)
+  /* In the sidebar: the clock time at the top right, the day on its own
+     line below the question. */
+  const when = ms ? safeFormat(ms, CLOCK) : ""
   const whenFull = fullTime(ms)
-  /* The date as well as the time: within 24 hours "9:20 pm" can be last
-     night or tonight, and the date settles it. */
-  const whenDated = ms ? `${safeFormat(ms, { day: "numeric", month: "short" })}, ${safeFormat(ms, CLOCK)}` : ""
-  const kind = clinic ? (mine ? "My patients search" : "Hospital search") : "Patient conversation"
+  const day = ms ? dayLine(ms, nowMs) : ""
+  /* Nothing asked yet (the hospital chat before its first question): no
+     time to show and nothing to clear, so no footer and no menu. */
+  const started = !!ms
 
   return (
-    <li>
+    <li className="group/row relative">
+      {onDelete && started && (
+        <RowMenu
+          label="More for this conversation"
+          alwaysVisible={sidebar}
+          placement={sidebar ? "bottom-[3px] right-[6px]" : undefined}
+          items={[
+            row.__home
+              ? { label: "Clear conversation", note: "Empties this chat so it starts afresh.", danger: true, onSelect: () => onDelete(row) }
+              : { label: "Delete conversation", note: "Removes this chat from your history.", danger: true, onSelect: () => onDelete(row) },
+          ]}
+        />
+      )}
       <button
         type="button"
         data-recent-row=""
@@ -250,9 +508,7 @@ function SessionRow({ row, group, nowMs, active, pending, failed, locked, onPick
         aria-busy={pending || undefined}
         title={active ? "This conversation is open now" : whenFull ? `Open this conversation. Last asked ${whenFull}` : "Open this conversation"}
         className={[
-          /* A card per conversation rather than a list line: room for whose
-             it is, what kind it was, the question, and when. */
-          "group flex w-full items-start gap-[12px] rounded-[12px] border-[1px] px-[12px] py-[11px] text-left transition-colors duration-[var(--copilot-dur-state)]",
+          "group flex w-full flex-col overflow-hidden rounded-[12px] border-[1px] text-left transition-colors duration-[var(--copilot-dur-state)]",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500",
           active
             ? "cursor-default border-tp-blue-200 bg-tp-blue-50"
@@ -261,72 +517,53 @@ function SessionRow({ row, group, nowMs, active, pending, failed, locked, onPick
               : "border-tp-slate-200 bg-white hover:border-tp-slate-300 hover:bg-tp-slate-50 active:bg-tp-slate-100 disabled:cursor-default disabled:opacity-50",
         ].join(" ")}
       >
-        <ScopeMark clinic={clinic} active={active} />
-        <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
-          <span className="flex w-full items-center gap-[8px]">
+        {/* Whose chat and what was asked. The question fills a line before
+            it wraps, and stops at two. */}
+        <span className="flex w-full items-start gap-[12px] px-[12px] pb-[10px] pt-[11px]">
+          <ScopeMark clinic={clinic} active={active} />
+          <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
             <span
               className={[
-                "min-w-0 flex-1 truncate text-[13px] font-semibold leading-[18px]",
+                "truncate text-[13px] font-semibold leading-[18px]",
                 active ? "text-tp-blue-700" : "text-tp-slate-800",
               ].join(" ")}
             >
               {!clinic && <span className="sr-only">Chart of </span>}
               {scopeLabel}
             </span>
-            {pending ? (
-              <span className="flex shrink-0 items-center gap-[5px] text-[11px] font-medium leading-[14px] text-tp-violet-600">
-                <Spinner />
-                Opening…
-              </span>
-            ) : active ? (
-              <span className="shrink-0 rounded-[6px] bg-tp-blue-100 px-[6px] py-[1px] text-[10.5px] font-semibold leading-[14px] text-tp-blue-700">
-                Open now
-              </span>
+            {preview ? (
+              <span className="line-clamp-2 w-full break-words text-[12.5px] leading-[17px] text-tp-slate-600">{preview}</span>
             ) : (
-              <span className="shrink-0 whitespace-nowrap text-[11px] leading-[14px] text-tp-slate-500 tabular-nums">
-                <span className="sr-only">Last asked </span>
-                {when}
+              <span className="w-full text-[12.5px] leading-[17px] text-tp-slate-500">No question was asked</span>
+            )}
+            {failed && (
+              <span role="alert" className="mt-[3px] text-[11.5px] font-medium leading-[15px] text-tp-error-600">
+                This conversation did not open. Open it again to retry.
               </span>
             )}
           </span>
-          {preview ? (
-            <span className="line-clamp-2 w-full break-words text-[12.5px] leading-[17px] text-tp-slate-600">
-              {preview}
+        </span>
+        {/* When, in a strip of its own, with the row's menu at its end. */}
+        {(started || pending) && (
+        <span
+          className={[
+            "flex h-[32px] w-full items-center gap-[6px] border-t-[1px] px-[12px] text-[11px] leading-[14px] tabular-nums",
+            active ? "border-tp-blue-100 bg-tp-blue-100/40 text-tp-blue-600" : "border-tp-slate-100 bg-tp-slate-50 text-tp-slate-500",
+          ].join(" ")}
+        >
+          {pending ? (
+            <span className="flex items-center gap-[5px] font-medium text-tp-violet-600">
+              <Spinner />
+              Opening…
             </span>
           ) : (
-            /* Opened and left without a question. Said plainly rather than
-               shown as a blank line that looks like a loading fault. */
-            <span className="w-full text-[12.5px] leading-[17px] text-tp-slate-500">No question was asked</span>
-          )}
-          {/* What kind of conversation and when, as two tags: scanned down
-              the list, the tags line up and the eye reads them as a column. */}
-          <span className="mt-[6px] flex w-full flex-wrap items-center gap-[6px] text-[11px] leading-[14px]">
-            <span
-              className={[
-                "inline-flex h-[20px] items-center gap-[4px] rounded-[6px] px-[6px] font-medium",
-                clinic ? "bg-tp-violet-50 text-tp-violet-700" : "bg-tp-blue-50 text-tp-blue-700",
-              ].join(" ")}
-            >
-              <CopilotIcon
-                asset={clinic ? "medical/hospital-building-4" : "users/user"}
-                variant="linear"
-                size={11}
-              />
-              {kind}
-            </span>
-            {whenDated && (
-              <span className="inline-flex h-[20px] items-center gap-[4px] rounded-[6px] bg-tp-slate-100 px-[6px] tabular-nums text-tp-slate-600">
-                <CopilotIcon name="calendar-1" variant="linear" size={11} />
-                {whenDated}
-              </span>
-            )}
-          </span>
-          {failed && (
-            <span role="alert" className="mt-[3px] text-[11.5px] font-medium leading-[15px] text-tp-error-600">
-              This conversation did not open. Open it again to retry.
-            </span>
+            <>
+              <span className="sr-only">Last asked </span>
+              <span className="truncate">{[day, when].filter(Boolean).join(" · ")}</span>
+            </>
           )}
         </span>
+        )}
       </button>
     </li>
   )
@@ -334,8 +571,16 @@ function SessionRow({ row, group, nowMs, active, pending, failed, locked, onPick
 
 /* ── The list ──────────────────────────────────────────────────────────── */
 
-export default function CopilotRecentSessions({ onPick, onClose, activeSessionId, variant = "overlay" }) {
+export default function CopilotRecentSessions({ openNewChat = false, onNewChatOpened, onPick, onClose, onStartChat, onDelete, onClearAll, homeRow, current, refreshKey = 0, activeSessionId, variant = "overlay" }) {
   const sidebar = variant === "sidebar"
+  /* "New chat" opens its own sheet inside the sidebar, over the list. */
+  const [newOpen, setNewOpen] = useState(false)
+  useEffect(() => {
+    if (!openNewChat || !sidebar) return
+    setNewOpen(true)
+    if (onNewChatOpened) onNewChatOpened()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNewChat, sidebar])
   const [state, setState] = useState({
     status: "loading",
     rows: [],
@@ -380,7 +625,9 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
 
   useEffect(() => {
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null
-    setState((s) => ({ ...s, status: "loading" }))
+    /* Quietly when there is already a list: a refresh after the first
+       question of a new chat should not blank the column. */
+    setState((s) => (s.status === "ready" ? s : { ...s, status: "loading" }))
     listCopilotSessions(0, ctrl ? { signal: ctrl.signal } : undefined)
       .then((res) => {
         if (!mountedRef.current || (ctrl && ctrl.signal.aborted)) return
@@ -400,7 +647,7 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
     return () => {
       if (ctrl) ctrl.abort()
     }
-  }, [attempt])
+  }, [attempt, activeSessionId, refreshKey])
 
   const loadMore = useCallback(() => {
     if (state.more === "loading" || !state.hasMore) return
@@ -434,6 +681,10 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
   const pick = useCallback(
     (row) => {
       if (!row || pendingId) return
+      if (row.__home) {
+        if (homeRow && homeRow.onOpen) homeRow.onOpen()
+        return
+      }
       if (row.session_id === activeSessionId) {
         /* Already in front of the doctor. In the sheet that means going back
            to it; beside the thread it is already there. */
@@ -470,7 +721,7 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
         )
       }
     },
-    [activeSessionId, onClose, onPick, pendingId, sidebar]
+    [activeSessionId, onClose, onPick, pendingId, sidebar, homeRow]
   )
 
   /* A restore that landed while this list stays mounted. */
@@ -481,13 +732,37 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
     }
   }, [activeSessionId, pendingId])
 
-  /* What the list shows: the last 24 hours only, minus anything the doctor
+  /* What the list shows: every conversation, minus anything the doctor
      cleared, narrowed by the search. The service keeps longer; Velora keeps
      a working day, so last week's chats are not here to dig through. */
   const [query, setQuery] = useState("")
+  /* Deleted from the row menu: gone from the list at once, while the parent
+     forgets the conversation itself. */
+  const [removed, setRemoved] = useState(() => new Set())
+  const deleteRow = useCallback(
+    (row) => {
+      setRemoved((prev) => new Set(prev).add(row.session_id))
+      if (onDelete) onDelete(row)
+    },
+    [onDelete]
+  )
+  /* Each patient's conversations, newest first, so
+     the new-chat sheet can offer the one that already exists. */
+  const byPatient = useMemo(() => {
+    const m = new Map()
+    state.rows
+      .filter((r) => r.patient && r.patient.patientUid && !removed.has(r.session_id) && isVisibleSession(r, nowMs))
+      .sort((a, b) => (Number(b.updated_at) || 0) - (Number(a.updated_at) || 0))
+      .forEach((r) => {
+        const k = String(r.patient.patientUid)
+        m.set(k, [...(m.get(k) || []), r])
+      })
+    return m
+  }, [state.rows, removed, nowMs])
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
     return state.rows.filter((row) => {
+      if (removed.has(row.session_id)) return false
       if (!isVisibleSession(row, nowMs)) return false
       if (!q) return true
       const clinic = row.mode === "find_patients"
@@ -500,9 +775,21 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
         .toLowerCase()
       return hay.includes(q)
     })
-  }, [state.rows, nowMs, query])
+  }, [state.rows, nowMs, query, removed])
 
+  /* The hospital chat is one conversation among the others, in the same
+     newest-first order. Until it has been used today it waits at the end
+     as the default chat, so the list is never empty. */
+  const listed = useMemo(() => {
+    if (!sidebar || !homeRow || query.trim()) return visible
+    const g = homeRow.mine ? "mine" : "all"
+    const has = visible.some((r) => r.mode === "find_patients" && (r.scope === "mine" ? "mine" : "all") === g)
+    if (has) return visible
+    return [...visible, { session_id: "__home__", __home: true, mode: "find_patients", scope: g, preview: homeRow.sub, updated_at: Math.floor((homeRow.updatedAt || 0) / 1000) }]
+  }, [visible, sidebar, homeRow, query])
   const groups = useMemo(() => {
+    /* One list, newest first, in the sidebar: no day headings. */
+    if (sidebar) return listed.length ? [{ key: "recent", label: "Recent", rows: listed }] : []
     const e = dayEdges(nowMs)
     const byKey = {}
     visible.forEach((row) => {
@@ -510,7 +797,7 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
       ;(byKey[key] = byKey[key] || []).push(row)
     })
     return GROUPS.filter((g) => byKey[g.key]).map((g) => ({ ...g, rows: byKey[g.key] }))
-  }, [visible, nowMs])
+  }, [visible, listed, sidebar, nowMs])
 
   /* Fades at the scroll edges say "there is more this way", and only when
      there is. A plain gradient in the column's own colour, never a blur. */
@@ -540,10 +827,12 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
     rows[next].focus()
   }, [])
 
-  const surface = sidebar ? "bg-tp-slate-50" : "bg-tp-slate-0"
-  const fadeFrom = sidebar ? "from-tp-slate-50" : "from-tp-slate-0"
+  /* A shade darker than the conversation, so the history column reads as
+     its own surface beside the chat rather than part of it. */
+  const surface = sidebar ? "bg-tp-slate-100" : "bg-tp-slate-0"
+  const fadeFrom = sidebar ? "from-tp-slate-100" : "from-tp-slate-0"
   const ready = state.status === "ready"
-  const count = visible.length
+  const count = listed.length
   const searching = !!query.trim()
 
   return (
@@ -552,7 +841,7 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
       className={[
         "copilot-recent-in",
         sidebar
-          ? "flex h-full w-[372px] shrink-0 flex-col border-l border-tp-slate-100"
+          ? "relative flex h-full w-[340px] shrink-0 flex-col overflow-hidden border-r border-tp-slate-100"
           : "absolute inset-0 z-40 flex flex-col",
         surface,
       ].join(" ")}
@@ -561,8 +850,9 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
 
       <header
         className={[
-          "flex h-[60px] shrink-0 items-start gap-[6px] border-b border-tp-slate-100 pt-[10px]",
-          sidebar ? "pl-[10px]" : "pl-[10px]",
+          sidebar
+            ? "relative z-[6] flex h-[52px] shrink-0 items-center gap-[6px] pl-[12px]"
+            : "flex h-[60px] shrink-0 items-start gap-[6px] border-b border-tp-slate-100 pt-[10px] pl-[10px]",
           HEADER_CLEARANCE[sidebar ? "sidebar" : "overlay"],
         ].join(" ")}
       >
@@ -587,33 +877,103 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
             back sits where it would be pushed from. The clock in the corner
             still toggles it too; this is the one a doctor finds without
             looking for it. */}
-        {sidebar && (
+        {sidebar ? (
+          /* The sidebar is part of Velora now, so it carries Velora's name,
+             as a chat app's history column carries the app's; the collapse
+             control sits at its right edge, where the eye looks for it. */
+          <>
+            <span className={`copilot-glass-tag relative flex items-center gap-[7px] rounded-[10px] py-[5px] pl-[6px] ${onClearAll ? "pr-[4px]" : "pr-[11px]"}`}>
+              <span className="relative inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center overflow-hidden rounded-[7px]" aria-hidden="true">
+                <img src="/icons/dr-agent/agent-bg.svg" alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
+                <img src="/icons/dr-agent/agent-spark.svg" alt="" draggable={false} className="relative z-10" width={13} height={13} />
+              </span>
+              <span className="text-[13.5px] font-semibold leading-none text-tp-slate-700">Velora</span>
+              {onClearAll && (
+                <RowMenu
+                  label="More for Velora history"
+                  alwaysVisible
+                  inline
+                  compact
+                  items={[
+                    {
+                      label: "Clear all history",
+                      note: "Removes every conversation, for every patient and search.",
+                      danger: true,
+                      confirm: "Every conversation is removed, for every patient. This cannot be undone.",
+                      onSelect: onClearAll,
+                    },
+                  ]}
+                />
+              )}
+            </span>
+            <span className="flex-1" />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Collapse recent conversations"
+              title="Collapse"
+              className="copilot-icon-btn flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[10px] text-tp-slate-500 transition-colors duration-[var(--copilot-dur-state)] hover:bg-tp-slate-100 hover:text-tp-slate-800 active:bg-tp-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500"
+            >
+              <CopilotIcon name="sidebar-left" variant="linear" size={17} />
+            </button>
+          </>
+        ) : (
+          <>
+            <span aria-hidden="true" className="mx-[2px] mt-[7px] h-[18px] w-px shrink-0 bg-tp-slate-200" />
+            <div className="flex min-w-0 flex-col pt-[7px]">
+              <h2 className="truncate text-[13.5px] font-semibold leading-[18px] text-tp-slate-800">Recent conversations</h2>
+              <p className="truncate text-[11px] leading-[15px] text-tp-slate-500">All your conversations</p>
+            </div>
+          </>
+        )}
+      </header>
+
+      {/* Start a conversation with someone new: opens the patient picker as
+          "Start a new chat with", and the pick begins a fresh chat. */}
+      {sidebar && newOpen && onStartChat && (
+        <NewChatSheet
+          onClose={() => setNewOpen(false)}
+          existing={byPatient}
+          onOpenExisting={(row) => {
+            setNewOpen(false)
+            pick(row)
+          }}
+          onStart={(choice) => {
+            setNewOpen(false)
+            onStartChat(choice)
+          }}
+        />
+      )}
+
+      {sidebar && onStartChat && (
+        <div className="shrink-0 px-[12px] pt-[10px]">
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Hide recent conversations"
-            title="Hide recent conversations"
-            className="copilot-icon-btn flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[10px] text-tp-slate-500 transition-colors duration-[var(--copilot-dur-state)] hover:bg-tp-slate-100 hover:text-tp-slate-800 active:bg-tp-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500"
+            onClick={() => setNewOpen(true)}
+            className="flex h-[38px] w-full items-center justify-center gap-[8px] rounded-[10px] border-[1px] border-dashed border-tp-violet-300 bg-[linear-gradient(135deg,rgba(176,79,208,0.07),rgba(123,79,196,0.06),rgba(75,74,213,0.08))] text-[13px] font-semibold transition-colors hover:border-tp-violet-400 hover:bg-[linear-gradient(135deg,rgba(176,79,208,0.13),rgba(123,79,196,0.11),rgba(75,74,213,0.14))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500"
           >
-            <CopilotIcon name="sidebar-right" variant="linear" size={17} />
+            {/* Velora's own action, in Velora's gradient: the icon through a
+                mask, the words clipped to it. */}
+            <span className="copilot-grad-icon flex">
+              <CopilotIcon name="message-add" variant="linear" size={17} />
+            </span>
+            <span className="copilot-grad-text">Start new chat</span>
           </button>
-        )}
-        <span aria-hidden="true" className="mx-[2px] mt-[7px] h-[18px] w-px shrink-0 bg-tp-slate-200" />
-        {/* 10px header padding + 7px here puts the 18px title line's centre
-            on the controls' 26px line; the subtitle hangs below it. */}
-        <div className="flex min-w-0 flex-col pt-[7px]">
-          <h2 className="truncate text-[13.5px] font-semibold leading-[18px] text-tp-slate-800">Recent conversations</h2>
-          <p className="truncate text-[11px] leading-[15px] text-tp-slate-500">
-            From the last 24 hours
-          </p>
         </div>
-      </header>
+      )}
+
+      {/* The list's heading first, then its search. */}
+      {sidebar && (
+        <div className="group/row relative flex shrink-0 items-center px-[18px] pb-[4px] pt-[14px]">
+          <p className="m-0 flex-1 text-[11px] font-semibold uppercase tracking-[0.4px] text-tp-slate-400">Recent conversations</p>
+        </div>
+      )}
 
       {/* Search across today's conversations: a patient's name, a word from
           the question, or "hospital" for the hospital-wide ones. */}
-      {state.status === "ready" && state.rows.length > 0 && (
-        <div className="shrink-0 px-[12px] pb-[4px] pt-[10px]">
-          <label className="copilot-context-search flex h-[36px] items-center gap-[8px] rounded-[10px] border-[1px] border-tp-slate-200 bg-white px-[10px]">
+      {(sidebar || (state.status === "ready" && state.rows.length > 0)) && (
+        <div className="shrink-0 px-[12px] pb-[4px] pt-[4px]">
+          <label className="copilot-context-search copilot-search-plain flex h-[36px] items-center gap-[8px] rounded-[10px] border-[1px] border-tp-slate-300 bg-transparent px-[10px]">
             <span className="flex shrink-0 items-center text-tp-slate-500">
               <CopilotIcon name="search-normal" variant="linear" size={15} />
             </span>
@@ -621,8 +981,8 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by patient name or a word you asked"
-              aria-label="Search today's conversations"
+              placeholder="Search by patient or question"
+              aria-label="Search conversations"
               className="h-full w-full min-w-0 bg-transparent text-[12.5px] text-tp-slate-800 outline-none placeholder:text-tp-slate-500"
             />
             {query && (
@@ -636,6 +996,28 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
               </button>
             )}
           </label>
+        </div>
+      )}
+
+      {/* The patient open right now, before their first question: a place in
+          the list already, so the doctor sees where this chat will live. It
+          becomes their real conversation once they ask something, and is
+          gone if they leave without asking. */}
+      {sidebar && current && !query.trim() && !visible.some((r) => r.patient && String(r.patient.patientUid) === String(current.id)) && (
+        <div className="shrink-0 px-[8px] pt-[6px]">
+          <div className="flex w-full flex-col overflow-hidden rounded-[12px] border-[1px] border-tp-blue-200 bg-tp-blue-50" aria-current="true">
+            <span className="flex w-full items-start gap-[12px] px-[12px] pb-[10px] pt-[11px]">
+              <span className="mt-[1px] flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[10px] bg-tp-blue-100 text-tp-blue-600">
+                <CopilotIcon asset="users/user" variant="bulk" size={15} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                <span className="truncate text-[13px] font-semibold leading-[18px] text-tp-blue-700">{current.label}</span>
+                <span className="truncate text-[12.5px] leading-[17px] text-tp-slate-600">
+                  Ask about {String(current.label || "").trim().split(/\s+/)[0] || "this patient"}
+                </span>
+              </span>
+            </span>
+          </div>
         </div>
       )}
 
@@ -671,7 +1053,13 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
             </StatePanel>
           )}
 
-          {ready && !count && !searching && (
+          {ready && !count && !searching && sidebar && (
+            <p className="m-0 px-[22px] py-[10px] text-[12.5px] leading-[18px] text-tp-slate-500">
+              Chats with patients appear here as you start them.
+            </p>
+          )}
+
+          {ready && !count && !searching && !sidebar && (
             <StatePanel
               icon="message-time"
               title="No conversations yet"
@@ -684,20 +1072,20 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
               }
             >
               Each conversation you have with Velora today is kept here, about one patient or about all hospital patients,
-              so you can go back to it. They are kept for 24 hours.
+              so you can go back to it.
             </StatePanel>
           )}
 
           {ready && count > 0 && (
-            <div key="list" className="copilot-recent-in px-[8px] pb-[12px]">
+            <div key="list" className={["copilot-recent-in px-[8px] pb-[12px]", sidebar ? "pt-[6px]" : ""].join(" ")}>
               {groups.map((g) => (
                 <div key={g.key} role="group" aria-labelledby={`copilot-recent-${g.key}`}>
-                  <h3
+                  {!sidebar && <h3
                     id={`copilot-recent-${g.key}`}
                     className="px-[10px] pb-[4px] pt-[14px] text-[11px] font-semibold leading-[14px] text-tp-slate-500"
                   >
                     {g.label}
-                  </h3>
+                  </h3>}
                   <ul className="flex flex-col gap-[6px]">
                     {g.rows.map((row) => (
                       <SessionRow
@@ -705,11 +1093,21 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
                         row={row}
                         group={g.key}
                         nowMs={nowMs}
-                        active={!!activeSessionId && row.session_id === activeSessionId}
+                        active={row.__home ? !!(homeRow && homeRow.active) : !!activeSessionId && row.session_id === activeSessionId}
                         pending={pendingId === row.session_id}
                         failed={failedId === row.session_id}
                         locked={!!pendingId}
+                        sidebar={sidebar}
                         onPick={pick}
+                        onDelete={
+                          row.__home
+                            ? homeRow && homeRow.onClear
+                              ? () => homeRow.onClear()
+                              : undefined
+                            : sidebar && onDelete
+                              ? deleteRow
+                              : undefined
+                        }
                       />
                     ))}
                   </ul>
@@ -773,12 +1171,6 @@ export default function CopilotRecentSessions({ onPick, onClose, activeSessionId
         />
       </div>
 
-      {/* Said once, where the list ends, so a missing conversation from
-          yesterday morning is not a surprise. */}
-      <p className="m-0 flex shrink-0 items-center gap-[8px] border-t border-tp-warning-100 bg-tp-warning-50 px-[14px] py-[10px] text-[11.5px] leading-[16px] text-tp-warning-800">
-        <CopilotIcon name="info-circle" variant="linear" size={14} className="shrink-0 text-tp-warning-600" />
-        Velora keeps your conversations for 24 hours. Older ones are cleared automatically.
-      </p>
     </section>
   )
 }

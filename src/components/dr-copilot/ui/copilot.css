@@ -554,3 +554,31 @@
   #dr-copilot-root .copilot-thread-forward,
   #dr-copilot-root .copilot-thread-back { animation-name: copilot-fade-only; }
 }
+
+/* An icon in Velora's gradient: the glyph is a mask, so a gradient painted
+   behind it shows in its shape. */
+#dr-copilot-root .copilot-grad-icon [data-tp-icon] {
+  background-image: linear-gradient(135deg, #b04fd0 0%, #7b4fc4 50%, #4b4ad5 100%);
+}
+
+/* The sidebar's search: a plain outlined field on the sidebar's grey, with
+   no fill of its own at rest, on hover or in focus. */
+#dr-copilot-root .copilot-context-search.copilot-search-plain,
+#dr-copilot-root .copilot-context-search.copilot-search-plain:hover,
+#dr-copilot-root .copilot-context-search.copilot-search-plain:focus-within {
+  background: transparent;
+}
+
+/* The chat's heading tag: a plain neutral tag, like the ones inside the
+   chat. Not clickable, so nothing about it says press: no stroke, no glow,
+   no hover change. */
+#dr-copilot-root .copilot-context-chip.copilot-scope-heading,
+#dr-copilot-root .copilot-context-chip.copilot-scope-heading:hover,
+#dr-copilot-root .copilot-context-chip.copilot-scope-heading:active {
+  border: 0;
+  background: var(--tp-slate-100, #f1f1f5);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transform: none;
+}

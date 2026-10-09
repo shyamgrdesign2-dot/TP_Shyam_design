@@ -68,6 +68,12 @@ export function AgentHeader({
      brand tag's spark becomes a back arrow and the tag goes back on press. */
   onBack = null,
   backLabel = "",
+  /* Before everything on the left: the history sidebar's reopen control. */
+  leading = null,
+  /* The history sidebar is open and already carries the brand. */
+  hideBrand = false,
+  /* At the right end of the row: the collapsed sidebar's "New chat". */
+  end = null,
 }) {
   const isV0 = variant === "v0"
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -112,7 +118,10 @@ export function AgentHeader({
       >
         {/* Left: Dr. Agent brand tag — floating liquid-glass card with 10px radius */}
         <div className="pointer-events-auto relative z-10 flex items-center gap-[6px]">
-          {onBack ? (
+          {leading}
+          {/* With the history sidebar open every conversation is one press away
+              there, so neither the brand nor a back control repeats here. */}
+          {hideBrand ? null : onBack ? (
             <Tooltip
               className="copilot-tooltip"
               side="bottom"
@@ -318,6 +327,8 @@ export function AgentHeader({
             )}
           </div>}
         </div>
+
+        {end && <div className="pointer-events-auto relative z-10 flex items-center">{end}</div>}
 
         {/* Right: collapse — matching floating glass tag (10px radius) */}
         <button
