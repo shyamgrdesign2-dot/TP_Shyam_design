@@ -781,12 +781,14 @@ export default function CopilotRecentSessions({ openNewChat = false, onNewChatOp
      newest-first order. Until it has been used today it waits at the end
      as the default chat, so the list is never empty. */
   const listed = useMemo(() => {
-    if (!sidebar || !homeRow || query.trim()) return visible
+    /* In a patient's chat that patient's card is the default; the empty
+       hospital chat is offered only when the hospital chat is open. */
+    if (!sidebar || !homeRow || query.trim() || current) return visible
     const g = homeRow.mine ? "mine" : "all"
     const has = visible.some((r) => r.mode === "find_patients" && (r.scope === "mine" ? "mine" : "all") === g)
     if (has) return visible
     return [...visible, { session_id: "__home__", __home: true, mode: "find_patients", scope: g, preview: homeRow.sub, updated_at: Math.floor((homeRow.updatedAt || 0) / 1000) }]
-  }, [visible, sidebar, homeRow, query])
+  }, [visible, sidebar, homeRow, query, current])
   const groups = useMemo(() => {
     /* One list, newest first, in the sidebar: no day headings. */
     if (sidebar) return listed.length ? [{ key: "recent", label: "Recent", rows: listed }] : []
@@ -1049,11 +1051,11 @@ export default function CopilotRecentSessions({ openNewChat = false, onNewChatOp
 
           {ready && !count && searching && (
             <StatePanel icon="search-normal" title="No conversation matches">
-              Nothing from today mentions &ldquo;{query.trim()}&rdquo;. Try a patient&apos;s first name or one word from the question.
+              No conversation mentions &ldquo;{query.trim()}&rdquo;. Try a patient&apos;s first name or one word from the question.
             </StatePanel>
           )}
 
-          {ready && !count && !searching && sidebar && (
+          {ready && !count && !searching && sidebar && !current && (
             <p className="m-0 px-[22px] py-[10px] text-[12.5px] leading-[18px] text-tp-slate-500">
               Chats with patients appear here as you start them.
             </p>

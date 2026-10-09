@@ -50,12 +50,6 @@ function waiting(count) {
   return count === 1 ? "1 question asked" : `${count} questions asked`
 }
 
-/* The chip and the rows write sex and age the same way, "M, 34y", so the
-   patient the doctor picked is recognisably the patient the chip names. */
-function sexAge(p) {
-  return [p.gender, p.age != null ? `${p.age}y` : null].filter(Boolean).join(", ")
-}
-
 function patientLine(p) {
   const phone = String(p.meta || "").split("|").map((x) => x.trim()).find((x) => /^\+?\d[\d\s-]{6,}$/.test(x))
   return [p.gender, p.age != null ? `${p.age}y` : null, phone].filter(Boolean).join("  |  ")
@@ -348,7 +342,6 @@ export default function CopilotContextBar({
   const scopeId = clinic ? `__clinic_${group}__` : activePatientId || patientName || "__none__"
   const seen = useRef(scopeId)
   const label = clinic ? hospitalGroupLabel(group) : patientName || "Choose a patient"
-  const meta = clinic ? null : patientMeta
   const tipMeta = clinic ? null : patientMeta || (isCopilotMock() ? mockPatientMeta(activePatientId) : null)
   useEffect(() => {
     if (seen.current === scopeId) return undefined
@@ -614,29 +607,50 @@ export default function CopilotContextBar({
           tag adds age, sex and ID to tell two of one name apart. Another
           chat starts from the sidebar, or by asking about a patient by name,
           which offers them to pick. */}
-      <span
-        role="status"
-        aria-label={`Velora is answering about ${label}${tipMeta ? `, ${tipMeta}` : ""}`}
-        className={[
-          "copilot-context-chip copilot-scope-heading inline-flex max-w-[360px] items-center gap-[6px] px-[10px]",
-          flash ? "copilot-context-chip--flash" : "",
-        ].join(" ")}
-      >
-        <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-tp-slate-600">
-          <CopilotIcon
-            asset={mineOn ? "users/profile-2user" : clinic ? "medical/hospital-building-4" : "users/user"}
-            variant="bulk"
-            size={16}
-            style={{ display: "block" }}
-          />
-        </span>
-        <span className="truncate text-[12.5px] font-medium leading-[16px] text-tp-slate-800">{label}</span>
-        {!clinic && tipMeta && (
-          <span className="shrink-0 whitespace-nowrap text-[12px] leading-[16px] tabular-nums text-tp-slate-500">
-            ({tipMeta})
+      {/* Hover or focus says what the heading means. */}
+      <Tooltip
+        className="copilot-tooltip"
+        side="bottom"
+        content={
+          <span style={{ display: "block", maxWidth: 260 }}>
+            <span style={{ display: "block", fontWeight: 600 }}>
+              {clinic ? `This conversation is about ${mineOn ? "all your patients" : "every patient in the hospital"}` : `This conversation is about ${label}`}
+            </span>
+            <span style={{ display: "block", opacity: 0.85, marginTop: 2 }}>
+              {clinic
+                ? mineOn
+                  ? "Velora finds patients among the ones you have treated."
+                  : "Velora finds patients across the whole hospital."
+                : "Answers come from this patient's record only."}
+            </span>
           </span>
-        )}
-      </span>
+        }
+      >
+        <span
+          role="status"
+          tabIndex={0}
+          aria-label={`Velora is answering about ${label}${tipMeta ? `, ${tipMeta}` : ""}`}
+          className={[
+            "copilot-context-chip copilot-scope-heading inline-flex max-w-[360px] items-center gap-[6px] px-[10px]",
+            flash ? "copilot-context-chip--flash" : "",
+          ].join(" ")}
+        >
+          <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-tp-slate-600">
+            <CopilotIcon
+              asset={mineOn ? "users/profile-2user" : clinic ? "medical/hospital-building-4" : "users/user"}
+              variant="bulk"
+              size={16}
+              style={{ display: "block" }}
+            />
+          </span>
+          <span className="truncate text-[12.5px] font-medium leading-[16px] text-tp-slate-800">{label}</span>
+          {!clinic && tipMeta && (
+            <span className="shrink-0 whitespace-nowrap text-[12px] leading-[16px] tabular-nums text-tp-slate-500">
+              ({tipMeta})
+            </span>
+          )}
+        </span>
+      </Tooltip>
 
       {mounted && panelEl && createPortal(
         <div
