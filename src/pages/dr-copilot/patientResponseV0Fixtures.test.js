@@ -121,3 +121,13 @@ test('fuller patient overview has three isolated consultation records and a cons
   expect(data.sections.find(section => section.id === 'last-visit').items.every(item => item.sources[0] === visits[2].id)).toBe(true);
   expect(JSON.stringify(summaryRecordSet('summary', 'full'))).not.toContain('Arun Mehta');
 });
+
+
+test('fuller catalog introduction excludes lab comparisons and gives the dated visit complaint', () => {
+  const { data } = summaryRecordSet('summary', 'longitudinal');
+  expect(data.situation.text).toMatch(/^Arun Mehta, a 58-year-old man, has type 2 diabetes/);
+  expect(data.situation.text).toContain('last visit on 9 Oct 2026');
+  expect(data.situation.text).toContain('mild fatigue for one week');
+  expect(data.situation.text).not.toMatch(/HbA1c|7.8%|rotating shifts|meal timings/);
+  expect(JSON.stringify(data.sections.find(section => section.id === 'assessment'))).toContain('7.8%');
+});

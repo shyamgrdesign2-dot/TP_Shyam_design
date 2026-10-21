@@ -107,24 +107,26 @@ Use **Situation → Background → Assessment → Last Visit**. This is a Patien
 **Parameter skeleton:**
 
 ```text
-{demographic_phrase} with {relevant_conditions}.
-{current_symptom_clause}. {material_recent_visit_change}.
-{medication_context}. {relevant_history_context}. {allergy_context}.
+{demographic_phrase} with {chronic_conditions_and_relevant_history}.
+At the last visit on {visit_date}, {documented_complaint_or_reason}.
+{distinct_current_symptoms}. {ongoing_medication_context}. {allergy_context}.
 ```
 
 | Slot | Selection logic | Example wording |
 |---|---|---|
 | Demographics | Available verified age + recorded gender; optional name | “Sunita Sharma, a 46-year-old woman…” |
 | Conditions | Relevant active/chronic problems; keep historical/remission/suspected qualifiers | “…has hypothyroidism and dyslipidaemia.” |
-| Symptoms | Current encounter collector first; otherwise informative dated visit symptoms | “At the 21 Jul visit, mild fatigue was recorded…” |
-| Recent change | Material change supported by completed visits; do not state that every absent prior diagnosis is newly developed | “Constipation improved across the recorded consultations.” |
+| Last visit | Latest completed visit date and recorded complaint/reason; preserve duration and meaningful symptom qualifiers | “At her last visit on 21 Jul 2026, she reported mild fatigue for one week…” |
+| Current symptoms | Add distinct current-encounter collector symptoms, attributed as reported; never present old symptoms as current | “At today’s intake, she reports…” |
 | Medications | Ongoing use statement first; date-covered order only if no stronger current source | “She reports taking levothyroxine…” versus “The medication record lists…” |
 | Relevant context | Relevant surgery, lifestyle, pregnancy, functional needs, critical findings or material conflict | Keep recorded attribution/status; do not infer urgency from a condition name |
 | Allergies | Allergen + reaction/severity when recorded | “…a penicillin allergy (hives) is recorded.” |
 
 These are optional slots, not a mandatory number of sentences. Remove empty clauses and repair punctuation; no “unavailable” filler. Keep source uncertainty when it is part of a recorded finding. Bold condition/medication names and selectively important facts; connecting words remain regular. Do not assert adherence from a prescription.
 
-The fuller Arun and Sunita examples aim for roughly four visual lines at the preview width. This is a **fixture density goal**, not a production generation rule; screen width and clinically relevant content vary. Never clamp or silently truncate safety-relevant content to meet a line count.
+Start with demographics, chronic conditions and their relevant history, followed by the latest completed visit date and recorded complaint. Name documented ongoing medications and material allergy context briefly. Do not add routine lab readings, lab comparisons or vital measurements to this narrative: they belong in Assessment. Family, lifestyle, occupation and specialty details belong in Background unless directly needed to understand the presenting problem. Never pad the narrative to achieve four lines.
+
+**Example:** Sunita Sharma, a 46-year-old woman, has **hypothyroidism** (since 2018) and **dyslipidaemia** (since 2024). At her last visit on 21 Jul 2026, she reported **mild fatigue** for one week, without fever or palpitations. She reports ongoing use of **levothyroxine** and **atorvastatin** and has a recorded **penicillin allergy** (hives).
 
 Important condition tags may appear at the end of Situation with source-backed status. Allergies stay in the sentence, not a separate allergy-signal tag. A cancer or HIV diagnosis alone must not produce an emergency label. Severe reactions, source-critical findings and material contradictions must remain visible when relevant.
 

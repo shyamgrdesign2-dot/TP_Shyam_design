@@ -27,6 +27,7 @@ Mention relevant documented ongoing medicines, or currently prescribed medicines
 whose validated course covers review_date. Distinguish these two bases in wording.
 Include material allergy context when supported. Prioritize serious documented
 context rather than padding with generic statements.
+Give the latest completed visit date and documented complaint/reason after demographics and chronic conditions. Never invent a follow-up reason. Keep routine lab values, lab comparisons and vital measurements in Assessment. Detailed family, lifestyle, occupation and specialty history belong in Background unless directly relevant to the presenting problem.
 Use a fixed clause order, not a fixed line count. Include only relevant supported facts; do not pad, clamp or truncate the narrative.
 Write a brief natural narrative, not a list of labels. Bold documented condition
 and medication names, and optionally age; keep connecting/filler words regular.
@@ -225,7 +226,7 @@ Patient overview allergy placement: show allergy/reaction context in the Situati
 
 `ConsultationLayout.getSymptomsCollectorData` calls the existing fetch with patient, clinic and appointment identifiers and reads `response.summary_json_doctor` plus `_id`. `SCPopup` reads `symptoms[].name`, `duration`, `severity`, `notes`, as well as `medicalHistory` and `notes`. Validate the authenticated patient/clinic and current encounter association before using these as current symptoms. Preserve the original collection time and source ID. Do not claim clinician confirmation merely because the patient submitted the collector. An old collector stays historical; a failed request is not “no symptoms.”
 
-Situation order is demographics → relevant chronic/current conditions → current collector symptoms, otherwise dated latest-visit symptoms → material new/changed latest diagnosis → documented medication context → relevant allergy/lifestyle/surgical context. Select clinically relevant facts in a stable order; visual line count is not a generation constraint. Do not line-clamp or silently truncate facts; detailed history, observations and the visit recap remain below, with source access. Responsive line count varies with width.
+Situation order is demographics → chronic conditions with relevant duration/history → latest completed visit date and recorded complaint/reason → distinct current collector symptoms, if present → documented ongoing medication context → material allergy/history context. Select clinically relevant facts in a stable order; visual line count is not a generation constraint. Do not line-clamp or silently truncate facts; detailed history, observations and the visit recap remain below, with source access. Responsive line count varies with width.
 
 Last Visit citation rule: retain source IDs per SX/DX/RX fact, but display one shared visit citation at the end of the recap. Deduplicate references before rendering and open the same existing evidence record.
 
@@ -262,8 +263,9 @@ These are adapter parameters, **not additional Tatva Practice database columns**
 ### Situation: fixed semantic order
 
 ```text
-{demographic_phrase} with {relevant_conditions}.
-{current_symptom_clause}{material_latest_visit_clause}.
+{demographic_phrase} with {chronic_conditions_and_relevant_history}.
+At the last visit on {visit_date}, {documented_complaint_or_reason}.
+{distinct_current_symptom_clause}.
 {medication_clause}.
 {relevant_history_clause}.
 {allergy_clause}.
@@ -276,7 +278,7 @@ These are optional semantic slots, not six required sentences or lines. Join adj
 | Demographics | Verified age and recorded gender; optional patient name | `45-year-old man`; if only age is known use `45-year-old patient`; if neither is supplied omit demographic phrase. Never infer gender from a name. |
 | Conditions | Relevant active/chronic problems and significant historical disease | Bold names; retain `suspected`, `history of`, `in remission`, and recorded status. Do not infer a condition from a medicine. |
 | Current symptoms | Current-encounter symptom collector, then clinician-documented current symptoms; use dated prior symptoms only when helpful | `Reports fatigue for three days` for patient report. A symptom from September is `At the 22 Sep visit, …`, not automatically a current symptom. |
-| Latest visit change | Material new/changed diagnosis, symptom or status from latest completed encounter | Include an informative fact, not “had a follow-up.” “Diagnosed at the visit” needs documentation; absence from an earlier incomplete extract does not establish new onset. |
+| Last visit | Latest completed encounter date and recorded complaint/reason; add a material diagnosis change only if documented | `At her last visit on 21 Jul 2026, she reported mild fatigue for one week.` Never invent a follow-up reason or infer a new diagnosis from absence in an older record. |
 | Medication | Reconciled ongoing statement first; otherwise date-covered prescription | `Reports taking **Metformin**` vs `Ongoing treatment with **Metformin** is documented` vs `The medication record lists **Metformin**`. Never promote an order to actual use. |
 | Other context | Relevant surgery/hospitalization, pregnancy, lifestyle exposure, functional needs, immunosuppression or material conflict | Include only context that affects interpretation of this patient's situation; retain source status/time and attribution. No new risk score, diagnosis or urgency classification. |
 | Allergies | Documented substance and reaction/severity, with meaningful qualifiers | `A **sulfonamide allergy** (rash) is recorded.` Unknown adds no sentence. Explicit documented absence can be stated as such. Severe reaction remains visible and emphasized. |

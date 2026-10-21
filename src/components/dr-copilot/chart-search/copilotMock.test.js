@@ -96,3 +96,14 @@ test('Sunita has a fuller three-visit overview with isolated sources and ongoing
   const ramesh = await ask('MOCK1001', 'Summarize this patient');
   expect(JSON.stringify(ramesh.demoSummary)).not.toContain('Sunita');
 });
+
+
+test('Sunita introduction gives history and last-visit context while measurements stay in Assessment', async () => {
+  const { demoSummary } = await ask('MOCK1002', 'Summarize this patient');
+  expect(demoSummary.situation.text).toMatch(/^Sunita Sharma, a 46-year-old woman, has hypothyroidism \(since 2018\) and dyslipidaemia \(since 2024\)/);
+  expect(demoSummary.situation.text).toContain('last visit on 21 Jul 2026');
+  expect(demoSummary.situation.text).toContain('mild fatigue for one week');
+  expect(demoSummary.situation.text).not.toMatch(/TSH|LDL|mIU|menstrual|vegetarian/i);
+  const assessment = demoSummary.sections.find(section => section.id === 'assessment');
+  expect(JSON.stringify(assessment)).toContain('6.8 mIU/L');
+});

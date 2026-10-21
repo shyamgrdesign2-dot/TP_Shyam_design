@@ -46,21 +46,22 @@ const SUMMARY_RULES = [
 // Proposed normalized composition contract; adapters must verify their source fields.
 const SUMMARY_COMPOSITION = {
   Situation: {
-    template: '{demographics} with {relevant_conditions}. {current_symptoms}. {recent_visit_change}. {medication_context}. {relevant_history_context}. {allergy_context}.',
+    template: '{demographics} with {chronic_conditions_and_history}. At the last visit on {latest_visit_date}, {latest_visit_complaint_or_reason}. {current_symptoms_if_distinct}. {ongoing_medication_context}. {relevant_history_context}. {allergy_context}.',
     params: [
       ['demographics', 'Verified age + recorded gender; name optional. Omit missing parts; never infer gender from the name.'],
-      ['relevant_conditions', 'Active/relevant chronic conditions with recorded status. Preserve suspected, historical or remission qualifiers.'],
-      ['current_symptoms', 'Prefer current-encounter symptoms, attributed to their source. If absent, use dated prior symptoms only when relevant.'],
-      ['recent_visit_change', 'An informative diagnosis/status change from the latest completed visit; include alongside current symptoms when both matter.'],
-      ['medication_context', 'Explicit ongoing-use statement first, otherwise a reconciled prescription course covering the review date. Name medicines and preserve the evidence basis.'],
+      ['chronic_conditions_and_history', 'Relevant chronic conditions with documented duration/status. Preserve suspected, historical or remission qualifiers.'],
+      ['current_symptoms_if_distinct', 'Add distinct current-encounter symptoms attributed to their source. Prior symptoms are already covered by the dated last-visit clause; do not repeat them.'],
+      ['latest_visit_date / latest_visit_complaint_or_reason', 'Latest completed visit date + documented presenting complaint or reason. Include a material new diagnosis if recorded; never invent a follow-up reason.'],
+      ['ongoing_medication_context', 'Explicit ongoing-use statement first, otherwise a reconciled prescription course covering the review date. Name medicines and preserve the evidence basis.'],
       ['relevant_history_context', 'Only history that changes interpretation: relevant surgery, pregnancy, lifestyle, functional needs, or documented critical findings/conflicts.'],
       ['allergy_context', 'Recorded allergen + reaction/severity. Explicit “no known allergies” may be stated; a missing allergy record adds no clause.'],
     ],
     logic: [
       'Validate patient, encounter, source, event date and record status before composing. Do not treat a future appointment or copied old symptom as current.',
-      'Assemble available clauses in this order. Add recent-visit context only when informative; the existence of a visit alone does not need a sentence. Current symptoms and material recent changes can both be included.',
+      'Start with demographics, chronic conditions and relevant history; then give the last completed visit date and its recorded complaint/reason. Add distinct current-encounter symptoms, documented ongoing medicines and allergy context only when available.',
       'Use “reports taking” for patient-reported use, “ongoing treatment documented” for a clinician statement, and “medication record lists” for a valid prescription. A dated prescription never proves ingestion.',
       'Deduplicate repeated diagnoses/medicines. Keep safety-relevant reaction, source-critical finding or material conflict visible even when the narrative grows. Never invent severity from a disease name.',
+      'Keep lab readings, lab comparisons and vital measurements in Assessment. Keep routine family, lifestyle, occupation and specialty details in Background; do not pad the opening with them.',
       'Omit empty clauses, then repair grammar and punctuation. Preserve source uncertainty, negation and time context. No fixed five-line limit, CSS clamp, filler or generated recommendation.',
     ],
     example: '45-year-old man with type 2 diabetes and hypertension. At the 22 Sep visit, he reported mild fatigue for three days, without fever. He reports ongoing use of metformin. A sulfonamide allergy with rash is recorded.',

@@ -15,9 +15,9 @@ export const FILLED_PATIENT_SOURCES = [
 
 export const FILLED_PATIENT_OVERVIEW = {
   situation:{
-    text:'Arun Mehta, a 58-year-old man, has type 2 diabetes, hypertension and dyslipidaemia. Across three consultations, nocturia resolved; mild fatigue was recorded at the 9 Oct visit, without fever or chest pain. HbA1c was 7.8% in October, compared with 8.6% in May. He reports taking metformin, telmisartan and atorvastatin. A former smoker working rotating shifts, he has irregular meal timings and a recorded sulfonamide allergy (rash).',
+    text:'Arun Mehta, a 58-year-old man, has type 2 diabetes (10 years), hypertension (7 years) and dyslipidaemia (5 years). At his last visit on 9 Oct 2026, he reported mild fatigue for one week, without fever or chest pain. He reports ongoing use of metformin, telmisartan and atorvastatin and has a recorded sulfonamide allergy (rash).',
     emphasis:['58-year-old','type 2 diabetes','hypertension','dyslipidaemia','mild fatigue','metformin','telmisartan','atorvastatin','sulfonamide allergy'],
-    sources:['arun-profile','arun-may','arun-jul',last,labs,history],
+    sources:['arun-profile',last,history],
   },
   sections:[
     { id:'background', label:'Background', icon:'medical-record', items:[
