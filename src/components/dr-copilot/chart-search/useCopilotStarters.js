@@ -19,6 +19,7 @@
 
 import { useEffect, useState } from "react"
 import { fetchCopilotStarters, getCopilotToken } from "./copilotApi"
+import { isCopilotMock } from "./copilotMock"
 import { copilotDoctorKey } from "./copilotSessionStore"
 
 /* Verbatim from the service's /starters response. */
@@ -82,7 +83,7 @@ function writeStored(key, value) {
 }
 
 function loadStarters(patientUid) {
-  const key = `${copilotDoctorKey()}:${patientUid}`
+  const key = `${isCopilotMock() ? "mock:" : ""}${copilotDoctorKey()}:${patientUid}`
   const hit = startersCache.get(key)
   if (hit && Date.now() - hit.at < STARTERS_TTL_MS) return hit.promise
 

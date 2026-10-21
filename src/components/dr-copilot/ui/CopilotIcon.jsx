@@ -12,7 +12,7 @@ import { ICON_BASE_DEFAULT, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui"
  *
  * `variant` defaults to bulk and should stay there; it is spelled out only
  * where the design system itself specifies otherwise (the close control is
- * bold, per the icon the design lead pointed at).
+ * bold; clinical high/low arrows are also bold).
  *
  * `name` must be a real Tesseract token. Anything else renders nothing, which
  * is the loud kind of failure - a wrong icon that renders is far harder to

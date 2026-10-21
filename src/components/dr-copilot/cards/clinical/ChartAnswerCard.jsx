@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState, useEffect } from "react"
 
 import { cn } from "../../../dr-agent/utils"
+import { RecordedSbarBody } from "../summary/RecordedSbarBody"
 import { CardShell } from "../CardShell"
 import { TPMedicalIcon } from "../../compat/tp-ui"
 import { CopilotIcon } from "../../ui/CopilotIcon"
@@ -44,7 +45,7 @@ import { useCardStream, useStreamedText } from "../CardStreamContext"
  * Answers from before this contract still arrive as `segments`, and still
  * render, as prose.
  */
-export function ChartAnswerCard({ data }) {
+export function ChartAnswerCard({ data, renderBody }) {
   /* Memoised so an answer without citations does not hand every hook below
      a fresh empty array, and so the sidebar can tell this card's set apart. */
   const cited = useMemo(() => (data && data.cited) || [], [data])
@@ -124,7 +125,9 @@ export function ChartAnswerCard({ data }) {
           : undefined
       }
     >
-      {fullMarkdown ? (
+      {renderBody ? renderBody(cite) : data?.demoSummary ? (
+        <RecordedSbarBody data={data.demoSummary} renderCitation={number => <Citation key={number} number={number} onOpen={openEvidence} active={activeNumber === number} />} />
+      ) : fullMarkdown ? (
         <AnswerBody parsed={parsed} cite={cite} />
       ) : (
         <LegacyProse data={data} cite={cite} />
@@ -137,8 +140,8 @@ export function ChartAnswerCard({ data }) {
           it has done its job and is only noise. */}
       {hasInlineCites && citeHint.visible && (
         <p className="m-0 mt-[12px] flex flex-wrap items-center gap-x-[6px] gap-y-[2px] text-[12px] leading-[18px] text-tp-slate-500">
-          <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[5px] bg-tp-blue-100 px-[4px] text-[10.5px] font-bold leading-none text-tp-blue-700">
-            1
+          <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[5px] bg-tp-blue-50 px-[4px] text-[11px] font-medium leading-none text-tp-blue-600">
+            [1]
           </span>
           <span>Click or tap a number to see the record that line came from.</span>
         </p>
@@ -478,17 +481,17 @@ export function Citation({ number, onOpen, active }) {
         /* pt-[1px]: the digits sit high in the font's line box (its
            descent is empty for numerals), so the box nudges them to its
            optical centre. */
-        "relative mx-[2px] inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[5px] px-[4px] pt-[1px] align-[1px] text-[10.5px] font-bold leading-none tabular-nums",
+        "relative mx-[2px] inline-flex h-[18px] min-w-[22px] items-center justify-center rounded-[4px] px-[3px] pt-[1px] align-[1px] text-[11px] font-medium leading-none tabular-nums",
         "after:absolute after:-inset-x-[2px] after:-inset-y-[6px] after:content-['']",
         "transition-[background-color,border-color,color,transform] duration-[var(--copilot-dur-state)] ease-out active:scale-[0.92]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-blue-500",
         "motion-reduce:transition-none motion-reduce:active:scale-100",
         active
           ? "bg-tp-blue-500 text-white"
-          : "bg-tp-blue-100 text-tp-blue-700 hover:bg-tp-blue-200 hover:text-tp-blue-800",
+          : "bg-tp-blue-50 text-tp-blue-600 hover:bg-tp-blue-100 hover:text-tp-blue-700",
       )}
     >
-      {number}
+      [{number}]
     </button>
   )
 }

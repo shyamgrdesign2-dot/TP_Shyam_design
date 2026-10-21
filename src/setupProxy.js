@@ -17,6 +17,13 @@
  */
 
 const { createProxyMiddleware } = require("http-proxy-middleware");
+const fs = require("fs");
+
+// Local research credential stays in the Node proxy, never in a REACT_APP_* bundle.
+const copilotTokenFile = process.env.COPILOT_TOKEN_FILE;
+const copilotToken = copilotTokenFile
+  ? fs.readFileSync(copilotTokenFile, "utf8").trim()
+  : "";
 
 const ARCHIVE =
   process.env.REACT_APP_CHART_SEARCH_ORIGIN || "https://pm-turbopuffer-uat.tatvacare.in";
@@ -35,6 +42,7 @@ module.exports = function setupProxy(app) {
       pathRewrite: { "^/copilot-search": "" },
       onProxyReq(proxyReq) {
         proxyReq.setHeader("origin", COPILOT);
+        if (copilotToken) proxyReq.setHeader("authorization", `Bearer ${copilotToken}`);
       },
       logLevel: "warn",
     })

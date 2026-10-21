@@ -82,7 +82,7 @@ export function useCopilotReply({ patientUid, enabled = true, starters = [] }) {
 
       const uid = String(patientUid)
       const withFollowUps = (reply) =>
-        reply ? { ...reply, suggestions: followUps(starters, question) } : reply
+        reply ? { ...reply, suggestions: reply.suggestions || followUps(starters, question) } : reply
 
       resetActivity()
       const openSession = () =>

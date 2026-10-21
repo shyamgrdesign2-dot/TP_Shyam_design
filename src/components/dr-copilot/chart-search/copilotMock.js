@@ -1,3 +1,5 @@
+import { SUNITA_DEMO_RECORD, SUNITA_OVERVIEW, SUNITA_SOURCES, SUNITA_VISITS, sunitaVisitText } from './sunitaDemoRecord';
+
 /**
  * Velora on made-up data, end to end.
  *
@@ -5,11 +7,11 @@
  * and conversation here is invented. It answers the same endpoints the live
  * record search does, in the same shapes (copied from a real preprod turn),
  * so everything above the API layer - reply shapes, sessions, history,
- * redirects, the picker - runs exactly as it does live. Nothing in the UI
- * knows it is mock data except the badge that says so.
+ * redirects, the picker - runs exactly as it does live. Demo records stay isolated from live patient retrieval.
  *
  * Switched on with ?veloraMock=1 in the address bar (remembered in this
- * browser), off with ?veloraMock=0. Never on by default.
+ * browser), off with ?veloraMock=0. The synthetic /copilot-v0 catalog always
+ * uses demo chat; this route override is not persisted to other screens.
  */
 
 const FLAG_KEY = "velora:mock"
@@ -31,7 +33,14 @@ function captureFlag() {
 }
 captureFlag()
 
+/** The response catalog is a synthetic sandbox, including its chat. */
+export function isCopilotDemoCatalog() {
+  return typeof window !== "undefined" && /^\/copilot-v0\/?$/.test(window.location.pathname)
+}
+
 export function isCopilotMock() {
+  // Do not persist this route override: leaving the catalog restores live mode.
+  if (isCopilotDemoCatalog()) return true
   if (cached !== null) return cached
   try {
     const param = new URLSearchParams(window.location.search).get("veloraMock")
@@ -73,13 +82,7 @@ const PATIENTS = [
     visit: { date: D("2026-08-12"), dept: "Internal Medicine", doctor: "Dr. Sheela", advice: "Reduce salt, walk 30 minutes daily, recheck HbA1c in 3 months." },
   }, true),
   patient("MOCK1002", "Sunita Sharma", "F", 46, "9898123456", {
-    conditions: [["Hypothyroidism", D("2018-02-14")]],
-    meds: [["Levothyroxine", "75 mcg once daily before breakfast", D("2026-07-21")]],
-    labs: [["TSH", 6.8, "mIU/L", "0.4-4.0", "high", D("2026-07-21")], ["TSH", 5.1, "mIU/L", "0.4-4.0", "high", D("2026-01-09")]],
-    bp: [["124/80", D("2026-07-21")]],
-    allergies: [],
-    family: [["Mother", "Hypothyroidism"]],
-    visit: { date: D("2026-07-21"), dept: "Endocrinology", doctor: "Dr. Mehul Shah", advice: "Take levothyroxine on an empty stomach; recheck TSH in 6 weeks." },
+    ...SUNITA_DEMO_RECORD,
   }, true),
   patient("MOCK1003", "Arjun Mehta", "M", 34, "9925011223", {
     conditions: [["Bronchial asthma", D("2012-06-30")]],
@@ -221,6 +224,36 @@ const PATIENTS = [
 
 const byUid = new Map(PATIENTS.map((p) => [p.uid, p]))
 
+/** Explicit demo mode only. A selected appointment can carry an arbitrary ID.
+ * Give that demo identity a stable synthetic scenario, never fetch or alter its
+ * real chart. Missing demographics stay missing rather than borrowing a donor's.
+ */
+export function registerMockPatient(option) {
+  if (!isCopilotMock() || !option?.id || !option.label) return
+  const uid = String(option.id)
+  if (byUid.has(uid)) return
+  const hash = [...uid].reduce((value, char) => (value * 31 + char.charCodeAt(0)) >>> 0, 0)
+  const scenario = PATIENTS[hash % 6]
+  const entry = { ...scenario, uid, pid: uid, name: option.label,
+    age: option.age ?? null, gender: option.gender || null, phone: "", today: true }
+  byUid.set(uid, entry)
+  // Only identity is stored. Clinical fixtures remain in the demo source code.
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("velora:mock:identities") || "{}")
+    saved[uid] = { id: uid, label: entry.name, age: entry.age, gender: entry.gender }
+    sessionStorage.setItem("velora:mock:identities", JSON.stringify(saved))
+  } catch (e) { /* session-only demo still works without storage */ }
+}
+
+function selectedMockPatient(uid) {
+  if (!byUid.has(uid) && isCopilotMock()) {
+    try { registerMockPatient(JSON.parse(sessionStorage.getItem("velora:mock:identities") || "{}")[uid]) }
+    catch (e) { /* no saved demo identity */ }
+  }
+  return byUid.get(uid)
+}
+
+
 /* ── The picker's appointment list ───────────────────────────────────────── */
 
 function toOption(p) {
@@ -241,13 +274,13 @@ function toOption(p) {
     chat is about. */
 export function mockPatientMeta(uid) {
   const p = byUid.get(String(uid || ""))
-  return p ? `${p.age}y | ${p.gender} | ${p.pid}` : null
+  return p ? [p.age != null ? `${p.age}y` : null, p.gender, p.pid].filter(Boolean).join(" | ") : null
 }
 
 /** Today's appointments, or everyone matching the words typed. */
 export function mockListPatients({ search, isToday } = {}) {
   const q = String(search || "").trim().toLowerCase()
-  const rows = PATIENTS.filter((p) =>
+  const rows = [...byUid.values()].filter((p) =>
     q ? p.name.toLowerCase().includes(q) || p.uid.toLowerCase().includes(q) || p.pid.toLowerCase().includes(q) || p.phone.includes(q) : p.today
   )
   return delay(q ? 380 : 260).then(() => rows.map(toOption).map((o) => ({ ...o, isToday: o.isToday || !!isToday && o.isToday })))
@@ -268,7 +301,7 @@ function evRow(p, kind, i, extra) {
   }
 }
 
-function chartAnswer(p, question) {
+export function chartAnswer(p, question) {
   const q = question.toLowerCase()
   const evidence = []
   const cite = (row) => {
@@ -278,11 +311,14 @@ function chartAnswer(p, question) {
   const lines = []
   let interpretation = ""
   let intent = "patient_summary"
+  let demoSummary = null
 
   const meds = () => p.meds.map(([name, dose, date], i) =>
     `- ${PRETTY(date)}: **${name}** ${dose}. ${cite(evRow(p, "medicine", i, { eventDate: date, text: `${name} ${dose}` }))}`)
   const labs = (filter) => p.labs
     .map((l, i) => [l, i])
+    .sort(([a], [b]) => b[5].localeCompare(a[5]))
+    .filter(([l], i, all) => !/latest|recent/.test(q) || all.findIndex(([other]) => other[0] === l[0]) === i)
     .filter(([l]) => !filter || filter.test(l[0]))
     .map(([[test, value, unit, ref, flag, date], i]) =>
       `- ${PRETTY(date)}: ${test}: **${value} ${unit}**; reference ${ref}; recorded flag ${flag}. ${cite(evRow(p, "lab_result", i, { eventDate: date, testName: test, panelName: test, valueNum: value, unit, refRangeText: ref, abnormalFlag: flag, text: `${test} ${value} ${unit}` }))}`)
@@ -295,55 +331,91 @@ function chartAnswer(p, question) {
       `- ${PRETTY(date)}: **${drug}**, reaction recorded as ${reaction}. ${cite(evRow(p, "allergy", i, { eventDate: date, text: `${drug}: ${reaction}` }))}`)
     : ["- No drug allergy or reaction is documented in the indexed records."]
 
-  if (/\bmed|medicine|prescri|drug|tablet/.test(q)) {
+  if (/\bmed(?:ication|ications|icine|icines|s)?\b|prescri|tablet/.test(q) && !/allerg/.test(q)) {
     intent = "medications"
     interpretation = `Medicines on the most recent prescriptions in ${p.name}'s indexed record.`
-    lines.push("### Current prescriptions", ...meds())
+    lines.push("# Medications on record", ...meds())
   } else if (/allerg|reaction/.test(q)) {
     intent = "allergy"
     interpretation = "Documented drug allergies and the reactions recorded against them."
-    lines.push("### Allergies", ...allergies())
+    lines.push("# Allergies", ...allergies())
   } else if (HBA1C.test(q) || /sugar|glucose|tsh|thyroid|ldl|cholesterol|haemoglobin|hemoglobin|ferritin|creatinine|lab/.test(q)) {
     intent = "labs"
     const filter = HBA1C.test(q) || /sugar|glucose/.test(q) ? /HbA1c|glucose/i : /tsh|thyroid/.test(q) ? /TSH/ : /ldl|cholesterol/.test(q) ? /LDL/ : null
     const rows = labs(filter)
     interpretation = rows.length ? "The dated lab results in the indexed record, newest first." : "No matching lab result is recorded."
-    lines.push("### Lab results", ...(rows.length ? rows : ["- No matching lab result is recorded in the indexed record."]))
+    lines.push(/latest|recent/.test(q) ? "# Latest lab records" : "# Lab records", ...(rows.length ? rows : ["- No matching lab result is recorded in the indexed record."]))
   } else if (/\bbp\b|blood pressure|vital/.test(q)) {
     intent = "vitals"
     interpretation = "Blood pressure readings recorded at visits, newest first."
-    lines.push("### Blood pressure", ...vitals())
+    lines.push("# Blood pressure", ...vitals())
   } else if (/condition|diagnos|history|problem/.test(q)) {
     intent = "diagnosis"
     interpretation = "Conditions recorded as diagnoses in the indexed record."
-    lines.push("### Recorded conditions", ...conditions())
+    lines.push("# Medical history", ...conditions())
   } else if (/advice|counsel|follow/.test(q)) {
     intent = "advice"
     interpretation = "Advice recorded at the most recent visit."
     lines.push("### Advice at the last visit", `- ${PRETTY(p.visit.date)}, ${p.visit.dept}: ${p.visit.advice} ${cite(evRow(p, "advice", 0, { eventDate: p.visit.date, text: p.visit.advice }))}`)
   } else {
-    interpretation = `A summary of ${p.name}'s indexed record across conditions, medicines, labs and the last visit.`
-    lines.push(
-      `${p.name}, ${p.gender === "M" ? "male" : "female"}, ${p.age} years. Last seen in ${p.visit.dept} on **${PRETTY(p.visit.date)}**.`,
-      "",
-      "### Recorded conditions", ...conditions(),
-      "",
-      "### Current prescriptions", ...meds(),
-    )
-    const l = labs()
-    if (l.length) lines.push("", "### Latest labs", ...l.slice(0, 3))
-    lines.push("", "### Allergies", ...allergies())
+    interpretation = `Here's ${p.name}'s patient summary.`
+    if (p.uid === 'MOCK1002') {
+      const sourceNumbers = new Map(SUNITA_SOURCES.map((record, i) => {
+        cite(evRow(p, record.kind, i, { eventDate:record.date, text:record.text }))
+        return [record.id, evidence.length]
+      }))
+      const resolve = value => Array.isArray(value) ? value.map(resolve) : value && typeof value === 'object'
+        ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, key === 'sources' ? item.map(id => sourceNumbers.get(id)) : resolve(item)])) : value
+      demoSummary = resolve(SUNITA_OVERVIEW)
+      lines.push('# Patient overview', '', demoSummary.situation.text, '', ...evidence.map((record,i)=>`[${i+1}](#evidence-${i+1})`))
+    } else {
+    const source = (kind, i, extra) => {
+      cite(evRow(p, kind, i, extra))
+      return evidence.length
+    }
+    const conditionItems = p.conditions.map(([name, date], i) => ({ id: `condition-${i}`, text: name,
+      sources: [source("diagnosis", i, { eventDate: date, text: name })] }))
+    const allergyItems = p.allergies.map(([name, reaction, date], i) => ({ id: `allergy-${i}`, text: name, detail: reaction,
+      sources: [source("allergy", i, { eventDate: date, text: `${name}: ${reaction}` })] }))
+    const identity = [p.age != null ? `${p.age}-year-old` : null, p.gender === "M" ? "man" : p.gender === "F" ? "woman" : null].filter(Boolean).join(" ")
+    const story = `${p.name}${identity ? `, a ${identity},` : ""} has a recorded history of ${p.conditions.map(([name]) => name).join(" and ")}.` +
+      (p.allergies.length ? ` Allergic to ${p.allergies.map(([name, reaction]) => `${name} (${reaction})`).join(", ")}.` : "")
+    const background = [{ id: "conditions", label: "Chronic conditions", separator: "comma", values: conditionItems }]
+    if (allergyItems.length) background.push({ id: "allergies", label: "Allergies", separator: "comma", values: allergyItems })
+    if (p.family.length) background.push({ id: "family", label: "Family history", text: p.family.map(([who, what]) => `${who}: ${what}`).join(", "),
+      sources: [source("history", 0, { eventDate: p.visit.date, text: p.family.map(([who, what]) => `${who}: ${what}`).join(", ") })] })
+    const groups = []
+    const latestBP = [...p.bp].sort((a,b) => b[1].localeCompare(a[1]))[0]
+    if (latestBP) groups.push({ id: "vitals", label: "Latest vitals", date: PRETTY(latestBP[1]).replace(/20(\d{2})$/, "’$1"), icon: "HeartRate", items: [{ id: "bp", label: "BP", text: `${latestBP[0]} mmHg`, sources: [source("vitals", 0, { eventDate: latestBP[1], text: `BP ${latestBP[0]} mmHg` })] }] })
+    const latestLabs = [...p.labs].sort((a,b) => b[5].localeCompare(a[5])).filter((lab, i, all) => all.findIndex(row => row[0] === lab[0]) === i)
+    if (latestLabs.length) groups.push({ id: "labs", label: "Key labs", icon: "clipboard-activity", items: [{ id: "labs", values: latestLabs.map(([test, value, unit, ref, flag, date], i) => ({ id: `lab-${i}`, label: test, text: `${value} ${unit}`, flag,
+      sources: [source("lab_result", i, { eventDate: date, testName: test, valueNum: value, unit, refRangeText: ref, abnormalFlag: flag, text: `${test}: ${value} ${unit}` })] })) }] })
+    const visitSource = source("visit", 0, { eventDate: p.visit.date, text: visitNarrative(p, p.visit.date) })
+    demoSummary = { situation: { text: story, emphasis: [...p.conditions.map(([name]) => name), ...p.allergies.map(([name]) => name)], sources: [...conditionItems, ...allergyItems].flatMap(item => item.sources) }, sections: [
+      { id: "background", label: "Background", items: background },
+      { id: "assessment", label: "Assessment", icon: "HeartRate", items: [], groups },
+      { id: "last-visit", label: "Last visit", date: PRETTY(p.visit.date).replace(/20(\d{2})$/, "’$1"), items: [
+        { id: "sx", label: "Sx", text: "Routine follow-up", sources: [visitSource] },
+        { id: "dx", label: "Dx", text: p.conditions.map(([name]) => name).join(", "), sources: [visitSource] },
+        { id: "rx", label: "Rx", text: p.meds.map(([name, dose]) => `${name} ${dose}`).join(", "), sources: [visitSource] },
+      ] },
+    ] }
+    lines.push("# Patient overview", "", story, "", ...demoSummary.sections.map(section => `### ${section.label}`), "", ...evidence.map((row, i) => `[${i+1}](#evidence-${i+1})`))
+  }
+
   }
 
   const suggestions = [
+    { short: "Patient summary", ask: "Summarise this patient's record.", intent: "patient_summary" },
     { short: "Medications on record", ask: "What medications were recorded?", intent: "medications" },
-    { short: "Latest labs", ask: "What are the latest lab results?", intent: "labs" },
-    { short: "Allergies", ask: "Any documented drug allergy?", intent: "allergy" },
+    ...(p.labs.length ? [{ short: "Latest labs", ask: "What are the latest lab results?", intent: "labs" }] : []),
+    ...(p.allergies.length ? [{ short: "Allergies", ask: "Any documented drug allergy?", intent: "allergy" }] : []),
     { short: "Blood pressure trend", ask: "Show the blood pressure readings over time.", intent: "vitals" },
   ].filter((s) => s.intent !== intent).slice(0, 3).map((s, i) => ({ id: `s${i}`, selection_id: `s${i}`, code: null, ...s }))
 
   return {
     interpretation,
+    demoSummary,
     answer: lines.join("\n"),
     response_kind: "answer",
     intent,
@@ -368,6 +440,10 @@ const HBA1C = /hb\s*a\s*1\s*c|hbac1|hba1|\ba1c\b|glycat/
    vitals, with the finding it backs among them. Invented, like everything
    in this file. */
 function visitNarrative(p, date) {
+  if (p.uid === 'MOCK1002') {
+    const recorded = SUNITA_VISITS.find(visit => visit.date === (date || p.visit.date))
+    if (recorded) return sunitaVisitText(recorded)
+  }
   const when = PRETTY(date || p.visit.date)
   const lines = [`${p.name} · OPD prescription, ${when}.`]
   lines.push("Presenting complaints / history:", "- Routine follow-up")
@@ -679,7 +755,7 @@ export async function mockRequest(path, { method = "GET", body, onEvent } = {}) 
 
   m = route.match(/^\/patients\/([^/]+)\/(starters|sessions|ask)$/)
   if (m) {
-    const p = byUid.get(decodeURIComponent(m[1]))
+    const p = selectedMockPatient(decodeURIComponent(m[1]))
     if (!p) throw notFound("This patient's record has not been indexed yet.")
     if (m[2] === "starters") {
       await delay(200)
@@ -687,7 +763,7 @@ export async function mockRequest(path, { method = "GET", body, onEvent } = {}) 
         { ask: "Summarise this patient's record.", short: "Patient summary", intent: "patient_summary", code: null },
         { ask: "What medications were recorded?", short: "Medications on record", intent: "medications", code: "medicine" },
         p.labs.length ? { ask: "What are the latest lab results?", short: "Latest lab results", intent: "labs", code: "lab_result" } : null,
-        { ask: "Any documented drug allergy?", short: "Allergies", intent: "allergy", code: "allergy" },
+        { ask: "What conditions are recorded?", short: "Medical history", intent: "diagnosis", code: "diagnosis" },
       ].filter(Boolean)
       return { starters, availableKinds: ["diagnosis", "medicine", "lab_result", "vitals"], visitCount: 6 }
     }
@@ -699,7 +775,7 @@ export async function mockRequest(path, { method = "GET", body, onEvent } = {}) 
     }
     await streamSteps(onEvent, ["Reading the question", `Searching ${p.name}'s record`, "Checking the sources"], 1800)
     const s = store[body.session_id]
-    if (!s) throw notFound("That conversation has ended.")
+    if (!s || s.patient?.patientUid !== p.uid) throw notFound("That conversation has ended.")
     const question = String(body.question || "")
     const result = OTHER_PATIENTS.test(question)
       ? {

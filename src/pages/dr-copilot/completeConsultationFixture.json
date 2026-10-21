@@ -1,0 +1,252 @@
+{
+  "_description": "Synthetic comprehensive design-review fixture. medical_history uses the case-manager section/tag shape read by medicalHistoryUtils.js. prescriptionData uses the doctor-entered shape consumed by PatientSummary.js. Outer metadata, observations and normalized ongoing-medication records are local adapter fields, not a claimed API response.",
+  "patient": {
+    "age": 45,
+    "gender": "male"
+  },
+  "recorded_at": "2026-09-22",
+  "medical_history": [
+    {
+      "title": "Medical Condition",
+      "tmmhs_id": 2,
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "pms_default": 0,
+          "enable": "Y",
+          "title": "Type 2 diabetes",
+          "since": "7 years",
+          "status": "Active",
+          "medication": "Metformin 500 mg twice daily after meals",
+          "note": "Patient reports ongoing use."
+        },
+        {
+          "tmmhst_id": 0,
+          "pms_default": 0,
+          "enable": "Y",
+          "title": "Hypertension",
+          "since": "5 years",
+          "status": "Active",
+          "medication": "",
+          "note": ""
+        }
+      ],
+      "tmpmh_remarks": ""
+    },
+    {
+      "title": "Allergies",
+      "tmmhs_id": 4,
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "pms_default": 0,
+          "enable": "Y",
+          "title": "Sulfonamides",
+          "note": "Rash"
+        }
+      ],
+      "tmpmh_remarks": ""
+    },
+    {
+      "title": "Family History",
+      "tmmhs_id": 3,
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "pms_default": 0,
+          "enable": "Y",
+          "title": "Type 2 diabetes",
+          "relationship": "Father",
+          "note": ""
+        }
+      ],
+      "tmpmh_remarks": ""
+    },
+    {
+      "title": "Lifestyle",
+      "tmmhs_id": 1,
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "pms_default": 0,
+          "enable": "Y",
+          "title": "Smoking",
+          "status": "Former smoker",
+          "since": "Stopped 2020",
+          "note": "Previously 5 cigarettes/day for 10 years"
+        },
+        {
+          "tmmhst_id": 0,
+          "pms_default": 0,
+          "enable": "Y",
+          "title": "Physical activity",
+          "note": "Walks 30 minutes, 5 days/week"
+        }
+      ],
+      "tmpmh_remarks": ""
+    },
+    {
+      "title": "Surgical History",
+      "tmmhs_id": 5,
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "pms_default": 0,
+          "enable": "Y",
+          "title": "Appendectomy",
+          "date": "2014",
+          "dateType": "year",
+          "note": "Uncomplicated recovery"
+        }
+      ],
+      "tmpmh_remarks": ""
+    }
+  ],
+  "additional_history": "Works rotating shifts; meal timings vary.",
+  "prescriptionData": {
+    "symptoms": [
+      {
+        "symptom_name": "Fatigue",
+        "since": "3 days",
+        "severity": "Mild",
+        "note": "No fever reported"
+      }
+    ],
+    "diagnosis": [
+      {
+        "tds_name": "Type 2 diabetes",
+        "status": "Active",
+        "since": "7 years",
+        "note": ""
+      },
+      {
+        "tds_name": "Hypertension",
+        "status": "Active",
+        "since": "5 years",
+        "note": ""
+      }
+    ],
+    "examinations": [
+      {
+        "examination_name": "General examination",
+        "note": "Alert, oriented. No pedal oedema."
+      }
+    ],
+    "medications": [
+      {
+        "name": "Metformin",
+        "dosage": "500 mg",
+        "frequency": "Twice daily",
+        "schedule": "After meals",
+        "duration": "30 days",
+        "quantity": "60 tablets",
+        "notes": ""
+      },
+      {
+        "name": "Amlodipine",
+        "dosage": "5 mg",
+        "frequency": "Once daily",
+        "schedule": "Morning",
+        "duration": "30 days",
+        "quantity": "30 tablets",
+        "notes": ""
+      }
+    ],
+    "investigations": [
+      {
+        "name": "HbA1c",
+        "note": "Repeat in three months"
+      }
+    ],
+    "additionalNotes": "Glycaemic control reviewed. Patient reports taking metformin regularly."
+  },
+  "vitals": [
+    {
+      "label": "BP",
+      "value": "136/84",
+      "unit": "mmHg"
+    },
+    {
+      "label": "Pulse",
+      "value": "78",
+      "unit": "bpm"
+    },
+    {
+      "label": "SpO₂",
+      "value": "98",
+      "unit": "%"
+    },
+    {
+      "label": "Temperature",
+      "value": "36.8",
+      "unit": "°C"
+    },
+    {
+      "label": "Weight",
+      "value": "75",
+      "unit": "kg"
+    },
+    {
+      "label": "Height",
+      "value": "170",
+      "unit": "cm"
+    }
+  ],
+  "labs": [
+    {
+      "name": "HbA1c",
+      "value": "7.4",
+      "unit": "%",
+      "reference": "4.0–5.6%",
+      "flag": "high"
+    },
+    {
+      "name": "Creatinine",
+      "value": "1.0",
+      "unit": "mg/dL",
+      "reference": "0.7–1.3 mg/dL"
+    },
+    {
+      "name": "Haemoglobin",
+      "value": "14.0",
+      "unit": "g/dL",
+      "reference": "13.0–17.0 g/dL"
+    }
+  ],
+  "ongoing_medications": [
+    {
+      "id": "history-metformin",
+      "medicationKey": "metformin-oral",
+      "name": "Metformin",
+      "strength": "500 mg",
+      "schedule": "Twice daily · after meals; patient-reported",
+      "status": "ongoing",
+      "recordedAt": "2026-09-22",
+      "sourceId": "medical-history",
+      "attribution": "patient-reported"
+    }
+  ],
+  "symptom_collector_example": {
+    "_description": "Separate current-encounter scenario. summary_json_doctor fields match ConsultationLayout/SCPopup. Association and timestamp are normalized fixture metadata.",
+    "recordedAt": "2026-10-19",
+    "matchesCurrentEncounter": true,
+    "sourceId": "symptom-collector",
+    "summary_json_doctor": {
+      "symptoms": [
+        {
+          "name": "Intermittent dizziness",
+          "duration": "2 days",
+          "severity": "Mild",
+          "notes": "No fainting reported"
+        }
+      ],
+      "medicalHistory": [],
+      "notes": ""
+    }
+  }
+}

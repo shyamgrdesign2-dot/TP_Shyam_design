@@ -3,7 +3,8 @@ import { Outlet } from "react-router-dom";
 import { CopilotProvider } from "./CopilotContext";
 /* Loaded here, at app start, so the ?veloraMock switch is read before routing
    rewrites the address (see copilotMock). */
-import "../chart-search/copilotMock";
+import { isCopilotMock } from "../chart-search/copilotMock";
+import { useLocation } from "react-router-dom";
 
 const CopilotDock = React.lazy(() => import("./CopilotDock"));
 
@@ -19,8 +20,9 @@ const CopilotDock = React.lazy(() => import("./CopilotDock"));
  * Lazy so the module stays out of the initial bundle.
  */
 export default function CopilotBoundary() {
+  useLocation(); // Remount conversation state when crossing the demo/live boundary.
   return (
-    <CopilotProvider>
+    <CopilotProvider key={isCopilotMock() ? "demo" : "live"}>
       <Outlet />
       <Suspense fallback={null}>
         <CopilotDock />

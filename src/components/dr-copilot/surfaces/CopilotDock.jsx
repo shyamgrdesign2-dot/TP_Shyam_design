@@ -33,7 +33,7 @@ import styles from "./CopilotDock.module.css";
 import "../ui/tokens.css";
 import "../ui/copilot.css";
 import { clearHistoryNow, hideSession } from "../chart-search/copilotHistoryPrefs";
-import { clearMockSessions, isCopilotMock } from "../chart-search/copilotMock";
+import { clearMockSessions, isCopilotMock, registerMockPatient } from "../chart-search/copilotMock";
 import { firstNameOf } from "../shared/patientName";
 import { findPatientsNamed } from "./useCopilotPatientPicker";
 
@@ -192,6 +192,12 @@ export default function CopilotDock() {
   useEffect(() => {
     if (isOpenNow || (patientUid && inChartScope)) ensureCopilotAuth().catch(() => {});
   }, [patientUid, inChartScope, isOpenNow]);
+
+  useEffect(() => {
+    if (isCopilotMock() && patientUid) {
+      registerMockPatient(patients.find(patient => String(patient.id) === String(patientUid)));
+    }
+  }, [patientUid, patients]);
 
   const { prompts: starterPrompts } = useCopilotStarters(patientUid);
 
@@ -419,6 +425,7 @@ export default function CopilotDock() {
                 role: "assistant",
                 text: reply.text,
                 rxOutput: reply.rxOutput,
+                suggestions: reply.suggestions,
                 createdAt: new Date((row.updated_at || 0) * 1000).toISOString(),
                 feedbackGiven: null,
               });

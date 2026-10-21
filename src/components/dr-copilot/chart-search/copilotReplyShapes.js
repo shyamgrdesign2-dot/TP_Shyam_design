@@ -8,6 +8,7 @@
  * lives here, and both paths use it.
  */
 
+import { isCopilotMock } from "./copilotMock"
 import { buildCopilotEvidence, buildDiscoveryEvidence } from "./copilotApi"
 
 /** The lead-in above a card, when the service sends none of its own. */
@@ -52,10 +53,12 @@ export function chartReplyFromResult(result, question) {
 
   return {
     text: result.interpretation || CHART_FALLBACK_LEAD,
+    ...(isCopilotMock() && result.suggestions ? { suggestions: result.suggestions.map(s => ({ label: s.short, message: s.ask })) } : {}),
     rxOutput: {
       kind: "chart_answer",
       data: {
         markdown,
+        ...(isCopilotMock() && result.demoSummary ? { demoSummary: result.demoSummary } : {}),
         intent: result.intent || null,
         cited,
         evidence: result.evidence || [],

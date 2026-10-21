@@ -272,6 +272,9 @@ const InvestigationSettingsPage = React.lazy(() =>
 const CopilotCardGallery = React.lazy(() =>
   lazyRetry(() => import("./pages/dr-copilot/CopilotCardGallery"))
 );
+const PatientResponseV0 = React.lazy(() =>
+  lazyRetry(() => import("./pages/dr-copilot/PatientResponseV0"))
+);
 const ChartSearchPage = React.lazy(() =>
   lazyRetry(() => import("./pages/chart-search/ChartSearchPage"))
 );
@@ -729,6 +732,7 @@ function App() {
             <Route path="data-analytics-x" element={<DataAnalyticsPage />} />
             <Route path="lims" element={<LimsPage />} />
             <Route path="copilot-cards" element={<CopilotCardGallery />} />
+            <Route path="copilot-v0" element={<PatientResponseV0 />} />
             <Route path="chart-search-x" element={<ChartSearchPage />} />
           </Route>
           <Route
