@@ -89,7 +89,7 @@ test('Sunita has a fuller three-visit overview with isolated sources and ongoing
   expect(result.evidence.find(row=>row.code==='history').text).toContain('reports ongoing use');
   const check = item => {
     if (!item || typeof item !== 'object') return;
-    if (item.sources) item.sources.forEach(number=>expect(result.evidence[number-1]).toBeDefined());
+    (item.sources || []).forEach(number=>expect(result.evidence[number-1]).toBeDefined());
     Object.values(item).forEach(value=> { if (typeof value === 'object') Array.isArray(value) ? value.forEach(check) : check(value); });
   };
   check(result.demoSummary);
