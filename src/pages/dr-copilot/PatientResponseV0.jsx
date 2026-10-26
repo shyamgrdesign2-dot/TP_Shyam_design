@@ -201,9 +201,14 @@ function Prescriptions({ history = false, setVisibleSources }) {
   </>;
 }
 
-function VisitSummary({ visit, cite }) {
-  const data = compactVisitSummary({ ...visit, displayDate: displayDate(visit.date) });
-  return <RecordedSbarBody data={data} renderCitation={cite} />;
+/* The visit's date appears once: on the visit row in Visit history, or as
+   one line above a standalone summary, never repeated on every section. */
+function VisitSummary({ visit, cite, showDate = false }) {
+  const data = compactVisitSummary(visit);
+  return <>
+    {showDate && <p className={styles.note}>Consultation on {displayDate(visit.date)}</p>}
+    <RecordedSbarBody data={data} renderCitation={cite} />
+  </>;
 }
 
 function Visits({ cite }) {
@@ -265,7 +270,7 @@ function ReviewCard({ example, availability, trendScope }) {
     return <>
       {isSummary && availability === 'partial' && <p className={styles.availabilityNote}>Only a limited consultation extract is available. Only documented information is summarized.</p>}
       {isSummary && recordSet.data && <Summary data={recordSet.data} cite={cite} />}
-      {example.id === 'visit-summary' && availability === 'full' && <VisitSummary visit={REVIEW_VISITS[0]} cite={cite} />}
+      {example.id === 'visit-summary' && availability === 'full' && <VisitSummary visit={REVIEW_VISITS[0]} cite={cite} showDate />}
       {(example.id === 'vital' || example.id === 'lab') && <Trend key={`${example.id}-${trendScope}`} kind={example.id} cite={cite} scope={trendScope} />}
       {example.id === 'labs' && <Labs />}
       {(example.id === 'meds' || example.id === 'med-history') && <Prescriptions history={example.id === 'med-history'} setVisibleSources={setVisibleSources} />}

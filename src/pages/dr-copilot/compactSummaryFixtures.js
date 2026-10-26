@@ -68,9 +68,10 @@ export function compactVisitSummary(visit) {
     ['examination','Examination','medical-report'], ['investigations','Lab investigations','Lab'],
     ['notes','Additional notes','medical-record'],
   ];
+  // No date on each section: every section is from this one visit, and the
+  // visit's date is shown once, on the visit itself.
   return { sections:fields.map(([id,label,icon])=>section(id,label,icon,
-    (visit.writtenSections?.[id] || []).map((text,index)=>value(`${id}-${index}`,'',text,'',[visit.id])),
-    visit.displayDate || visit.date)).filter(item=>item.items.length) };
+    (visit.writtenSections?.[id] || []).map((text,index)=>value(`${id}-${index}`,'',text,'',[visit.id])))).filter(item=>item.items.length) };
 }
 
 // Separate synthetic case; never attach these conditions to the routine example patient.
