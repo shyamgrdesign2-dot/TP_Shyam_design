@@ -398,12 +398,57 @@ const READER_REMARK = /tally|not read|unreadable|illegible|not legible|could not
 const ROLE_WORD = /^(final|working|secondary|primary|provisional|principal)( dx| diagnosis)?(, as written)?$|^past (history|surgery)$|^as written$/i;
 export const isReaderRemark = (text) => READER_REMARK.test(typeof text === "string" ? text : text?.v || "");
 
+// What a row's bracket leaves out when a doctor is reading, not reviewing.
+// Nothing is lost: the full row is in Clinical data and on the page.
+//   form     "Tablet", "Capsule", "by mouth": the medicine's name already says it
+//   count    "1 Tablet" beside 1-0-1 says nothing new; "2 Tablets" stays as "2 per dose"
+//   proof    "Stated on 8 pages": the citations beside the row say where
+//   routine  "under aseptic technique"
+//   echo     a bracket that only repeats the row's own name, as its short form
+const FORM_WORD = /^(tab(let)?s?|cap(sule)?s?|syr(up)?|susp(ension)?|inj(ection)?|drops?|oint(ment)?|cream|gel|lotion|sachets?|po|p\/o|oral(ly)?|per oral|by mouth)\.?$/i;
+const ROUTE = /^(iv|im|sc|s\/c|sl|pr|pv|id|topical|local application|nebuli[sz](ed|ation)|inhal(ed|ation)|intranasal|both eyes|(left|right) eye|[lrb]e|via .{1,14}|iv infusion|iv bolus)$/i;
+const PROOF = /^stated on \d+ pages?$/i;
+const ROUTINE = /^under aseptic (technique|precautions?)$/i;
+const NOTES_FIT = 40;
+const text = (item) => (typeof item === "string" ? item : item?.v || "");
+
+const perDose = (dosage) => {
+  if (!dosage) return null;
+  const count = dosage.replace(/\s*(tablets?|tabs?|capsules?|caps?)\.?$/i, "").trim();
+  if (count !== dosage.trim()) return count === "1" || !count ? null : `${count} per dose`;
+  return /[a-z]/i.test(dosage) ? dosage : `${dosage} per dose`;
+};
+
+// "s/p WLE (2016)" after "… after wide local excision (2016)": every number
+// and word of the bracket is already in the name, spelled out or as initials.
+function echoesTitle(qual, title = "") {
+  const name = title.toLowerCase();
+  const words = name.match(/[a-z]+/g) || [];
+  const tokens = text(qual).toLowerCase().match(/[a-z0-9]+/g) || [];
+  const said = tokens.filter((token) => !["s", "p", "sp", "post", "after", "status"].includes(token));
+  if (!said.length) return false;
+  return said.every((token) => {
+    if (/^\d+$/.test(token)) return name.includes(token);
+    if (words.includes(token)) return true;
+    // initials of words that follow one another in the name
+    return token.length >= 2 && token.length <= 5 && words.some((_, at) => words.slice(at, at + token.length).map((word) => word[0]).join("") === token);
+  });
+}
+
 export function rxQuals(finding) {
   // What kind of diagnosis or history item this is, is said by the tag above
   // the row ("Final diagnosis", "Medical conditions"), never inside its bracket.
-  if (finding.domain !== "MED") return finding.quals?.filter((item) => !isReaderRemark(item) && !ROLE_WORD.test(typeof item === "string" ? item : item?.v || ""));
+  if (finding.domain !== "MED") {
+    return finding.quals?.filter((item) => !isReaderRemark(item) && !ROLE_WORD.test(text(item)) && !PROOF.test(text(item)) && !ROUTINE.test(text(item)) && !echoesTitle(item, finding.label || finding.title));
+  }
   const { dosage, frequency, when, duration, notes } = rxRow(finding).row;
-  return [dosage ? (/[a-z]/i.test(dosage) ? dosage : `${dosage} per dose`) : null, frequency, when, duration, ...notes.split(", ")].filter((item) => item && !isReaderRemark(item));
+  const extra = notes.split(", ").map((item) => item.trim()).filter((item) => item && !isReaderRemark(item) && !FORM_WORD.test(item));
+  const routes = extra.filter((item) => ROUTE.test(item));
+  const said = extra.filter((item) => !ROUTE.test(item));
+  // A short note stays on the line. A long one waits behind "note": hover or
+  // focus shows it whole.
+  const fits = said.join(", ").length <= NOTES_FIT;
+  return [perDose(dosage), frequency, when, duration, ...routes, ...(fits ? said : [{ v: "note", tip: said.join(", ") }])].filter((item) => item && !isReaderRemark(item));
 }
 
 // The whole file as the Rx pad's `digitization` object: what "Copy to RxPad"

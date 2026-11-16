@@ -59,7 +59,7 @@ import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-ag
 import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
-import { ArchivedRecordsRailPanel, isArchivedRecordsEnabled } from "../archived-records";
+import { AiDraftHeaderTag, ArchivedRecordsRailPanel, isArchivedRecordsEnabled } from "../archived-records";
 import { toast } from "../dr-agent/voicerx/toast";
 import { useEdgeSwipeNavigation } from "./useEdgeSwipeNavigation";
 import {
@@ -5705,6 +5705,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           {activeId === "correlation" ? (
             <span className="snv-heading-beta">Beta</span>
           ) : null}
+          {activeId === "archivedRecords" ? <AiDraftHeaderTag /> : null}
         </span>
         <span className="snv-section-actions">
           <button

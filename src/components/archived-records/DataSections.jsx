@@ -3,6 +3,7 @@ import { Button, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { ASSETS } from "../../assets";
 import { archivedRecordsStore, isNotableLab, isShownToDoctor, statusOf } from "./archivedRecordsStore";
 import { FindingBody, RowMarks, groupFindings } from "./findingFormat";
+import { rxQuals } from "./rxFormat";
 import { ImageTileArt } from "./SourcePageViewer";
 import styles from "./ArchivedRecords.module.scss";
 
@@ -61,11 +62,28 @@ const FLOW = { HX: "bar", DX: "bar", PROC: "bar", MED: "bar", LAB: "grid" };
 const GROUP_LIMIT = { RPT: 2, MED: 6, LAB: 9 };
 const DEFAULT_LIMIT = 8;
 
-function Group({ title, list, code, review, quick, flow }) {
+// What a row says on screen, for the panel's search: its name, value, bracket
+// and tag. Searching looks at what is shown, so a match is always visible.
+const piece = (item) => (typeof item === "string" ? item : item?.tip || item?.v || "");
+const rowText = (item) =>
+  [item.label, item.title, item.detail, item.value, item.unit, item.group, item.dateLabel, ...(rxQuals(item) || []).map(piece), ...(item.facts || []).map((fact) => `${fact.k} ${fact.v}`)]
+    .filter(Boolean)
+    .join(" ");
+const fold = (value = "") => String(value).toLowerCase().replace(/,/g, ".").replace(/\s+/g, " ").trim();
+export const MIN_DATA_QUERY = 2;
+const matcher = (query) => {
+  const words = fold(query).split(" ").filter(Boolean);
+  return (item) => {
+    const hay = fold(rowText(item));
+    return words.every((word) => hay.includes(word));
+  };
+};
+
+function Group({ title, list, code, review, quick, flow, all = false }) {
   const [open, setOpen] = useState(false);
   const [openNote, setOpenNote] = useState(null);
   const limit = GROUP_LIMIT[code] || DEFAULT_LIMIT;
-  const shown = open ? list : list.slice(0, limit);
+  const shown = open || all ? list : list.slice(0, limit);
   const rest = list.length - shown.length;
   return (
     <div className={styles.rowGroup}>
@@ -90,7 +108,7 @@ function Group({ title, list, code, review, quick, flow }) {
           </li>
         ))}
       </ul>
-      {list.length > limit ? (
+      {list.length > limit && !all ? (
         <button type="button" className={styles.moreLink} aria-expanded={open} onClick={() => setOpen((value) => !value)}>
           {open ? "Show fewer" : `+${rest} more${code === "RPT" ? (rest === 1 ? " note" : " notes") : ""}`}
         </button>
@@ -99,11 +117,11 @@ function Group({ title, list, code, review, quick, flow }) {
   );
 }
 
-function SectionRows({ items, code, review, quick, flow, groupOf, groups }) {
+function SectionRows({ items, code, review, quick, flow, groupOf, groups, all }) {
   const grouped = groupOf
     ? groups.map((title) => [title, items.filter((item) => groupOf(item) === title)]).filter(([, list]) => list.length)
     : groupFindings(items);
-  return grouped.map(([key, list]) => <Group key={key || "all"} title={key} list={list} code={code} review={review} quick={quick} flow={flow} />);
+  return grouped.map(([key, list]) => <Group key={key || "all"} title={key} list={list} code={code} review={review} quick={quick} flow={flow} all={all} />);
 }
 
 // The allergy line is always present. It never says "none" unless a page does.
@@ -114,17 +132,32 @@ function allergyGap(bundle, review) {
   return "Not recorded in this file";
 }
 
-export default function DataSections({ bundle, review, RxSection, onOpenReview, quick = false, flow = false }) {
-  const visible = bundle.findings.filter((item) => isShownToDoctor(item, review));
+// `query`, when it has two or more characters, turns the sections into search
+// results: only matching rows, every one of them (normal lab results too), and
+// none of the notes about what is not shown.
+export default function DataSections({ bundle, review, RxSection, onOpenReview, quick = false, flow = false, query = "" }) {
+  const searching = fold(query).length >= MIN_DATA_QUERY;
+  const shownToDoctor = bundle.findings.filter((item) => isShownToDoctor(item, review));
+  const visible = searching ? shownToDoctor.filter(matcher(query)) : shownToDoctor;
+  if (searching && !visible.length) {
+    return (
+      <div className={styles.railGap} role="status">
+        <strong>No match in this file's data</strong>
+        <p>Nothing below matches "{query.trim()}". The review also searches the original pages.</p>
+        <Button variant="link" theme="primary" size="sm" onClick={onOpenReview}>Open the review</Button>
+      </div>
+    );
+  }
   const held = bundle.findings.filter((item) => item.hold && statusOf(review, item.id) === "draft");
   return (
     <>
+      {searching ? <p className={styles.railMatches} role="status">{visible.length} {visible.length === 1 ? "match" : "matches"} for "{query.trim()}"</p> : null}
       {SECTIONS.map((section) => {
         const all = visible.filter(section.pick);
-        const noAllergy = section.code === "HX" && !all.some((item) => item.domain === "ALG");
+        const noAllergy = !searching && section.code === "HX" && !all.some((item) => item.domain === "ALG");
         if (!all.length && !noAllergy) return null;
         // Labs: only results that are, or were, out of range. The rest are counted.
-        const list = section.code === "LAB" ? all.filter(isNotableLab) : all;
+        const list = section.code === "LAB" && !searching ? all.filter(isNotableLab) : all;
         const quietLabs = all.length - list.length + (bundle.labsNotShown?.count || 0);
         return (
           <RxSection
@@ -134,22 +167,24 @@ export default function DataSections({ bundle, review, RxSection, onOpenReview, 
             icon={<img className="snv-rx-section-icon-img" src={section.icon} alt="" aria-hidden="true" />}
           >
             <span data-section={section.code} />
-            <SectionRows items={list} code={section.code} review={review} quick={quick} flow={flow ? FLOW[section.code] : null} groupOf={section.groupOf} groups={section.groups} />
+            <SectionRows items={list} code={section.code} review={review} quick={quick} flow={flow ? FLOW[section.code] : null} groupOf={section.groupOf} groups={section.groups} all={searching} />
             {noAllergy ? (
               <div className={styles.rowGroup}>
                 <div className={styles.rowGroupTitle}>Allergies</div>
                 <p className={styles.fieldEmpty}>{allergyGap(bundle, review)}</p>
               </div>
             ) : null}
-            {section.code === "VIT" && bundle.vitalsNotShown?.count ? (
-              <p className={styles.fieldEmpty}>Only the last recorded set is shown. {bundle.vitalsNotShown.count} earlier {bundle.vitalsNotShown.count === 1 ? "set was" : "sets were"} read from the file.</p>
+            {section.code === "VIT" && !searching && bundle.vitalsNotShown?.count ? (
+              <button type="button" className={styles.moreLink} onClick={onOpenReview}>
+                +{bundle.vitalsNotShown.count} earlier {bundle.vitalsNotShown.count === 1 ? "set" : "sets"} <span>(in the review)</span>
+              </button>
             ) : null}
-            {section.code === "LAB" && quietLabs > 0 ? (
+            {section.code === "LAB" && !searching && quietLabs > 0 ? (
               <button type="button" className={styles.moreLink} onClick={onOpenReview}>
                 +{quietLabs} normal results <span>(in the review)</span>
               </button>
             ) : null}
-            {section.code === "RPT" ? (
+            {section.code === "RPT" && !searching ? (
               <div className={styles.railThumbs}>
                 {bundle.images.map((image) => (
                   <Tooltip key={image.id} content={`${image.title}, ${image.dateLabel}`}>
@@ -168,14 +203,14 @@ export default function DataSections({ bundle, review, RxSection, onOpenReview, 
           </RxSection>
         );
       })}
-      {held.length ? (
+      {held.length && !searching ? (
         <div className={styles.railGap}>
           <strong>{held.length} unclear readings are held back</strong>
           <p>They were read with low confidence, so they are not shown as facts. A reviewer can check them against the page.</p>
           <Button variant="link" theme="primary" size="sm" onClick={onOpenReview}>See what is held back</Button>
         </div>
       ) : null}
-      {bundle.notFound.length ? (
+      {bundle.notFound.length && !searching ? (
         <div className={styles.railGap}>
           <strong>Not found in this file</strong>
           <ul>
