@@ -1,11 +1,14 @@
 import React, { useRef, useState } from "react";
 import { Dropdown } from "@dhspl-tatvacare/tesseract-ui";
+import { RxPadSelect } from "./RxPadInputs";
 import { optionLabel } from "./options";
 import styles from "./fields.module.scss";
 
 /**
- * One of a closed list, as a compact select: the Tesseract dropdown in its
- * table-cell form, as the Rx pad's Status and Severity cells are.
+ * One of a closed list. In a cell of the Rx pad table (variant "cell") it is
+ * the Rx pad's own Select, as its Status and Severity cells are; in a
+ * labelled form or a filter bar (variant "field") it is the Tesseract
+ * dropdown.
  *
  * Enter, Space or Arrow down opens the list. While it is open, Enter and
  * Escape belong to the list and go no further, so they neither save nor
@@ -16,7 +19,12 @@ import styles from "./fields.module.scss";
 // value is empty (a lab that is neither high nor low) travels under this.
 const BLANK = "__blank";
 
-export default function SelectCell({ column, options, value, onChange, variant = "cell", invalid = false }) {
+export default function SelectCell(props) {
+  if ((props.variant ?? "cell") === "cell") return <RxPadSelect {...props} />;
+  return <DropdownField {...props} />;
+}
+
+function DropdownField({ column, options, value, onChange, invalid = false }) {
   const [open, setOpen] = useState(false);
   const root = useRef(null);
   const hasBlank = options.some((option) => option.value === "");
@@ -28,8 +36,7 @@ export default function SelectCell({ column, options, value, onChange, variant =
   return (
     <Dropdown
       ref={root}
-      className={`${styles.control} ${styles[variant]}`}
-      variant={variant === "cell" ? "seamless" : "default"}
+      className={`${styles.control} ${styles.field}`}
       options={items}
       value={current}
       open={open}

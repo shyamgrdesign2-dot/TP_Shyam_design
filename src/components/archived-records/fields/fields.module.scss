@@ -1,56 +1,24 @@
-// Cell editors. Tesseract components and tokens only; even dimensions.
+// Cell editors. Tesseract tokens only; even dimensions.
 //
-// Every editor is a Tesseract input or dropdown carrying `.control` and one
-// of two shapes:
-//   .cell   in a table cell, with no border of its own (Tesseract "seamless")
-//   .field  in a labelled form, bordered
-// Both are 36px high and write values as the table does: 13px, regular
-// weight, darkest ink.
+// An editor sits in one of two places:
+//   .field  a labelled form or a filter bar: a bordered Tesseract input or
+//           dropdown carrying `.control`, 36px high
+//   .pad    a cell of the Rx pad table: the Rx pad's own input (antd, with the
+//           product's class names). The Rx pad's table skin
+//           (components/tesseractRxPad.scss) gives it its size, its padding
+//           and its focus ring; only what that skin does not cover is here.
 //
 // Tesseract sizes its controls from its own root with an attribute selector.
 // The shape class is repeated in the selectors below so these rules win
 // whichever stylesheet loads last.
 
-.control.cell.cell,
-.control.field.field {
-  // Read by the Tesseract input: side padding and text size.
-  --fs: var(--tesseract-text-caption-lg);
-  min-width: 0;
-}
-
-/* ------------------------------------------------------------ in a cell */
-
-.control.cell.cell {
-  --px: var(--tesseract-space-1);
-  align-self: flex-start;
-  height: 36px;
-
-  // A field that grows with its text takes the height it needs.
-  &[data-autogrow] { height: auto; min-height: 36px; }
-
-  // The focus ring and its tint fill the cell instead of floating inside it.
-  &::before,
-  &::after { inset: 2px; border-radius: var(--tesseract-radius-6); }
-
-  // The dropdown's trigger: a button, or a box around its text input.
-  > button,
-  > [data-editable] {
-    gap: var(--tesseract-space-1);
-    padding: 0 var(--tesseract-space-1);
-    border-radius: var(--tesseract-radius-6);
-  }
-
-  // One line of a growing field is as tall as an input.
-  textarea {
-    padding-top: var(--tesseract-space-2);
-    padding-bottom: var(--tesseract-space-2);
-    line-height: 20px;
-  }
-}
-
 /* ------------------------------------------------------------ in a form */
 
 .control.field.field {
+  // Read by the Tesseract input: text size.
+  --fs: var(--tesseract-text-caption-lg);
+  min-width: 0;
+
   > button,
   > [data-editable] {
     min-height: 36px;
@@ -62,13 +30,8 @@
     padding-bottom: var(--tesseract-space-1-5);
     line-height: 20px;
   }
-}
 
-/* ------------------------------------------------------------- the text */
-
-// A dropdown writes its value as an input does.
-.control.cell.cell,
-.control.field.field {
+  // A dropdown writes its value as an input does.
   > button,
   > [data-editable],
   input[role="combobox"] {
@@ -85,7 +48,78 @@
 
 // Words still being heard are not settled: lighter ink until they are.
 .control input[data-pending="true"],
-.control textarea[data-pending="true"] { color: var(--tesseract-fg-tertiary); }
+.control textarea[data-pending="true"],
+.padNotes textarea[data-pending="true"] { color: var(--tesseract-fg-tertiary); }
+
+/* ------------------------------------------- in a cell of the Rx pad table */
+
+// The Rx pad's skin stretches a cell's first box over the cell and sizes and
+// letters the input inside it, so a field here reads exactly as it does there.
+.pad,
+.padNotes {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+
+  // A field that cannot be saved as it is: the Rx pad's ring, in red.
+  &[data-invalid="true"] { box-shadow: inset 0 0 0 2px var(--tesseract-fg-error); border-radius: var(--tesseract-radius-6); }
+}
+
+// Notes fill the cell; whatever follows them (the microphone) keeps its size.
+.padNotes {
+  align-items: center;
+
+  > :first-child { flex: 1; min-width: 0; }
+}
+
+.padAction {
+  flex-shrink: 0;
+  display: inline-flex;
+  margin-right: var(--tesseract-space-1-5);
+}
+
+// A reading with its unit: the unit follows the number as quiet text, with
+// no box of its own, so the cell reads as one field.
+.pad :global(.ant-input-group-wrapper),
+.pad :global(.ant-input-group) {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+}
+
+.pad :global(.ant-input-group) > :global(.ant-input) {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+// The number stops a little short of its unit; the unit keeps the cell's edge.
+// (Repeated classes: the skin sets a cell input's padding as important.)
+.pad.pad.pad :global(.ant-input-group) > :global(.ant-input.ant-input) { padding-right: var(--tesseract-space-1) !important; }
+
+.pad :global(.ant-input-group-addon) {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  padding: 0 var(--tesseract-space-3) 0 0;
+  border: 0;
+  background: transparent;
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-fg-tertiary);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------- segmented choice */
+
+.segment { min-width: 0; }
+
+// In a cell the control sits inside the cell's own padding.
+.segment.cell {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--tesseract-space-1-5);
+}
 
 /* ------------------------------------------------------- dictation button */
 

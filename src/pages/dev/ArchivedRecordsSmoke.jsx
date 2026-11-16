@@ -1,42 +1,54 @@
 import React, { useState } from 'react';
-import { SegmentedControl } from '@dhspl-tatvacare/tesseract-ui';
-import { ArchivedRecordsDrawer, ArchivedRecordsWorkspace, FEATURE_NAME, useArchivedRecords } from '../../components/archived-records';
-import AiDraftBadge from '../../components/archived-records/AiDraftBadge';
-import { fileDetails, fileLine } from '../../components/archived-records/ArchivedRecordsWorkspace';
+import { useLocation } from 'react-router-dom';
+import { ArchivedRecordsDrawer, ArchivedRecordsWorkspace, CaseFileRecord } from '../../components/archived-records';
+import ArchivedRecordsSourceDrawer from '../../components/archived-records/ArchivedRecordsSourceDrawer';
 import SampleRxPad from './SampleRxPad';
 import '../../components/sideNavbar/sideNavbar.css';
 import './ArchivedRecordsSmoke.scss';
 
-// Local design QA only. Mock data, no clinical actions connected.
-const VIEWS = [
-  { value: 'workspace', label: 'Review workspace' },
-  { value: 'rail', label: 'Rx pad panel' },
-];
+// Design preview on sample data; no clinical actions are connected.
+// Each place the Case File lives has its own link, with nothing around it:
+//
+//   /dev/archived-records            the review workspace
+//   /dev/archived-records/rx-pad     a sample Rx pad; Case File is in the blue sidebar
+//   /dev/archived-records/record     the record on its own, as another screen
+//                                    or another EMR would place it
+const viewOf = (pathname) => {
+  const part = pathname.replace(/\/+$/, '').split('/')[3] || 'review';
+  return ['rx-pad', 'record'].includes(part) ? part : 'review';
+};
 
 export default function ArchivedRecordsSmoke() {
-  const [view, setView] = useState('workspace');
+  const view = viewOf(useLocation().pathname);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { bundle } = useArchivedRecords();
-  return (
-    <div className="ars-root" data-view={view}>
-      <div className="ars-bar">
-        <div className="ars-title">
-          <strong>{FEATURE_NAME}</strong>
-          <AiDraftBadge details={fileDetails(bundle)} />
-          <span>{fileLine(bundle)}</span>
-        </div>
-        <SegmentedControl options={VIEWS} value={view} onValueChange={setView} size="sm" />
+  const openReview = () => setDrawerOpen(true);
+
+  if (view === 'rx-pad') {
+    return (
+      <div className="ars-root" data-view="rx-pad">
+        <SampleRxPad onOpenReview={openReview} />
+        <ArchivedRecordsDrawer open={drawerOpen} onOpenChange={setDrawerOpen} reviewerName="Dr. Demo" />
       </div>
-      {view === 'workspace' ? (
-        <div className="ars-stage">
-          <ArchivedRecordsWorkspace reviewerName="Dr. Demo" variant="page" header="banner" />
+    );
+  }
+
+  if (view === 'record') {
+    return (
+      <div className="ars-root" data-view="record">
+        <div className="ars-record">
+          <CaseFileRecord heading quick onOpenReview={openReview} />
         </div>
-      ) : (
-        <div className="ars-rail-stage">
-          <SampleRxPad onOpenReview={() => setDrawerOpen(true)} />
-          <ArchivedRecordsDrawer open={drawerOpen} onOpenChange={setDrawerOpen} reviewerName="Dr. Demo" />
-        </div>
-      )}
+        <ArchivedRecordsSourceDrawer onOpenReview={openReview} />
+        <ArchivedRecordsDrawer open={drawerOpen} onOpenChange={setDrawerOpen} reviewerName="Dr. Demo" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="ars-root" data-view="review">
+      <div className="ars-stage">
+        <ArchivedRecordsWorkspace reviewerName="Dr. Demo" variant="page" header="inline" />
+      </div>
     </div>
   );
 }

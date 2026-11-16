@@ -4,5 +4,7 @@ export { default as Field } from "./Field";
 export { default as TextCell } from "./TextCell";
 export { default as SelectCell } from "./SelectCell";
 export { default as SuggestCell } from "./SuggestCell";
+export { default as SegmentCell } from "./SegmentCell";
+export { RxPadMeasure, RxPadNotes, RxPadSelect, RxPadText } from "./RxPadInputs";
 export { default as DictationButton } from "./DictationButton";
 export { optionsOf, optionLabel } from "./options";

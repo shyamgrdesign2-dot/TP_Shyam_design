@@ -3137,3 +3137,238 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
 
   &:focus-visible { outline: 2px solid var(--tesseract-slate-0); outline-offset: 2px; }
 }
+
+/* -------------------------------- the Case File record, placed anywhere */
+
+// One component (CaseFileRecord) draws the record in the Rx pad panel, in the
+// review workspace and on its own. Its gutters depend on where it sits: the
+// Rx pad panel scrolls with 12px of padding, so the fixed bars bleed into it.
+.rail { --cf-bleed: 0px; }
+.rail[data-host="rail"] { --cf-bleed: var(--tesseract-space-3); }
+
+.railSearch {
+  margin: 0 calc(var(--cf-bleed) * -1) var(--tesseract-space-3);
+  padding: var(--tesseract-space-2) var(--cf-bleed);
+}
+.railStrip { margin: 0 calc(var(--cf-bleed) * -1); }
+
+// On its own (no panel around it) the search bar is a plain field, not a band.
+.rail[data-host="page"] .railSearch {
+  padding: 0 0 var(--tesseract-space-3);
+  border-bottom: 0;
+  --rail-search-h: 48px;
+}
+.rail[data-host="page"] { --rail-search-h: 48px; }
+.rail[data-host="page"] .railStrip button { border: 1px solid var(--tesseract-amber-300); border-radius: var(--tesseract-radius-8); }
+
+// The notice with room to spare: one line, the way in at its end.
+.railNoticeWide { margin-bottom: var(--tesseract-space-3); }
+.rail[data-searching="true"] .railNoticeWide { display: none; }
+
+// A heading for a host that has none of its own.
+.cfHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin-bottom: var(--tesseract-space-3);
+
+  strong {
+    font-family: var(--tesseract-font-heading);
+    font-size: var(--tesseract-text-h5);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+  }
+}
+
+// The built-in section frame: the Rx pad panel's grey title bar, drawn here
+// so the record carries its own look wherever it is placed.
+.cfSection { margin-bottom: var(--tesseract-space-3); }
+.cfSection + .cfSection { margin-top: var(--tesseract-space-3); }
+
+.cfSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  min-height: 30px;
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-6);
+  background: var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-caption-lg);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+
+  > span:not(.cfSectionIcon) { color: inherit; }
+
+  button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+
+    &:hover { color: var(--tesseract-fg-link); text-decoration: underline; text-underline-offset: 2px; }
+    &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+  }
+}
+
+.cfSectionIcon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+
+  img { width: 16px; height: 16px; object-fit: contain; filter: grayscale(1) saturate(0) brightness(0.72) opacity(0.9); }
+}
+
+// With room, a section's rows sit a little in from its title bar.
+.rail[data-wide="true"] .cfSection > .rowGroup,
+.rail[data-wide="true"] .cfSection > .moreLink,
+.rail[data-wide="true"] .cfSection > .fieldEmpty { margin-left: var(--tesseract-space-2); margin-right: var(--tesseract-space-2); }
+.rail[data-wide="true"] .rowGroupTitle { margin-left: 0; }
+.rail[data-wide="true"] .rows:not([data-flow]) .row { padding-left: 0; padding-right: 0; }
+
+/* ------------------------ the record's tabs, search and documents list */
+
+// Tabs and search are fixed together at the top of the record. The strip
+// that stands in for the notice tucks under them (its offset is measured).
+.railTop {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 calc(var(--cf-bleed) * -1) var(--tesseract-space-3);
+  padding: 0 var(--cf-bleed);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+
+  // The search is now part of this block, not a bar of its own.
+  .railSearch {
+    position: static;
+    margin: 0;
+    padding: var(--tesseract-space-2) 0;
+    border-bottom: 0;
+    background: transparent;
+  }
+}
+
+.railTabs { border-bottom: 1px solid var(--tesseract-border-soft); }
+.railTop > .railTabs:last-child { border-bottom: 0; }
+
+// On its own (no panel around it) the block has no band behind it.
+.rail[data-host="page"] .railTop { border-bottom: 0; }
+.rail[data-host="page"] .railTop .railSearch { padding: var(--tesseract-space-3) 0 0; }
+.rail[data-host="page"] .railTop { padding-bottom: var(--tesseract-space-1); }
+
+// One visit or stay in the Documents tab: a row that opens to its papers.
+.period {
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-10);
+  background: var(--tesseract-bg-surface);
+
+  & + & { margin-top: var(--tesseract-space-2); }
+}
+
+.periodHead {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  border: 0;
+  border-radius: var(--tesseract-radius-10);
+  background: transparent;
+  text-align: left;
+  color: var(--tesseract-fg-tertiary);
+  cursor: pointer;
+
+  &:hover { background: var(--tesseract-bg-surface-hover); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+  > svg { flex-shrink: 0; }
+}
+
+.periodName {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--tesseract-space-2);
+
+  strong {
+    font-size: var(--tesseract-text-caption-lg);
+    line-height: var(--tesseract-text-caption-lg-lh);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+  }
+
+  span {
+    font-size: var(--tesseract-text-caption);
+    line-height: var(--tesseract-text-caption-lh);
+    color: var(--tesseract-fg-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.periodMeta {
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--tesseract-fg-tertiary);
+  white-space: nowrap;
+}
+
+// In a narrow panel the count drops under the name instead of squeezing it.
+.rail:not([data-wide="true"]) .periodHead { flex-wrap: wrap; row-gap: 0; }
+.rail:not([data-wide="true"]) .periodMeta { order: 3; flex-basis: 100%; padding-left: var(--tesseract-space-6); }
+
+.periodBody {
+  padding: 0 var(--tesseract-space-1) var(--tesseract-space-2);
+  border-top: 1px solid var(--tesseract-slate-100);
+}
+
+// The papers folded under one name.
+.paperParts {
+  margin-left: var(--tesseract-space-6);
+  border-left: 1px solid var(--tesseract-slate-200);
+}
+
+// A timeline under its visit tag.
+.rowGroup > .timeline { margin-top: var(--tesseract-space-1); }
+
+/* ------------------------------------------- the workspace's own header */
+
+// Where the Case File has no page header above it, its own heading is a
+// one-line bar that stays at the top: name, AI draft, then what the file is.
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  padding: var(--tesseract-space-2) var(--tesseract-space-6);
+  flex-shrink: 0;
+}
+
+.topTitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: var(--tesseract-space-3);
+  row-gap: 0;
+
+  h2 { font-weight: var(--tesseract-weight-semibold); }
+  p { margin: 0; }
+}
+
+// Hospital course: the day leads each line, in a column of its own width.
+.courseDate {
+  display: inline-block;
+  min-width: 56px;
+  margin-right: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-secondary);
+}

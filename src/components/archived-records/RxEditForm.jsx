@@ -1,23 +1,31 @@
 import React, { useEffect, useId, useRef } from "react";
-import { Button, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Button } from "@dhspl-tatvacare/tesseract-ui";
 import { DictationButton, Field } from "./fields";
-import { RX_COLUMNS, RX_EXTRA_FIELDS, RX_FLAG, RX_VITAL_KEYS, rxEditFields, rxEditKeys, rxRequired, rxRow } from "./rxFormat";
+import { RxCell, RxTable } from "./RxTable";
+import { RX_FLAG, RX_VITAL_KEYS, rxEditColumns, rxEditFields, rxEditKeys, rxRequired, rxRow } from "./rxFormat";
 import { DICTATION_UNAVAILABLE, joinSpoken, useDictation } from "./useDictation";
 import styles from "./ArchivedRecords.module.scss";
+import data from "./clinicalData.module.scss";
 
 /**
- * Correcting one fact the way the Rx pad edits a row: in the table's own
- * columns. A medicine is Medicine, Unit per dose, Frequency, When, Duration
- * and Notes; a lab is Test, Value, Unit, Ref. range, Date and its high / low
- * flag.
+ * Correcting one fact the way the Rx pad edits a row: in that section's own
+ * table, with its own inputs. A medicine is Medicine, Unit per dose,
+ * Frequency, When, Duration and Note; a lab is Test, Value, its high / low
+ * flag, Unit, Ref. range and Date; an allergy or a long-standing condition
+ * takes Medical History's Status, Since and Note.
  *
- * Two layouts, from the room the table has (useTableLayout):
- *   wide           the row's cells become inputs in place, under the same
- *                  headers as every other row; Save and Cancel take the place
- *                  of the row's actions
- *   tight, stack   a labelled form, one field a line
+ * What is read and written is the Rx pad's row for that section, key for key
+ * (rxRow in rxFormat.js). Nothing here adds a key to it.
+ *
+ * Two layouts, from the room the section has (useRowFit):
+ *   table   the Rx pad table (RxTable.jsx): the section's column headers over
+ *           one row of cells that runs the full width of the row, and under
+ *           it, inside the table, the words on the page, anything worth
+ *           saying, Cancel and Save
+ *   form    too narrow for the columns: a labelled form, one field a line,
+ *           closed by the same strip
  * Both are built from the same column definitions (rxFormat.js) with the
- * same field components (fields/), so a new kind of row needs no code here.
+ * same field pieces (fields/), so a new kind of row needs no code here.
  *
  * Keys: Enter saves from a one-line field, Ctrl or Cmd + Enter from anywhere.
  * Enter in notes is a new line, and Enter or Escape in an open list belongs
@@ -30,9 +38,7 @@ import styles from "./ArchivedRecords.module.scss";
 const FLAG_LABEL = Object.fromEntries(RX_FLAG.map((flag) => [flag.value, flag.label]));
 
 const asText = (value) => (value == null ? "" : String(value));
-const fieldsOf = (finding) => [...(RX_COLUMNS[finding.domain] || RX_COLUMNS.RPT), ...(RX_EXTRA_FIELDS[finding.domain] || [])];
-
-export const fieldLabel = (finding, key) => fieldsOf(finding).find((column) => column.key === key)?.label || key;
+export const fieldLabel = (finding, key) => rxEditColumns(finding).find((column) => column.key === key)?.label || key;
 
 // What the editor starts from: the row as it reads now, as text.
 export const startDraft = (finding) => {
@@ -75,8 +81,7 @@ function problem(finding, draft) {
 const HINT_IDLE = "Nothing changed yet. If the row is already right, cancel and use Verify.";
 const HINT_KEPT = "The page itself is not changed. Your correction is saved with your name.";
 
-export default function RxEditForm({ finding, draft, layout = "tight", narrow = false, onChange, onSave, onCancel }) {
-  const inline = layout === "wide";
+export default function RxEditForm({ finding, draft, table = true, narrow = false, onChange, onSave, onCancel }) {
   const fields = rxEditFields(finding);
   const { section, row } = rxRow(finding);
   const formId = useId();
@@ -155,106 +160,77 @@ export default function RxEditForm({ finding, draft, layout = "tight", narrow = 
     );
   };
 
-  const asWritten = (
-    <p className={styles.asWritten}>
-      <span>As written</span>
-      {(finding.original || finding).verbatim}
-    </p>
+  // Under the fields in either layout: what the page says and anything worth
+  // saying on the left, Cancel then Save at the end.
+  const strip = (plain) => (
+    <div className={data.strip} data-plain={plain ? "true" : undefined}>
+      <div className={data.said}>
+        <p className={styles.asWritten}>
+          <span>As written</span>
+          {(finding.original || finding).verbatim}
+        </p>
+        {upgraded ? (
+          <p className={styles.editCaution}>
+            The page says suspected. Saving records this as {draft.status ? draft.status.toLowerCase() : "having no status"}.
+          </p>
+        ) : null}
+        {wrong ? <p className={styles.editError} id={errorId} role="alert">{wrong.text}</p> : null}
+        {/* One thing at a time: what is wrong, or else what saving will do. */}
+        {wrong ? null : <p className={data.note}>{changed ? HINT_KEPT : HINT_IDLE}</p>}
+        {/* Always present while there is a microphone, so a screen reader hears
+            the state change. It shows nothing when there is nothing to say. */}
+        {spoken && dictation.supported ? (
+          <p className={data.voice} role="status">
+            {dictation.listening ? "Listening. Pause or press Esc to stop." : dictation.available ? "" : `${DICTATION_UNAVAILABLE}.`}
+          </p>
+        ) : null}
+      </div>
+      <div className={data.buttons}>
+        <Button variant="outline" theme="neutral" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button variant="solid" theme="primary" size="sm" disabled={!canSave} onClick={onSave}>Save and verify</Button>
+      </div>
+    </div>
   );
-  const caution = upgraded ? (
-    <p className={styles.editCaution}>
-      The page says suspected. Saving records this as {draft.status ? draft.status.toLowerCase() : "having no status"}.
-    </p>
-  ) : null;
-  const error = wrong ? <p className={styles.editError} id={errorId} role="alert">{wrong.text}</p> : null;
-  // Always present while there is a microphone, so a screen reader hears the
-  // state change. It shows nothing when there is nothing to say.
-  const voice = spoken && dictation.supported ? (
-    <p className={styles.rxEditVoice} role="status">
-      {dictation.listening ? "Listening. Pause or press Esc to stop." : dictation.available ? "" : `${DICTATION_UNAVAILABLE}.`}
-    </p>
-  ) : null;
-  const save = <Button variant="solid" theme="primary" size="sm" disabled={!canSave} onClick={onSave}>Save and verify</Button>;
 
-  if (inline) {
-    const columns = RX_COLUMNS[finding.domain] || RX_COLUMNS.RPT;
+  if (table) {
+    const columns = rxEditColumns(finding);
     const byKey = Object.fromEntries(fields.map((field) => [field.key, field]));
     const firstAt = columns.findIndex((column) => byKey[column.key]);
-    // A field with no column of its own sits under the column it belongs to.
-    const under = (field) => Math.max(0, columns.findIndex((column) => column.key === field.under)) + 2;
     return (
-      <>
-        {columns.map((column, index) => {
-          const field = byKey[column.key];
-          return (
-            <div
-              key={column.key}
-              ref={index === firstAt ? first : undefined}
-              className={styles.rxEditCell}
-              role="cell"
-              data-key={column.key}
-              data-first={index === 0 ? "true" : undefined}
-              data-last={index === columns.length - 1 ? "true" : undefined}
-              // A column this row does not have (no status on "none known").
-              data-off={field ? undefined : "true"}
-              aria-label={field ? undefined : "not recorded"}
-              onClick={onClick}
-              onKeyDown={onKeyDown}
-            >
-              {field ? renderField(field, "cell") : null}
-            </div>
-          );
-        })}
-        {fields.filter((field) => field.under).map((field) => (
-          <div key={field.key} className={styles.rxEditExtra} role="cell" style={{ gridColumn: `${under(field)} / span 2` }} onClick={onClick} onKeyDown={onKeyDown}>
-            <span className={styles.rxEditLabel} aria-hidden="true">{field.label}</span>
-            {renderField(field, "field")}
-          </div>
-        ))}
-        <div className={`${styles.vEnd} ${styles.rxEditEnd}`} role="cell" onClick={onClick} onKeyDown={onKeyDown}>
-          <div className={`${styles.vActions} ${styles.rxEditActions}`}>
-            <Tooltip content={HINT_KEPT} disabled={!canSave}>{save}</Tooltip>
-            <Button variant="link" theme="neutral" size="sm" onClick={onCancel}>Cancel</Button>
-          </div>
-        </div>
-        <div className={`${styles.vBelow} ${styles.rxEditBelow}`} role="cell">
-          {asWritten}
-          {caution}
-          {error}
-          {changed ? null : <p className={styles.rxEditNote}>{HINT_IDLE}</p>}
-          {voice}
-        </div>
-      </>
+      // One group, so the cells and the buttons under them are read as one
+      // thing: this row's correction.
+      <div role="group" aria-label={`Correct ${finding.title}`} onClick={onClick} onKeyDown={onKeyDown}>
+        <RxTable label={`${finding.title}, as the Rx pad keeps it`} columns={columns} footer={strip(false)}>
+          {columns.map((column, index) => {
+            const field = byKey[column.key];
+            return (
+              <RxCell key={column.key} ref={index === firstAt ? first : undefined} last={index === columns.length - 1} off={!field} data-key={column.key}>
+                {field ? renderField(field, "cell", `${formId}-${field.key}`) : null}
+              </RxCell>
+            );
+          })}
+        </RxTable>
+      </div>
     );
   }
 
   return (
-    <div className={styles.vBody} role={layout === "stack" ? undefined : "cell"}>
-      <div className={styles.editForm} role="group" aria-label={`Correct ${finding.title}`} onClick={onClick} onKeyDown={onKeyDown}>
-        <div className={styles.editGrid} data-narrow={narrow ? "true" : undefined}>
-          {fields.map((field, index) => {
-            const id = `${formId}-${field.key}`;
-            // A text field's label is a real label: a click on it lands in
-            // the field. A select is named by its own aria-label.
-            const textual = field.kind === "text" || field.kind === "multiline";
-            return (
-              <div key={field.key} ref={index === 0 ? first : undefined} className={styles.editField} data-key={field.key}>
-                {textual ? <label htmlFor={id}>{field.label}</label> : <span aria-hidden="true">{field.label}</span>}
-                {renderField(field, "field", id)}
-              </div>
-            );
-          })}
-        </div>
-        {asWritten}
-        {caution}
-        {error}
-        {voice}
-        <div className={styles.editActions}>
-          {save}
-          <Button variant="ghost" theme="neutral" size="sm" onClick={onCancel}>Cancel</Button>
-          <span className={styles.editHint}>{changed ? HINT_KEPT : HINT_IDLE}</span>
-        </div>
+    <div className={styles.editForm} role="group" aria-label={`Correct ${finding.title}`} onClick={onClick} onKeyDown={onKeyDown}>
+      <div className={styles.editGrid} data-narrow={narrow ? "true" : undefined}>
+        {fields.map((field, index) => {
+          const id = `${formId}-${field.key}`;
+          // A text field's label is a real label: a click on it lands in
+          // the field. A select is named by its own aria-label.
+          const textual = field.kind === "text" || field.kind === "multiline" || field.kind === "measure";
+          return (
+            <div key={field.key} ref={index === 0 ? first : undefined} className={styles.editField} data-key={field.key}>
+              {textual ? <label htmlFor={id}>{field.label}</label> : <span aria-hidden="true">{field.label}</span>}
+              {renderField(field, "field", id)}
+            </div>
+          );
+        })}
       </div>
+      {strip(true)}
     </div>
   );
 }

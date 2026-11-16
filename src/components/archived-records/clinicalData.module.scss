@@ -1,0 +1,248 @@
+// Clinical data: the rows a reviewer checks, the Rx pad table one row is
+// corrected in, and the filters above them. Tesseract tokens only.
+
+/* ------------------------------------------------------------- filters */
+
+// Kinds of data on the left, scrolling sideways when the pane is short of
+// room; the review status keeps its width at the end of the line, and drops
+// to a line of its own when the kinds would be left with too little.
+.filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2) var(--tesseract-space-3);
+  min-width: 0;
+
+  > :first-child { flex: 1 1 400px; min-width: 0; }
+}
+
+.status {
+  flex: 0 0 auto;
+  width: 200px;
+}
+
+/* ----------------------------------------------------- a section's header */
+
+// The checkbox that selects every row listed in the section. It stands where
+// the rows' own checkboxes do, so the column of boxes runs unbroken.
+.selectAll {
+  display: inline-flex;
+  align-items: center;
+
+  // The box is 16px to look at, 28px to hit.
+  > [role="checkbox"] { position: relative; }
+  > [role="checkbox"]::after { content: ""; position: absolute; inset: -6px; }
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-1);
+}
+
+/* ---------------------------------------------------------------- rows */
+
+// Every row of every section is the same three parts on the same lines:
+// a checkbox, the fact as the reading views write it, and its actions.
+.rows { list-style: none; margin: 0; padding: 0; }
+
+.item {
+  --item-line: var(--tesseract-size-36); // a button's height: the first line of text centres on it
+  display: grid;
+  grid-template-columns: var(--tesseract-size-16) minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--tesseract-space-2-5);
+  margin: 0 calc(var(--tesseract-space-2) * -1);
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-8);
+  cursor: pointer;
+  transition: background 140ms ease;
+
+  & + & { box-shadow: 0 -1px 0 var(--tesseract-slate-100); }
+  &:hover { background: var(--tesseract-bg-surface-hover); }
+  &[data-active="true"] { background: var(--tesseract-bg-selected); box-shadow: none; }
+  &[data-active="true"] + & { box-shadow: none; }
+  &[data-selected="true"]:not([data-active="true"]) { background: color-mix(in srgb, var(--tesseract-bg-selected) 56%, transparent); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+
+  p { margin: 0; }
+
+  // A narrow pane: the actions go under the text, still on one line.
+  &[data-compact="true"] { grid-template-columns: var(--tesseract-size-16) minmax(0, 1fr); }
+  &[data-compact="true"] > .actions { grid-column: 2; }
+
+  // The row being corrected is the editor and nothing else.
+  &[data-editing="true"] {
+    display: block;
+    padding-top: var(--tesseract-space-2);
+    padding-bottom: var(--tesseract-space-2);
+    background: transparent;
+    cursor: default;
+  }
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  height: var(--item-line);
+
+  // The box is 16px to look at, 28px to hit.
+  > [role="checkbox"] { position: relative; }
+  > [role="checkbox"]::after { content: ""; position: absolute; inset: -6px; }
+}
+
+// The fact: its line, then whatever belongs under it. The padding puts the
+// first line of text level with the checkbox and the buttons.
+.fact {
+  min-width: 0;
+  padding: calc((var(--item-line) - var(--tesseract-text-caption-lg-lh)) / 2) 0;
+
+  // A long free-text result wraps instead of running under the buttons.
+  span { overflow-wrap: anywhere; }
+
+  .item[data-status="rejected"] & > :first-child {
+    opacity: 0.56;
+    text-decoration: line-through;
+    text-decoration-color: var(--tesseract-fg-tertiary);
+  }
+}
+
+// A doubt about the reading, said at the end of the line it is about.
+.tag {
+  display: inline-flex;
+  margin-left: var(--tesseract-space-1-5);
+  vertical-align: middle;
+}
+
+// Under the line: what was read before a correction, and the detail of an
+// open row.
+.under {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  margin-top: var(--tesseract-space-1);
+
+  &:empty { display: none; }
+}
+
+// The way back from a correction, at the end of the line that states it.
+.inlineUndo { margin-left: var(--tesseract-space-2); }
+
+// Three slots of fixed width, the same on every row, so Verify, Edit and
+// Delete each stand in a column of their own down the section:
+//   what the row is, or the button that verifies it | Edit | Delete, or Undo
+.actions {
+  display: grid;
+  grid-template-columns: 92px var(--tesseract-size-36) 68px;
+  align-items: center;
+  column-gap: var(--tesseract-space-1);
+  height: var(--item-line);
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+// Verify fills its slot, so every one is the same size. It keeps the
+// outline button's stroke and stands on the surface colour, so it reads as a
+// button on a plain row, a hovered one and a selected one alike.
+// (The attributes are there to outweigh the button's own background rule.)
+.verify[data-variant][data-theme][data-size] {
+  width: 100%;
+  padding: 0 var(--tesseract-space-2);
+  background-color: var(--tesseract-bg-surface);
+
+  &:hover:not(:disabled) { background-color: var(--tesseract-blue-50); }
+}
+
+/* ------------------------------------------- the Rx pad table, for one row */
+
+// The look is the Rx pad's own skin (components/tesseractRxPad.scss), which
+// the class names in RxTable.jsx bring in. These rules only place the
+// columns. A class is repeated where the skin's own selector has to be
+// outweighed.
+
+.pad {
+  min-width: 0;
+  cursor: default;
+}
+
+// The Rx pad lets a table scroll sideways under a floor of 700px. This one
+// is only shown where its columns fit, so the floor is lifted.
+.head.head.head.head,
+.row.row.row.row {
+  display: grid;
+  grid-template-columns: var(--rx-cols);
+  min-width: 0;
+}
+
+// One row, and it is being edited: it does not answer to the pointer.
+.row.row.row.row:hover { background: transparent; }
+
+.th.th {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cell.cell {
+  min-width: 0;
+  background: var(--tesseract-bg-surface);
+
+  // The table's own border closes the row; the last cell adds no line to it.
+  &[data-last="true"] { border-right: 0; }
+  &[data-off="true"] { background: var(--tesseract-bg-page-subtle); }
+}
+
+// Under the row, inside the table: the words on the page and anything worth
+// saying on the left, Cancel and Save at the end.
+.strip {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2) var(--tesseract-space-4);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  // The same line the table draws between its rows.
+  border-top: 0.5px solid var(--tesseract-slate-200);
+  background: var(--tesseract-slate-50);
+
+  p { margin: 0; }
+}
+
+// The same strip closes the labelled form, which has no table round it.
+.strip[data-plain="true"] {
+  padding: 0;
+  border-top: 0;
+  background: transparent;
+}
+
+.said {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+}
+
+.note,
+.voice {
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// Said while the microphone is on. With nothing to say it takes no room.
+.voice {
+  color: var(--tesseract-fg-secondary);
+
+  &:empty { display: none; }
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin-left: auto;
+}

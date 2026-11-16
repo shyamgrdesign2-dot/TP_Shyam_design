@@ -294,7 +294,23 @@ export function TrendStrip({ finding }) {
 // `latestOnly` shows a lab as its latest value alone: no trend, no range on
 // the line. Both are on the value's hover, and in full under Clinical data.
 // `tagged` drops a vitals row's own title because a tag above already says it.
-export function FindingBody({ finding, marks = null, dated = true, compact = false, latestOnly = false, tagged = false }) {
+// A medicine or an allergy says when it was written, unless the tag above the
+// row already does. The date goes last in the bracket; it is not repeated
+// when the row's own words already carry it ("given 9 Jul 2026 at 4 pm").
+const NEEDS_DATE = ["MED", "ALG"];
+function withDate(finding, quals = [], dated, dateInTag) {
+  if (!dated || dateInTag || !finding.dateLabel || !NEEDS_DATE.includes(finding.domain)) return quals;
+  // Only what is on the line counts: a date inside a hidden note does not show.
+  const day = finding.dateLabel.replace(/ \d{4}$/, "").toLowerCase();
+  const said = quals.some((item) => String(typeof item === "string" ? item : item?.tip ? "" : item?.v || "").toLowerCase().includes(day));
+  if (said) return quals;
+  // The date sits before a trailing "note", so the bracket ends on the hover word.
+  const at = quals.length && quals[quals.length - 1]?.tip ? quals.length - 1 : quals.length;
+  return [...quals.slice(0, at), houseDate(finding.dateLabel), ...quals.slice(at)];
+}
+
+// `dateInTag`: the group tag above this row already carries the row's date.
+export function FindingBody({ finding, marks = null, dated = true, compact = false, latestOnly = false, tagged = false, dateInTag = false }) {
   if (finding.domain === "LAB") {
     return (
       <>
@@ -362,7 +378,7 @@ export function FindingBody({ finding, marks = null, dated = true, compact = fal
   return (
     <p className={styles.rowLine}>
       <span className={styles.rowLabel}>{finding.label || finding.title}</span>
-      <Quals quals={rxQuals(finding)} />
+      <Quals quals={withDate(finding, rxQuals(finding) || [], dated, dateInTag)} />
       {marks}
     </p>
   );

@@ -803,7 +803,7 @@ function App() {
         )}
         {/* Case File UI draft; sample data only. Also on for the hosted design preview. */}
         {isArchivedRecordsEnabled() && (
-          <Route path="/dev/archived-records" element={<ArchivedRecordsSmoke />} />
+          <Route path="/dev/archived-records/*" element={<ArchivedRecordsSmoke />} />
         )}
         {/* Public route */}
         <Route path="/login" element={<Onboarding />} />

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Checkbox, Chip, Empty, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
-import { Copy, Edit2, ShieldTick, TickCircle, Trash, Warning2 } from "iconsax-reactjs";
+import { Badge, Button, Checkbox, Empty, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Edit2, ShieldTick, TickCircle, Trash, Warning2 } from "iconsax-reactjs";
 import {
   archivedRecordsStore,
   confidenceBand,
@@ -8,41 +8,51 @@ import {
   domainSummaries,
   exceptionFor,
   isClear,
-  isShownToDoctor,
   needsAttention,
   statusOf,
 } from "./archivedRecordsStore";
+import { SelectCell } from "./fields";
 import { Carousel, CiteChip, FLAG_LABEL, FindingBody, RowMarks, TrendStrip, groupFindings } from "./findingFormat";
 import RxEditForm, { isChanged, readAs, rowFromDraft, startDraft } from "./RxEditForm";
-import { RxCells, RxHead, columnTemplate, useTableLayout } from "./RxTable";
-import { buildDigitization, factFromRx } from "./rxFormat";
+import { useRowFit } from "./RxTable";
+import { factFromRx, rxQuals } from "./rxFormat";
 import { scrollWithin } from "./scrollWithin";
 import styles from "./ArchivedRecords.module.scss";
+import data from "./clinicalData.module.scss";
 
 /**
- * Clinical data: every fact read from the file, one row each, laid out as the
- * Rx pad lays the same things out (a medicine is Medicine, Unit per dose,
- * Frequency, When, Duration, Notes), with the tools to make it part of the
- * record.
+ * Clinical data: every fact read from the file, one row each, with the tools
+ * to make it part of the record.
+ *
+ * A row reads as the reading views write the same fact: the name in dark
+ * ink, then a light bracket of what the page says about it. Every row of
+ * every section is laid out alike: a checkbox, that line, and three actions
+ * that stand in the same place on each row.
  *
  *   Verify   the row is right as read
- *   Edit     the row is wrong; correct it in its own columns, which also verifies it
- *   Remove   the row should not go into the patient record
+ *   Edit     the row is wrong; it opens in the Rx pad's table for that kind
+ *            of fact (RxEditForm.jsx), and saving also verifies it
+ *   Delete   the row should not go into the patient record
  *
  * Nothing is ever deleted and nothing on the page changes: a removed row stays
  * listed under "Removed" and can be brought back, an edit keeps the original
  * reading beside it. Rows that are flagged, held back or hard to read cannot
- * be verified in bulk; they have to be opened and checked one at a time.
+ * be verified together with others; they have to be opened and checked one at
+ * a time.
  *
- * What a row shows is its Rx pad row (rxFormat.js), which is also what is
- * stored and what "Copy JSON" copies.
+ * A correction is stored as the fact's Rx pad row (rxFormat.js).
  */
 
 // Shown as amber badges, like every other doubt about a reading. Red is kept
 // for abnormal values.
 const BAND_NOTE = { medium: "Check this", low: "Hard to read" };
 
-const COPY_TIP = "The Rx pad's own structure, with each row's source page. Rows not verified yet are included and marked draft.";
+// The review status filter, as a column the dropdown can be built from.
+const STATUS_FILTER = { key: "status", label: "Review status" };
+
+// Kinds whose line carries a bracket of qualifiers, where "suspected" is
+// already said in amber.
+const BRACKETED = (domain) => domain !== "LAB" && domain !== "VIT" && domain !== "RPT";
 
 const scrollStyle = () => (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 const findRow = (root, id) => (root ? [...root.querySelectorAll("[data-finding]")].find((node) => node.getAttribute("data-finding") === id) || null : null);
@@ -71,45 +81,45 @@ const matches = (finding, review, filter) => {
   return status === filter;
 };
 
-function ReviewRow({ finding, bundle, entry, layout, narrow, active, selected, draft, onSelect, onActivate, onVerify, onRemove, onUndo, onEditOpen, onEditChange, onEditSave, onEditCancel }) {
+function ReviewRow({ finding, bundle, entry, fit, active, selected, draft, onSelect, onActivate, onVerify, onRemove, onUndo, onEditOpen, onEditChange, onEditSave, onEditCancel }) {
   const status = entry?.status || "draft";
   const editing = Boolean(draft);
-  const table = layout !== "stack";
-  const cell = table ? "cell" : undefined;
   const band = confidenceBand(finding.confidence);
   const exception = exceptionFor(bundle, finding.id);
   const original = finding.original;
-  const suspected = finding.flags.includes("suspected");
-  const verifyLabel = finding.verifyLabel || (suspected ? "Verify as suspected" : "Verify");
   const stop = (event) => event.stopPropagation();
-  const editButton = (
-    <Tooltip content="Correct this reading. Saving also verifies it.">
-      <Button variant="ghost" theme="neutral" size="sm" aria-label={`Edit ${finding.title}`} icon={<Edit2 size={16} />} onClick={() => onEditOpen(finding)} />
-    </Tooltip>
+
+  // A doubt about the reading is said at the end of its line. "Suspected" is
+  // left out where the bracket on the line already says it.
+  const said = BRACKETED(finding.domain) && (rxQuals(finding) || []).some((item) => item?.tone === "warning");
+  const flags = finding.flags.filter((flag) => !(flag === "suspected" && said));
+  const tag = (key, color, text) => (
+    <span key={key} className={data.tag}><Badge variant="soft" color={color} size="sm">{text}</Badge></span>
   );
-
-  const marks = <RowMarks finding={finding} status={status} />;
-
-  const tags = status === "draft" && (finding.flags.length || finding.hold || band !== "high") ? (
-    <div className={styles.vTags}>
-      {finding.flags.map((flag) => (
-        <Badge key={flag} variant="soft" color="warning" size="sm">{FLAG_LABEL[flag] || "Check this"}</Badge>
-      ))}
-      {finding.flags.length === 0 && band !== "high" ? <Badge variant="soft" color="warning" size="sm">{BAND_NOTE[band]}</Badge> : null}
-      {finding.hold ? <Badge variant="soft" color="neutral" size="sm">Held back from the doctor's view</Badge> : null}
-    </div>
+  const tags = status === "draft" ? (
+    <>
+      {flags.map((flag) => tag(flag, "warning", FLAG_LABEL[flag] || "Check this"))}
+      {finding.flags.length === 0 && band !== "high" ? tag("band", "warning", BAND_NOTE[band]) : null}
+      {finding.hold ? tag("hold", "neutral", "Held back from the doctor's view") : null}
+    </>
   ) : null;
 
-  // A corrected row always shows what was read, open or not.
+  const undoEdit = (
+    <Button variant="link" theme="neutral" size="sm" aria-label={`Undo edit: ${finding.title}`} onClick={() => onUndo(finding, true)}>Undo edit</Button>
+  );
+
+  // A corrected row always shows what was read, open or not. While it is
+  // still to review, the way back sits at the end of that line.
   const before = original ? (
     <p className={styles.asWritten} data-kind="before">
       <span>Read as</span>
       {readAs(finding)}
+      {status === "draft" ? <span className={data.inlineUndo} onClick={stop}>{undoEdit}</span> : null}
     </p>
   ) : null;
 
   const detail = active ? (
-    <div className={styles.vDetail}>
+    <>
       {exception ? <p className={styles.vWhy}><strong>{exception.title}.</strong> {exception.body}</p> : null}
       <p className={styles.asWritten}>
         <span>As written</span>
@@ -124,92 +134,47 @@ function ReviewRow({ finding, bundle, entry, layout, narrow, active, selected, d
         </p>
       ) : null}
       {finding.coding ? <p className={styles.asWritten}><span>Code</span>{finding.coding}</p> : null}
+      {/* The line gives a lab's latest value; an open row gives the rest. */}
+      {finding.domain === "LAB" && finding.range ? <p className={styles.asWritten}><span>Ref</span>{finding.range}</p> : null}
+      {finding.domain === "LAB" ? <TrendStrip finding={finding} /> : null}
       {entry ? <p className={styles.vMeta}>{status === "verified" ? (entry.edited ? "Corrected and verified" : "Verified") : "Removed"} by {entry.by}, {entry.at}</p> : null}
-    </div>
+    </>
   ) : null;
 
-  const actions = (
-    <div className={styles.vActions} onClick={stop}>
-      {status === "draft" ? (
-        <>
-          <Button variant="outline" theme="primary" size="sm" aria-label={`${verifyLabel}: ${finding.title}`} onClick={() => onVerify(finding)}>
-            {verifyLabel}
-          </Button>
-          {editButton}
-          <Tooltip content="Remove from the record. The page is not changed and you can undo this.">
-            <Button variant="ghost" theme="neutral" size="sm" aria-label={`Remove ${finding.title}`} icon={<Trash size={16} />} onClick={() => onRemove(finding)} />
-          </Tooltip>
-          {/* Put back to review with a correction still on it. */}
-          {original ? (
-            <Button variant="link" theme="neutral" size="sm" aria-label={`Undo edit: ${finding.title}`} onClick={() => onUndo(finding, true)}>Undo edit</Button>
-          ) : null}
-        </>
-      ) : (
-        <>
-          {status === "verified" ? (
-            <Badge variant="soft" color="success" size="sm" icon={<TickCircle size={12} variant="Bold" />}>{entry.edited ? "Corrected" : "Verified"}</Badge>
-          ) : (
-            <Badge variant="soft" color="neutral" size="sm">Removed</Badge>
-          )}
-          {status === "verified" ? editButton : null}
-          {/* Undoing a removal only brings the row back; a correction on it stays. */}
-          {status === "verified" && original ? (
-            <Button variant="link" theme="neutral" size="sm" aria-label={`Undo edit: ${finding.title}`} onClick={() => onUndo(finding, true)}>Undo edit</Button>
-          ) : (
-            <Button variant="link" theme="neutral" size="sm" aria-label={`Undo: ${finding.title}`} onClick={() => onUndo(finding, false)}>Undo</Button>
-          )}
-        </>
-      )}
-    </div>
+  const edit = (
+    <Tooltip content="Correct this reading. Saving also verifies it.">
+      <Button variant="ghost" theme="neutral" size="sm" aria-label={`Edit ${finding.title}`} icon={<Edit2 size={16} />} onClick={() => onEditOpen(finding)} />
+    </Tooltip>
   );
-
-  let content;
-  if (editing) {
-    // With room for the columns the row is corrected in place: its cells
-    // become inputs under the same headers. Otherwise it is a labelled form.
-    content = (
-      <RxEditForm finding={finding} draft={draft} layout={layout} narrow={narrow} onChange={onEditChange} onSave={() => onEditSave(finding)} onCancel={() => onEditCancel(finding)} />
-    );
-  } else if (table) {
-    content = (
-      <>
-        <RxCells finding={finding} marks={marks} />
-        {/* With room to spare the actions end the line; otherwise they sit under the cells, after the doubts. */}
-        {layout === "wide" ? <div className={styles.vEnd} role="cell">{actions}</div> : null}
-        <div className={styles.vBelow} role="cell">
-          <TrendStrip finding={finding} />
-          {layout === "wide" ? tags : (
-            <div className={styles.vFoot}>
-              {tags}
-              {actions}
-            </div>
-          )}
-          {before}
-          {detail}
-        </div>
-      </>
-    );
-  } else {
-    content = (
-      <>
-        <div className={styles.vBody}>
-          <FindingBody finding={finding} tagged marks={marks} />
-          {tags}
-          {before}
-          {detail}
-        </div>
-        {actions}
-      </>
-    );
-  }
+  // What the row is (or the button that verifies it), Edit, then Delete or
+  // the way back. Each has a slot of its own, so they line up down the list.
+  const slots = status === "draft" ? [
+    <Button className={data.verify} variant="outline" theme="primary" size="sm" leftIcon={<TickCircle size={14} />} aria-label={`Verify ${finding.title}`} onClick={() => onVerify(finding)}>
+      Verify
+    </Button>,
+    edit,
+    <Tooltip content="Remove from the record. The page is not changed and you can undo this.">
+      <Button variant="ghost" theme="neutral" size="sm" aria-label={`Delete ${finding.title}`} icon={<Trash size={16} />} onClick={() => onRemove(finding)} />
+    </Tooltip>,
+  ] : status === "verified" ? [
+    <Badge variant="soft" color="success" size="sm" icon={<TickCircle size={12} variant="Bold" />}>{entry.edited ? "Corrected" : "Verified"}</Badge>,
+    edit,
+    original ? undoEdit : (
+      <Button variant="link" theme="neutral" size="sm" aria-label={`Undo: ${finding.title}`} onClick={() => onUndo(finding, false)}>Undo</Button>
+    ),
+  ] : [
+    <Badge variant="soft" color="neutral" size="sm">Removed</Badge>,
+    null,
+    // Undoing a removal only brings the row back; a correction on it stays.
+    <Button variant="link" theme="neutral" size="sm" aria-label={`Undo: ${finding.title}`} onClick={() => onUndo(finding, false)}>Undo</Button>,
+  ];
 
   return (
     <li
-      className={styles.vRow}
-      role={table ? "row" : undefined}
+      className={data.item}
       data-finding={finding.id}
       data-status={status}
-      data-layout={layout}
+      data-compact={fit.compact ? "true" : undefined}
       data-editing={editing ? "true" : undefined}
       data-active={active ? "true" : undefined}
       data-selected={selected ? "true" : undefined}
@@ -224,35 +189,50 @@ function ReviewRow({ finding, bundle, entry, layout, narrow, active, selected, d
         onActivate(finding);
       }}
     >
-      <div className={styles.vCheck} role={cell} onClick={stop}>
-        <Checkbox size="sm" checked={selected} onCheckedChange={(value) => onSelect(finding.id, Boolean(value))} aria-label={`Select ${finding.title}`} />
-      </div>
-      {content}
+      {editing ? (
+        // With room for its columns the row becomes the Rx pad's table for
+        // its kind; otherwise a labelled form.
+        <RxEditForm finding={finding} draft={draft} table={fit.table} narrow={fit.narrow} onChange={onEditChange} onSave={() => onEditSave(finding)} onCancel={() => onEditCancel(finding)} />
+      ) : (
+        <>
+          <div className={data.check} onClick={stop}>
+            <Checkbox size="sm" checked={selected} onCheckedChange={(value) => onSelect(finding.id, Boolean(value))} aria-label={`Select ${finding.title}`} />
+          </div>
+          <div className={data.fact}>
+            <FindingBody
+              finding={finding}
+              dated={finding.domain !== "LAB"}
+              latestOnly
+              tagged
+              marks={<><RowMarks finding={finding} status={status} />{tags}</>}
+            />
+            <div className={data.under}>
+              {before}
+              {detail}
+            </div>
+          </div>
+          <div className={data.actions} onClick={stop}>
+            {slots.map((slot, index) => <span key={index} className={data.slot}>{slot}</span>)}
+          </div>
+        </>
+      )}
     </li>
   );
 }
 
-// One kind of fact: its groups, each a table with one header row. The layout
-// follows the room this section really has, which changes when the source
-// page is hidden; it is not read off the window.
+// One kind of fact: its groups, each a list of rows. How a row is laid out
+// and corrected follows the room this section really has, which changes when
+// the source page is hidden; it is not read off the window.
 function DomainRows({ domain, items, renderRow }) {
-  const [ref, { layout, narrow }] = useTableLayout(domain.code);
-  // Vitals are one table: every row is a set, and its date and its moment
-  // have columns of their own. Written as sentences, each set keeps its tag.
-  const groups = layout !== "stack" && domain.code === "VIT" ? [["", items]] : groupFindings(items);
+  const [ref, fit] = useRowFit(domain.code);
   return (
     <div ref={ref}>
-      {groups.map(([group, list]) => (
+      {groupFindings(items).map(([group, list]) => (
         <div key={group || "all"} className={styles.vGroup}>
           {group ? <h5 className={styles.vGroupTitle}>{group}</h5> : null}
-          {layout === "stack" ? (
-            <ul className={styles.vRows}>{list.map((item) => renderRow(item, layout, narrow))}</ul>
-          ) : (
-            <div className={styles.tTable} role="table" aria-label={group ? `${domain.label}, ${group}` : domain.label} style={{ "--rx-cols": columnTemplate(domain.code) }}>
-              <RxHead domain={domain.code} layout={layout} />
-              <ul className={styles.vRows} role="rowgroup">{list.map((item) => renderRow(item, layout, narrow))}</ul>
-            </div>
-          )}
+          <ul className={data.rows} aria-label={group ? `${domain.label}, ${group}` : domain.label}>
+            {list.map((item) => renderRow(item, fit))}
+          </ul>
         </div>
       ))}
     </div>
@@ -289,12 +269,17 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
   // A count is what a click on it shows: kinds are counted within the chosen
   // status, statuses within the chosen kind.
   const scoped = domains.filter((domain) => inDomain(domain.code)).flatMap((domain) => domain.items);
-  const filters = [
-    { value: "all", label: `All ${scoped.length}` },
-    { value: "draft", label: `To review ${count(scoped, "draft")}` },
-    { value: "attention", label: `Needs a look ${count(scoped, "attention")}` },
-    { value: "verified", label: `Verified ${count(scoped, "verified")}` },
-    { value: "rejected", label: `Removed ${count(scoped, "rejected")}` },
+  const everything = domains.flatMap((domain) => domain.items);
+  const kinds = [
+    { value: "all", label: `All ${count(everything, statusFilter)}` },
+    ...domains.map((domain) => ({ value: domain.code, label: `${domain.label} ${count(domain.items, statusFilter)}` })),
+  ];
+  const statuses = [
+    { value: "all", label: `All rows (${scoped.length})` },
+    { value: "draft", label: `To review (${count(scoped, "draft")})` },
+    { value: "attention", label: `Needs a look (${count(scoped, "attention")})` },
+    { value: "verified", label: `Verified (${count(scoped, "verified")})` },
+    { value: "rejected", label: `Removed (${count(scoped, "rejected")})` },
   ];
 
   // A row with a correction open stays listed whatever the filters say, so the
@@ -445,8 +430,8 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
     setEditing(null);
     refocus(finding.id);
   };
-  // The correction is stored as the Rx pad row, the same shape the table
-  // shows and the JSON carries.
+  // The correction is stored as the fact's Rx pad row, in that section's own
+  // shape (rxRow in rxFormat.js).
   const saveEdit = (finding) => {
     const row = rowFromDraft(finding, editing.draft);
     const title = factFromRx(finding.original || finding, row).title || (finding.original || finding).title;
@@ -460,20 +445,16 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
     closeEdit(finding);
   };
 
-  const verifyClear = (ids, label) => {
-    archivedRecordsStore.verify(ids, reviewerName);
-    ids.forEach((id) => onApprove?.(byId[id]));
-    say(`${ids.length} verified in ${label}.`, () => backToReview(ids));
-  };
-  const bulkVerify = () => {
-    const safe = pickedDraft.filter((id) => isClear(byId[id]));
-    const left = pickedDraft.filter((id) => !isClear(byId[id]));
+  // Verify the chosen rows together. Anything not read clearly is never
+  // verified with others: it stays selected, and the note says why.
+  const verifyPicked = (ids) => {
+    const safe = ids.filter((id) => isClear(byId[id]));
+    const left = ids.filter((id) => !isClear(byId[id]));
     if (safe.length) {
       archivedRecordsStore.verify(safe, reviewerName);
       safe.forEach((id) => onApprove?.(byId[id]));
     }
-    setSelected(new Set(left));
-    // Anything not read clearly is never verified together with others.
+    select(safe, false);
     const kept = left.length === 1
       ? " 1 is not clear enough to verify with others and stays selected. Check it against its page."
       : left.length
@@ -494,47 +475,13 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
     setSelected(new Set());
   };
 
-  // The rows of one kind, or of the whole file, as the Rx pad's digitization
-  // JSON. Whatever the filters show, a copy is the kind or the file: every row
-  // that would reach the record. Removed rows are left out, and so is a
-  // reading held back as unclear until someone verifies it.
-  const copyJson = (items, what) => {
-    const rows = items.filter((item) => isShownToDoctor(item, review));
-    if (!rows.length) {
-      say(`Nothing to copy from ${what}. Its rows are removed or held back.`);
-      return;
-    }
-    const json = JSON.stringify(
-      buildDigitization(rows, { statusOf: (item) => statusOf(review, item.id), reviewOf: (item) => review[item.id] || null }),
-      null,
-      2,
-    );
-    const drafts = rows.filter((item) => statusOf(review, item.id) === "draft").length;
-    const left = items.length - rows.length;
-    const copied = () =>
-      say(
-        [
-          `Copied ${rows.length} ${rows.length === 1 ? "row" : "rows"} from ${what} as JSON.`,
-          drafts === rows.length ? "None verified yet, so all are marked draft." : drafts ? `${drafts} not verified yet, marked draft.` : "",
-          left ? `${left} removed or held back, left out.` : "",
-        ].filter(Boolean).join(" "),
-      );
-    const blocked = () => say("Could not copy. This browser does not allow the clipboard here.");
-    if (!navigator.clipboard?.writeText) {
-      blocked();
-      return;
-    }
-    navigator.clipboard.writeText(json).then(copied, blocked);
-  };
-
-  const renderRow = (item, layout, narrow) => (
+  const renderRow = (item, fit) => (
     <ReviewRow
       key={item.id}
       finding={item}
       bundle={bundle}
       entry={review[item.id]}
-      layout={layout}
-      narrow={narrow}
+      fit={fit}
       active={activeId === item.id}
       selected={selected.has(item.id)}
       draft={editingId === item.id ? editing.draft : null}
@@ -566,40 +513,15 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
         </div>
       ) : null}
 
-      {/* One block: what kind, then which status, with the copy of the whole file at its end. */}
+      {/* One line: what kind of data, then which review status. */}
       <div className={styles.dataBar} data-after="true">
-        <Carousel label="Kinds of clinical data">
-          <Chip
-            label={`All ${count(domains.flatMap((domain) => domain.items), statusFilter)}`}
-            size="sm"
-            variant={domainFilter === "all" ? "filled" : "outline"}
-            color={domainFilter === "all" ? "primary" : "default"}
-            selected={domainFilter === "all"}
-            onClick={() => setDomainFilter("all")}
-          />
-          {domains.map((domain) => (
-            <Chip
-              key={domain.code}
-              label={`${domain.label} ${count(domain.items, statusFilter)}`}
-              size="sm"
-              variant={domainFilter === domain.code ? "filled" : "outline"}
-              color={domainFilter === domain.code ? "primary" : "default"}
-              selected={domainFilter === domain.code}
-              onClick={() => setDomainFilter(domain.code)}
-            />
-          ))}
-        </Carousel>
-        <div className={styles.filterLine}>
-          <Carousel label="Review status">
-            <SegmentedControl options={filters} value={statusFilter} onValueChange={setStatusFilter} size="sm" aria-label="Review status" />
+        <div className={data.filters}>
+          <Carousel label="Kinds of clinical data">
+            <SegmentedControl options={kinds} value={domainFilter} onValueChange={setDomainFilter} size="sm" aria-label="Kinds of clinical data" />
           </Carousel>
-          {bundle.findings.length ? (
-            <Tooltip content={COPY_TIP}>
-              <Button variant="ghost" theme="neutral" size="sm" leftIcon={<Copy size={14} />} onClick={() => copyJson(bundle.findings, "the whole file")}>
-                Copy all as JSON
-              </Button>
-            </Tooltip>
-          ) : null}
+          <div className={data.status}>
+            <SelectCell column={STATUS_FILTER} options={statuses} value={statusFilter} onChange={setStatusFilter} variant="field" />
+          </div>
         </div>
       </div>
 
@@ -625,39 +547,52 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
       ) : null}
 
       {sections.map((domain) => {
-        const items = domain.rows;
-        const clearIds = items.filter((item) => statusOf(review, item.id) === "draft" && isClear(item)).map((item) => item.id);
-        const ids = items.map((item) => item.id);
-        const allPicked = ids.every((id) => selected.has(id));
+        const ids = domain.rows.map((item) => item.id);
+        const chosen = ids.filter((id) => selected.has(id));
+        const toVerify = chosen.filter((id) => statusOf(review, id) === "draft");
+        const kind = domain.label.toLowerCase();
         return (
           <SectionCard
             key={domain.code}
             title={domain.label}
             subtitle={`${domain.verified} of ${domain.total} verified${domain.rejected ? ` · ${domain.rejected} removed` : ""}`}
+            // The section's own checkbox, where an icon would be: none, some
+            // or all of its listed rows.
+            iconBg="none"
+            icon={
+              <span className={data.selectAll}>
+                <Checkbox
+                  size="sm"
+                  checked={chosen.length === 0 ? false : chosen.length === ids.length ? true : "indeterminate"}
+                  onCheckedChange={(value) => select(ids, Boolean(value))}
+                  aria-label={`Select all ${kind}`}
+                />
+              </span>
+            }
             collapsible
             collapsed={closed.has(domain.code)}
             onCollapsedChange={(shut) => fold(domain.code, Boolean(shut))}
             headerActions={
-              <div className={styles.headerMeta}>
-                {clearIds.length > 1 ? (
-                  <Tooltip content="Only items read clearly, with no conflict or doubt. Flagged items stay for you to check one by one. You can undo this.">
-                    <Button variant="tonal" theme="primary" size="sm" aria-label={`Verify ${clearIds.length} clear items in ${domain.label}`} onClick={() => verifyClear(clearIds, domain.label)}>
-                      Verify {clearIds.length} clear
-                    </Button>
-                  </Tooltip>
-                ) : null}
-                <Button variant="ghost" theme="neutral" size="sm" aria-label={`${allPicked ? "Select none" : "Select all"} in ${domain.label}`} onClick={() => select(ids, !allPicked)}>
-                  {allPicked ? "Select none" : "Select all"}
+              <div className={data.headerActions}>
+                {/* The row button's bulk form: the main action once rows are chosen. */}
+                <Button
+                  variant="solid"
+                  theme="primary"
+                  size="sm"
+                  leftIcon={<TickCircle size={14} />}
+                  disabled={!toVerify.length}
+                  aria-label={toVerify.length ? `Verify all ${toVerify.length} selected ${kind}` : `Verify all selected ${kind}`}
+                  onClick={() => verifyPicked(toVerify)}
+                >
+                  {toVerify.length ? `Verify all (${toVerify.length})` : "Verify all"}
                 </Button>
-                <Tooltip content={COPY_TIP}>
-                  <Button variant="ghost" theme="neutral" size="sm" aria-label={`Copy ${domain.label} as JSON`} onClick={() => copyJson(domain.items, domain.label)}>
-                    Copy JSON
-                  </Button>
-                </Tooltip>
+                <Button variant="ghost" theme="neutral" size="sm" disabled={!chosen.length} aria-label={`Clear the selection in ${kind}`} onClick={() => select(ids, false)}>
+                  Clear
+                </Button>
               </div>
             }
           >
-            <DomainRows domain={domain} items={items} renderRow={renderRow} />
+            <DomainRows domain={domain} items={domain.rows} renderRow={renderRow} />
           </SectionCard>
         );
       })}
@@ -679,7 +614,7 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
           ) : null}
           <div className={styles.bulkActions}>
             {pickedDraft.length ? (
-              <Button variant="solid" theme="primary" size="sm" onClick={bulkVerify}>Verify</Button>
+              <Button variant="solid" theme="primary" size="sm" onClick={() => verifyPicked(pickedDraft)}>Verify</Button>
             ) : null}
             {picked.length > pickedDraft.length ? (
               <Button variant="outline" theme="neutral" size="sm" onClick={bulkRestore}>Put back to review</Button>

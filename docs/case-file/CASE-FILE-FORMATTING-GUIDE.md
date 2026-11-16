@@ -103,6 +103,34 @@ This replaces the order drawn in section 3 for the panel beside the Rx pad. The 
 | An echo of the name | `(s/p WLE (2016))` after `… after wide local excision (2016)` | The bracket only repeats the name |
 
 - **Vitals:** the earlier sets are one link, `+N earlier sets (in the review)`, in place of a sentence.
+- **Every fact says when it was written.** Diagnoses, procedures, lab results, vitals and notes already carry their date. Medicines and allergies now do too:
+
+| Case | Shown as |
+|---|---|
+| Every medicine under a tag has the same date | The date is on the tag once: `On discharge (16 Jul'26)`, `At home (09 Jul'26)`. The rows do not repeat it |
+| The medicines under a tag span days | The tag gives the span, `In hospital (09 Jul to 16 Jul'26)`, and each row carries its own date or days in its bracket, before `note`: `(Q12H, IV, 09 to 16 Jul'26, note)` |
+| The row's own words already give the date | It is not added again |
+| An allergy statement | The date it was stated, in the bracket: `No known drug allergy (09 Jul'26)` |
+
+
+## 3b. One record component, three places (16 Nov 2026)
+
+The record is one component, `CaseFileRecord` (`src/components/archived-records/CaseFileRecord.jsx`). It is the same piece in every place, so the order, the section headings, the tags and the wording cannot drift apart.
+
+| Place | Link in the preview | What is around it |
+|---|---|---|
+| Review workspace, Structured record tab | `/dev/archived-records` | Clinical data and Documents tabs, the original pages alongside. The workspace has its own search and Documents tab, so the record shows no tabs and no search box here. No timeline: beside the original pages it adds nothing |
+| Rx pad panel | `/dev/archived-records/rx-pad` | The Rx pad's blue sidebar and its section frame; a light drawer for the original page |
+| On its own | `/dev/archived-records/record` | Nothing. This is how another screen or another EMR places it: in a column, a card, a drawer or a page |
+
+- **No summary anywhere a doctor reads.** The record is the notice, then the details. The summary logic stays in `caseFileStory.js` and is off by default (`summary`).
+- **It lays itself out from its own width.** Under 640px, one fact per line. From 640px, short facts run along the line with hairline dividers and lab results sit in an even grid. The host does not say which.
+- **It carries its own look.** The section title bar is drawn by the record (`CaseFileSection`), matching the Rx pad panel, so no sidebar stylesheet is needed. A host with its own frame passes `RxSection`.
+- **Tabs at the top: Data, Timeline, Documents** (Rx pad panel and on its own). Tabs and search stay fixed together while the record scrolls; search looks at the tab that is open.
+- **Documents are listed by period.** One entry per visit or stay, newest first: `IPD · Orthopaedics  09 Jul-16 Jul'26  62 documents, 235 pages`. The newest is open. Inside, papers sit under their kind (Summaries, Doctor notes, Lab reports, Imaging, Medication charts, Nursing and forms). Papers that share a name within a period are one line that opens to its parts: `Consultation record  13 papers, 27 pages`. The workspace's Documents tab uses the same periods; each document there names the PDF it is in.
+- **Timeline** events sit under the visit they belong to.
+- **What the host gives:** `onOpenReview` (where facts are verified; without it the notice has no button), `onOpenDomain` (makes a section heading a way in to that kind of data), `heading` (shows "Case File · AI draft" when the host has no heading), `tabs` (which of the three to show; `false` for Data only), `search`, `notice`, `quick`.
+- The preview has no header of its own any more: each place is its own link.
 
 ## 4. Reading hierarchy
 
