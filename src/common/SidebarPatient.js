@@ -30,6 +30,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
 import { ASSETS } from "../assets";
 import { useIsDentalEnabled } from '../hooks/useIsDentalEnabled';
+import { isArchivedRecordsEnabled } from '../components/archived-records/archivedRecordsFlag';
 const {
   blood: BloodIcon,
   abhaSvg: AbhaIcon,
@@ -115,6 +116,13 @@ function SidebarPatient({
             icon_name: "icon-Edit",
             short_title: "Canvases",
             long_title: "Canvases",
+        },
+        // UI draft: digitized paper records from the hospital archive (mock data).
+        isArchivedRecordsEnabled() && {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.ARCHIVED_RECORDS,
+            icon_name: "icon-Discharge-Summary",
+            short_title: "Case File",
+            long_title: "Case File",
         },
         isDentalDoctor && {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN,

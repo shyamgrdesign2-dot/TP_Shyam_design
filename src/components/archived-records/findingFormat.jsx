@@ -1,0 +1,348 @@
+import React from "react";
+import { Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { ArrowDown, ArrowLeft2, ArrowRight2, ArrowUp, DocumentText, Edit2, TickCircle, Warning2 } from "iconsax-reactjs";
+import ARCHIVED_RECORDS_MOCK from "./mock/archivedRecordsMock";
+import { archivedRecordsStore, citeNumberForPage, citesOf, documentForPage } from "./archivedRecordsStore";
+import styles from "./ArchivedRecords.module.scss";
+
+/**
+ * How one fact is written, everywhere in Case File: the Rx pad panel, the
+ * structured record, clinical data and documents all draw rows from here, so
+ * a medicine or a lab value reads the same wherever the doctor meets it.
+ *
+ * Reading hierarchy (darkest to lightest):
+ *   value      the clinical fact itself        dark, semibold
+ *   key        the name that introduces it     mid grey, medium, ends in a colon
+ *   secondary  dates, units, qualifiers, ref   light grey, regular, in brackets
+ *   dividers   between sibling facts           hairline, lightest grey
+ * Colour is spent only on abnormal values and warnings.
+ */
+
+export const FLAG_NOTE = {
+  suspected: "Written as suspected, not confirmed",
+  conflict: "Another page in the file says something different",
+  lowConfidence: "Handwriting was hard to read",
+  conflictingValue: "The file has two different values for this",
+  partlyRead: "Only part of this line could be read",
+  ambiguous: "Written in a way that can be read two ways",
+};
+
+export const FLAG_LABEL = {
+  suspected: "Suspected",
+  conflict: "Conflict in file",
+  lowConfidence: "Hard to read",
+  conflictingValue: "Two values in file",
+  partlyRead: "Partly readable",
+  ambiguous: "Ambiguous dose",
+};
+
+// House date style, as on the Past Visits cards: 27 Feb'26, 04 Mar'26.
+export const houseDate = (label = "") => label.replace(/^(\d) /, "0$1 ").replace(/ 20(\d\d)$/, "'$1");
+
+/* -------------------------------------------------------------- citations */
+
+// With no label a citation is a bracketed document number, [2]. The tooltip
+// names the document and page; a click opens that exact spot.
+export function CiteChip({ page, rid, label, quick = false }) {
+  const bundle = ARCHIVED_RECORDS_MOCK;
+  const doc = documentForPage(bundle, page);
+  const number = citeNumberForPage(bundle, page);
+  return (
+    <Tooltip content={doc ? `${doc.title}, page ${page}` : `Page ${page}`}>
+      <button
+        type="button"
+        className={styles.cite}
+        data-kind={label ? "named" : "number"}
+        aria-label={`Open source: ${doc ? doc.title : "page"}, page ${page}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          archivedRecordsStore.openSource(page, rid, { quick });
+        }}
+      >
+        {label ? (
+          <>
+            <DocumentText size={12} aria-hidden="true" />
+            {label}
+          </>
+        ) : (
+          `[${number}]`
+        )}
+      </button>
+    </Tooltip>
+  );
+}
+
+// Every place one or more findings can be checked, one number per document.
+export function Cites({ findings, quick = false }) {
+  const bundle = ARCHIVED_RECORDS_MOCK;
+  const seen = new Set();
+  const list = [].concat(findings).filter(Boolean).flatMap((finding) => citesOf(bundle, finding)).filter((cite) => {
+    const number = citeNumberForPage(bundle, cite.page);
+    if (seen.has(number)) return false;
+    seen.add(number);
+    return true;
+  });
+  if (!list.length) return null;
+  return (
+    <span className={styles.cites}>
+      {list.map((cite) => <CiteChip key={`${cite.page}-${cite.rid}`} page={cite.page} rid={cite.rid} quick={quick} />)}
+    </span>
+  );
+}
+
+// **bold** in summary lines marks the words the eye should land on.
+export function RichLine({ text }) {
+  return text.split("**").map((part, index) => (index % 2 ? <strong key={index}>{part}</strong> : <React.Fragment key={index}>{part}</React.Fragment>));
+}
+
+/* ------------------------------------------------------------ small parts */
+
+// High / low as an arrow. The word stays for screen readers.
+export function Trend({ flag }) {
+  if (!flag) return null;
+  const high = flag === "H";
+  const Icon = high ? ArrowUp : ArrowDown;
+  return (
+    <span className={styles.arrow} role="img" aria-label={high ? "High" : "Low"}>
+      <Icon size={12} variant="Linear" aria-hidden="true" />
+    </span>
+  );
+}
+
+// One bracket of short qualifiers after a name: (1x1, PO, Qty 7)
+export function Quals({ quals }) {
+  if (!quals?.length) return null;
+  return (
+    <span className={styles.quals}>
+      {" ("}
+      {quals.map((item, index) => (
+        <React.Fragment key={index}>
+          {index ? ", " : null}
+          <span data-tone={item.tone || undefined}>{item.v || item}</span>
+        </React.Fragment>
+      ))}
+      {")"}
+    </span>
+  );
+}
+
+// Label and value pairs on a line, separated by hairlines: BP: 102/74 | Pulse: 72
+export function Facts({ facts }) {
+  if (!facts?.length) return null;
+  return (
+    <div className={styles.factsClip}>
+      <dl className={styles.facts}>
+        {facts.map((fact, index) => (
+          <div key={index}>
+            {fact.k ? <dt>{fact.k}:</dt> : null}
+            <dd>{fact.v}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ one finding */
+
+// One layout per kind of fact:
+//   Lab      Haemoglobin: 10.6 g/dL ↓        then the dated trend, then (Ref ...)
+//   Vitals   At discharge (04 Mar'26)        then BP: 102/74 | Pulse: 72 | ...
+//   Report   Chest X-ray: finding text (25 Feb'26)
+//   Others   Nexium 40 mg (1x1, PO, Qty 7)
+// `marks` is whatever the caller wants at the end of the first line (flag,
+// tick, citations). `dated` is false when the group heading carries the date.
+// `compact` keeps a lab on one line by putting the reference range beside it.
+export function FindingBody({ finding, marks = null, dated = true, compact = false }) {
+  if (finding.domain === "LAB") {
+    return (
+      <>
+        <p className={styles.rowLine}>
+          <span className={styles.rowKey}>{finding.title}:</span>{" "}
+          <span className={styles.rowValue} data-abnormal={finding.abnormal || undefined}>
+            {finding.value}
+            {finding.unit ? <small> {finding.unit}</small> : null}
+            <Trend flag={finding.abnormal} />
+          </span>
+          {dated && !finding.series && finding.dateLabel ? <span className={styles.rowSecondary}> ({houseDate(finding.dateLabel)})</span> : null}
+          {compact && finding.range ? <span className={styles.rowSecondary}> (Ref: {finding.range})</span> : null}
+          {marks}
+        </p>
+        {finding.series ? (
+          <ol className={styles.trend} aria-label={`${finding.title} over time`}>
+            {finding.series.map((point, index) => (
+              <li key={point.d} data-flag={point.f || undefined} data-latest={index === finding.series.length - 1 ? "true" : undefined}>
+                <span>{point.v}<Trend flag={point.f} /></span>
+                <small>({point.d})</small>
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        {finding.range && !compact ? <p className={styles.rowSecondary}>(Ref: {finding.range})</p> : null}
+      </>
+    );
+  }
+
+  if (finding.domain === "VIT") {
+    return (
+      <>
+        <p className={styles.rowLine}>
+          <span className={styles.rowLabel}>{finding.title}</span>
+          {finding.dateLabel ? <span className={styles.rowSecondary}> ({houseDate(finding.dateLabel)})</span> : null}
+          {marks}
+        </p>
+        <Facts facts={finding.facts} />
+      </>
+    );
+  }
+
+  if (finding.domain === "RPT") {
+    return (
+      <p className={styles.rowLine}>
+        <span className={styles.rowLabel}>{finding.title}:</span>{" "}
+        <span className={styles.rowText}>{finding.detail}</span>
+        {dated && finding.dateLabel ? <span className={styles.rowSecondary}> ({houseDate(finding.dateLabel)})</span> : null}
+        {marks}
+      </p>
+    );
+  }
+
+  return (
+    <p className={styles.rowLine}>
+      <span className={styles.rowLabel}>{finding.label || finding.title}</span>
+      <Quals quals={finding.quals} />
+      {marks}
+    </p>
+  );
+}
+
+/* --------------------------------------------------------------- grouping */
+
+// Reports and notes read in this order: what to keep in mind, then results,
+// then the operation, then the stay.
+export const REPORT_GROUPS = ["Keep in mind", "Investigations", "Surgery", "Course"];
+const REPORT_ORDER = ["rpt9", "rpt8", "rpt6", "rpt7", "rpt10", "rpt13", "rpt14", "rpt1", "rpt11", "rpt5", "rpt2", "rpt3", "rpt12", "rpt4"];
+export const inReadingOrder = (items) =>
+  items[0]?.domain === "RPT"
+    ? [...items].sort((a, b) => REPORT_GROUPS.indexOf(a.group) - REPORT_GROUPS.indexOf(b.group) || REPORT_ORDER.indexOf(a.id) - REPORT_ORDER.indexOf(b.id))
+    : items;
+
+// Labs are grouped so a date is written once per group, not on every row:
+// tests repeated during the stay first (they carry their own dated trend),
+// then one group per sample date, newest first.
+export const labGroup = (finding) => (finding.series ? "Repeated" : houseDate(finding.dateLabel));
+
+// [[groupTitle, items], ...] in reading order. An empty title means no heading.
+export function groupFindings(items) {
+  const groups = new Map();
+  inReadingOrder(items).forEach((item) => {
+    const key = item.domain === "LAB" ? labGroup(item) : item.group || "";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+  return [...groups.entries()];
+}
+
+/* ------------------------------------------------------------------ marks */
+
+// What trails a row in the review workspace: a warning if the reading is in
+// doubt, a tick once verified, a pencil if a reviewer corrected it, then [n].
+export function RowMarks({ finding, status = "draft", quick = false }) {
+  const flag = finding.flags?.[0] || (finding.confidence < 0.7 ? "lowConfidence" : null);
+  const verified = status === "verified";
+  return (
+    <>
+      {flag && !verified ? (
+        <Tooltip content={FLAG_NOTE[flag]}>
+          <span className={styles.rowFlag} role="img" aria-label={FLAG_NOTE[flag]}><Warning2 size={12} variant="Bold" /></span>
+        </Tooltip>
+      ) : null}
+      {verified ? (
+        <Tooltip content={finding.edited ? "Corrected by a reviewer and saved" : "Verified and saved"}>
+          <span className={styles.rowTick} role="img" aria-label={finding.edited ? "Corrected and verified" : "Verified"}>
+            {finding.edited ? <Edit2 size={12} variant="Bold" /> : <TickCircle size={12} variant="Bold" />}
+          </span>
+        </Tooltip>
+      ) : null}
+      <Cites findings={finding} quick={quick} />
+    </>
+  );
+}
+
+// A scrolling strip of chips with arrows that appear only when there is more
+// to see on that side. The arrows are a pointer shortcut: keyboard users tab
+// through the chips themselves, which scroll into view as they take focus.
+const smoothScroll = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+// Room kept clear at an edge for the arrow and the fade under it.
+const CAROUSEL_EDGE = 40;
+
+export function Carousel({ label, children }) {
+  const ref = React.useRef(null);
+  const lastChosen = React.useRef(null);
+  const [edges, setEdges] = React.useState({ left: false, right: false });
+  const measure = React.useCallback(() => {
+    const node = ref.current;
+    if (!node) return;
+    const left = node.scrollLeft > 2;
+    const right = node.scrollLeft + node.clientWidth < node.scrollWidth - 2;
+    setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+  }, []);
+  // Labels carry counts, so the strip can change width on any render.
+  React.useEffect(measure);
+  React.useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [measure]);
+  // A chip chosen from elsewhere (a link in the record, a search result) may
+  // sit off screen: bring it into view, sideways only.
+  React.useEffect(() => {
+    const node = ref.current;
+    const chosen = node ? node.querySelector('[data-selected], [aria-checked="true"]') : null;
+    if (chosen === lastChosen.current) return;
+    lastChosen.current = chosen;
+    if (!chosen) return;
+    const box = node.getBoundingClientRect();
+    const item = chosen.getBoundingClientRect();
+    if (item.left < box.left + CAROUSEL_EDGE) node.scrollBy({ left: item.left - box.left - CAROUSEL_EDGE, behavior: smoothScroll() });
+    else if (item.right > box.right - CAROUSEL_EDGE) node.scrollBy({ left: item.right - box.right + CAROUSEL_EDGE, behavior: smoothScroll() });
+  });
+  const nudge = (direction) => ref.current?.scrollBy({ left: direction * Math.max(160, ref.current.clientWidth * 0.6), behavior: smoothScroll() });
+  // Tesseract chips are spans with role="button": focusable, but Enter and
+  // Space do nothing on them unless a key handler presses them.
+  const onKeyDown = (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target;
+    if (target.tagName === "SPAN" && target.getAttribute("role") === "button") {
+      event.preventDefault();
+      target.click();
+    }
+  };
+  // preventDefault on mouse down keeps focus where it was, so it is not lost
+  // when an arrow disappears at the end of the strip.
+  const arrow = (side, direction, Icon) => (
+    <button
+      type="button"
+      className={styles.carouselArrow}
+      data-side={side}
+      tabIndex={-1}
+      aria-hidden="true"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => nudge(direction)}
+    >
+      <Icon size={14} />
+    </button>
+  );
+  return (
+    <div className={styles.carousel} data-left={edges.left || undefined} data-right={edges.right || undefined}>
+      {edges.left ? arrow("left", -1, ArrowLeft2) : null}
+      <div className={styles.carouselTrack} ref={ref} onScroll={measure} onKeyDown={onKeyDown} role="group" aria-label={label}>
+        {children}
+      </div>
+      {edges.right ? arrow("right", 1, ArrowRight2) : null}
+    </div>
+  );
+}

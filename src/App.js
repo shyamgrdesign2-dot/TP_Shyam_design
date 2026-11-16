@@ -160,6 +160,7 @@ const AppointmentSuccess = React.lazy(() =>
 );
 const PrescriptionHeaderSmoke = React.lazy(() => import('./pages/dev/PrescriptionHeaderSmoke'));
 const PrescriptionKeyboardSmoke = React.lazy(() => import('./pages/dev/PrescriptionKeyboardSmoke'));
+const ArchivedRecordsSmoke = React.lazy(() => import('./pages/dev/ArchivedRecordsSmoke'));
 
 const VoiceRxConsult = React.lazy(() =>
   lazyRetry(() => import("./pages/VoiceRxConsult"))
@@ -798,6 +799,9 @@ function App() {
         )}
         {['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) && (
           <Route path="/dev/rx-pad-keyboard" element={<PrescriptionKeyboardSmoke />} />
+        )}
+        {['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) && (
+          <Route path="/dev/archived-records" element={<ArchivedRecordsSmoke />} />
         )}
         {/* Public route */}
         <Route path="/login" element={<Onboarding />} />

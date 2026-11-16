@@ -16,6 +16,7 @@ import {
   Filler,
 } from "chart.js";
 import {
+  ArchiveBook,
   ArrowDown2,
   ArrowSquareDown,
   ArrowSquareUp,
@@ -58,6 +59,7 @@ import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-ag
 import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
+import { ArchivedRecordsRailPanel, isArchivedRecordsEnabled } from "../archived-records";
 import { toast } from "../dr-agent/voicerx/toast";
 import { useEdgeSwipeNavigation } from "./useEdgeSwipeNavigation";
 import {
@@ -90,6 +92,8 @@ const LEGACY_VITALS_DATE_FORMAT = "DD MMM, YY";
 
 const NAV_ITEMS = [
   { id: "pastVisits", label: "Past Visits", icon: { kind: "iconsax", Icon: Note1 } },
+  // UI draft: digitized paper records from the hospital archive (mock data).
+  { id: "archivedRecords", label: "Case File", icon: { kind: "iconsax", Icon: ArchiveBook } },
   { id: "vitals", label: "Vitals", icon: { kind: "medical", name: "heart-rate" } },
   { id: "history", label: "History", icon: { kind: "medical", name: "clipboard-activity" } },
   { id: "labResults", label: "Results", icon: { kind: "medical", name: "lab" } },
@@ -150,6 +154,7 @@ function getCustomizedPadNavId(item, access = {}) {
 
 const SECTION_TITLES = {
   pastVisits: "Past Visit",
+  archivedRecords: "Case File",
   vitals: "Vitals and Body Composition",
   history: "Medical History",
   labResults: "Investigation Results",
@@ -178,6 +183,8 @@ const SIDE_NAV_SUPPORTED_VOICE_SECTIONS = new Set(Object.keys(SIDE_NAV_MODULE_NA
 const SIDE_NAV_SIGNAL_SECTIONS = new Set(["vitals", "history", "gynec", "obstetric"]);
 const SIDE_NAV_PRIVATE_NOTES_SECTION = "personalNotes";
 export const SIDE_NAV_FULL_PAGE_SECTIONS = new Set(["dentalPlan"]);
+// Sections with nothing to add from the Rx pad: no "Add/Edit Details" row.
+const SIDE_NAV_READ_ONLY_SECTIONS = new Set(["archivedRecords"]);
 const SIDE_NAV_MODULE_ENDPOINT = "/agents/module";
 const SIDE_NAV_SHINER_DELAY_MS = 5000;
 const SIDE_NAV_MODULE_TIMEOUT_MS = 120000;
@@ -5657,6 +5664,12 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
       return <GrowthContent data={viewData.growth} emptyState={emptyState} />;
     case "optal":
       return <OptalContent entries={viewData.optal} emptyState={emptyState} />;
+    case "archivedRecords":
+      return (
+        <div className="snv-content-scroll snv-archived-records-content" data-snv-scroll-root="true">
+          <ArchivedRecordsRailPanel kit={{ RxSection }} onOpenReview={() => onActionClick("archivedRecords")} />
+        </div>
+      );
     case "personalNotes":
       return (
         <PrivateNotesContent
@@ -5809,7 +5822,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           </button>
         </span>
       </div>
-      {!emptyInlineActions ? (
+      {!emptyInlineActions && !SIDE_NAV_READ_ONLY_SECTIONS.has(activeId) ? (
         <SectionActionRow
           activeId={activeId}
           voiceState={voiceState}
@@ -6397,6 +6410,10 @@ export function SideNavbar({
     // History are real modules (ids 1 and 3) so they follow their toggles like the rest.
     const seen = new Set(["pastVisits"]);
     const orderedItems = [NAV_ITEM_BY_ID.pastVisits];
+    if (isArchivedRecordsEnabled()) {
+      seen.add("archivedRecords");
+      orderedItems.push(NAV_ITEM_BY_ID.archivedRecords);
+    }
     const access = {
       isVaccinationAccessable,
       isGrowthChartAccessable,
