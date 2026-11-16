@@ -143,20 +143,18 @@ Amber while anything is unverified, green when all is reviewed. No per-row "unve
 
 It is **built by code from the facts**, not written by a model, so it cannot say more than the pages do. The same builder feeds the Rx pad panel and the Structured record tab. The full design, with every rule and worked examples for each kind of file, is in `CASE-FILE-SUMMARY-ARCHITECTURE.md`; the safety rules are in `CASE-FILE-SUMMARY-SAFETY-RULES.md`.
 
-**Order of the story** (a beat with nothing to say is left out):
+**The short story** (shown on the Rx pad panel and above the details; a pointer with nothing to say is left out):
 
-| # | Beat | Holds |
+| # | Pointer | Holds |
 |---|---|---|
-| 0 | Earlier | Older encounters, one line each; beyond three, counted by kind |
-| 1 | Arrival | How the patient came in (OPD first visit, emergency, referred, planned, transferred), when, under whom, with what complaint |
-| 2 | Diagnosis | Final, working, then others, each with its certainty kept |
-| 3 | What was done | Procedures with date |
-| 4 | How it went | Abnormal results (first and latest value when it moved), what was given in hospital |
-| 5 | How they left | Outcome and date, condition, last vitals |
-| 6 | Medicines | The count of the discharge list or prescription, five named |
-| 7 | Follow-up | What was planned |
-| 8 | Background | Chronic conditions, past surgery, the allergy line (always present), medicines before admission, keep in mind |
-| 9 | Not in this file | Missing documents, unreadable pages, held readings, sensitive items |
+| 1 | Who, and how they came in | Age and sex as stated on the face sheet; earlier visits in a clause each; then how this one began (OPD first visit, emergency, referred, planned, transferred), when, under whom, with what complaint. Each visit carries its number in brackets, which opens its page |
+| 2 | What was found and done | Final, working and other diagnoses with certainty kept; procedures with date |
+| 3 | How it went | The two most important abnormal results (first and latest value when it moved), then a link to the rest; a count of medicines given in hospital |
+| 4 | How they left and what was planned | Outcome and date, condition, a count of the medicines they left with, follow-up |
+| 5 | Keep in mind | Chronic conditions, past surgery, the allergy line (always present), medicines before admission as a count, alerts |
+| 6 | Not in this file | Missing documents, unreadable pages, held, removed and sensitive items |
+
+**The summary does not repeat the details.** The details are directly below, so the summary says what a list cannot (who, how they came, the course, how it ended) and replaces lists with counts that jump to their section: "9 medicines on the discharge list" scrolls to Med (Rx). The full telling, beat by beat, still exists in the builder (`buildStory` without `brief`) and is described in the architecture document.
 
 **How it is written:**
 
@@ -235,32 +233,35 @@ Three groups, in this order, each with its own small title:
 
 | | |
 |---|---|
-| Format | `Name strength (frequency, route, quantity)` |
-| Example | `Nexium 40 mg (1x1, PO, Qty 7) [2]` |
-| Example | `Brix-a 5 mg (1x1, Stopped 23 Feb'26 for surgery, Restart advised 03 Mar'26) [2] [10] [4] [12]` |
-| Example | `Hydrocortisone 100 mg IV (Intra-op, 27 Feb'26, 08:10) [10]` |
+| Format | `Name strength (unit per dose, frequency, when, duration, notes)` |
+| Example | `Nexium 40 mg (1 per dose, OD, PO, Qty 7) [2]` |
+| Example | `Dexyclav 500 mg (1 per dose, TDS, PO, Qty 19) [2]` |
+| Example | `Vometa FT (SOS, PO, Qty 10) [2]` |
+| Example | `Hydrocortisone 100 mg IV (During surgery, 27 Feb 2026, 08:10) [10]` |
 
-- **Frequency stays as written on the page** (`1x1`, `3x1`, `1 x 2 tab`). It is not converted to OD/BD or to `1-0-1` slots, because the page does not say which.
-- `SOS` is used for "when needed", from the closed list in the Copilot guide.
-- A missing strength is simply absent. No "not written".
-- Brand names stay as written. They are not mapped to generics.
-- A dose that can be read two ways (`1 x 2 tab`) gets the mark "Written in a way that can be read two ways".
+- **The bracket follows the Rx pad's own column order:** unit per dose, frequency, when, duration, notes. This is the same order a doctor sees in the Rx pad's medicine table and in Past Visits.
+- **Frequency uses the Rx pad's short forms where the conversion is exact:** `1x1` is OD, `2x1` BD, `3x1` TDS, `4x1` QID, "when needed" SOS. Anything else stays as written (`Every 2 weeks`). It is never turned into `1-0-1` slots, because the page does not say morning or night.
+- **Nothing is computed or guessed.** "When" and "Duration" stay empty unless the page states them; a duration is never worked out from a quantity.
+- **Whatever has no column goes to notes:** route (`PO`), quantity (`Qty 7`), "Stopped before surgery". No detail is dropped.
+- **The words as written are kept** with the fact (`1x1  PO  7`) and shown beside the row in review, so the conversion can always be checked.
+- A missing strength is simply absent. Brand names stay as written; they are not mapped to generics.
+- A dose that can be read two ways (`1 x 2 tab`) keeps its mark.
 
 ### 8.5 Lab Results
 
+Only the latest value of each test is shown. A test taken ten times is one line.
+
 | | |
 |---|---|
-| Format | `Test: value unit ↑/↓` then, if repeated, the dated trend, then `(Ref: range)` |
-| Groups | **Repeated during the stay** first, then one group per sample date, newest first. The date is the group title. |
-| Example | `Haemoglobin: 10.3 g/dL ↓ [15] [16]` |
-| Trend | `12.8 (25 Feb) → 11.4 ↓ (28 Feb) → 10.6 ↓ (3 Mar)` |
-| Ref | `(Ref: 11.7 - 15.5)` |
+| One reading | `ESR: 66 mm/hr ↑ (25 Feb'26) [16]` |
+| Repeated, still out of range | `Haemoglobin: 10.3 g/dL ↓ (03 Mar'26, from 12.5, 3 readings) [15] [16]` |
+| Repeated, back in range | `Leukocytes: 7.9 10^3/uL (03 Mar'26, from 12.3 ↑, 3 readings) [15] [16]` |
 
-- The headline is the **newest** value. In the trend it is the bold one.
-- Red and an arrow **only when the source flags** high or low. No flag means normal; the word "normal" is never written.
-- Units are kept exactly as printed. A unit that is not printed is left out, and the review drawer says so.
-- **Abnormal and decision-relevant results are listed. Routine normals are counted:** `+9 normal results (MCV, MCH, …)`, which opens the lab page.
-- Decimal points and less-than signs are kept as printed (`< 0.7`).
+- **Two tags, worst first:** "Out of range", then "Back in range" (out of range earlier, in range now). Results that were always in range are counted, not listed: `+14 normal results`.
+- **The bracket** is light: the date of the value shown, then where a repeated test started, then how many readings there are. No date subheadings.
+- **No trend and no reference range on the line.** Hovering the value shows both on one line; the full row is under Clinical data.
+- The value is medium weight; when out of range the value, its unit and its arrow are red together. A number is shown only with its unit.
+- On a wide page results sit in an even grid, one to a cell.
 
 ### 8.6 Vitals
 
@@ -400,38 +401,22 @@ Nothing is decided on this tab. It retells the file in a fixed order:
 
 0. **Review entry:** an amber strip at the top says the data is not verified yet and carries "Review and save", which opens Clinical data on the items still to review.
 1. **Summary**: the story of the file, beat by beat. See section 7 and `CASE-FILE-SUMMARY-ARCHITECTURE.md`.
-2. **Medical history**: what stays true beyond one visit. Allergies, Chronic conditions, Past surgery, Medicines before admission, Keep in mind.
-3. **One block per encounter, newest first**, titled by its hospital category from one fixed list (IPD, OPD, Emergency, Day care, Teleconsult, Other). An admission gets an **IPD summary**, a clinic visit gets an **OPD visit** summary. The first three are open; older ones show their one-line gist and open on demand.
-4. **Not in this file**: missing documents, unreadable pages and held readings, in one quiet note.
+2. **Details**: the same sections, in the same order and wording, as the Rx pad panel (one component draws both): Diagnosis, Allergies, Procedures, Med (Rx), Lab Results, Vitals, Reports and Notes, then what is held back and what is not in the file.
 
-Sections inside an encounter follow the order of a discharge summary and are left out when empty:
+The structure is deliberately identical in the three places a doctor meets the file: the Rx pad panel, this tab on the patient page, and this tab in the review drawer. Only the width differs.
 
-| IPD summary | OPD visit |
-|---|---|
-| Chief complaint | Chief complaint |
-| Diagnosis | Diagnosis |
-| Surgery and procedures | Investigations |
-| Course in hospital | Medicines prescribed |
-| Investigations | Vitals |
-| Medicines given in hospital | Advice and follow-up |
-| Condition at discharge (with the last vitals) | |
-| Discharge medicines | |
-| Advice and follow-up | |
-
-Weight rules, so 100 pages stay a short read:
-
-- **Labs:** only abnormal results, latest value, with the dated trend when the test was repeated. Normal ones are counted: `+9 normal results`.
-- **Vitals:** only the last recorded set of the encounter.
-- **Medicines:** five named, the rest counted and named in brackets: `+4 more (Vometa FT, Codipront, ...)`. One click shows all.
-- **Course in hospital:** dated pointers, `26 Feb: Admitted, 9:23 am. ...`, six shown.
-- **Notes:** shortened. The full text is under Clinical data.
-
-Layout follows the blue sidebar (Past Visits, Medical History): each section is a small picture, the section name in semibold, then tight rows beneath, **one section below the other** with a hairline between. A section name is a link to that kind of data under Clinical data, where it is verified. Rows are written exactly as in sections 8.1 to 8.7, with two space savers: a lab's reference range sits on the same line, and a row's date is left out when it only repeats the date of a one-day visit.
+- **Labs:** results that are out of range now, or were earlier and have recovered, with the dated trend. Always-normal results are counted: `+14 normal results`.
+- **Medicines:** every medicine, grouped by tag (On discharge, At home, In hospital).
+- **Subheadings are short tags** ("On discharge", "In hospital", a sample date), not second headings.
+- A section name is a link to that kind of data under Clinical data, where it is verified.
 
 ### 11.2 Clinical data (verify)
 
 Every fact, one row each, written as on the Rx pad panel, grouped the same way.
 
+- **Opens here from the Rx pad.** "Review and save" in the panel (and the short sticky "Not verified" strip that replaces the notice once it scrolls away) opens the drawer on this tab, because it is a request to verify.
+- **Review bar:** an amber bar at the top says how much is verified, what to do ("Verify it, edit it, or remove it") and jumps to the next row to review.
+- **Table per kind, in the Rx pad's columns.** Medicines: Medicine, Unit per dose, Frequency, When, Duration, Notes. Diagnoses: Diagnosis, Status, Since, Notes. Labs: Test, Value, Unit, Ref. range, Date. The same fields are what is stored (section 15) and what "Copy JSON" copies.
 - **Kinds:** a strip of chips (All, Diagnoses, Allergies, Medications, Procedures, Lab results, Vitals, Reports and notes) that scrolls sideways with arrows when it does not fit.
 - **Status:** All, To review, Needs a look, Verified, Removed, each with its count. "Needs a look" is everything flagged, held back or hard to read. This replaces the old "Needs your decision" card: the doubt is shown on the row it belongs to.
 - **A row:** checkbox, the fact, its marks and `[n]`, then the actions. Clicking the row opens its line on the source page and shows what is behind it: why it needs a look, the words as written, the conflicting reading, the code, who acted and when.
@@ -444,7 +429,9 @@ Every fact, one row each, written as on the Rx pad panel, grouped the same way.
 
 - **Several at once:** tick rows, or "Select all" in a section. A bar appears at the bottom: Verify, Remove, Clear.
 - **Bulk verify is limited on purpose.** It only verifies rows that were read clearly and carry no flag. Flagged, held or hard-to-read rows stay selected with a note that they must be checked one by one. "Verify N clear" in a section header does the same without ticking.
-- **What a lab edit can change:** test, value, unit, reference range, and the high / low / normal flag. Every other row: name and details.
+- **Edit is field by field, in the Rx pad's fields.** A medicine: Medicine, Unit per dose, Frequency (OD, BD, TDS, QID, SOS, HS, Stat offered, free text allowed), When (Before Food, After Food, Empty Stomach, Bed Time offered), Duration, Notes. A diagnosis: Diagnosis, Status (Confirmed, Suspected, Ruled Out; moving off Suspected is an explicit choice and is warned), Since, Notes. A lab: Test, Value, Unit, Ref. range, Date.
+- **Copy JSON** on a section, or "Copy all as JSON", copies the rows in the Rx pad's structure with each row's source page. Removed rows and unverified held-back readings are left out; unverified rows are marked as draft.
+- **"Review next"** in the amber bar jumps to the next row still to review and opens its page.
 
 ### 11.3 Documents (check)
 
@@ -486,7 +473,7 @@ Shown beside the workspace, and as a drawer on the Rx pad when any `[n]`, thumbn
 
 1. Never shows a suspected diagnosis as confirmed.
 2. Never infers "no allergy" from a blank.
-3. Never converts a unit, a frequency or a brand name.
+3. Never converts a unit or a brand name. A frequency is converted only to the Rx pad's exact short forms (OD, BD, TDS, QID, SOS), with the words as written kept beside it.
 4. Never fills a missing date, dose, strength or laterality.
 5. Never shows a low-confidence reading as a fact (it is held).
 6. Never drops anything silently: held readings and unread pages are counted, missing documents are named.
@@ -504,7 +491,7 @@ Shown beside the workspace, and as a drawer on the Rx pad when any `[n]`, thumbn
 | Lab names | Short names from a closed list (`Hb`, `S. Creat`) | Full names | A row has room, and old files span labs with different naming. Short names can be switched on per the closed list later. |
 | Units | Default unit omitted | Unit always shown as printed | Old files come from many labs and eras; the unit cannot be assumed. |
 | Reference range | Not in the overview | Shown, light and bracketed | Ranges on old reports differ from today's; the doctor needs the range that applied. |
-| Frequency | Slots and OD/BD from structured fields | Exactly as written (`1x1`) | Paper does not carry structured fields; converting would be inferring. |
+| Frequency | Slots and OD/BD from structured fields | OD/BD/TDS/QID/SOS where exact, never slots; as written kept | A count per day converts exactly; a time of day would be a guess. |
 | Dates | `6 Feb ’26` | `06 Feb'26` | Sidebar house style (Past Visits cards). |
 | Missing data | Omitted | Omitted in rows, but **named** under "Not found in this file" | For a digitised file, what is missing is itself clinical information. |
 | Certainty | As recorded | As recorded, plus held readings | OCR adds a kind of uncertainty the live chart does not have. |
@@ -544,6 +531,28 @@ One bundle per patient file. Field names follow sheet "04 Data Output Schema" of
 - **Format in code, not in the model.** The reader returns facts; the display strings are built by the front end from these fields.
 
 ---
+
+## 15a. Stored structure: the Rx pad's own JSON
+
+Every fact is stored in the row shape the Rx pad and VoiceRx already use, so it can be copied into a prescription, counted in analytics and exchanged with other systems without another conversion (`rxFormat.js`).
+
+| Kind | Stored under | Fields |
+|---|---|---|
+| Diagnosis | `diagnosis` | `name`, `duration`, `status` (Confirmed, Suspected, Ruled Out), `notes`, `icd_code` |
+| Medicine | `medications` | `name`, `dosage` (unit per dose), `frequency`, `when`, `duration`, `notes` |
+| Surgery or procedure | `surgery` | `name`, `notes` |
+| Allergy, chronic condition, past surgery | `medical_history` | `type`, `name`, `enable` (Y / N), `status`, `duration`, `date`, `notes` |
+| Lab result | `lab_results` | `reportName`, `testName`, `value`, `units`, `refRange`, `arrowDirection`, `date` |
+| Vitals | `vitals_and_body_composition` | `temperature`, `pulse`, `respiratory_rate`, `blood_pressure`, `spo2`, `height`, `weight`, `date`, `notes` |
+| Complaint | `symptoms` | `name`, `duration`, `severity`, `notes` |
+| Investigation report | `lab_investigation` | `name`, `notes` |
+| Follow-up, other notes | `follow_up`, `others` | `name`, `notes` |
+
+Every row also carries `_source`: the fact id, encounter, page and region it was read from, the words as written, the confidence and the review status. A field is filled only from what the page says; anything without a field of its own goes to `notes`.
+
+## 15b. Real pages for local demos
+
+The repository holds only a de-identified sample with drawn stand-in pages. For a demo on a developer's own machine, two git-ignored places can hold the real thing: `public/case-file-local/` (scanned page images and a manifest that maps data page numbers to scan pages) and `mock/archivedRecordsMock.local.js` (the same sample with real dates and values). When they exist, Original pages shows the real scans and a citation marks the whole cited page (no region is known on a scan yet). They must never be committed.
 
 ## 16. Open questions
 

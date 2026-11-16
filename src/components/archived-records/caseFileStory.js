@@ -16,8 +16,14 @@ import { encounterMix, encounterType } from "./encounterTypes";
  * numbers. The full rules, with examples for every shape of file, are in
  * docs/case-file/CASE-FILE-SUMMARY-ARCHITECTURE.md.
  *
+ * buildStory(bundle, review)                    every beat, in full
+ * buildStory(bundle, review, { brief: true })   the short story shown above
+ *                                               the details (see `shorten`)
+ *
  * Output: { level, beats: [{ key, text, cites }] }
- *   text   plain sentence(s); **double stars** mark the key words, which
+ *   text   plain sentence(s); [[label|page|rid]] is a clickable reference
+ *          to a page (an admission or visit number); **double stars** mark
+ *          the key words, which
  *          are shown in darker ink at the same weight (never bold)
  *   cites  ids of the facts the beat was built from (shown as [n])
  *   level  "full" | "partial" | "thin" | "none"   how much could be told
@@ -26,7 +32,7 @@ import { encounterMix, encounterType } from "./encounterTypes";
 export const STORY_LIMITS = {
   fullEncounters: 1, // told beat by beat: the latest
   lineEncounters: 3, // told in one line each, before that
-  medicines: 5, // named; the rest are counted
+  medicines: 5, // named for medicines given during a stay; the discharge list or prescription is always named in full
   labs: 3, // abnormal results named; the rest are counted
   vitals: 4, // values quoted from the last set
   background: 4, // chronic conditions named
@@ -41,6 +47,7 @@ const stripDot = (text = "") => text.trim().replace(/\.$/, "");
 const sentence = (text = "") => (text ? `${stripDot(text)}.` : "");
 // House date: 04 Mar'26. Leaves anything that is not a full date alone.
 const shortDate = (label = "") => label.replace(/^(\d) /, "0$1 ").replace(/ 20(\d\d)$/, "'$1");
+const firstSentence = (text = "") => text.split(/(?<=[.!?])\s/)[0];
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
 // "A, B and C"; past the limit: "A, B, C and 4 more".
@@ -104,8 +111,14 @@ const startOf = (encounter) => encounter.startLabel || (encounter.dateLabel || "
 const endOf = (encounter) => encounter.endLabel || (encounter.dateLabel || "").split(" to ")[1] || "";
 const on = (label) => (label ? ` on ${shortDate(label)}` : "");
 
+// The encounter's own number in brackets after its date, as a link to the
+// page it was read from: "on 26 Feb'26 (IP-2602-0147)". Written as
+// [[label|page|rid]]; the renderer turns it into a clickable reference.
+const refOf = (encounter) =>
+  encounter.ref ? ` ([[${encounter.ref}|${encounter.refCite?.page ?? ""}|${encounter.refCite?.rid ?? ""}]])` : "";
+
 function opening(encounter) {
-  const date = on(startOf(encounter));
+  const date = `${on(startOf(encounter))}${refOf(encounter)}`;
   if (encounter.type === "IPD") return (ADMIT_OPENING[encounter.entry] || ((value) => `Admitted${value}`))(date);
   if (encounter.type === "OPD") return (VISIT_OPENING[encounter.visitKind] || ((value) => `Seen in OPD${value}`))(date);
   if (encounter.type === "ER") return `Seen in the emergency${date}`;
@@ -116,7 +129,7 @@ function opening(encounter) {
 
 /* ------------------------------------------------------- one encounter */
 
-function tell(encounter, mine, review) {
+function tell(encounter, mine, review, brief = false) {
   const ipd = Boolean(encounterType(encounter.type).stay); // a stay: IPD or day care
   const role = (domain, name) => mine.filter((item) => item.domain === domain && item.role === name);
   const of = (domain) => mine.filter((item) => item.domain === domain);
@@ -157,7 +170,7 @@ function tell(encounter, mine, review) {
   // A number is quoted only with its unit; a value with no unit stays in the record.
   const flagged = of("LAB").filter((item) => item.abnormal);
   const abnormal = flagged.filter((item) => item.unit);
-  const labText = abnormal.slice(0, STORY_LIMITS.labs).map((item) => {
+  const labText = abnormal.slice(0, brief ? 2 : STORY_LIMITS.labs).map((item) => {
     const first = item.series?.[0];
     const moved = first && String(first.v) !== String(item.value);
     const unit = item.unit ? ` ${item.unit}` : "";
@@ -166,15 +179,23 @@ function tell(encounter, mine, review) {
   const moreLabs = flagged.length - labText.length; // includes any left unquoted for want of a unit
   const given = role("MED", "inHospital");
   const courseParts = [
-    labText.length ? `Abnormal results: ${labText.join(", ")}${moreLabs > 0 ? ` and ${moreLabs} more` : ""}` : null,
-    given.length ? `Given in hospital: ${listOf(given.map((item) => plain(item, review)), STORY_LIMITS.medicines)}` : null,
+    labText.length ? `Abnormal results: ${labText.join(", ")}${moreLabs > 0 ? (brief ? ` and ${link(`${moreLabs} more`, "LAB")}` : ` and ${moreLabs} more`) : ""}` : null,
+    given.length
+      ? brief
+        ? `${link(`${plural(given.length, "medicine")} recorded as given in hospital`, "MED")}`
+        : `Given in hospital: ${listOf(given.map((item) => plain(item, review)), STORY_LIMITS.medicines)}`
+      : null,
   ].filter(Boolean);
   add("course", courseParts.map(sentence).join(" "), [...abnormal.slice(0, STORY_LIMITS.labs), ...given.slice(0, STORY_LIMITS.medicines)]);
+
+  // What the reports said: imaging, ECG and the like, in their own words.
+  const reports = role("RPT", "investigation");
+  add("reports", reports.length && !brief ? `Reports: ${reports.map((item) => `${bold(item.title)}: ${lowerFirst(stripDot(item.short || firstSentence(item.detail)))}`).join("; ")}.` : "", reports);
 
   // How they left (admissions only).
   const condition = role("RPT", "conditionAtDischarge")[0];
   const vitals = role("VIT", "last")[0] || (ipd ? null : of("VIT")[0]);
-  const vitalsText = vitals?.facts?.length
+  const vitalsText = vitals?.facts?.length && !brief
     ? `Last vitals: ${vitals.facts.slice(0, STORY_LIMITS.vitals).map((fact) => `${fact.k} ${fact.v}`).join(", ")}`
     : null;
   if (ipd) {
@@ -198,8 +219,12 @@ function tell(encounter, mine, review) {
   if (current.length && !died) {
     add(
       "medicines",
-      `${bold(plural(current.length, "medicine"))} on the ${ipd ? "discharge list" : "prescription"}: ${listOf(current.map((item) => plain(item, review)), STORY_LIMITS.medicines)}.`,
-      current.slice(0, STORY_LIMITS.medicines),
+      // Every medicine the patient left with is named: this is the list a
+      // doctor most often needs whole, so it is never cut to "and N more".
+      brief
+        ? `${link(`${plural(current.length, "medicine")} on the ${ipd ? "discharge list" : "prescription"}`, "MED")}.`
+        : `${bold(plural(current.length, "medicine"))} on the ${ipd ? "discharge list" : "prescription"}: ${listOf(current.map((item) => plain(item, review)), current.length)}.`,
+      current,
     );
   }
 
@@ -211,25 +236,67 @@ function tell(encounter, mine, review) {
 }
 
 // An earlier encounter, in one line: when, what kind, the headline.
-function oneLine(encounter, mine, review) {
+function oneLine(encounter, mine, review, brief = false) {
   const dx = mine.find((item) => item.domain === "DX" && item.role !== "chronic");
   const procedure = mine.find((item) => item.domain === "PROC" && item.role === "procedure");
   const complaint = mine.find((item) => item.role === "complaint");
   const reports = mine.filter((item) => item.domain === "RPT" && item.role === "investigation");
   const abnormal = mine.filter((item) => item.domain === "LAB" && item.abnormal);
+  const labs = abnormal.filter((item) => item.unit).slice(0, STORY_LIMITS.labs);
   const tail = [
     dx ? named(dx, review) : null,
     procedure ? named(procedure, review) : null,
     !dx && !procedure && complaint ? lowerFirst(stripDot(complaint.detail)) : null,
-    !dx && !procedure && !complaint && reports.length ? listOf(reports.map((item) => item.title), 3) : null,
-    abnormal.length ? `${plural(abnormal.length, "abnormal result")}` : null,
+    ...reports.slice(0, 3).map((item) => `${item.title} (${lowerFirst(stripDot(item.short || firstSentence(item.detail)))})`),
+    labs.length
+      ? `abnormal ${labs.map((item) => `${item.title} ${item.value} ${item.unit}`).join(", ")}${abnormal.length > labs.length ? ` and ${abnormal.length - labs.length} more` : ""}`
+      : abnormal.length ? plural(abnormal.length, "abnormal result") : null,
   ].filter(Boolean);
   return {
     key: `${encounter.id}-line`,
     kind: "earlier",
-    text: `${opening(encounter)}${tail.length ? `: ${tail.join("; ")}` : ""}.`,
-    cites: [dx, procedure, complaint, ...reports.slice(0, 2), abnormal[0]].filter(Boolean).map((item) => item.id),
+    // In the short story an earlier visit is one clause; its results are in the details.
+    text: brief ? `${opening(encounter)}.` : `${opening(encounter)}${tail.length ? `: ${tail.join("; ")}` : ""}.`,
+    cites: [dx, procedure, complaint, ...reports.slice(0, 3), ...labs].filter(Boolean).map((item) => item.id),
   };
+}
+
+/* --------------------------------------------------------- short story */
+
+// A pointer into the details below the summary: [[label|@MED|]].
+const link = (label, section) => `[[${label}|@${section}|]]`;
+
+// Who the patient is, only from what the file states. Never worked out from
+// a birth date against today, never taken from clinical content.
+function whoOf(patient) {
+  if (!patient) return "";
+  const sex = { F: "woman", Female: "woman", M: "man", Male: "man" }[patient.sex];
+  if (patient.age && sex) return `${patient.age}-year-old ${sex}.`;
+  if (patient.age) return `${patient.age}-year-old patient.`;
+  if (sex) return `${sex === "woman" ? "Female" : "Male"} patient.`;
+  return "";
+}
+
+// The short story is what the details below cannot say: who this is, how
+// they came in, the course of the stay and how it ended, in order. It names
+// the headline and points at the rest (a count that jumps to its section),
+// so the summary and the details never say the same thing twice.
+//   1. Who, and how they came in       (earlier visits, then this one)
+//   2. What was found and done
+//   3. How it went
+//   4. How they left and what was planned
+//   5. Keep in mind                    (allergy line, background, alerts)
+//   6. Not in this file
+const SHORT_GROUPS = [["earlier", "arrival"], ["diagnosis", "treatment"], ["course"], ["leaving", "after", "medicines", "followUp"], ["background"], ["gaps"], ["none"]];
+
+function shorten(beats, patient) {
+  const who = whoOf(patient);
+  return SHORT_GROUPS.map((kinds, index) => {
+    const mine = beats.filter((beat) => kinds.includes(beat.kind)).sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind));
+    if (!mine.length) return null;
+    const text = mine.map((beat) => beat.text).join(" ");
+    return { key: `short-${index}`, kind: kinds[kinds.length - 1], text: index === 0 && who ? `${who} ${text}` : text, cites: [...new Set(mine.flatMap((beat) => beat.cites))] };
+  }).filter(Boolean);
 }
 
 /* ------------------------------------------------------------ the story */
@@ -254,7 +321,7 @@ function allergyLine(bundle, facts, review) {
   return "Allergies: not recorded in this file";
 }
 
-export function buildStory(bundle, review) {
+export function buildStory(bundle, review, { brief = false } = {}) {
   // A fact may speak only if it is shown to the doctor and not marked sensitive.
   const facts = bundle.findings.filter((item) => isShownToDoctor(item, review) && !item.sensitive?.length);
   const held = bundle.findings.filter((item) => item.hold && statusOf(review, item.id) === "draft").length;
@@ -293,8 +360,8 @@ export function buildStory(bundle, review) {
       cites: [],
     });
   }
-  lines.forEach((encounter) => beats.push(oneLine(encounter, mineOf(encounter), review)));
-  full.forEach((encounter) => beats.push(...tell(encounter, mineOf(encounter), review)));
+  lines.forEach((encounter) => beats.push(oneLine(encounter, mineOf(encounter), review, brief)));
+  full.forEach((encounter) => beats.push(...tell(encounter, mineOf(encounter), review, brief)));
 
   // Background that holds across visits. An allergy is only ever quoted.
   const chronic = facts.filter((item) => item.domain === "DX" && item.role === "chronic");
@@ -307,7 +374,7 @@ export function buildStory(bundle, review) {
     chronic.length ? `Known ${listOf(chronic.map((item) => named(item, review)), STORY_LIMITS.background)}` : null,
     past.length ? `Past ${listOf(past.map((item) => lowerFirst(named(item, review))), 3)}` : null,
     allergyText,
-    home.length ? `${bold(plural(home.length, "medicine"))} on the list taken before admission` : null,
+    home.length ? (brief ? link(`${plural(home.length, "medicine")} taken before admission`, "MED") : `${bold(plural(home.length, "medicine"))} on the list taken before admission`) : null,
     // An alert carries a short form written for exactly this sentence.
     alerts.length ? `Keep in mind: ${alerts.slice(0, 3).map((item) => bold(item.short || lowerFirst(item.title))).join("; ")}` : null,
   ].filter(Boolean);
@@ -339,5 +406,5 @@ export function buildStory(bundle, review) {
 
   const kinds = new Set(beats.map((beat) => beat.kind));
   const level = kinds.has("diagnosis") && kinds.has("arrival") && (kinds.has("treatment") || kinds.has("medicines")) ? "full" : kinds.has("diagnosis") || kinds.has("medicines") ? "partial" : "thin";
-  return { level, beats };
+  return { level, beats: brief ? shorten(beats, bundle.patient) : beats };
 }

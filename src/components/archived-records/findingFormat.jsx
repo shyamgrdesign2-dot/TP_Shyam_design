@@ -3,6 +3,8 @@ import { Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { ArrowDown, ArrowLeft2, ArrowRight2, ArrowUp, DocumentText, Edit2, TickCircle, Warning2 } from "iconsax-reactjs";
 import ARCHIVED_RECORDS_MOCK from "./mock/archivedRecordsMock";
 import { archivedRecordsStore, citeNumberForPage, citesOf, documentForPage } from "./archivedRecordsStore";
+import { rxQuals } from "./rxFormat";
+import { scrollWithin } from "./scrollWithin";
 import styles from "./ArchivedRecords.module.scss";
 
 /**
@@ -90,9 +92,56 @@ export function Cites({ findings, quick = false }) {
   );
 }
 
-// **bold** in summary lines marks the words the eye should land on.
-export function RichLine({ text }) {
-  return text.split("**").map((part, index) => (index % 2 ? <strong key={index}>{part}</strong> : <React.Fragment key={index}>{part}</React.Fragment>));
+// A summary line. **double stars** mark the key words; [[label|page|rid]]
+// is a reference to a page, such as an admission number, and opens that page.
+const REF = /\[\[([^|\]]+)\|([^|\]]*)\|([^\]]*)\]\]/g;
+
+// A reference written as [[label|@MED|]] points at a section of the details
+// below the summary; this scrolls that section into view, where it is.
+function jumpToSection(event, code) {
+  let box = event.currentTarget.parentElement;
+  while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement;
+  const target = box?.querySelector(`[data-section="${code}"]`);
+  if (target) scrollWithin(box, target, { offset: 64, smooth: true });
+}
+
+export function RichLine({ text, quick = false }) {
+  const parts = [];
+  let last = 0;
+  let key = 0;
+  const words = (chunk) =>
+    chunk.split("**").forEach((part, index) => {
+      if (part) parts.push(index % 2 ? <strong key={key++}>{part}</strong> : <React.Fragment key={key++}>{part}</React.Fragment>);
+    });
+  text.replace(REF, (match, label, page, rid, at) => {
+    words(text.slice(last, at));
+    parts.push(
+      page.startsWith("@") ? (
+        <button key={key++} type="button" className={styles.refLink} title="Show this section below" onClick={(event) => jumpToSection(event, page.slice(1))}>
+          {label}
+        </button>
+      ) : page ? (
+        <button
+          key={key++}
+          type="button"
+          className={styles.refLink}
+          title={`Open page ${page}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            archivedRecordsStore.openSource(Number(page), rid || null, { quick });
+          }}
+        >
+          {label}
+        </button>
+      ) : (
+        <React.Fragment key={key++}>{label}</React.Fragment>
+      ),
+    );
+    last = at + match.length;
+    return match;
+  });
+  words(text.slice(last));
+  return parts;
 }
 
 /* ------------------------------------------------------------ small parts */
@@ -126,6 +175,31 @@ export function Quals({ quals }) {
   );
 }
 
+// A repeated test's dated values on one line, for the hover on a result.
+const seriesLine = (series) => series.map((point) => `${point.v}${point.f === "H" ? " \u2191" : point.f === "L" ? " \u2193" : ""} (${point.d})`).join("  \u2192  ");
+
+// The light bracket after a lab's latest value: when it was taken and, for a
+// test that was repeated, where it started and how many readings there are.
+//   (03 Nov'26)                          one reading
+//   (03 Nov'26, from 12.8, 3 readings)   repeated, and it moved
+//   (03 Nov'26, from 447 ↑, 3 readings)  back in range now; it started high
+function LabBracket({ finding }) {
+  const series = finding.series || [];
+  const first = series[0];
+  const moved = first && String(first.v) !== String(finding.value);
+  const parts = [
+    finding.dateLabel ? houseDate(finding.dateLabel) : null,
+    moved ? `from ${first.v}${first.f === "H" ? " \u2191" : first.f === "L" ? " \u2193" : ""}` : null,
+    series.length > 1 ? `${series.length} readings` : null,
+  ].filter(Boolean);
+  return parts.length ? <span className={styles.rowSecondary}> ({parts.join(", ")})</span> : null;
+}
+
+// What sits behind a lab result when only the latest value is shown: the
+// reference range and, if the test was repeated, the earlier readings.
+const labInfo = (finding) =>
+  [finding.range ? `Ref: ${finding.range}` : null, finding.series?.length > 1 ? `Readings: ${seriesLine(finding.series)}` : null].filter(Boolean).join("   ·   ");
+
 // Label and value pairs on a line, separated by hairlines: BP: 102/74 | Pulse: 72
 export function Facts({ facts }) {
   if (!facts?.length) return null;
@@ -143,43 +217,74 @@ export function Facts({ facts }) {
   );
 }
 
+// A repeated lab over time, oldest to newest: 12.5 (25 Feb) → 11.1 ↓ (28 Feb).
+export function TrendStrip({ finding }) {
+  if (!finding.series) return null;
+  return (
+    <ol className={styles.trend} aria-label={`${finding.title} over time`}>
+      {finding.series.map((point, index) => (
+        <li key={point.d} data-flag={point.f || undefined} data-latest={index === finding.series.length - 1 ? "true" : undefined}>
+          <span>{point.v}<Trend flag={point.f} /></span>
+          <small>({point.d})</small>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 /* ------------------------------------------------------------ one finding */
 
 // One layout per kind of fact:
 //   Lab      Haemoglobin: 10.6 g/dL ↓        then the dated trend, then (Ref ...)
 //   Vitals   At discharge (04 Mar'26)        then BP: 102/74 | Pulse: 72 | ...
 //   Report   Chest X-ray: finding text (25 Feb'26)
-//   Others   Nexium 40 mg (1x1, PO, Qty 7)
+//   Medicine Nexium 40 mg (1 per dose, OD, PO, Qty 7)   Rx pad order: unit per
+//            dose, frequency, when, duration, notes (see rxFormat.js)
+//   Others   Rheumatoid arthritis (Secondary, Past history)
 // `marks` is whatever the caller wants at the end of the first line (flag,
 // tick, citations). `dated` is false when the group heading carries the date.
 // `compact` keeps a lab on one line by putting the reference range beside it.
-export function FindingBody({ finding, marks = null, dated = true, compact = false }) {
+// `latestOnly` shows a lab as its latest value alone: no trend, no range on
+// the line. Both are on the value's hover, and in full under Clinical data.
+// `tagged` drops a vitals row's own title because a tag above already says it.
+export function FindingBody({ finding, marks = null, dated = true, compact = false, latestOnly = false, tagged = false }) {
   if (finding.domain === "LAB") {
     return (
       <>
         <p className={styles.rowLine}>
           <span className={styles.rowKey}>{finding.title}:</span>{" "}
-          <span className={styles.rowValue} data-abnormal={finding.abnormal || undefined}>
-            {finding.value}
-            {finding.unit ? <small> {finding.unit}</small> : null}
-            <Trend flag={finding.abnormal} />
-          </span>
-          {dated && !finding.series && finding.dateLabel ? <span className={styles.rowSecondary}> ({houseDate(finding.dateLabel)})</span> : null}
-          {compact && finding.range ? <span className={styles.rowSecondary}> (Ref: {finding.range})</span> : null}
+          {latestOnly && labInfo(finding) ? (
+            <Tooltip content={labInfo(finding)}>
+              <span className={styles.rowValue} data-abnormal={finding.abnormal || undefined} data-info="true" tabIndex={0}>
+                {finding.value}
+                {finding.unit ? <small> {finding.unit}</small> : null}
+                <Trend flag={finding.abnormal} />
+              </span>
+            </Tooltip>
+          ) : (
+            <span className={styles.rowValue} data-abnormal={finding.abnormal || undefined}>
+              {finding.value}
+              {finding.unit ? <small> {finding.unit}</small> : null}
+              <Trend flag={finding.abnormal} />
+            </span>
+          )}
+          {latestOnly ? <LabBracket finding={finding} /> : null}
+          {dated && !latestOnly && !finding.series && finding.dateLabel ? <span className={styles.rowSecondary}> ({houseDate(finding.dateLabel)})</span> : null}
+          {compact && !latestOnly && finding.range ? <span className={styles.rowSecondary}> (Ref: {finding.range})</span> : null}
           {marks}
         </p>
-        {finding.series ? (
-          <ol className={styles.trend} aria-label={`${finding.title} over time`}>
-            {finding.series.map((point, index) => (
-              <li key={point.d} data-flag={point.f || undefined} data-latest={index === finding.series.length - 1 ? "true" : undefined}>
-                <span>{point.v}<Trend flag={point.f} /></span>
-                <small>({point.d})</small>
-              </li>
-            ))}
-          </ol>
-        ) : null}
-        {finding.range && !compact ? <p className={styles.rowSecondary}>(Ref: {finding.range})</p> : null}
+        {latestOnly ? null : <TrendStrip finding={finding} />}
+        {finding.range && !compact && !latestOnly ? <p className={styles.rowSecondary}>(Ref: {finding.range})</p> : null}
       </>
+    );
+  }
+
+  if (finding.domain === "VIT" && tagged) {
+    return (
+      <div className={styles.vitalLine}>
+        <Facts facts={finding.facts} />
+        <span>{marks}</span>
+      </div>
     );
   }
 
@@ -210,7 +315,7 @@ export function FindingBody({ finding, marks = null, dated = true, compact = fal
   return (
     <p className={styles.rowLine}>
       <span className={styles.rowLabel}>{finding.label || finding.title}</span>
-      <Quals quals={finding.quals} />
+      <Quals quals={rxQuals(finding)} />
       {marks}
     </p>
   );
@@ -230,17 +335,27 @@ export const inReadingOrder = (items) =>
 // Labs are grouped so a date is written once per group, not on every row:
 // tests repeated during the stay first (they carry their own dated trend),
 // then one group per sample date, newest first.
-export const labGroup = (finding) => (finding.series ? "Repeated" : houseDate(finding.dateLabel));
+// Labs are grouped by what the latest value says, not by date (the date is in
+// each row's bracket): out of range now, back in range after being out, or
+// in range throughout.
+const LAB_GROUPS = ["Out of range", "Back in range", "In range"];
+export const labGroup = (finding) => (finding.abnormal ? LAB_GROUPS[0] : finding.series?.some((point) => point.f) ? LAB_GROUPS[1] : LAB_GROUPS[2]);
 
 // [[groupTitle, items], ...] in reading order. An empty title means no heading.
 export function groupFindings(items) {
   const groups = new Map();
   inReadingOrder(items).forEach((item) => {
-    const key = item.domain === "LAB" ? labGroup(item) : item.group || "";
+    // A vitals set is named by its tag: "At discharge (04 Nov'26)".
+    const key =
+      item.domain === "LAB" ? labGroup(item)
+      : item.domain === "VIT" ? `${item.title}${item.dateLabel ? ` (${houseDate(item.dateLabel)})` : ""}`
+      : item.group || "";
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   });
-  return [...groups.entries()];
+  const entries = [...groups.entries()];
+  // Lab groups always read worst first.
+  return items[0]?.domain === "LAB" ? entries.sort((a, b) => LAB_GROUPS.indexOf(a[0]) - LAB_GROUPS.indexOf(b[0])) : entries;
 }
 
 /* ------------------------------------------------------------------ marks */

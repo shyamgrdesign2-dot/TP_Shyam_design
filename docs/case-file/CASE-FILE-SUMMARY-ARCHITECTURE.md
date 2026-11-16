@@ -459,6 +459,30 @@ Both visits are attached to the admission (`partOf`), so the admission is the in
 
 ---
 
+## 10a. What every summary covers (decided 16 Nov 2026)
+
+The same pointers are written for every patient, in the same order, so a doctor always knows where to look. A pointer is left out only when the file has nothing for it. Where this section differs from an earlier limit in this document, this section wins.
+
+| Pointer | IPD | OPD | IPD with OPD | Rule |
+|---|---|---|---|---|
+| How they came in, with the visit or admission number | Yes | Yes | Both, oldest first | The number is in brackets and opens the page it was read from: `on 26 Feb'26 (IP-2602-0147)` |
+| Diagnosis | Final, working, others | Diagnosis | Per encounter | Certainty kept |
+| Procedures | Yes | If any | Per encounter | With date |
+| Abnormal results | Out of range now, with the first value when it moved | Same | Per encounter | Three named, the rest counted; a value is quoted only with its unit |
+| Report findings | Imaging, ECG and similar, first sentence each | Same | Per encounter | `Reports: Chest X-ray: normal heart size; ECG: sinus rhythm, rate 80.` |
+| Medicines given in hospital | Five named, rest counted | Not applicable | From the admission | |
+| How they left and last vitals | Outcome, condition, last set of vitals | Last vitals if recorded | From the admission | "Discharged" only when the file says so |
+| Medicines the patient left with | **Every medicine on the discharge list, named** | **Every medicine on the prescription, named** | From the latest encounter | Never cut to "and N more": this is the list a doctor most often needs whole |
+| Follow-up | Yes | Yes | From the latest encounter | "Follow-up planned", no clock |
+| Background | Chronic conditions, past surgery, allergy line, medicines before admission, keep in mind | Same | Once, for the file | The allergy line is always present |
+| Not in this file | Missing documents, unreadable pages, held, removed and sensitive items | Same | Once | Counts and names |
+
+An earlier encounter that is told in one line (for example a pre-admission work-up) carries the same things in short: its number, its report findings and its abnormal results by name.
+
+Below the summary, the Details repeat every fact in full under fixed headings (Diagnosis, Allergies, Procedures, Med (Rx), Lab Results, Vitals, Reports and Notes). The summary is the story; the details are the record. Both are drawn by the same code on the Rx pad panel, on the patient page and in the review drawer.
+
+---
+
 ## 11. Built today vs specified
 
 "Built" means `caseFileStory.js` in the UI draft, running on sample data. The production generator is not started.

@@ -334,7 +334,7 @@ Base fixture is the sample bundle (`archivedRecordsMock.js`). Each scenario is a
 
 ## 6. Status in the draft
 
-Read from `caseFileStory.js` (`buildStory`) and `caseFileSummary.js` (`buildStructuredRecord`) on 16 Nov 2026. The fixtures in section 5 have not been run against this code; this is a reading of the source.
+Read from `caseFileStory.js` (`buildStory`) and `DataSections.jsx` (`buildStructuredRecord`) on 16 Nov 2026. The fixtures in section 5 have not been run against this code; this is a reading of the source.
 
 ### 6.1 Done
 

@@ -50,6 +50,10 @@ const encounters = [
     shortDate: "26 Feb-4 Mar'26",
     startLabel: "26 Feb 2026",
     endLabel: "4 Mar 2026",
+    // The hospital's own number for this encounter and the page it is read
+    // from. Sample numbers: the real ones were removed with the identifiers.
+    ref: "IP-2602-0147",
+    refCite: { page: 1, rid: "p1-admit" },
     // How the patient came in and how the stay ended. Null when the file does
     // not say: the summary then says only "Admitted", it never guesses.
     //   entry    emergency | referral | fromOpd | transfer | planned | direct
@@ -71,6 +75,8 @@ const encounters = [
     dateLabel: "25 Feb 2026",
     shortDate: "25 Feb'26",
     startLabel: "25 Feb 2026",
+    ref: "OP-2502-0933",
+    refCite: { page: 70, rid: "p70-hb" },
     // visitKind  first | followUp | workup
     visitKind: "workup",
     speciality: "Work-up",
@@ -824,7 +830,7 @@ const vitalFacts = (detail) =>
   });
 
 // What part each fact plays in the story of the file. The extraction service
-// sets this; the structured record is assembled from it (see caseFileSummary).
+// sets this; the structured record is assembled from it (see caseFileStory.js and DataSections.jsx).
 //   DX    final | working | secondary | chronic
 //   PROC  procedure | pastSurgery
 //   MED   discharge | home | inHospital          (OPD files use: prescribed)
@@ -858,6 +864,8 @@ const withFacts = (item) => {
 };
 
 export const ARCHIVED_RECORDS_MOCK = {
+  // Stated on the face sheet. No name or identifier is ever held here.
+  patient: { sex: "Female", age: 45, cite: { page: 1, rid: "p1-admit" } },
   source: {
     fileId: "IPD case file (sample)",
     fileName: "digitized IPD file, 99 pages",
@@ -885,4 +893,17 @@ export const ARCHIVED_RECORDS_MOCK = {
   questions,
 };
 
-export default ARCHIVED_RECORDS_MOCK;
+// A local-only copy of this bundle with the real dates and values may sit
+// beside this file as archivedRecordsMock.local.js (git-ignored, never
+// committed). When it exists, demos use it so the data agrees with the real
+// scanned pages in public/case-file-local/. Everyone else gets the sample above.
+let local = null;
+try {
+  // Resolved by the bundler at build time: an empty list when the file is absent.
+  const found = require.context("./", false, /archivedRecordsMock\.local\.js$/);
+  if (found.keys().length) local = found(found.keys()[0]).default;
+} catch (error) {
+  local = null;
+}
+
+export default local || ARCHIVED_RECORDS_MOCK;

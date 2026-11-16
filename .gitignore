@@ -36,3 +36,8 @@ DR_AGENT_VOICERX_AGENT_CONTEXT.md
 .claude/launch.json
 # Tesseract MCP config — contains a bearer token, never commit
 .mcp.json
+
+# Case File: real patient pages and data for local demos only.
+# These hold identifiable patient information and must never be committed.
+/public/case-file-local/
+/src/components/archived-records/mock/*.local.js

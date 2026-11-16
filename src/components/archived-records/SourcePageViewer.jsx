@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { Add, ArrowLeft2, ArrowRight2, Minus, SidebarRight } from "iconsax-reactjs";
 import { documentForPage } from "./archivedRecordsStore";
+import { isArchivedRecordsEnabled } from "./archivedRecordsFlag";
 import { scrollWithin } from "./scrollWithin";
 import styles from "./ArchivedRecords.module.scss";
 
@@ -172,25 +173,66 @@ export function documentName(doc) {
   return { name: doc.script === "image" ? "Photographs and images" : "Unclassified pages", named: false };
 }
 
+// Real scanned pages, for local demos only. They live in the git-ignored
+// folder public/case-file-local/ with a manifest that maps each page number
+// used by the data to the scan page that carries it. When the folder is not
+// there (everywhere except a developer's own machine) this returns null and
+// the drawn sample pages are used.
+function useLocalScan() {
+  const [scan, setScan] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    if (!isArchivedRecordsEnabled()) return undefined;
+    fetch(`${process.env.PUBLIC_URL || ""}/case-file-local/manifest.json`)
+      .then((response) => (response.ok && (response.headers.get("content-type") || "").includes("json") ? response.json() : null))
+      .then((manifest) => {
+        if (alive && manifest?.pages && manifest.map) setScan(manifest);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return scan;
+}
+
 export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageChange, onHide }) {
+  const scan = useLocalScan();
   const [zoomIndex, setZoomIndex] = useState(2);
   const [visiblePage, setVisiblePage] = useState(page);
   const scrollRef = useRef(null);
   const frame = useRef(0);
-  const total = bundle.source.totalPages;
+  // With real scans the strip is numbered by scan page; the data's page
+  // numbers are translated on the way in (a citation) and on the way out (the
+  // document tag).
+  const total = scan ? scan.pages : bundle.source.totalPages;
   const pageNumbers = useMemo(() => Array.from({ length: total }, (_, index) => index + 1), [total]);
+  const toStrip = (dataPage) => {
+    if (!scan) return dataPage;
+    for (let at = dataPage; at >= 1; at -= 1) if (scan.map[at]) return scan.map[at];
+    return 1;
+  };
+  const fromStrip = (stripPage) => {
+    if (!scan) return stripPage;
+    const hit = Object.keys(scan.map).map(Number).sort((a, b) => a - b).find((dataPage) => scan.map[dataPage] === stripPage);
+    if (hit) return hit;
+    // A scan page nothing was read from: it belongs with the page before it.
+    return stripPage > 1 ? fromStrip(stripPage - 1) : 1;
+  };
+  const cited = toStrip(page);
 
   // Jump to the asked page, then to the cited region on it.
   useEffect(() => {
     const root = scrollRef.current;
     if (!root) return;
-    setVisiblePage(page);
-    const sheet = root.querySelector(`[data-page="${page}"]`);
+    setVisiblePage(cited);
+    const sheet = root.querySelector(`[data-page="${cited}"]`);
     const target = rid && sheet ? sheet.querySelector(`[data-rid="${rid}"]`) : null;
     // The cited line goes to the middle; a page starts just under the tag.
     if (target) scrollWithin(root, target, { align: "center" });
     else scrollWithin(root, sheet, { offset: 44 });
-  }, [page, rid, jump]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cited, rid, jump, Boolean(scan)]);
 
   // The whole file scrolls as one strip. The page in view is the one crossing
   // a line a third of the way down the pane; the tag and the counter follow it.
@@ -210,9 +252,16 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
   };
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
-  const go = (next) => onPageChange(Math.min(total, Math.max(1, next)), null);
+  const go = (next) => {
+    const target = Math.min(total, Math.max(1, next));
+    if (!scan) return onPageChange(target, null);
+    // Real pages: move the strip itself; the data keeps its own page numbers.
+    setVisiblePage(target);
+    return scrollWithin(scrollRef.current, scrollRef.current?.querySelector(`[data-page="${target}"]`), { offset: 44 });
+  };
 
-  const doc = documentForPage(bundle, visiblePage);
+  const dataPage = fromStrip(visiblePage);
+  const doc = documentForPage(bundle, dataPage);
   const tag = documentName(doc);
   const number = doc ? bundle.documents.indexOf(doc) + 1 : null;
   const span = doc ? doc.to - doc.from + 1 : 1;
@@ -222,7 +271,7 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
       <header className={styles.viewerBar}>
         <strong>Original pages</strong>
         <span>
-          {total} pages, {bundle.documents.length} documents
+          {total} pages, {bundle.documents.length} documents{scan ? " · scanned originals" : ""}
         </span>
       </header>
 
@@ -230,31 +279,49 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
       <div className={styles.docTag} data-named={tag.named ? "true" : undefined} aria-live="polite">
         {number ? <span className={styles.docTagNo}>[{number}]</span> : null}
         <strong>{tag.name}</strong>
-        {span > 1 ? <small>{visiblePage - doc.from + 1} of {span}</small> : null}
+        {span > 1 && !scan ? <small>{dataPage - doc.from + 1} of {span}</small> : null}
       </div>
 
       <div className={styles.viewerScroll} ref={scrollRef} onScroll={onScroll}>
-        {pageNumbers.map((pageNo) => {
-          const drawn = bundle.pages[pageNo];
-          const own = documentForPage(bundle, pageNo);
-          const starts = own ? own.from === pageNo : true;
-          return (
-            <div key={pageNo} className={styles.sheet} data-page={pageNo} data-starts={starts && pageNo > 1 ? "true" : undefined}>
-              <span className={styles.sheetNo}>Page {pageNo}</span>
-              <div className={styles.paper} style={{ zoom: ZOOMS[zoomIndex] }} data-script={own?.script}>
-                {drawn ? (
-                  drawn.blocks.map((block, index) => <Block key={index} block={block} activeRid={pageNo === page ? rid : null} />)
-                ) : (
-                  <div className={styles.paperBlank}>
-                    <strong>{documentName(own).name}</strong>
-                    <span>Page {pageNo}</span>
-                    <p>This page is not drawn in the sample file. In the real product the original scan appears here.</p>
-                  </div>
-                )}
+        {scan
+          ? pageNumbers.map((pageNo) => (
+              <div key={pageNo} className={styles.sheet} data-page={pageNo} data-cited={pageNo === cited && rid ? "true" : undefined}>
+                <span className={styles.sheetNo}>
+                  Page {pageNo}
+                  {pageNo === cited && rid ? " · cited on this page" : ""}
+                </span>
+                <img
+                  className={styles.scanPage}
+                  src={`${process.env.PUBLIC_URL || ""}/case-file-local/${scan.image.replace("{n}", String(pageNo).padStart(scan.pad || 3, "0"))}`}
+                  alt={`Scanned page ${pageNo}`}
+                  loading="lazy"
+                  width={scan.width || undefined}
+                  height={scan.height || undefined}
+                  style={{ width: `${Math.round(ZOOMS[zoomIndex] * 100)}%` }}
+                />
               </div>
-            </div>
-          );
-        })}
+            ))
+          : pageNumbers.map((pageNo) => {
+              const drawn = bundle.pages[pageNo];
+              const own = documentForPage(bundle, pageNo);
+              const starts = own ? own.from === pageNo : true;
+              return (
+                <div key={pageNo} className={styles.sheet} data-page={pageNo} data-starts={starts && pageNo > 1 ? "true" : undefined}>
+                  <span className={styles.sheetNo}>Page {pageNo}</span>
+                  <div className={styles.paper} style={{ zoom: ZOOMS[zoomIndex] }} data-script={own?.script}>
+                    {drawn ? (
+                      drawn.blocks.map((block, index) => <Block key={index} block={block} activeRid={pageNo === page ? rid : null} />)
+                    ) : (
+                      <div className={styles.paperBlank}>
+                        <strong>{documentName(own).name}</strong>
+                        <span>Page {pageNo}</span>
+                        <p>This page is not drawn in the sample file. In the real product the original scan appears here.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
         <p className={styles.sheetEnd}>End of file, {total} pages</p>
       </div>
 

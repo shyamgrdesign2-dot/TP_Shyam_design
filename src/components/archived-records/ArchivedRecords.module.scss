@@ -184,11 +184,12 @@ html body :where(.workspace, .rail, .sourceOnly) :is(div, span, p, table, tr, th
   > .panel { padding: var(--tesseract-space-9) 0 var(--tesseract-space-12); }
 }
 
+// Content uses the full width of its column; short facts flow along the line
+// (see .rows[data-flow]) so a wide screen is used, not left empty.
 .stack {
   display: flex;
   flex-direction: column;
   gap: var(--tesseract-space-4);
-  max-width: 880px;
 }
 
 .muted {
@@ -1021,6 +1022,59 @@ html body :where(.workspace, .rail, .sourceOnly) :is(div, span, p, table, tr, th
   }
 }
 
+// The short "Not verified" strip. It takes no room in the flow: it floats at
+// the top of the panel and slides in once the full notice has scrolled away.
+.railStrip {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  height: 0;
+  margin: 0 calc(var(--tesseract-space-3) * -1);
+
+  button {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--tesseract-space-1-5);
+    height: 32px;
+    padding: 0 var(--tesseract-space-3);
+    border: 0;
+    border-bottom: 1px solid var(--tesseract-amber-300);
+    background: var(--tesseract-amber-50);
+    font-size: var(--tesseract-text-caption);
+    color: var(--tesseract-fg-link);
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+    transition: transform 160ms ease, opacity 160ms ease;
+
+    > svg:first-child { flex-shrink: 0; color: var(--tesseract-amber-600); }
+    strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); white-space: nowrap; }
+    span { margin-left: auto; font-weight: var(--tesseract-weight-medium); white-space: nowrap; }
+    &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+  }
+
+  &[data-shown="true"] button { opacity: 1; transform: none; pointer-events: auto; }
+
+  &[data-done="true"] button {
+    border-bottom-color: var(--tesseract-border-soft);
+    background: var(--tesseract-bg-surface);
+
+    > svg:first-child { color: var(--tesseract-fg-success); }
+  }
+}
+
+// The lens switch sticks below the strip when the strip is showing.
+.railStrip[data-shown="true"] ~ .railLens { top: 32px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .railStrip button { transition: none; }
+}
+
 .railLens {
   position: sticky;
   top: 0;
@@ -1655,6 +1709,27 @@ html body .dock :is(span, small) { color: inherit; }
   gap: var(--tesseract-space-3);
 }
 
+// Clinical data opens with the review bar, so its filters start below that
+// and only meet the toolbar once the rows scroll.
+.dataBar[data-after="true"] { margin-top: 0; }
+
+// The second line of the filter block: status on the left, the copy of the
+// whole file at the end. The status strip gives way first when room is short.
+.filterLine {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  min-width: 0;
+
+  > .carousel { flex: 1; }
+  > :not(.carousel) { flex-shrink: 0; }
+}
+
+// A table reads better with room, so this tab may use more of the pane than
+// the reading tabs do when the source page is hidden.
+// Tables use the full width of the column; their wide columns flex.
+.dataTab { max-width: none; }
+
 .carousel {
   position: relative;
   min-width: 0;
@@ -1841,6 +1916,101 @@ html body .dock :is(span, small) { color: inherit; }
   color: var(--tesseract-fg-tertiary);
 }
 
+/* ------------------------------------------------------ rows as a table */
+
+// The same columns as the Rx pad for that kind of fact. The column template
+// comes from RX_COLUMNS (--rx-cols, set on the table), so the header and
+// every row share it: narrow columns are fixed, wide ones flex, text wraps.
+// Emphasis is by colour: values are the darkest ink at regular weight, the
+// headers are small, medium and lighter.
+.tHead {
+  display: grid;
+  grid-template-columns: 20px var(--rx-cols);
+  align-items: end;
+  column-gap: var(--tesseract-space-2);
+  margin: 0 calc(var(--tesseract-space-2) * -1);
+  padding: var(--tesseract-space-1) var(--tesseract-space-2);
+  border-bottom: 1px solid var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-tertiary);
+
+  &[data-layout="wide"] { grid-template-columns: 20px var(--rx-cols) 184px; }
+
+  > span { min-width: 0; overflow-wrap: anywhere; }
+}
+
+.vRow[data-layout="tight"],
+.vRow[data-layout="wide"] {
+  grid-template-columns: 20px var(--rx-cols);
+  gap: var(--tesseract-space-1) var(--tesseract-space-2);
+
+  // The form, and whatever sits under the cells, run the width of the row.
+  > .vBody,
+  > .vBelow { grid-column: 2 / -1; }
+
+  &[data-status="rejected"] > .tCell,
+  &[data-status="rejected"] > .vBelow > .trend {
+    opacity: 0.56;
+    text-decoration: line-through;
+    text-decoration-color: var(--tesseract-fg-tertiary);
+  }
+}
+
+.vRow[data-layout="wide"] { grid-template-columns: 20px var(--rx-cols) 184px; }
+
+.tCell {
+  min-width: 0;
+  font-size: var(--tesseract-text-caption-lg);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  font-weight: var(--tesseract-weight-regular);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-heading);
+  overflow-wrap: anywhere;
+
+  // A heading with no details beside it takes the details' room too.
+  &[data-span="all"] { grid-column: span 2; }
+  // A unit goes red with its value. Suspected is the one amber word.
+  &[data-abnormal] { color: var(--tesseract-fg-error); }
+  &[data-tone="warning"] { color: var(--tesseract-fg-warning); }
+}
+
+// The actions at the end of a line that has room for them. A long label
+// ("Verify as suspected") lets the icons drop to a second line.
+.vEnd {
+  min-width: 0;
+
+  > .vActions { flex-wrap: wrap; justify-content: flex-end; }
+}
+
+// Under the cells: a lab's trend, the doubts, what was read before a
+// correction, and the detail of an open row.
+.vBelow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  min-width: 0;
+
+  &:empty { display: none; }
+
+  > .trend { align-self: flex-start; margin: 0; }
+  > .vTags,
+  > .asWritten { margin-top: 0; }
+  > .vDetail { margin-top: var(--tesseract-space-1); }
+}
+
+// Doubts on the left, actions on the right, on one line while they fit.
+.vFoot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1) var(--tesseract-space-2);
+
+  > .vTags { margin-top: 0; }
+  > .vActions { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+}
+
 /* ---------------------------------------------------------- edit form */
 
 .editForm {
@@ -1850,17 +2020,39 @@ html body .dock :is(span, small) { color: inherit; }
   cursor: default;
 }
 
+// Four columns. A name takes two (or the line), short fields one, a choice of
+// status two; notes take what is left of their line.
 .editGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
   gap: var(--tesseract-space-2);
 
-  &[data-domain="LAB"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  &[data-domain="LAB"] [data-key="title"] { grid-column: span 2; }
-  &[data-domain="LAB"] [data-key="range"] { grid-column: span 2; }
-  &[data-domain="LAB"] [data-key="abnormal"] { grid-column: span 2; }
-  &[data-domain="RPT"],
-  &[data-domain="VIT"] { grid-template-columns: minmax(0, 1fr); }
+  > [data-key="name"],
+  > [data-key="testName"],
+  > [data-key="status"],
+  > [data-key="arrowDirection"],
+  > [data-key="frequency"],
+  > [data-key="when"] { grid-column: span 2; }
+  > [data-key="notes"] { grid-column: 1 / -1; }
+
+  &[data-domain="MED"] > [data-key="name"],
+  &[data-domain="MED"] > [data-key="notes"],
+  &[data-domain="DX"] > [data-key="notes"],
+  &[data-domain="ALG"] > [data-key="notes"] { grid-column: span 3; }
+  &[data-domain="PROC"] > [data-key="name"],
+  &[data-domain="RPT"] > [data-key="name"] { grid-column: 1 / -1; }
+
+  // A narrow pane: two fields a line, the long ones a line each.
+  &[data-narrow="true"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  &[data-narrow="true"] > [data-key] { grid-column: span 1; }
+  &[data-narrow="true"] > [data-key="name"],
+  &[data-narrow="true"] > [data-key="testName"],
+  &[data-narrow="true"] > [data-key="status"],
+  &[data-narrow="true"] > [data-key="arrowDirection"],
+  &[data-narrow="true"] > [data-key="frequency"],
+  &[data-narrow="true"] > [data-key="when"],
+  &[data-narrow="true"] > [data-key="notes"] { grid-column: 1 / -1; }
 }
 
 .editField {
@@ -1870,11 +2062,35 @@ html body .dock :is(span, small) { color: inherit; }
   margin: 0;
   min-width: 0;
 
-  > span {
+  > label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tesseract-space-1);
+    margin: 0;
+    min-width: 0;
+  }
+
+  > span,
+  > label > span:first-child {
     font-size: var(--tesseract-text-caption-sm);
     font-weight: var(--tesseract-weight-medium);
     color: var(--tesseract-fg-secondary);
   }
+}
+
+// The Rx pad's short forms under a field: one click fills it in.
+.editSuggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1);
+}
+
+// Said before a save that would record a suspected diagnosis as anything else.
+.editCaution {
+  margin: 0;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  color: var(--tesseract-fg-warning);
 }
 
 .editActions {
@@ -2152,3 +2368,86 @@ html body .dock :is(span, small) { color: inherit; }
   &:hover { background: color-mix(in srgb, var(--tesseract-slate-0) 16%, transparent); color: var(--tesseract-slate-0); }
   &:focus-visible { outline-color: var(--tesseract-slate-0); }
 }
+
+// An admission or visit number inside a sentence: reads as part of the line,
+// opens the page it was read from.
+.refLink {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-link);
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; text-underline-offset: 2px; }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+}
+
+/* ------------------------------------------------- real scanned pages */
+
+// A real scan (local demos). The image is the page; zoom changes its width.
+.scanPage {
+  display: block;
+  max-width: none;
+  height: auto;
+  background: var(--tesseract-bg-surface);
+  box-shadow: var(--tesseract-shadow-sm);
+}
+
+// No region is known on a real scan yet, so the whole cited page is marked.
+.sheet[data-cited="true"] .scanPage { outline: 2px solid var(--tesseract-amber-400); outline-offset: 2px; }
+.sheet[data-cited="true"] .sheetNo { color: var(--tesseract-amber-700); font-weight: var(--tesseract-weight-medium); }
+
+/* ------------------------------------------------ facts that run along */
+
+// Hairline dividers: items wrap along the line with a thin rule between
+// neighbours. The list is pulled left by one item's padding and its group
+// clips the overhang, so no rule shows at the start of a line.
+.rowGroup:has(> .rows[data-flow="bar"]) { overflow: hidden; }
+
+.rows[data-flow="bar"] {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: var(--tesseract-space-1);
+  margin-left: calc((var(--tesseract-space-3) + 1px) * -1);
+
+  .row {
+    padding: 0 var(--tesseract-space-3);
+    border-left: 1px solid var(--tesseract-slate-200);
+    border-top: 0;
+  }
+}
+
+.rxBody .rows[data-flow="bar"] .row { padding: 0 var(--tesseract-space-3); }
+.rxBody .rows[data-flow="bar"] .row + .row { border-top: 0; }
+
+// Lab results on a wide page: an even grid, one result to a cell, no rules.
+.rows[data-flow="grid"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  column-gap: var(--tesseract-space-8);
+  row-gap: var(--tesseract-space-1);
+
+  .row { padding: 0; border: 0; min-width: 0; }
+}
+
+// A lab value that has more behind it (reference range, earlier readings):
+// hover or focus shows it on one line.
+.rowValue[data-info="true"] {
+  cursor: default;
+  border-radius: var(--tesseract-radius-4);
+
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+// A vitals set under its tag: the readings, then the citation.
+.vitalLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: var(--tesseract-space-1);
+}
+
+// Tags line up with the rows beneath them.
+.rxBody .rowGroupTitle { margin-left: 0; }

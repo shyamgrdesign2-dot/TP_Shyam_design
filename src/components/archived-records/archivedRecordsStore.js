@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import ARCHIVED_RECORDS_MOCK, { DOMAINS } from "./mock/archivedRecordsMock";
+import { RX_COLUMNS, factFromRx, rxEditKeys } from "./rxFormat";
 
 /**
  * Review state for archived records.
@@ -14,9 +15,10 @@ import ARCHIVED_RECORDS_MOCK, { DOMAINS } from "./mock/archivedRecordsMock";
 export const CLEAR_CONFIDENCE = 0.85;
 
 // viewer.n is a counter so that opening the same page twice still scrolls to it.
-// edits holds a reviewer's corrections, keyed by finding id. The reading itself
-// (verbatim, source page) is never changed: an edit sits on top of it and can
-// be undone.
+// edits holds a reviewer's corrections, keyed by finding id, each as the
+// corrected Rx pad row: { rx: { name, dosage, frequency, ... } }. The reading
+// itself (verbatim, source page) is never changed: an edit sits on top of it
+// and can be undone.
 let state = { review: {}, edits: {}, viewer: { page: 2, rid: null, n: 0 }, quickView: false, focusDomain: null };
 const listeners = new Set();
 
@@ -61,7 +63,7 @@ export const archivedRecordsStore = {
     set({ review });
   },
   // Saving a correction also verifies it: the reviewer has read the page and
-  // typed what it should say.
+  // typed what it should say. `patch` is { rx: the corrected Rx pad row }.
   edit(id, patch, reviewer) {
     set({
       edits: { ...state.edits, [id]: patch },
@@ -90,46 +92,23 @@ export const archivedRecordsStore = {
 
 /* ----------------------------------------------------------------- edits */
 
-// Which fields a reviewer may correct, by kind of fact.
+// Which fields a reviewer may correct, by kind of fact: the Rx pad's own
+// fields for that kind (see rxFormat.js). A lab also has its high / low flag.
 export const EDIT_FIELDS = {
-  LAB: ["title", "value", "unit", "range", "abnormal"],
-  default: ["title", "detail"],
+  ...Object.fromEntries(Object.entries(RX_COLUMNS).map(([domain, columns]) => [domain, columns.map((column) => column.key)])),
+  LAB: [...RX_COLUMNS.LAB.map((column) => column.key), "arrowDirection"],
+  default: RX_COLUMNS.RPT.map((column) => column.key),
 };
-export const editFieldsFor = (finding) => EDIT_FIELDS[finding.domain] || EDIT_FIELDS.default;
-
-// Details are split on the middle dot, however it was spaced when typed.
-const splitDetail = (detail = "") => detail.split(/\s*·\s*/).map((part) => part.trim()).filter(Boolean);
-
-const vitalFacts = (detail = "") =>
-  splitDetail(detail).map((part) => {
-    const at = part.indexOf(" ");
-    return at < 0 ? { k: "", v: part } : { k: part.slice(0, at), v: part.slice(at + 1) };
-  });
+export const editFieldsFor = rxEditKeys;
 
 // A finding as it should be shown: the reading with the correction on top.
+// The correction is stored as the Rx pad row (`rx`), which is what the table
+// and the copied JSON read. The fact's own fields are rewritten from it, so
+// the sentence views, the summary and search show the same correction.
 // `original` keeps what was read so the UI can always show both.
 function applyEdit(finding, patch) {
-  if (!patch) return finding;
-  const next = { ...finding, ...patch, edited: true, original: finding };
-  if (patch.title !== undefined && finding.label) next.label = patch.title;
-  // Only a real change to the details rebuilds them (an untouched, empty
-  // field must not wipe the qualifiers the row already shows).
-  if (patch.detail !== undefined && (patch.detail || "") !== (finding.detail || "")) {
-    if (finding.domain === "VIT") next.facts = vitalFacts(patch.detail);
-    else if (finding.quals) {
-      // Certainty is not something the form edits, so a marked qualifier
-      // ("Suspected") stays in front of whatever was typed.
-      const marked = finding.quals.filter((item) => item && item.tone);
-      const typed = splitDetail(patch.detail).filter((part) => !marked.some((item) => item.v.toLowerCase() === part.toLowerCase()));
-      next.quals = [...marked, ...typed];
-    }
-  }
-  if (finding.series && patch.value !== undefined) {
-    next.series = finding.series.map((point, index) =>
-      index === finding.series.length - 1 ? { ...point, v: patch.value, f: patch.abnormal || undefined } : point,
-    );
-  }
-  return next;
+  if (!patch?.rx) return finding;
+  return { ...finding, ...factFromRx(finding, patch.rx), rx: patch.rx, edited: true, original: finding };
 }
 
 let cache = { edits: null, bundle: ARCHIVED_RECORDS_MOCK };
