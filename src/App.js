@@ -691,7 +691,7 @@ function App() {
       <SentryRoutes>
         {/* Case File UI draft; sample data only, no clinical actions are connected. */}
         {isArchivedRecordsEnabled() && (
-          <Route path="/dev/archived-records" element={<ArchivedRecordsSmoke />} />
+          <Route path="/dev/archived-records/*" element={<ArchivedRecordsSmoke />} />
         )}
         {/* Public route */}
         <Route path="/login" element={<Onboarding />} />

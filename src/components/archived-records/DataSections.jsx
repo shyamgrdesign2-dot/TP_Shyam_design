@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Button, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { ASSETS } from "../../assets";
 import { archivedRecordsStore, isNotableLab, isShownToDoctor, statusOf } from "./archivedRecordsStore";
-import { FindingBody, RowMarks, groupFindings } from "./findingFormat";
+import { encounterType } from "./encounterTypes";
+import { CiteChip, FindingBody, RowMarks, groupFindings, houseDate } from "./findingFormat";
 import { rxQuals } from "./rxFormat";
 import { ImageTileArt } from "./SourcePageViewer";
 import styles from "./ArchivedRecords.module.scss";
@@ -66,7 +67,7 @@ const DEFAULT_LIMIT = 8;
 // and tag. Searching looks at what is shown, so a match is always visible.
 const piece = (item) => (typeof item === "string" ? item : item?.tip || item?.v || "");
 const rowText = (item) =>
-  [item.label, item.title, item.detail, item.value, item.unit, item.group, item.dateLabel, ...(rxQuals(item) || []).map(piece), ...(item.facts || []).map((fact) => `${fact.k} ${fact.v}`)]
+  [item.label, item.title, item.detail, item.value, item.unit, item.group, item.dateLabel, item.dateLabel ? houseDate(item.dateLabel) : "", ...(rxQuals(item) || []).map(piece), ...(item.facts || []).map((fact) => `${fact.k} ${fact.v}`)]
     .filter(Boolean)
     .join(" ");
 const fold = (value = "") => String(value).toLowerCase().replace(/,/g, ".").replace(/\s+/g, " ").trim();
@@ -79,7 +80,45 @@ const matcher = (query) => {
   };
 };
 
-function Group({ title, list, code, review, quick, flow, all = false }) {
+// When the facts of a group were written. Medicines say it once, on the tag:
+//   At home (09 Jul'26)                 every row has the same date
+//   In hospital (09 Jul to 16 Jul'26)   the rows span days; each row then
+//                                       carries its own date in its bracket
+// A tag that already names a date ("On discharge (16 Jul'26)") is left alone.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const day = (d, mon, year) => Date.UTC(Number(year), MONTHS.indexOf(mon.slice(0, 3)), Number(d));
+// A date label as [first day, last day]: "9 Jul 2026", "5 to 12 Jul 2026",
+// "28 Jun to 3 Jul 2026". Anything else is not guessed at.
+function spanOf(label = "") {
+  let m = label.match(/^(\d{1,2}) ([A-Z][a-z]{2})[a-z]* (\d{4})$/);
+  if (m) return [day(m[1], m[2], m[3]), day(m[1], m[2], m[3])];
+  m = label.match(/^(\d{1,2}) to (\d{1,2}) ([A-Z][a-z]{2})[a-z]* (\d{4})$/);
+  if (m) return [day(m[1], m[3], m[4]), day(m[2], m[3], m[4])];
+  m = label.match(/^(\d{1,2}) ([A-Z][a-z]{2})[a-z]* to (\d{1,2}) ([A-Z][a-z]{2})[a-z]* (\d{4})$/);
+  if (m) return [day(m[1], m[2], m[5]), day(m[3], m[4], m[5])];
+  return null;
+}
+const two = (value) => String(value).padStart(2, "0");
+const short = (ms, withYear = true) => {
+  const date = new Date(ms);
+  return `${two(date.getUTCDate())} ${MONTHS[date.getUTCMonth()]}${withYear ? `'${String(date.getUTCFullYear()).slice(-2)}` : ""}`;
+};
+function groupDate(title, list, code) {
+  if (code !== "MED" || !title) return { title, inTag: false };
+  const days = [...new Set(list.map((item) => item.dateLabel).filter(Boolean))];
+  if (/\(.*\d.*\)\s*$/.test(title)) return { title, inTag: days.length <= 1 };
+  if (!days.length) return { title, inTag: false };
+  if (days.length === 1) return { title: `${title} (${houseDate(days[0])})`, inTag: true };
+  const spans = days.map(spanOf);
+  if (spans.some((span) => !span)) return { title, inTag: false };
+  const first = Math.min(...spans.map((span) => span[0]));
+  const last = Math.max(...spans.map((span) => span[1]));
+  const oneYear = new Date(first).getUTCFullYear() === new Date(last).getUTCFullYear();
+  return { title: `${title} (${short(first, !oneYear)} to ${short(last)})`, inTag: false };
+}
+
+function Group({ title: plainTitle, list, code, review, quick, flow, all = false }) {
+  const { title, inTag } = groupDate(plainTitle, list, code);
   const [open, setOpen] = useState(false);
   const [openNote, setOpenNote] = useState(null);
   const limit = GROUP_LIMIT[code] || DEFAULT_LIMIT;
@@ -101,6 +140,7 @@ function Group({ title, list, code, review, quick, flow, all = false }) {
             <FindingBody
               finding={item}
               dated={item.domain !== "LAB"}
+              dateInTag={inTag}
               latestOnly
               tagged
               marks={<RowMarks finding={item} status={statusOf(review, item.id)} quick={quick} />}
@@ -124,6 +164,30 @@ function SectionRows({ items, code, review, quick, flow, groupOf, groups, all })
   return grouped.map(([key, list]) => <Group key={key || "all"} title={key} list={list} code={code} review={review} quick={quick} flow={flow} all={all} />);
 }
 
+// Hospital course: what happened during each stay, in order, at the end of
+// the details. One tag per stay ("IPD 2 · Orthopaedics, 09 Jul-16 Jul'26"),
+// newest first; under it the dated events of that stay, starting with the
+// emergency visit that led to it when there was one. A visit that was not a
+// stay has no course. Nothing is written here that is not an event of the file.
+function hospitalCourse(bundle, matches) {
+  const stays = bundle.encounters.filter((item) => encounterType(item.type).stay);
+  const inOrder = [...stays].sort((a, b) => String(a.sortKey || "").localeCompare(String(b.sortKey || "")));
+  return [...inOrder]
+    .reverse()
+    .map((stay) => {
+      const label = encounterType(stay.type).label;
+      const number = inOrder.filter((item) => item.type === stay.type).indexOf(stay) + 1;
+      const many = inOrder.filter((item) => item.type === stay.type).length > 1;
+      const events = (bundle.timeline || []).filter((event) => event.encounterId === stay.id || (stay.entryEncounterId && event.encounterId === stay.entryEncounterId));
+      return {
+        id: stay.id,
+        title: `${label}${many ? ` ${number}` : ""}${stay.department ? ` · ${stay.department}` : ""}${stay.shortDate ? ` (${stay.shortDate})` : ""}`,
+        events: matches ? events.filter(matches) : events,
+      };
+    })
+    .filter((stay) => stay.events.length);
+}
+
 // The allergy line is always present. It never says "none" unless a page does.
 function allergyGap(bundle, review) {
   const all = bundle.findings.filter((item) => item.domain === "ALG");
@@ -139,7 +203,15 @@ export default function DataSections({ bundle, review, RxSection, onOpenReview, 
   const searching = fold(query).length >= MIN_DATA_QUERY;
   const shownToDoctor = bundle.findings.filter((item) => isShownToDoctor(item, review));
   const visible = searching ? shownToDoctor.filter(matcher(query)) : shownToDoctor;
-  if (searching && !visible.length) {
+  const eventMatches = searching
+    ? (event) => {
+        const hay = fold(`${event.date} ${event.title} ${event.detail}`);
+        return fold(query).split(" ").filter(Boolean).every((word) => hay.includes(word));
+      }
+    : null;
+  const course = hospitalCourse(bundle, eventMatches);
+  const courseCount = course.reduce((sum, stay) => sum + stay.events.length, 0);
+  if (searching && !visible.length && !courseCount) {
     return (
       <div className={styles.railGap} role="status">
         <strong>No match in this file's data</strong>
@@ -148,10 +220,9 @@ export default function DataSections({ bundle, review, RxSection, onOpenReview, 
       </div>
     );
   }
-  const held = bundle.findings.filter((item) => item.hold && statusOf(review, item.id) === "draft");
   return (
     <>
-      {searching ? <p className={styles.railMatches} role="status">{visible.length} {visible.length === 1 ? "match" : "matches"} for "{query.trim()}"</p> : null}
+      {searching ? <p className={styles.railMatches} role="status">{visible.length + courseCount} {visible.length + courseCount === 1 ? "match" : "matches"} for "{query.trim()}"</p> : null}
       {SECTIONS.map((section) => {
         const all = visible.filter(section.pick);
         const noAllergy = !searching && section.code === "HX" && !all.some((item) => item.domain === "ALG");
@@ -203,12 +274,27 @@ export default function DataSections({ bundle, review, RxSection, onOpenReview, 
           </RxSection>
         );
       })}
-      {held.length && !searching ? (
-        <div className={styles.railGap}>
-          <strong>{held.length} unclear readings are held back</strong>
-          <p>They were read with low confidence, so they are not shown as facts. A reviewer can check them against the page.</p>
-          <Button variant="link" theme="primary" size="sm" onClick={onOpenReview}>See what is held back</Button>
-        </div>
+      {course.length ? (
+        <RxSection title="Hospital Course" icon={<img className="snv-rx-section-icon-img" src={ASSETS.images.notes} alt="" aria-hidden="true" />}>
+          <span data-section="COURSE" />
+          {course.map((stay) => (
+            <div key={stay.id} className={styles.rowGroup}>
+              <div className={styles.rowGroupTitle}>{stay.title}</div>
+              <ul className={styles.rows}>
+                {stay.events.map((event) => (
+                  <li key={event.id} className={styles.row}>
+                    <p className={styles.rowLine}>
+                      <span className={styles.courseDate}>{event.date}</span>
+                      <span className={styles.rowLabel}>{event.title}{event.detail ? ":" : ""}</span>{" "}
+                      {event.detail ? <span className={styles.rowText}>{event.detail}</span> : null}
+                      {event.cite ? <CiteChip quick={quick} page={event.cite.page} rid={event.cite.rid} /> : null}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </RxSection>
       ) : null}
       {bundle.notFound.length && !searching ? (
         <div className={styles.railGap}>

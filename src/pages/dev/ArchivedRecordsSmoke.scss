@@ -4,51 +4,36 @@
   font-family: var(--tesseract-font-body);
 }
 
-.ars-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--tesseract-space-3) var(--tesseract-space-6);
-  background: var(--tesseract-bg-surface);
-  border-bottom: 1px solid var(--tesseract-border-soft);
-  color: var(--tesseract-fg-heading);
-}
-
+// Review workspace: it has the window to itself. Its heading is a bar across
+// the top that stays put; the record and the original pages sit below it.
 .ars-stage {
-  padding: var(--tesseract-space-4) var(--tesseract-space-6);
+  // The workspace sets its own page height and frame for the patient page.
+  > div[data-variant] {
+    height: 100vh;
+    border: 0;
+    border-radius: 0;
+  }
 
-  > div { height: calc(100vh - 96px); }
+  // Everything under the heading keeps a little air from the window's edge.
+  > div[data-variant] > header ~ div {
+    padding: var(--tesseract-space-3) var(--tesseract-space-4) var(--tesseract-space-4);
+    box-sizing: border-box;
+  }
 }
 
-// Rx pad view: the bar keeps its own height and the sample pad fills the rest
-// of the window, so the pad scrolls inside itself as it does in the product.
-.ars-root[data-view='rail'] {
+// Sample Rx pad: the whole window, so the pad scrolls inside itself as it
+// does in the product.
+.ars-root[data-view='rx-pad'] {
   height: 100vh;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  min-width: 0;
   overflow: hidden;
 }
 
-.ars-rail-stage {
-  display: flex;
-  min-width: 0;
-  min-height: 0;
-}
+// The record on its own: nothing but the record, on a plain surface, as wide
+// as the place it is given.
+.ars-root[data-view='record'] { background: var(--tesseract-bg-surface); }
 
-// The page header carries the feature name, the AI-draft badge and the one
-// line that says what this file is.
-.ars-title {
-  display: flex;
-  align-items: center;
-  gap: var(--tesseract-space-2);
-  min-width: 0;
-
-  > span:last-child {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--tesseract-text-body-xs);
-    color: var(--tesseract-fg-secondary);
-  }
+.ars-record {
+  padding: var(--tesseract-space-4) var(--tesseract-space-6) var(--tesseract-space-8);
 }

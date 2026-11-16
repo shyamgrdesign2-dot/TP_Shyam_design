@@ -10,13 +10,16 @@ A consulting doctor's view of an old paper hospital file after it has been
 scanned and read: a short summary, the details in Rx pad order, and every line
 tied to the page it came from. Design draft only; there is no backend.
 
-**See it:** `/dev/archived-records` on the hosted preview or on localhost. No
-login is needed. The switch at the top right changes between the two places
-the feature lives:
+**See it:** on the hosted preview or on localhost. No login is needed. Each
+place the feature lives has its own link:
 
-- **Rx pad panel**: a sample Rx pad with the blue sidebar. Click **Case File**.
-- **Review workspace**: the full review screen (Structured record, Clinical
-  data, Documents) with the original pages alongside.
+- `/dev/archived-records`: the **review workspace** (Structured record,
+  Clinical data, Documents) with the original pages alongside.
+- `/dev/archived-records/rx-pad`: a **sample Rx pad** with the blue sidebar.
+  Click **Case File**.
+- `/dev/archived-records/record`: the **record on its own**, as another screen
+  or another EMR would place it. It is one component (`CaseFileRecord`), the
+  same piece the other two show.
 
 Inside the app it is also the **Case File** item in the Rx pad sidebar and on
 the patient page (on for localhost and the hosted preview only).

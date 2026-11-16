@@ -219,7 +219,7 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
             </div>
             <div className={styles.scroll} ref={scrollRef}>
               <TabsContent value="record" className={styles.panel}>
-                <RecordTab bundle={bundle} review={review} onOpenDomain={openDomain} onOpenAttention={openAttention} onReview={openReview} />
+                <RecordTab onOpenDomain={openDomain} onReview={openReview} />
               </TabsContent>
               <TabsContent value="data" className={styles.panel}>
                 <ClinicalDataTab
