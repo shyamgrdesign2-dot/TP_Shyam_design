@@ -4,6 +4,40 @@ Doctor portal website, React.
 
 ---
 
+## Case File: digitized paper hospital records (UI draft)
+
+A consulting doctor's view of an old paper hospital file after it has been
+scanned and read: a short summary, the details in Rx pad order, and every line
+tied to the page it came from. Design draft only; there is no backend.
+
+**See it:** `/dev/archived-records` on the hosted preview or on localhost. No
+login is needed. The switch at the top right changes between the two places
+the feature lives:
+
+- **Rx pad panel**: a sample Rx pad with the blue sidebar. Click **Case File**.
+- **Review workspace**: the full review screen (Structured record, Clinical
+  data, Documents) with the original pages alongside.
+
+Inside the app it is also the **Case File** item in the Rx pad sidebar and on
+the patient page (on for localhost and the hosted preview only).
+
+**Data:** everything shown is a built-in sample. It is a de-identified,
+scrambled record: dates, values and reference numbers are altered and the
+pages are drawn, not scanned. No real patient page or value is in this
+repository.
+
+| Document | What it answers |
+| --- | --- |
+| [docs/case-file/CASE-FILE-FORMATTING-GUIDE.md](docs/case-file/CASE-FILE-FORMATTING-GUIDE.md) | How every kind of fact is shown, and the rules behind it |
+| [docs/case-file/CASE-FILE-SUMMARY-FOR-DEVELOPERS.md](docs/case-file/CASE-FILE-SUMMARY-FOR-DEVELOPERS.md) | One page: how each line of the summary is derived |
+| [docs/case-file/CASE-FILE-SUMMARY-ARCHITECTURE.md](docs/case-file/CASE-FILE-SUMMARY-ARCHITECTURE.md) | The full summary logic, with edge cases |
+| [docs/case-file/CASE-FILE-SUMMARY-SAFETY-RULES.md](docs/case-file/CASE-FILE-SUMMARY-SAFETY-RULES.md) | What the summary must never say or infer |
+| [docs/case-file/CASE-FILE-RFP-AUDIT.md](docs/case-file/CASE-FILE-RFP-AUDIT.md) | The draft checked against the digitization RFP |
+
+Code: `src/components/archived-records/` (feature), `src/pages/dev/` (preview page).
+
+---
+
 ## On this branch: `feat/new-appointment-v1-shyam`
 
 A rebuilt appointment listing screen on the Tesseract design system, with a

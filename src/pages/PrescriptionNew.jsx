@@ -176,6 +176,7 @@ import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryCon
 import { isGynecDataEmpty, mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
+import { ArchivedRecordsDrawer } from "../components/archived-records";
 import { TreatmentPlanDrawer } from "../components/dental/plan/TreatmentPlanDrawer";
 import DrawingCanvas from "./drawingCanvas/DrawingCanvas";
 import { listPatientCanvasMapping } from "./drawingCanvas/service";
@@ -1097,6 +1098,7 @@ function PrescriptionNew() {
   const [labReportID, setLabReportID] = useState(null);
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
+  const [archivedRecordsDrawer, setArchivedRecordsDrawer] = useState(false);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
@@ -3101,6 +3103,9 @@ function PrescriptionNew() {
 
   const handleSideNavbarSectionAction = useCallback((sectionId) => {
     switch (sectionId) {
+      case "archivedRecords":
+        setArchivedRecordsDrawer(true);
+        break;
       case "vitals":
         handleDrawerVital();
         break;
@@ -3483,6 +3488,11 @@ function PrescriptionNew() {
           </div>
         </div>
         </div>
+        <ArchivedRecordsDrawer
+          open={archivedRecordsDrawer}
+          onOpenChange={setArchivedRecordsDrawer}
+          reviewerName={profile?.um_name}
+        />
         {vitalDrawer && (
           <Drawer
             closeIcon={false}

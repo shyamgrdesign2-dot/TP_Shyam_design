@@ -32,11 +32,15 @@ import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 import { clinicTargetStatus } from '../pages/chikitsalay/service';
 import PageHeroBanner from './PageHeroBanner';
+import { caseFileBanner } from '../components/archived-records';
 const {
   tubeIcon: playIcons,
   tutorialIcon: tutorial,
   draftPrimary: draftIcon,
 } = ASSETS.images;
+
+// Heading for the Case File tab (name, AI-draft badge, one-line file description).
+const CASE_FILE_BANNER = caseFileBanner();
 
 function Welcome1(props) {
 
@@ -368,7 +372,12 @@ function Welcome1(props) {
                   ? "Health Check-up Report"
                   : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES
                     ? "Canvases"
-                    : "Medical Records";
+                    : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ARCHIVED_RECORDS
+                      ? CASE_FILE_BANNER.title
+                      : "Medical Records";
+
+    const bannerSubtitle =
+        sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ARCHIVED_RECORDS ? CASE_FILE_BANNER.subtitle : undefined;
 
     const bannerEyebrow =
         sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY &&
@@ -384,6 +393,7 @@ function Welcome1(props) {
                    60px on the Chart Search bar above it. */
                 size="md"
                 title={bannerTitle}
+                subtitle={bannerSubtitle}
                 eyebrow={bannerEyebrow}
                 actions={
                     <>

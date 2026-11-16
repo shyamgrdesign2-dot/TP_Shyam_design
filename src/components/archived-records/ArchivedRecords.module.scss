@@ -1,0 +1,3043 @@
+// Archived Records. Tesseract tokens only; even dimensions; 1px hairlines.
+
+// The portal's common.scss paints every bare div/span/p/td with one text
+// colour. Inside this feature, let text follow its parent again so Tesseract
+// buttons, badges and our own tokens decide. Specificity is kept just above
+// the portal rule and below any class, so component styles still win.
+html body :where(.workspace, .rail, .sourceOnly) :is(div, span, p, table, tr, th, td) {
+  color: inherit;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--tesseract-bg-page);
+  color: var(--tesseract-fg-primary);
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+
+  &[data-variant="page"] {
+    height: calc(100vh - 160px);
+    min-height: 560px;
+    border: 1px solid var(--tesseract-border-soft);
+    border-radius: var(--tesseract-radius-12);
+    overflow: hidden;
+  }
+}
+
+/* ------------------------------------------------------------- top bar */
+
+.top {
+  padding: var(--tesseract-space-3) var(--tesseract-space-6);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+}
+
+.topTitle {
+  min-width: 0;
+
+  h2 {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--tesseract-space-2);
+    margin: 0;
+    font-family: var(--tesseract-font-heading);
+    font-size: var(--tesseract-text-h5);
+    font-weight: var(--tesseract-weight-bold);
+    color: var(--tesseract-fg-heading);
+  }
+
+  p {
+    display: flex;
+    align-items: center;
+    gap: var(--tesseract-space-1);
+    margin: var(--tesseract-space-1) 0 0;
+    font-size: var(--tesseract-text-body-xs);
+    color: var(--tesseract-fg-secondary);
+  }
+}
+
+.infoBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tesseract-radius-full);
+  background: transparent;
+  color: var(--tesseract-fg-tertiary);
+  cursor: pointer;
+
+  &:hover { background: var(--tesseract-bg-surface-hover); color: var(--tesseract-fg-primary); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+/* ------------------------------------------------------------- toolbar */
+
+// One row for the whole workspace: tabs on the left, search and review
+// progress on the right. It spans both the reading column and the source page.
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-4);
+  min-height: 52px;
+  padding: 0 var(--tesseract-space-4) 0 var(--tesseract-space-6);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+
+  // Tabs sit on the toolbar's bottom line.
+  > :first-child { align-self: flex-end; flex-shrink: 0; }
+}
+
+.toolbarEnd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tesseract-space-4);
+  min-width: 0;
+  flex: 1;
+}
+
+.toolbarSearch {
+  flex: 0 1 300px;
+  min-width: 140px;
+}
+
+.toolbarProgress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  width: 132px;
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.3;
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+
+  strong { color: var(--tesseract-fg-heading); font-weight: var(--tesseract-weight-semibold); }
+}
+
+/* -------------------------------------------------- patient page placing */
+
+// The workspace card rides up over the lower half of the violet banner, the
+// way the other patient-detail tabs do, so the banner holds only the heading.
+.pageSlot {
+  position: relative;
+  z-index: 1;
+  margin-top: -80px;
+  padding: 0 var(--tesseract-space-3-5) var(--tesseract-space-3-5);
+
+  > .workspace[data-variant="page"] {
+    height: calc(100vh - 100px);
+    box-shadow: var(--tesseract-shadow-sm);
+  }
+}
+
+.bannerTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  vertical-align: top;
+}
+
+/* ---------------------------------------------------------------- body */
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 42%);
+
+  &[data-viewer="closed"] { grid-template-columns: minmax(0, 1fr); }
+}
+
+.main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+// The scroll area pads only its sides. Top and bottom room belongs to the tab
+// panel inside it, so a bar that sticks to the top or bottom of the scroll
+// area sits exactly on its edge and no content shows past it.
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--tesseract-space-6);
+
+  > .panel { padding: var(--tesseract-space-9) 0 var(--tesseract-space-12); }
+}
+
+// Content uses the full width of its column; short facts flow along the line
+// (see .rows[data-flow]) so a wide screen is used, not left empty.
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-4);
+}
+
+.muted {
+  color: var(--tesseract-fg-tertiary);
+  font-size: var(--tesseract-text-body-xs);
+}
+
+.chipRow,
+.citeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+}
+
+/* ------------------------------------------------------------ citation */
+// A citation is a small bracketed document number, like a footnote. Named
+// citations (label given) stay as readable pills in the review workspace.
+
+.cite {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1);
+  height: 22px;
+  padding: 0 var(--tesseract-space-2);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-bg-surface);
+  color: var(--tesseract-fg-link);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: var(--tesseract-weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+
+  &:hover { background: var(--tesseract-bg-brand-soft); border-color: var(--tesseract-border-primary); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+
+  &[data-kind="number"] {
+    height: 16px;
+    min-width: 16px;
+    padding: 0 var(--tesseract-space-0-5);
+    border: 0;
+    border-radius: var(--tesseract-radius-4);
+    background: transparent;
+    font-size: var(--tesseract-text-micro);
+    font-weight: var(--tesseract-weight-semibold);
+    font-variant-numeric: tabular-nums;
+    vertical-align: 2px;
+    position: relative;
+
+    &:hover { background: var(--tesseract-bg-brand-soft); }
+    // 16px to look at, 28px to hit.
+    &::after { content: ""; position: absolute; inset: -6px 0; }
+  }
+}
+
+.cites {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- summary */
+
+.attention {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--tesseract-space-4);
+    padding: var(--tesseract-space-3) 0;
+
+    & + li { border-top: 1px solid var(--tesseract-border-soft); }
+    &:first-child { padding-top: 0; }
+    &:last-child { padding-bottom: 0; }
+  }
+
+  strong { font-size: var(--tesseract-text-body-sm); font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+
+  p {
+    margin: var(--tesseract-space-1) 0 var(--tesseract-space-2);
+    max-width: 620px;
+    color: var(--tesseract-fg-secondary);
+    font-size: var(--tesseract-text-body-xs);
+    line-height: var(--tesseract-text-body-xs-lh);
+  }
+}
+
+.summaryList {
+  margin: 0;
+  padding: 0 0 0 var(--tesseract-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+
+  li > span:first-child { margin-right: var(--tesseract-space-2); }
+  li > .citeRow { display: inline-flex; vertical-align: middle; }
+  li::marker { color: var(--tesseract-fg-tertiary); font-size: var(--tesseract-text-body-xs); }
+}
+
+.ask {
+  margin-top: var(--tesseract-space-5);
+  padding-top: var(--tesseract-space-4);
+  border-top: 1px solid var(--tesseract-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+
+.askLabel {
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-secondary);
+}
+
+.answer {
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-violet-50);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+
+  p { margin: 0; line-height: var(--tesseract-text-body-sm-lh); }
+}
+
+.historyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--tesseract-space-5);
+}
+
+.historyCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+
+  h5 {
+    margin: 0;
+    font-size: var(--tesseract-text-body-xs);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-secondary);
+  }
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-2);
+}
+
+.gaps {
+  margin: 0;
+  padding: 0 0 0 var(--tesseract-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: var(--tesseract-text-body-sm-lh);
+  color: var(--tesseract-fg-secondary);
+
+  strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+}
+
+.encounters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-3);
+
+  li { display: flex; align-items: center; gap: var(--tesseract-space-3); }
+  div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--tesseract-space-0-5); }
+  strong { font-size: var(--tesseract-text-body-sm); font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+  div span { font-size: var(--tesseract-text-body-xs); color: var(--tesseract-fg-secondary); }
+}
+
+/* ------------------------------------------------------- clinical data */
+
+.filterBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-3);
+}
+
+.findingGroup + .findingGroup { margin-top: var(--tesseract-space-4); }
+
+.groupLabel {
+  margin: 0 0 var(--tesseract-space-1);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.finding {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--tesseract-space-4);
+  padding: var(--tesseract-space-3) var(--tesseract-space-3);
+  margin: 0 calc(var(--tesseract-space-3) * -1);
+  border-radius: var(--tesseract-radius-10);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+  transition: background 160ms ease;
+
+  &[data-active="true"] { background: var(--tesseract-bg-selected); }
+  &[data-status="rejected"] .findingMain { opacity: 0.56; }
+}
+
+.findingGroup > div:last-child .finding { border-bottom: 0; }
+
+.findingMain { min-width: 0; }
+
+.findingHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2);
+}
+
+.findingTitle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tesseract-space-3);
+  margin: 0;
+  font-family: var(--tesseract-font-body);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+}
+
+.findingValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--tesseract-weight-semibold);
+
+  small { font-size: var(--tesseract-text-body-xs); font-weight: var(--tesseract-weight-regular); color: var(--tesseract-fg-secondary); }
+  b { margin-left: var(--tesseract-space-1-5); font-size: var(--tesseract-text-body-xs); font-weight: var(--tesseract-weight-semibold); }
+  &[data-abnormal] { color: var(--tesseract-fg-error); }
+  &[data-abnormal] b { color: var(--tesseract-fg-error); }
+}
+
+.findingTags { display: inline-flex; flex-wrap: wrap; gap: var(--tesseract-space-1); }
+
+.findingDetail {
+  margin: var(--tesseract-space-1) 0 0;
+  font-size: var(--tesseract-text-body-xs);
+  line-height: var(--tesseract-text-body-xs-lh);
+  color: var(--tesseract-fg-secondary);
+}
+
+.findingCode {
+  margin-left: var(--tesseract-space-2);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.findingVerbatim {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2);
+  margin: var(--tesseract-space-1-5) 0 0;
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-primary);
+
+  > span:first-child {
+    font-size: var(--tesseract-text-body-xs);
+    color: var(--tesseract-fg-tertiary);
+  }
+}
+
+.reviewActions,
+.reviewDone {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+
+.reviewDone {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--tesseract-space-0-5);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.reviewDoneRow {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+
+.reviewMeta {
+  font-size: var(--tesseract-text-body-xs);
+  line-height: var(--tesseract-text-body-xs-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* ----------------------------------------------------------- documents */
+
+.folders {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--tesseract-space-3);
+}
+
+.folder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--tesseract-space-1);
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  color: var(--tesseract-fg-secondary);
+  font-family: var(--tesseract-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+
+  strong { font-size: var(--tesseract-text-body-sm); font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+  span { font-size: var(--tesseract-text-body-xs); }
+  &:hover { border-color: var(--tesseract-border-neutral); background: var(--tesseract-bg-surface-hover); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+  &[data-active="true"] {
+    border-color: var(--tesseract-border-primary);
+    background: var(--tesseract-bg-brand-soft);
+    color: var(--tesseract-blue-600);
+  }
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: var(--tesseract-space-3);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  overflow: hidden;
+  font-family: var(--tesseract-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+
+  &:hover { border-color: var(--tesseract-border-primary); box-shadow: var(--tesseract-shadow-md); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+.tileArt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 104px;
+  background: var(--tesseract-slate-900);
+
+  svg { width: 100%; height: 100%; border-radius: 0; }
+}
+
+.tileMeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-0-5);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3) var(--tesseract-space-3);
+
+  strong { font-size: var(--tesseract-text-body-xs); font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+  span { font-size: var(--tesseract-text-body-xs); color: var(--tesseract-fg-tertiary); }
+}
+
+.docs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--tesseract-space-3);
+    padding: var(--tesseract-space-2-5) 0;
+    color: var(--tesseract-fg-tertiary);
+
+    & + li { border-top: 1px solid var(--tesseract-border-soft); }
+  }
+
+  div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--tesseract-space-0-5); }
+  strong { font-size: var(--tesseract-text-body-sm); font-weight: var(--tesseract-weight-medium); color: var(--tesseract-fg-heading); }
+  div span { font-size: var(--tesseract-text-body-xs); color: var(--tesseract-fg-secondary); }
+}
+
+/* -------------------------------------------------------------- search */
+
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--tesseract-space-3);
+    padding: var(--tesseract-space-2) 0;
+
+    & + li { border-top: 1px solid var(--tesseract-border-soft); }
+  }
+
+  button:first-child {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tesseract-space-0-5);
+    padding: var(--tesseract-space-1) var(--tesseract-space-2);
+    margin-left: calc(var(--tesseract-space-2) * -1);
+    border: 0;
+    border-radius: var(--tesseract-radius-8);
+    background: transparent;
+    font-family: var(--tesseract-font-body);
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { background: var(--tesseract-bg-surface-hover); }
+    &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+  }
+
+  strong { font-size: var(--tesseract-text-body-xs); font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+  button span { font-size: var(--tesseract-text-body-xs); color: var(--tesseract-fg-secondary); }
+
+  mark {
+    padding: 0 var(--tesseract-space-0-5);
+    border-radius: var(--tesseract-radius-4);
+    background: var(--tesseract-amber-100);
+    color: inherit;
+  }
+}
+
+/* -------------------------------------------------------- source viewer */
+
+.viewer {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--tesseract-border-soft);
+  background: var(--tesseract-slate-100);
+}
+
+.viewerBar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tesseract-space-2);
+  min-height: 36px;
+  padding: var(--tesseract-space-2) var(--tesseract-space-4);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--tesseract-text-body-xs);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+  }
+
+  span {
+    flex-shrink: 0;
+    font-size: var(--tesseract-text-caption-sm);
+    color: var(--tesseract-fg-tertiary);
+    white-space: nowrap;
+  }
+}
+
+
+
+
+
+
+
+.viewerScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  // Room at the top for the document tag and at the end for the dock, so
+  // neither ever covers a line of the page.
+  padding: 52px var(--tesseract-space-4) 72px;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+
+  & + & { margin-top: var(--tesseract-space-5); }
+
+  // A new document starts here: more air and a hairline, so the strip reads
+  // as separate papers and not one long page.
+  &[data-starts="true"] {
+    margin-top: var(--tesseract-space-8);
+    padding-top: var(--tesseract-space-5);
+    border-top: 1px solid var(--tesseract-slate-300);
+  }
+}
+
+.sheetNo {
+  align-self: center;
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.sheetEnd {
+  margin: var(--tesseract-space-5) 0 0;
+  text-align: center;
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.sourceOnly {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+
+  > section { flex: 1; border-left: 0; }
+}
+
+
+
+// The paper. Ink colours are slate/blue tokens so it still follows the theme.
+.paper {
+  width: 100%;
+  max-width: 560px;
+  min-height: 720px;
+  margin: 0 auto;
+  padding: var(--tesseract-space-8) var(--tesseract-space-7);
+  background: var(--tesseract-slate-0);
+  border: 1px solid var(--tesseract-border-neutral);
+  box-shadow: var(--tesseract-shadow-md);
+  color: var(--tesseract-slate-800);
+  font-size: 12px;
+  line-height: 18px;
+
+  // The host app sets a font on every element, so the page face is forced.
+  &,
+  * { font-family: Georgia, "Times New Roman", serif !important; }
+
+  [data-hand="true"],
+  [data-hand="true"] * {
+    font-family: "Bradley Hand", "Segoe Script", "Comic Sans MS", cursive !important;
+    font-size: 14px;
+    color: var(--tesseract-blue-800);
+  }
+
+  [data-hit="true"] {
+    background: var(--tesseract-amber-100);
+    outline: 2px solid var(--tesseract-amber-500);
+    outline-offset: 2px;
+    border-radius: var(--tesseract-radius-4);
+  }
+}
+
+.paperHead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: var(--tesseract-space-2);
+  border-bottom: 2px solid var(--tesseract-slate-700);
+
+  strong { font-size: 16px; letter-spacing: 0.04em; }
+  span { font-size: 10px; }
+}
+
+.paperTitle {
+  margin: var(--tesseract-space-3) 0 var(--tesseract-space-2);
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.paperLabel {
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  margin: 0 0 var(--tesseract-space-3) auto;
+  padding: var(--tesseract-space-1) var(--tesseract-space-2);
+  border: 1px solid var(--tesseract-slate-400);
+  border-radius: var(--tesseract-radius-4);
+  font-size: 10px;
+  line-height: 14px;
+
+  &,
+  * { font-family: var(--tesseract-font-mono), monospace !important; }
+}
+
+.paperSub {
+  margin: var(--tesseract-space-3) 0 var(--tesseract-space-1);
+  font-weight: 700;
+}
+
+.paperRow {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-1) var(--tesseract-space-1);
+  border-bottom: 1px solid var(--tesseract-slate-200);
+}
+
+.paperKey { font-weight: 700; }
+
+.paperTable {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: var(--tesseract-space-1) var(--tesseract-space-1-5);
+    border: 1px solid var(--tesseract-slate-300);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th { font-size: 10px; background: var(--tesseract-slate-50); }
+  tr[data-smudge="true"] td { filter: blur(0.6px); opacity: 0.72; }
+}
+
+.paperRow[data-smudge="true"] .paperValue { filter: blur(0.8px); opacity: 0.72; }
+
+.paperCorrection {
+  margin-left: var(--tesseract-space-2);
+  font-family: "Bradley Hand", "Segoe Script", "Comic Sans MS", cursive !important;
+  font-size: 14px;
+  color: var(--tesseract-blue-800);
+}
+
+.paperFigure {
+  margin: var(--tesseract-space-2) 0 var(--tesseract-space-3);
+  padding: var(--tesseract-space-1);
+
+  figcaption { margin-top: var(--tesseract-space-1); font-size: 10px; text-align: center; }
+}
+
+.scanImage {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  border-radius: var(--tesseract-radius-4);
+  stroke: var(--tesseract-slate-300);
+  fill: var(--tesseract-slate-700);
+  background: var(--tesseract-slate-900);
+
+  [data-part="heart"] { fill: var(--tesseract-slate-500); }
+
+  &[data-kind="ecg"] {
+    background: var(--tesseract-error-50);
+    stroke: var(--tesseract-slate-800);
+  }
+
+  &[data-kind="photo"] {
+    background: var(--tesseract-slate-200);
+    stroke: var(--tesseract-slate-500);
+    fill: none;
+  }
+}
+
+.paperSign {
+  margin-top: var(--tesseract-space-6);
+  text-align: right;
+}
+
+.paperFoot {
+  margin-top: var(--tesseract-space-4);
+  font-size: 10px;
+  text-align: center;
+  color: var(--tesseract-slate-500);
+}
+
+.paperDamage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 640px;
+  padding: var(--tesseract-space-6);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--tesseract-slate-100),
+    var(--tesseract-slate-100) 12px,
+    var(--tesseract-slate-200) 12px,
+    var(--tesseract-slate-200) 24px
+  );
+  font-family: var(--tesseract-font-body);
+  color: var(--tesseract-fg-secondary);
+  text-align: center;
+}
+
+.paperBlank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tesseract-space-1);
+  min-height: 640px;
+  font-family: var(--tesseract-font-body);
+  text-align: center;
+  color: var(--tesseract-fg-tertiary);
+
+  strong { font-size: var(--tesseract-text-body-sm); color: var(--tesseract-fg-secondary); }
+  p { max-width: 280px; margin: var(--tesseract-space-2) 0 0; font-size: var(--tesseract-text-body-xs); line-height: var(--tesseract-text-body-xs-lh); }
+}
+
+/* ------------------------------------------------- Rx pad rail panel */
+// Sits inside the side navbar's 250px panel. Section title bars come from the
+// navbar's own snv-* styles; everything below is sized to fit more per screen
+// (12px body, 10px citations) without crowding: one idea per row, air between
+// rows, colour only for abnormal values and warnings.
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--tesseract-space-3);
+  font-size: var(--tesseract-text-body-xs);
+  line-height: var(--tesseract-text-body-xs-lh);
+  color: var(--tesseract-fg-primary);
+
+  // navbar section blocks need a little air between them here
+  :global(.snv-rx-section) + :global(.snv-rx-section) { margin-top: var(--tesseract-space-3); }
+}
+
+.railNotice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  margin-bottom: var(--tesseract-space-3);
+  padding: var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-border-warning);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-warning-soft);
+
+  p {
+    margin: 0;
+    font-size: var(--tesseract-text-body-xs);
+    line-height: var(--tesseract-text-body-xs-lh);
+    color: var(--tesseract-fg-secondary);
+  }
+
+  &[data-done="true"] {
+    border-color: var(--tesseract-border-success);
+    background: var(--tesseract-bg-success-soft);
+
+    .railNoticeHead { color: var(--tesseract-fg-success); }
+  }
+}
+
+.railNoticeHead {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+  color: var(--tesseract-fg-warning);
+
+  strong {
+    font-size: var(--tesseract-text-body-sm);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+  }
+}
+
+.railSummary {
+  margin-bottom: var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-violet-100);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  overflow: hidden;
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: var(--tesseract-space-1-5);
+    padding: var(--tesseract-space-2) var(--tesseract-space-2) var(--tesseract-space-1) var(--tesseract-space-3);
+    background: linear-gradient(180deg, var(--tesseract-violet-50), var(--tesseract-bg-surface));
+
+    strong {
+      flex: 1;
+      font-size: var(--tesseract-text-body-sm);
+      font-weight: var(--tesseract-weight-semibold);
+      color: var(--tesseract-fg-heading);
+    }
+  }
+
+  ul {
+    margin: 0;
+    padding: var(--tesseract-space-1) var(--tesseract-space-3) var(--tesseract-space-2) var(--tesseract-space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--tesseract-space-1-5);
+  }
+
+  li {
+    font-size: var(--tesseract-text-body-xs);
+    line-height: var(--tesseract-text-body-xs-lh);
+    color: var(--tesseract-fg-secondary);
+
+    // Key words: darker ink at medium weight. Never semibold or bold.
+    strong { font-weight: var(--tesseract-weight-medium); color: var(--tesseract-fg-heading); }
+    &::marker { color: var(--tesseract-violet-400); }
+  }
+
+  footer {
+    padding: var(--tesseract-space-1-5) var(--tesseract-space-3);
+    border-top: 1px solid var(--tesseract-border-soft);
+    font-size: var(--tesseract-text-caption-sm);
+    line-height: var(--tesseract-text-caption-sm-lh);
+    color: var(--tesseract-fg-tertiary);
+  }
+}
+
+// The short "Not verified" strip. It takes no room in the flow: it floats at
+// the top of the panel and slides in once the full notice has scrolled away.
+.railStrip {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  height: 0;
+  margin: 0 calc(var(--tesseract-space-3) * -1);
+
+  button {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--tesseract-space-1-5);
+    height: 32px;
+    padding: 0 var(--tesseract-space-3);
+    border: 0;
+    border-bottom: 1px solid var(--tesseract-amber-300);
+    background: var(--tesseract-amber-50);
+    font-size: var(--tesseract-text-caption);
+    color: var(--tesseract-fg-link);
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+    transition: transform 160ms ease, opacity 160ms ease;
+
+    > svg:first-child { flex-shrink: 0; color: var(--tesseract-amber-600); }
+    strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); white-space: nowrap; }
+    span { margin-left: auto; font-weight: var(--tesseract-weight-medium); white-space: nowrap; }
+    &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+  }
+
+  &[data-shown="true"] button { opacity: 1; transform: none; pointer-events: auto; }
+
+  &[data-done="true"] button {
+    border-bottom-color: var(--tesseract-border-soft);
+    background: var(--tesseract-bg-surface);
+
+    > svg:first-child { color: var(--tesseract-fg-success); }
+  }
+}
+
+// The lens switch sticks below the strip when the strip is showing.
+.railStrip[data-shown="true"] ~ .railLens { top: 32px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .railStrip button { transition: none; }
+}
+
+.railLens {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  margin: 0 calc(var(--tesseract-space-3) * -1) var(--tesseract-space-3);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+}
+
+.rowGroup + .rowGroup { margin-top: var(--tesseract-space-2); }
+
+// A subheading inside a section ("On discharge", "In hospital", a sample
+// date) is a short tag: enough to catch the eye, not a second heading.
+.rowGroupTitle {
+  margin: var(--tesseract-space-2) var(--tesseract-space-2) var(--tesseract-space-0-5);
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-4);
+  background: var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-micro);
+  line-height: 1;
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-2);
+
+  & + & { border-top: 1px solid var(--tesseract-slate-100); }
+
+  p { margin: 0; }
+}
+
+.rowLine {
+  font-size: var(--tesseract-text-caption-lg);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  color: var(--tesseract-fg-primary);
+}
+
+// Emphasis in content is carried by colour alone: the fact is the darkest
+// ink, what introduces or qualifies it is lighter. Weight is kept for
+// headings, so a screen of rows never turns into a wall of bold.
+
+// key: the name that introduces a value ("Haemoglobin:"). Mid grey.
+.rowKey {
+  font-weight: var(--tesseract-weight-regular);
+  color: var(--tesseract-fg-secondary);
+}
+
+// value-as-name: a diagnosis, a medicine, a procedure, a report. Darkest.
+.rowLabel {
+  font-weight: var(--tesseract-weight-regular);
+  color: var(--tesseract-fg-heading);
+}
+
+.rowText { color: var(--tesseract-fg-primary); }
+
+// A result is the one place in a row that carries weight: medium, with its
+// unit in the same ink (red together when out of range).
+.rowValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-heading);
+  white-space: nowrap;
+
+  small {
+    font-size: var(--tesseract-text-caption-sm);
+    font-weight: var(--tesseract-weight-regular);
+    color: inherit;
+  }
+
+  &[data-abnormal] { color: var(--tesseract-fg-error); }
+}
+
+// secondary: dates, qualifiers, reference ranges. Lighter, regular, bracketed.
+.rowSecondary,
+.quals {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  color: var(--tesseract-fg-tertiary);
+}
+
+p.rowSecondary {
+  margin: var(--tesseract-space-0-5) 0 0;
+  line-height: var(--tesseract-text-caption-lh);
+  font-variant-numeric: tabular-nums;
+}
+
+.quals [data-tone="warning"] {
+  font-weight: var(--tesseract-weight-regular);
+  color: var(--tesseract-fg-warning);
+}
+
+.arrow {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  margin-left: var(--tesseract-space-0-5);
+  vertical-align: -2px;
+  color: var(--tesseract-fg-error);
+}
+
+.rowFlag,
+.rowTick {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  margin-left: var(--tesseract-space-1);
+  vertical-align: -2px;
+}
+
+.rowFlag { color: var(--tesseract-fg-warning); }
+.rowTick { color: var(--tesseract-fg-success); }
+
+// Facts sit on one or more lines separated by hairlines. The clip hides the
+// hairline that would otherwise start a wrapped line.
+.factsClip {
+  overflow: hidden;
+  margin-top: var(--tesseract-space-1);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: var(--tesseract-space-1);
+  margin: 0 0 0 calc(var(--tesseract-space-2) * -1 - 1px);
+
+  > div {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--tesseract-space-1);
+    padding: 0 var(--tesseract-space-2);
+    border-left: 1px solid var(--tesseract-slate-200);
+    font-size: var(--tesseract-text-caption-lg);
+    line-height: var(--tesseract-text-caption-lh);
+  }
+
+  dt {
+    font-weight: var(--tesseract-weight-regular);
+    color: var(--tesseract-fg-tertiary);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: var(--tesseract-weight-regular);
+    font-variant-numeric: tabular-nums;
+    color: var(--tesseract-fg-heading);
+  }
+}
+
+// Lab trend: each reading is a small column (value over its date), joined by
+// arrows, oldest to newest. The newest reading is the bold one.
+.trend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin: var(--tesseract-space-1) 0 var(--tesseract-space-0-5);
+  padding: var(--tesseract-space-1) var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--tesseract-bg-page-subtle);
+
+  li {
+    display: inline-flex;
+    flex-direction: column;
+    font-variant-numeric: tabular-nums;
+
+    & + li {
+      position: relative;
+      margin-left: var(--tesseract-space-5);
+
+      &::before {
+        content: "\2192";
+        position: absolute;
+        top: 0;
+        left: calc(var(--tesseract-space-4) * -1);
+        font-size: var(--tesseract-text-caption-sm);
+        line-height: var(--tesseract-text-caption-lh);
+        color: var(--tesseract-fg-tertiary);
+      }
+    }
+  }
+
+  span {
+    font-size: var(--tesseract-text-caption);
+    line-height: var(--tesseract-text-caption-lh);
+    font-weight: var(--tesseract-weight-medium);
+    color: var(--tesseract-fg-secondary);
+  }
+
+  small {
+    font-size: var(--tesseract-text-micro);
+    line-height: var(--tesseract-text-micro-lh);
+    color: var(--tesseract-fg-tertiary);
+  }
+
+  li[data-flag] span { color: var(--tesseract-fg-error); }
+  li[data-latest="true"] span { font-weight: var(--tesseract-weight-medium); }
+  li[data-latest="true"]:not([data-flag]) span { color: var(--tesseract-fg-heading); }
+}
+
+.moreLink {
+  display: block;
+  width: 100%;
+  margin-top: var(--tesseract-space-1);
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-2);
+  border: 0;
+  border-radius: var(--tesseract-radius-8);
+  background: transparent;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-link);
+  text-align: left;
+  cursor: pointer;
+
+  span { font-weight: var(--tesseract-weight-regular); color: var(--tesseract-fg-tertiary); }
+  &:hover { background: var(--tesseract-bg-surface-hover); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+}
+
+.railThumbs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--tesseract-space-1);
+  margin-top: var(--tesseract-space-2);
+  padding: 0 var(--tesseract-space-2);
+}
+
+.railThumb {
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-6);
+  background: var(--tesseract-slate-900);
+  overflow: hidden;
+  cursor: pointer;
+
+  svg { width: 100%; height: 100%; border-radius: 0; }
+  &:hover { border-color: var(--tesseract-border-primary); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+.railGap {
+  margin-top: var(--tesseract-space-3);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  border: 1px dashed var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-10);
+  font-size: var(--tesseract-text-body-xs);
+  line-height: var(--tesseract-text-body-xs-lh);
+  color: var(--tesseract-fg-secondary);
+
+  strong { display: block; font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+  p { margin: var(--tesseract-space-0-5) 0 0; }
+  ul { margin: var(--tesseract-space-0-5) 0 0; padding-left: var(--tesseract-space-4); }
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: var(--tesseract-space-2);
+    padding: 0 0 var(--tesseract-space-3) var(--tesseract-space-3);
+    border-left: 2px solid var(--tesseract-border-soft);
+    margin-left: var(--tesseract-space-1);
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: -6px;
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--tesseract-border-neutral);
+      border-radius: var(--tesseract-radius-full);
+      background: var(--tesseract-bg-surface);
+    }
+
+    &[data-key="true"]::before {
+      border-color: var(--tesseract-blue-500);
+      background: var(--tesseract-blue-500);
+    }
+
+    &:last-child { border-left-color: transparent; padding-bottom: 0; }
+  }
+
+  strong {
+    font-size: var(--tesseract-text-body-xs);
+    line-height: var(--tesseract-text-body-xs-lh);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--tesseract-text-body-xs);
+    line-height: var(--tesseract-text-body-xs-lh);
+    color: var(--tesseract-fg-secondary);
+  }
+}
+
+.timelineDate {
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-body-xs-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+.railCoverage {
+  margin: 0 0 var(--tesseract-space-1);
+  font-size: var(--tesseract-text-body-xs);
+  line-height: var(--tesseract-text-body-xs-lh);
+  color: var(--tesseract-fg-secondary);
+
+  strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+}
+
+.files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  button {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: var(--tesseract-space-1);
+    width: 100%;
+    padding: var(--tesseract-space-1-5) var(--tesseract-space-2);
+    border: 0;
+    border-radius: var(--tesseract-radius-8);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { background: var(--tesseract-bg-surface-hover); }
+    &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+  }
+}
+
+.fileNo {
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-link);
+}
+
+.fileTitle {
+  font-size: var(--tesseract-text-body-xs);
+  line-height: var(--tesseract-text-body-xs-lh);
+  color: var(--tesseract-fg-primary);
+}
+
+.fileMeta {
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+  white-space: nowrap;
+}
+
+.railFoot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1-5);
+  margin: var(--tesseract-space-4) 0 0;
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* --------------------------------------------------------------- drawer */
+
+.drawerBody {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 1100px) {
+  .toolbarProgress { display: none; }
+  .toolbarSearch { flex-basis: 220px; }
+  .body { grid-template-columns: minmax(0, 1fr) minmax(300px, 46%); }
+  .folders { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .historyGrid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cite, .finding, .folder, .tile, .vRow { transition: none; }
+  .carouselTrack { scroll-behavior: auto; }
+}
+
+.headerMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}
+
+/* ============================================================ review v2 */
+
+/* ------------------------------------------------- source document tag */
+
+// Floats at the top left of the pages and names the paper in view.
+// The tag and the catalogue it opens float together at the top left of the pages.
+.catalog {
+  position: absolute;
+  top: 48px;
+  left: var(--tesseract-space-4);
+  z-index: 4;
+  max-width: calc(100% - var(--tesseract-space-8));
+}
+
+.docTag {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--tesseract-space-1-5);
+  max-width: 100%;
+  height: 28px;
+  padding: 0 var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-bg-surface);
+  box-shadow: var(--tesseract-shadow-sm);
+  line-height: 26px;
+  white-space: nowrap;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+
+  &:hover, &[aria-expanded="true"] { border-color: var(--tesseract-border-focus); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--tesseract-text-caption);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+  }
+
+  small {
+    flex-shrink: 0;
+    font-size: var(--tesseract-text-caption-sm);
+    font-variant-numeric: tabular-nums;
+    color: var(--tesseract-fg-tertiary);
+  }
+
+  // The reader could not name this paper: say so quietly, not as a title.
+  &:not([data-named]) strong { font-weight: var(--tesseract-weight-medium); color: var(--tesseract-fg-secondary); }
+}
+
+// The PDF of the folder this paper is in, after its title, in light text.
+.docTagFile {
+  min-width: 0;
+  flex-shrink: 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+}
+.docTagNo {
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-micro, 10px);
+  font-weight: var(--tesseract-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-link);
+}
+
+/* ---------------------------------------------------- source page dock */
+
+.dock {
+  position: absolute;
+  left: 50%;
+  bottom: var(--tesseract-space-4);
+  transform: translateX(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-0-5);
+  height: 40px;
+  padding: 0 var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-full);
+  // Never wider than the pane it floats over.
+  max-width: calc(100% - var(--tesseract-space-4));
+  background: var(--tesseract-bg-inverse);
+  color: var(--tesseract-fg-inverse);
+  box-shadow: var(--tesseract-shadow-lg);
+  white-space: nowrap;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--tesseract-radius-full);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background 140ms ease;
+
+    &:hover:not(:disabled) { background: color-mix(in srgb, var(--tesseract-slate-0) 16%, transparent); }
+    &:focus-visible { outline: 2px solid var(--tesseract-slate-0); outline-offset: 1px; }
+    &:disabled { opacity: 0.36; cursor: default; }
+  }
+}
+
+html body .dock :is(span, small) { color: inherit; }
+
+.dockCount {
+  min-width: 44px;
+  padding: 0 var(--tesseract-space-1);
+  text-align: center;
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: var(--tesseract-weight-semibold);
+  font-variant-numeric: tabular-nums;
+
+  small { font-size: inherit; font-weight: var(--tesseract-weight-regular); opacity: 0.64; }
+}
+
+.dockDivider {
+  width: 1px;
+  height: 18px;
+  margin: 0 var(--tesseract-space-1);
+  background: color-mix(in srgb, var(--tesseract-slate-0) 24%, transparent);
+}
+
+/* --------------------------------------------------- structured record */
+
+.pointList {
+  margin: 0;
+  padding: 0 0 0 var(--tesseract-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1-5);
+  font-size: var(--tesseract-text-caption-lg);
+  line-height: var(--tesseract-text-body-sm-lh);
+  // Lighter ink for the running words so the dark key words stand out.
+  color: var(--tesseract-fg-tertiary);
+
+  li::marker { color: var(--tesseract-violet-400); }
+  // Key words: darker ink at medium weight. Never semibold or bold.
+  strong { font-weight: var(--tesseract-weight-medium); color: var(--tesseract-fg-heading); }
+}
+
+// Label on the left, facts on the right; hairlines between fields.
+.fields { display: flex; flex-direction: column; }
+
+.field {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-2) 0;
+
+  & + & { border-top: 1px solid var(--tesseract-slate-100); }
+  &:first-child { padding-top: 0; }
+  &:last-child { padding-bottom: 0; }
+
+  // Rows inside a field need no gutter of their own.
+  .row { padding-left: 0; padding-right: 0; }
+  .row:first-child { padding-top: 0; }
+  .moreLink { padding-left: 0; }
+}
+
+.fieldLabel {
+  padding-top: var(--tesseract-space-0-5);
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+
+  small { font-size: inherit; font-weight: var(--tesseract-weight-regular); color: var(--tesseract-fg-tertiary); }
+
+  button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { color: var(--tesseract-fg-link); text-decoration: underline; text-underline-offset: 2px; }
+    &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-4, 4px); }
+  }
+}
+
+.fieldBody { min-width: 0; }
+
+.fieldEmpty {
+  margin: 0;
+  font-size: var(--tesseract-text-caption-lg);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.gapNote {
+  display: flex;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-3);
+  border: 1px dashed var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  color: var(--tesseract-fg-secondary);
+
+  > svg { flex-shrink: 0; margin-top: 2px; color: var(--tesseract-fg-tertiary); }
+  p { margin: 0; }
+  p + p { margin-top: var(--tesseract-space-1); }
+  strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+}
+
+/* ------------------------------------------------------- filters, chips */
+
+.dataBar {
+  position: sticky;
+  // Pulled up over the panel's top padding so it starts flush under the
+  // toolbar, and stuck to that same edge while the rows scroll beneath it.
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  margin: calc(var(--tesseract-space-9) * -1) calc(var(--tesseract-space-6) * -1) 0;
+  padding: var(--tesseract-space-3) var(--tesseract-space-6);
+  background: var(--tesseract-bg-page);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+}
+
+.dataBarEnd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-3);
+}
+
+// Clinical data opens with the review bar, so its filters start below that
+// and only meet the toolbar once the rows scroll.
+.dataBar[data-after="true"] { margin-top: 0; }
+
+// The second line of the filter block: status on the left, the copy of the
+// whole file at the end. The status strip gives way first when room is short.
+.filterLine {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  min-width: 0;
+
+  > .carousel { flex: 1; }
+  > :not(.carousel) { flex-shrink: 0; }
+}
+
+// A table reads better with room, so this tab may use more of the pane than
+// the reading tabs do when the source page is hidden.
+// Tables use the full width of the column; their wide columns flex.
+.dataTab { max-width: none; }
+
+.carousel {
+  position: relative;
+  min-width: 0;
+}
+
+.carouselTrack {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  // Room above and below (taken back by the margin) so a focus ring and the
+  // taller hit area of a chip are not clipped by the scrolling box.
+  margin: calc(var(--tesseract-space-1) * -1) 0;
+  padding: var(--tesseract-space-1) 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  // A chip that takes focus stops clear of the arrow and the fade.
+  scroll-padding: 0 40px;
+
+  &::-webkit-scrollbar { display: none; }
+  > * { flex-shrink: 0; }
+
+  // Chips are 20px tall to look at, 28px to hit.
+  > [role="button"] { position: relative; }
+  > [role="button"]::after { content: ""; position: absolute; inset: calc(var(--tesseract-space-1) * -1) 0; }
+}
+
+.carouselArrow {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: -14px;
+  padding: 0;
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-bg-surface);
+  color: var(--tesseract-fg-secondary);
+  box-shadow: var(--tesseract-shadow-sm);
+  cursor: pointer;
+
+  &[data-side="left"] { left: 0; }
+  &[data-side="right"] { right: 0; }
+  &:hover { color: var(--tesseract-fg-primary); background: var(--tesseract-bg-surface-hover); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+// Fade the edge that has more behind it, under the arrow.
+.carousel[data-left] .carouselTrack { mask-image: linear-gradient(to right, transparent 0, black 48px); }
+.carousel[data-right] .carouselTrack { mask-image: linear-gradient(to left, transparent 0, black 48px); }
+.carousel[data-left][data-right] .carouselTrack {
+  mask-image: linear-gradient(to right, transparent 0, black 48px, black calc(100% - 48px), transparent 100%);
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--tesseract-space-2);
+}
+
+/* ------------------------------------------------------- review rows */
+
+.vGroup + .vGroup { margin-top: var(--tesseract-space-3); }
+
+.vGroupTitle {
+  margin: 0 0 var(--tesseract-space-1);
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-4);
+  background: var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-micro);
+  line-height: 1;
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+.vRows { list-style: none; margin: 0; padding: 0; }
+
+.vRow {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--tesseract-space-2);
+  margin: 0 calc(var(--tesseract-space-2) * -1);
+  padding: var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-8);
+  cursor: pointer;
+  transition: background 140ms ease;
+
+  & + & { box-shadow: 0 -1px 0 var(--tesseract-slate-100); }
+  &:hover { background: var(--tesseract-bg-surface-hover); }
+  &[data-active="true"] { background: var(--tesseract-bg-selected); box-shadow: none; }
+  &[data-active="true"] + & { box-shadow: none; }
+  &[data-selected="true"]:not([data-active="true"]) { background: color-mix(in srgb, var(--tesseract-bg-selected) 56%, transparent); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+
+  p { margin: 0; }
+
+  // A long free-text result wraps instead of running under the buttons.
+  .rowValue { white-space: normal; overflow-wrap: anywhere; }
+
+  &[data-status="rejected"] .vBody > :first-child,
+  &[data-status="rejected"] .vBody > .trend,
+  &[data-status="rejected"] .vBody > .factsClip {
+    opacity: 0.56;
+    text-decoration: line-through;
+    text-decoration-color: var(--tesseract-fg-tertiary);
+  }
+}
+
+.vCheck {
+  display: flex;
+  align-items: center;
+  height: 20px;
+
+  // The box is 16px to look at, 28px to hit.
+  > [role="checkbox"] { position: relative; }
+  > [role="checkbox"]::after { content: ""; position: absolute; inset: -6px; }
+}
+.vBody { min-width: 0; }
+
+.vTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1);
+  margin-top: var(--tesseract-space-1);
+}
+
+.vActions {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-0-5);
+  flex-shrink: 0;
+}
+
+.vDetail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  margin-top: var(--tesseract-space-2);
+  padding-top: var(--tesseract-space-2);
+  border-top: 1px dashed var(--tesseract-border-neutral);
+}
+
+.vWhy {
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  color: var(--tesseract-fg-secondary);
+
+  strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+}
+
+// The words on the page, kept apart from our reading of them.
+.asWritten {
+  margin: 0;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  color: var(--tesseract-fg-secondary);
+  overflow-wrap: anywhere;
+
+  > span:first-child {
+    margin-right: var(--tesseract-space-2);
+    font-size: var(--tesseract-text-caption-sm);
+    font-weight: var(--tesseract-weight-medium);
+    color: var(--tesseract-fg-tertiary);
+  }
+
+  em { font-style: normal; color: var(--tesseract-fg-tertiary); }
+
+  &[data-kind="before"] { margin-top: var(--tesseract-space-1); }
+}
+
+.vMeta {
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+/* ------------------------------------------------------ rows as a table */
+
+// The same columns as the Rx pad for that kind of fact. The column template
+// comes from RX_COLUMNS (--rx-cols, set on the table), so the header and
+// every row share it: narrow columns are fixed, wide ones flex, text wraps.
+// Emphasis is by colour: values are the darkest ink at regular weight, the
+// headers are small, medium and lighter.
+.tHead {
+  display: grid;
+  grid-template-columns: 20px var(--rx-cols);
+  align-items: end;
+  column-gap: var(--tesseract-space-2);
+  margin: 0 calc(var(--tesseract-space-2) * -1);
+  padding: var(--tesseract-space-1) var(--tesseract-space-2);
+  border-bottom: 1px solid var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-tertiary);
+
+  &[data-layout="wide"] { grid-template-columns: 20px var(--rx-cols) 184px; }
+
+  > span { min-width: 0; overflow-wrap: anywhere; }
+}
+
+.vRow[data-layout="tight"],
+.vRow[data-layout="wide"] {
+  grid-template-columns: 20px var(--rx-cols);
+  gap: var(--tesseract-space-1) var(--tesseract-space-2);
+
+  // The form, and whatever sits under the cells, run the width of the row.
+  > .vBody,
+  > .vBelow { grid-column: 2 / -1; }
+
+  &[data-status="rejected"] > .tCell,
+  &[data-status="rejected"] > .vBelow > .trend {
+    opacity: 0.56;
+    text-decoration: line-through;
+    text-decoration-color: var(--tesseract-fg-tertiary);
+  }
+}
+
+.vRow[data-layout="wide"] { grid-template-columns: 20px var(--rx-cols) 184px; }
+
+.tCell {
+  min-width: 0;
+  font-size: var(--tesseract-text-caption-lg);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  font-weight: var(--tesseract-weight-regular);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-heading);
+  overflow-wrap: anywhere;
+
+  // A heading with no details beside it takes the details' room too.
+  &[data-span="all"] { grid-column: span 2; }
+  // A unit goes red with its value. Suspected is the one amber word.
+  &[data-abnormal] { color: var(--tesseract-fg-error); }
+  &[data-tone="warning"] { color: var(--tesseract-fg-warning); }
+}
+
+// The actions at the end of a line that has room for them. A long label
+// ("Verify as suspected") lets the icons drop to a second line.
+.vEnd {
+  min-width: 0;
+
+  > .vActions { flex-wrap: wrap; justify-content: flex-end; }
+}
+
+// Under the cells: a lab's trend, the doubts, what was read before a
+// correction, and the detail of an open row.
+.vBelow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  min-width: 0;
+
+  &:empty { display: none; }
+
+  > .trend { align-self: flex-start; margin: 0; }
+  > .vTags,
+  > .asWritten { margin-top: 0; }
+  > .vDetail { margin-top: var(--tesseract-space-1); }
+}
+
+// Doubts on the left, actions on the right, on one line while they fit.
+.vFoot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1) var(--tesseract-space-2);
+
+  > .vTags { margin-top: 0; }
+  > .vActions { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+}
+
+/* ---------------------------------------------------------- edit form */
+
+.editForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  cursor: default;
+}
+
+// The labelled form a row is corrected in when there is no room for its
+// columns: one field a line, its label beside it. The fields are the same
+// ones the table's cells use (fields/).
+.editGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--tesseract-space-2);
+}
+
+.editField {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--tesseract-space-1) var(--tesseract-space-2);
+  margin: 0;
+  min-width: 0;
+
+  // The label reads as a column header does: small, medium, lighter ink.
+  // It is as tall as a field so the two sit on one line.
+  > label,
+  > span {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    margin: 0;
+    font-size: var(--tesseract-text-caption-sm);
+    line-height: var(--tesseract-text-caption-sm-lh);
+    font-weight: var(--tesseract-weight-medium);
+    color: var(--tesseract-fg-secondary);
+  }
+
+  // A narrow pane: the label goes above its field.
+  .editGrid[data-narrow="true"] > & { grid-template-columns: minmax(0, 1fr); }
+  .editGrid[data-narrow="true"] > & > label,
+  .editGrid[data-narrow="true"] > & > span { min-height: 0; }
+}
+
+// Said before a save that would record a suspected diagnosis as anything else.
+.editCaution {
+  margin: 0;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lg-lh);
+  color: var(--tesseract-fg-warning);
+}
+
+.editActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2);
+}
+
+.editHint {
+  flex: 1;
+  min-width: 200px;
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+.editError {
+  margin: 0;
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-fg-error);
+}
+
+/* ------------------------------------------------------------ bulk bar */
+
+.bulkBar {
+  position: sticky;
+  // Floats above the bottom edge while rows scroll under it. At the end of the
+  // list it rests after the last card, so it never covers the last row.
+  bottom: var(--tesseract-space-4);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  box-shadow: var(--tesseract-shadow-lg);
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-fg-secondary);
+
+  strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); white-space: nowrap; }
+}
+
+// What the last action did, with Undo beside it.
+.bulkNote {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 var(--tesseract-space-2);
+}
+
+// Read out, not shown.
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.bulkActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--tesseract-space-1);
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------ documents */
+
+// What a PDF of the folder is, said once above its documents.
+.fileWhat {
+  margin: 0 0 var(--tesseract-space-2);
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.5;
+  color: var(--tesseract-fg-tertiary);
+}
+.docList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+}
+
+.doc {
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  overflow: hidden;
+}
+
+.docHead {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-2) var(--tesseract-space-1-5) var(--tesseract-space-3);
+}
+
+.docToggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-1) 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--tesseract-fg-tertiary);
+  cursor: pointer;
+
+  > svg { flex-shrink: 0; }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-8); }
+}
+
+.docNo {
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-micro, 10px);
+  font-weight: var(--tesseract-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-link);
+}
+
+.docTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tesseract-text-caption-lg);
+
+  strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+  small { margin-left: var(--tesseract-space-1); font-size: var(--tesseract-text-caption); color: var(--tesseract-fg-tertiary); }
+}
+
+.docMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  flex-shrink: 0;
+}
+
+.docBody {
+  padding: var(--tesseract-space-2) var(--tesseract-space-3) var(--tesseract-space-3) var(--tesseract-space-8);
+  border-top: 1px solid var(--tesseract-slate-100);
+
+  .row { padding-left: 0; padding-right: 0; }
+  .rowValue { white-space: normal; overflow-wrap: anywhere; }
+}
+
+/* --------------------------------------------------------------- search */
+
+.searchCount {
+  margin: 0;
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-fg-secondary);
+
+  strong { font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+}
+
+@media (max-width: 1100px) {
+  // A row's buttons drop under its text so the text keeps its width.
+  .vRow { grid-template-columns: 20px minmax(0, 1fr); }
+  .vActions { grid-column: 2; flex-wrap: wrap; }
+  .field { grid-template-columns: minmax(0, 1fr); gap: var(--tesseract-space-1); }
+}
+
+/* ----------------------------------- structured record, sidebar format */
+
+// Entry point to verifying, at the top of the reading tab.
+.reviewEntry {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-amber-300);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-amber-50);
+
+  > svg { flex-shrink: 0; color: var(--tesseract-amber-600); }
+
+  > div {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: var(--tesseract-text-caption);
+    line-height: var(--tesseract-text-caption-lg-lh);
+    color: var(--tesseract-fg-secondary);
+  }
+
+  strong { font-size: var(--tesseract-text-caption-lg); font-weight: var(--tesseract-weight-semibold); color: var(--tesseract-fg-heading); }
+
+  &[data-done="true"] {
+    border-color: var(--tesseract-border-soft);
+    background: var(--tesseract-bg-surface);
+
+    > svg { color: var(--tesseract-fg-success); }
+  }
+}
+
+// Sections flow into two columns when the card is wide enough, each drawn
+// like a section of Past Visits: picture, name, tight rows.
+.rxGrid {
+  display: flex;
+  flex-direction: column;
+}
+
+// One section below the other, a hairline between them.
+.rxSection {
+  padding: var(--tesseract-space-2-5) 0;
+
+  & + & { border-top: 1px solid var(--tesseract-slate-100); }
+  &:first-child { padding-top: 0; }
+  &:last-child { padding-bottom: 0; }
+
+  > header {
+    display: flex;
+    align-items: center;
+    gap: var(--tesseract-space-1-5);
+    margin-bottom: var(--tesseract-space-1);
+    font-size: var(--tesseract-text-caption-lg);
+    line-height: var(--tesseract-text-caption-lg-lh);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+
+    img { width: 16px; height: 16px; flex-shrink: 0; }
+    small { font-size: var(--tesseract-text-caption); font-weight: var(--tesseract-weight-regular); color: var(--tesseract-fg-tertiary); }
+
+    button {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+
+      &:hover { color: var(--tesseract-fg-link); text-decoration: underline; text-underline-offset: 2px; }
+      &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+    }
+  }
+}
+
+// Rows sit under the section name, indented past the picture, with no rules
+// between them: the sidebar's density.
+.rxBody {
+  padding-left: 22px;
+
+  .row { padding: var(--tesseract-space-0-5) 0; }
+  .row + .row { border-top: 0; }
+  .moreLink { padding-left: 0; margin-top: 0; }
+  .trend { margin-top: var(--tesseract-space-0-5); }
+}
+
+/* -------------------------------------------------------------- AI draft */
+
+.aiDraft {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-0-5);
+  vertical-align: middle;
+}
+
+// The (i) on the violet page banner: light ink, light hover.
+.infoBtn[data-on-dark="true"] {
+  color: color-mix(in srgb, var(--tesseract-slate-0) 76%, transparent);
+
+  &:hover { background: color-mix(in srgb, var(--tesseract-slate-0) 16%, transparent); color: var(--tesseract-slate-0); }
+  &:focus-visible { outline-color: var(--tesseract-slate-0); }
+}
+
+// An admission or visit number inside a sentence: reads as part of the line,
+// opens the page it was read from.
+.refLink {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  // Reads as a key word of the sentence, not as a link: dark ink, medium
+  // weight. It still opens its page or section; the underline shows on hover.
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-heading);
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; text-underline-offset: 2px; }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+}
+
+/* ------------------------------------------------- real scanned pages */
+
+// A real scan (local demos). The image is the page; zoom changes its width.
+.scanPage {
+  display: block;
+  max-width: none;
+  height: auto;
+  background: var(--tesseract-bg-surface);
+  box-shadow: var(--tesseract-shadow-sm);
+}
+
+// No region is known on a real scan yet, so the whole cited page is marked.
+.sheet[data-cited="true"] .scanPage { outline: 2px solid var(--tesseract-amber-400); outline-offset: 2px; }
+.sheet[data-cited="true"] .sheetNo { color: var(--tesseract-amber-700); font-weight: var(--tesseract-weight-medium); }
+
+/* ------------------------------------------------ facts that run along */
+
+// Hairline dividers: items wrap along the line with a thin rule between
+// neighbours. The list is pulled left by one item's padding and its group
+// clips the overhang, so no rule shows at the start of a line.
+.rowGroup:has(> .rows[data-flow="bar"]) { overflow: hidden; }
+
+.rows[data-flow="bar"] {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: var(--tesseract-space-1);
+  margin-left: calc((var(--tesseract-space-3) + 1px) * -1);
+
+  .row {
+    padding: 0 var(--tesseract-space-3);
+    border-left: 1px solid var(--tesseract-slate-200);
+    border-top: 0;
+  }
+}
+
+.rxBody .rows[data-flow="bar"] .row { padding: 0 var(--tesseract-space-3); }
+.rxBody .rows[data-flow="bar"] .row + .row { border-top: 0; }
+
+// Lab results on a wide page: an even grid, one result to a cell, no rules.
+.rows[data-flow="grid"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  column-gap: var(--tesseract-space-8);
+  row-gap: var(--tesseract-space-1);
+
+  .row { padding: 0; border: 0; min-width: 0; }
+}
+
+// A lab value that has more behind it (reference range, earlier readings):
+// hover or focus shows it on one line.
+.rowValue[data-info="true"] {
+  cursor: default;
+  border-radius: var(--tesseract-radius-4);
+
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+// A vitals set under its tag: the readings, then the citation.
+.vitalLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: var(--tesseract-space-1);
+}
+
+// Tags line up with the rows beneath them.
+.rxBody .rowGroupTitle { margin-left: 0; }
+
+// "+2": the citations a row does not show until asked.
+.citeMore {
+  margin-left: var(--tesseract-space-0-5);
+  padding: 0 var(--tesseract-space-0-5);
+  border: 0;
+  background: transparent;
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-medium);
+  line-height: 1;
+  color: var(--tesseract-fg-tertiary);
+  cursor: pointer;
+
+  &:hover { color: var(--tesseract-fg-link); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+}
+
+/* --------------------------------------------- catalogue of documents */
+
+.docTagArrow {
+  align-self: center;
+  flex-shrink: 0;
+  color: var(--tesseract-fg-tertiary);
+  transition: transform 140ms ease;
+}
+
+.docTag[aria-expanded="true"] .docTagArrow { transform: rotate(180deg); }
+
+.catalogPanel {
+  position: absolute;
+  top: calc(100% + var(--tesseract-space-1-5));
+  left: 0;
+  width: min(420px, calc(100vw - var(--tesseract-space-8)));
+  max-width: 100%;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 520px);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  box-shadow: var(--tesseract-shadow-lg);
+  overflow: hidden;
+}
+
+.catalogSearch {
+  padding: var(--tesseract-space-2);
+  border-bottom: 1px solid var(--tesseract-slate-100);
+}
+
+.catalogList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--tesseract-space-1) 0 var(--tesseract-space-2);
+}
+
+// A file in the folder: a quiet heading above its documents.
+.catalogFile {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-3);
+  background: var(--tesseract-slate-50);
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-secondary);
+
+  span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { flex-shrink: 0; font-size: inherit; font-weight: var(--tesseract-weight-regular); color: var(--tesseract-fg-tertiary); }
+}
+
+.catalogItem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+  min-height: 28px;
+  padding: var(--tesseract-space-1) var(--tesseract-space-3);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-fg-primary);
+  text-align: left;
+  cursor: pointer;
+
+  small { margin-left: auto; flex-shrink: 0; font-size: var(--tesseract-text-caption-sm); font-variant-numeric: tabular-nums; color: var(--tesseract-fg-tertiary); }
+  &:hover { background: var(--tesseract-bg-surface-hover); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+  &[data-current="true"] { background: var(--tesseract-bg-selected); color: var(--tesseract-fg-heading); }
+}
+
+.catalogTitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.catalogEmpty {
+  margin: 0;
+  padding: var(--tesseract-space-3);
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-fg-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docTagArrow { transition: none; }
+}
+
+/* ------------------------------------- source page viewer: glass floaters */
+
+// One floating bar at the top is the viewer's heading: it names the document
+// in view (title, file, pages, citation number) and opens the catalogue. It
+// and the page dock at the bottom are the same grey glass, so the two
+// controls read as a pair floating over the paper.
+.viewer .catalog {
+  top: var(--tesseract-space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - var(--tesseract-space-6));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.viewer .docTag,
+.viewer .dock {
+  border: 1px solid color-mix(in srgb, var(--tesseract-slate-0) 16%, transparent);
+  background: color-mix(in srgb, var(--tesseract-slate-800) 74%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  color: var(--tesseract-fg-inverse);
+  box-shadow: var(--tesseract-shadow-lg);
+}
+
+.viewer .docTag {
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  height: 36px;
+  padding: 0 var(--tesseract-space-3) 0 var(--tesseract-space-4);
+  line-height: 1;
+
+  &:hover, &[aria-expanded="true"] { border-color: color-mix(in srgb, var(--tesseract-slate-0) 40%, transparent); }
+  &:focus-visible { outline: 2px solid var(--tesseract-slate-0); outline-offset: 2px; }
+
+  strong {
+    font-size: var(--tesseract-text-caption-lg);
+    font-weight: var(--tesseract-weight-medium);
+    color: var(--tesseract-fg-inverse);
+  }
+
+  // The reader could not name this paper: say so quietly.
+  &:not([data-named]) strong { font-weight: var(--tesseract-weight-regular); color: color-mix(in srgb, var(--tesseract-slate-0) 80%, transparent); }
+}
+
+// File, pages and the citation number: lighter, each set off by a hairline.
+.viewer .docTag .docTagFile,
+.viewer .docTag .docTagPages,
+.viewer .docTag .docTagNo {
+  flex-shrink: 0;
+  padding-left: var(--tesseract-space-2);
+  border-left: 1px solid color-mix(in srgb, var(--tesseract-slate-0) 22%, transparent);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--tesseract-slate-0) 72%, transparent);
+}
+
+.viewer .docTag .docTagFile { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.viewer .docTag .docTagNo { font-weight: var(--tesseract-weight-medium); color: var(--tesseract-fg-inverse); }
+.viewer .docTag .docTagArrow { color: color-mix(in srgb, var(--tesseract-slate-0) 80%, transparent); }
+
+html body .viewer .docTag :is(span, strong) { color: inherit; }
+html body .viewer .docTag strong { color: var(--tesseract-fg-inverse); }
+html body .viewer .docTag .docTagFile,
+html body .viewer .docTag .docTagPages { color: color-mix(in srgb, var(--tesseract-slate-0) 72%, transparent); }
+
+// The catalogue opens under the bar, centred on it.
+.viewer .catalogPanel {
+  position: relative;
+  top: auto;
+  left: auto;
+  margin-top: var(--tesseract-space-1-5);
+}
+
+.catalogInfo {
+  margin: 0;
+  padding: var(--tesseract-space-2) var(--tesseract-space-3) 0;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// Room for the bar now that there is no header strip above the pages.
+.viewer .viewerScroll { padding-top: 60px; }
+
+/* -------------------------------- two columns, each with its own header */
+
+// The toolbar now sits inside the record column, so it no longer spans the
+// original document beside it.
+.main > .toolbar { flex-shrink: 0; }
+
+// The viewer's header: same height as the toolbar next to it, in the grey of
+// the paper area, so it reads as the head of the original document.
+.viewerHead {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  flex-shrink: 0;
+  min-height: 52px;
+  padding: 0 var(--tesseract-space-4);
+  background: var(--tesseract-slate-200);
+  border-bottom: 1px solid var(--tesseract-slate-300);
+}
+
+.viewerEyebrow {
+  flex-shrink: 0;
+  padding: var(--tesseract-space-0-5) var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-4);
+  background: var(--tesseract-slate-700);
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tesseract-fg-inverse);
+}
+
+html body .viewerHead .viewerEyebrow { color: var(--tesseract-fg-inverse); }
+
+// The document's name is the heading and the way into the catalogue.
+.viewer .viewerHead .docTag {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--tesseract-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--tesseract-radius-8);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  color: var(--tesseract-fg-heading);
+
+  &:hover, &[aria-expanded="true"] { background: var(--tesseract-slate-300); border-color: transparent; }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--tesseract-text-body-sm);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+  }
+
+  .docTagArrow { color: var(--tesseract-fg-secondary); }
+}
+
+html body .viewer .viewerHead .docTag strong { color: var(--tesseract-fg-heading); }
+
+// File, pages and the citation number: quiet, at the far end.
+.viewerMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin-left: auto;
+  min-width: 0;
+  font-size: var(--tesseract-text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+
+  > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  > span + span { padding-left: var(--tesseract-space-2); border-left: 1px solid var(--tesseract-slate-400); }
+  .docTagNo { font-size: var(--tesseract-text-caption); color: var(--tesseract-fg-link); }
+}
+
+// The catalogue drops from the header, under the document's name.
+.viewer .viewerHead .catalogPanel {
+  position: absolute;
+  top: calc(100% + var(--tesseract-space-1));
+  left: var(--tesseract-space-4);
+  margin-top: 0;
+}
+
+// No floating bar any more: the pages start right under the header.
+.viewer .viewerScroll { padding-top: var(--tesseract-space-4); }
+
+/* ------------------------------------------------------------ tooltips */
+
+// The portal's host stylesheet paints every div, span and p in one dark ink,
+// which made tooltip text vanish into the dark tooltip. Inside a tooltip,
+// text follows the tooltip's own colour again.
+:global {
+  html body [role="tooltip"] :is(div, span, p, strong, small, em) { color: inherit; }
+}
+
+// A word that explains itself on hover ("Suspected").
+.quals [data-tone="warning"][tabindex] {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  border-radius: var(--tesseract-radius-4);
+
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+/* ------------------------- two boxes: the record, and the original file */
+
+// The digitised record and the original case file are two separate cards
+// with a gap between them, so nobody reads one as part of the other.
+.workspace[data-variant] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.pageSlot > .workspace[data-variant="page"] { box-shadow: none; }
+
+.body {
+  gap: var(--tesseract-space-3);
+  padding: 0;
+}
+
+.main,
+.viewer {
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-page);
+  box-shadow: var(--tesseract-shadow-sm);
+  overflow: hidden;
+}
+
+.viewer { border-left: 1px solid var(--tesseract-border-soft); background: var(--tesseract-slate-100); }
+.drawerBody .body { padding: var(--tesseract-space-3); }
+
+// The original's header: white, a plain heading, same height as the toolbar.
+.viewerHead {
+  gap: var(--tesseract-space-3);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+
+  > strong {
+    font-size: var(--tesseract-text-body-sm);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+    white-space: nowrap;
+  }
+}
+
+.viewerLang {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// The index floats over the pages, top left, in grey glass: it feels like a
+// catalogue you pull out, not like a title.
+.viewer .catalog {
+  top: calc(52px + var(--tesseract-space-3));
+  left: var(--tesseract-space-4);
+  right: auto;
+  transform: none;
+  align-items: flex-start;
+  max-width: calc(100% - var(--tesseract-space-8));
+}
+
+.viewer .catalog .docTag {
+  height: 36px;
+  padding: 0 var(--tesseract-space-3) 0 var(--tesseract-space-4);
+  gap: var(--tesseract-space-2);
+  border: 1px solid color-mix(in srgb, var(--tesseract-slate-0) 16%, transparent);
+  border-radius: var(--tesseract-radius-full);
+  background: color-mix(in srgb, var(--tesseract-slate-800) 74%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--tesseract-shadow-lg);
+  color: var(--tesseract-fg-inverse);
+
+  &:hover, &[aria-expanded="true"] { background: color-mix(in srgb, var(--tesseract-slate-800) 86%, transparent); border-color: color-mix(in srgb, var(--tesseract-slate-0) 40%, transparent); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+
+  strong { max-width: 320px; font-size: var(--tesseract-text-caption-lg); font-weight: var(--tesseract-weight-medium); }
+  .docTagArrow { color: color-mix(in srgb, var(--tesseract-slate-0) 80%, transparent); }
+}
+
+html body .viewer .catalog .docTag strong { color: var(--tesseract-fg-inverse); }
+
+.viewer .catalog .catalogPanel {
+  position: relative;
+  top: auto;
+  left: auto;
+  margin-top: var(--tesseract-space-1-5);
+}
+
+// Shown once, until the index is first opened.
+.catalogHint {
+  margin-top: var(--tesseract-space-1-5);
+  padding: var(--tesseract-space-1) var(--tesseract-space-2);
+  border: 0;
+  border-radius: var(--tesseract-radius-8);
+  background: var(--tesseract-blue-500);
+  font: inherit;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-inverse);
+  box-shadow: var(--tesseract-shadow-sm);
+  cursor: pointer;
+
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+// The pages start under the header, with room for the floating index.
+.viewer .viewerScroll { padding-top: 64px; }
+.viewer .viewerScroll:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+
+// A dock control with a word beside its icon.
+.dock .dockWide {
+  width: auto;
+  gap: var(--tesseract-space-1-5);
+  padding: 0 var(--tesseract-space-2);
+  font: inherit;
+  font-size: var(--tesseract-text-caption);
+  white-space: nowrap;
+}
+
+html body .dock .dockWide span { color: inherit; }
+
+/* ------------------------------------------------------- summary labels */
+
+// Each pointer of the summary carries a small label saying which part of
+// the story it is.
+.beatLabel {
+  display: block;
+  margin-bottom: var(--tesseract-space-0-5);
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tesseract-fg-tertiary);
+}
+
+html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-tertiary); }
+
+// A link inside a sentence wraps like the words around it.
+.refLink { display: inline; white-space: normal; text-align: inherit; }
+
+/* ------------------------------------------------------------ text size */
+
+.textSize {
+  display: inline-flex;
+  align-items: baseline;
+  flex-shrink: 0;
+  padding: var(--tesseract-space-0-5);
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-8);
+
+  button {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 var(--tesseract-space-1);
+    border: 0;
+    border-radius: var(--tesseract-radius-4);
+    background: transparent;
+    font: inherit;
+    line-height: 28px;
+    color: var(--tesseract-fg-secondary);
+    cursor: pointer;
+
+    &[data-size="sm"] { font-size: var(--tesseract-text-caption-sm); }
+    &[data-size="md"] { font-size: var(--tesseract-text-body-sm); }
+    &[data-size="lg"] { font-size: var(--tesseract-text-body-base); }
+    &[aria-pressed="true"] { background: var(--tesseract-bg-selected); color: var(--tesseract-fg-heading); font-weight: var(--tesseract-weight-medium); }
+    &:hover:not([aria-pressed="true"]) { background: var(--tesseract-bg-surface-hover); }
+    &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 1px; }
+  }
+}
+
+// The whole record side scales together, so proportions hold.
+.workspace[data-text="sm"] .panel { zoom: 0.92; }
+.workspace[data-text="lg"] .panel { zoom: 1.14; }
+
+@media (max-width: 1100px) {
+  .textSize { display: none; }
+}
+
+// A note shows two lines until clicked, so Reports and Notes is a list of
+// headlines, not a page of prose. The full text is one click away.
+.row[data-note] { cursor: pointer; }
+
+.row[data-note="closed"] .rowLine {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.row[data-note]:hover .rowLabel { text-decoration: underline; text-underline-offset: 2px; }
+
+/* --------------------------------------------- a row corrected in place */
+
+// With room for its columns, a row is corrected where it stands, the way the
+// Rx pad edits a table row: each cell becomes an input under the same header
+// (the row keeps the table's column template), Save and Cancel take the place
+// of the row's actions, and one quiet line under the cells gives the words on
+// the page. The inputs themselves are the cell editors in fields/.
+.vRow[data-editing="true"] { cursor: default; }
+
+// One cell. A cell reaches half the column gap to each side, so cells meet
+// and a field's text starts exactly where the column's text does.
+.rxEditCell {
+  display: flex;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0 calc(var(--tesseract-space-1) * -1);
+  background: var(--tesseract-bg-surface);
+  // A hairline all round. Where two cells meet, one line shows.
+  box-shadow: 0 0 0 1px var(--tesseract-border-neutral);
+
+  &[data-first="true"] { border-radius: var(--tesseract-radius-8) 0 0 var(--tesseract-radius-8); }
+  &[data-last="true"] { border-radius: 0 var(--tesseract-radius-8) var(--tesseract-radius-8) 0; }
+  // A column this row has nothing in cannot be typed in.
+  &[data-off="true"] { background: var(--tesseract-bg-page-subtle); }
+}
+
+// Save and Cancel, where the row's own actions were. The cell is put in the
+// last column by name, so the fields before it fill the columns in order.
+.rxEditEnd {
+  grid-row: 1;
+  grid-column: -2 / -1;
+}
+
+.rxEditActions {
+  min-height: 36px;
+  gap: var(--tesseract-space-1-5);
+
+  // A little tighter than usual, so both fit the actions column on one line.
+  > button[data-variant="solid"] { padding: 0 var(--tesseract-space-3); }
+}
+
+// A field with no column of its own (a lab's flag): under the column it
+// belongs to, with its name beside it.
+.rxEditExtra {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  min-width: 0;
+  margin-top: var(--tesseract-space-1);
+}
+
+.rxEditLabel {
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// Under the cells: the words on the page, then anything worth saying.
+.rxEditBelow { margin-top: var(--tesseract-space-1); }
+
+.rxEditNote,
+.rxEditVoice {
+  margin: 0;
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// Said while the microphone is on. With nothing to say it takes no room.
+.rxEditVoice {
+  color: var(--tesseract-fg-secondary);
+
+  &:empty { display: none; }
+}
+
+// The checkbox sits level with the fields, as it does with a row's text.
+.vRow[data-editing="true"][data-layout="wide"] > .vCheck { height: 36px; }
+
+// Cancel is a link. It is still 28px to hit.
+.rxEditActions > button[data-variant="link"] { min-height: 28px; }

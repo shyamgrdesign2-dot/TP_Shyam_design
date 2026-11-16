@@ -1,0 +1,21 @@
+.rx-workflow-header {
+    .rx-fulfilment-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--tesseract-space-2, 8px);
+        height: var(--tesseract-size-42, 42px);
+        padding: 0 var(--tesseract-space-3, 12px);
+        border: 1px solid transparent;
+        border-radius: var(--tesseract-btn-radius, var(--tesseract-radius-10, 10px));
+        background-color: var(--tesseract-slate-100, #f1f1f5);
+        background-image: linear-gradient(#e2e2ea40 1px, transparent 1px), linear-gradient(90deg, #e2e2ea40 1px, transparent 1px);
+        background-size: 8px 8px;
+        .rx-fulfilment-logo { width: auto; max-width: 72px; height: 20px; object-fit: contain; }
+    }
+    .rx-header-title { font-size: 14px; font-weight: 600; color: var(--tesseract-fg-primary); white-space: nowrap; }
+}
+
+body:has(.rx-workflow-header) {
+    .ant-popover, .ant-dropdown { --antd-arrow-background-color: var(--tesseract-slate-0, #fff); }
+    .ant-popover-arrow::before, .ant-dropdown-arrow::before { background: var(--tesseract-slate-0, #fff) !important; }
+}

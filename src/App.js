@@ -26,6 +26,7 @@ import ErrorFallback from "./common/ErrorFallback";
 import GrowthBookPhoneSync from "./components/GrowthBookPhoneSync";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
+import { isArchivedRecordsEnabled } from "./components/archived-records/archivedRecordsFlag";
 import { useTncConsent } from "./hooks/useTncConsent";
 import { useUrlAuthClinicSwitch } from "./hooks/useUrlAuthClinicSwitch";
 import FullPageLoader from "./pages/vaccination/components/Loader";
@@ -166,6 +167,9 @@ const AppointmentAgent = React.lazy(() =>
 const AppointmentSuccess = React.lazy(() =>
   lazyRetry(() => import("./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess"))
 );
+// Case File UI draft: a login-free preview on sample data.
+const ArchivedRecordsSmoke = React.lazy(() => import('./pages/dev/ArchivedRecordsSmoke'));
+
 const VoiceRxConsult = React.lazy(() =>
   lazyRetry(() => import("./pages/VoiceRxConsult"))
 );
@@ -685,6 +689,10 @@ function App() {
   const appRoutes = (
     <Suspense fallback={<FullPageLoader />}>
       <SentryRoutes>
+        {/* Case File UI draft; sample data only, no clinical actions are connected. */}
+        {isArchivedRecordsEnabled() && (
+          <Route path="/dev/archived-records" element={<ArchivedRecordsSmoke />} />
+        )}
         {/* Public route */}
         <Route path="/login" element={<Onboarding />} />
         <Route path="/our-offerings" element={<OurOffering />} />

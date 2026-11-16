@@ -2845,3 +2845,8 @@
   text-transform: uppercase;
   vertical-align: middle;
 }
+
+/* Archived records panel: same gutters as Past Visits; its notice bar is flush to the top. */
+.snv-content-scroll.snv-archived-records-content {
+  padding: 0 12px 24px;
+}

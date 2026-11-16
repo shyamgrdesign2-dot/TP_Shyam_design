@@ -1,0 +1,37 @@
+// Layout only. Every colour, card, table and rail style comes from the
+// product's own stylesheets, which SampleRxPad.jsx loads beside this file.
+.srx-root {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  // The product sizes this shell to the viewport under its 62px header. The
+  // preview bar sits above the header here, so the shell takes what is left.
+  .srx-shell {
+    flex: 1 1 0;
+    height: auto;
+    max-height: none;
+  }
+
+  // The scrolling column of the pad: the same box the product sets inline.
+  .srx-pad {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    scrollbar-width: none;
+  }
+}
+
+// Rule between Additional Notes and Follow-up inside their shared card.
+.srx-card-divider {
+  margin: 14px 0;
+  border-top: 1px solid var(--tesseract-slate-100);
+}

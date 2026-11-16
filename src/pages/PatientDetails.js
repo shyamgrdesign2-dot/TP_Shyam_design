@@ -61,6 +61,7 @@ import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
 import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
 import { TreatmentPlanEmbed } from "../components/dental/plan/TreatmentPlanPage";
+import { ArchivedRecordsPage } from "../components/archived-records";
 import CopilotTopBar from "../components/dr-copilot/surfaces/CopilotTopBar";
 
 const variables = ASSETS.scss.variables;
@@ -620,6 +621,8 @@ function PatientDetails() {
                                 <div className="treatment-plan" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
                                     <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
                                 </div>
+                            ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ARCHIVED_RECORDS ? (
+                                <ArchivedRecordsPage reviewerName={profile?.um_name} />
                             ) : null}
                         </div>
                     </Content>
