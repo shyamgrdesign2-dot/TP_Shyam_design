@@ -1531,6 +1531,15 @@ p.rowSecondary {
   &:not([data-named]) strong { font-weight: var(--tesseract-weight-medium); color: var(--tesseract-fg-secondary); }
 }
 
+// The PDF of the folder this paper is in, after its title, in light text.
+.docTagFile {
+  min-width: 0;
+  flex-shrink: 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+}
 .docTagNo {
   flex-shrink: 0;
   font-size: var(--tesseract-text-micro, 10px);
@@ -2171,6 +2180,13 @@ html body .dock :is(span, small) { color: inherit; }
 
 /* ------------------------------------------------------------ documents */
 
+// What a PDF of the folder is, said once above its documents.
+.fileWhat {
+  margin: 0 0 var(--tesseract-space-2);
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.5;
+  color: var(--tesseract-fg-tertiary);
+}
 .docList {
   list-style: none;
   margin: 0;
@@ -2377,7 +2393,10 @@ html body .dock :is(span, small) { color: inherit; }
   background: transparent;
   font: inherit;
   font-variant-numeric: tabular-nums;
-  color: var(--tesseract-fg-link);
+  // Reads as a key word of the sentence, not as a link: dark ink, medium
+  // weight. It still opens its page or section; the underline shows on hover.
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-heading);
   cursor: pointer;
 
   &:hover { text-decoration: underline; text-underline-offset: 2px; }
@@ -2451,3 +2470,19 @@ html body .dock :is(span, small) { color: inherit; }
 
 // Tags line up with the rows beneath them.
 .rxBody .rowGroupTitle { margin-left: 0; }
+
+// "+2": the citations a row does not show until asked.
+.citeMore {
+  margin-left: var(--tesseract-space-0-5);
+  padding: 0 var(--tesseract-space-0-5);
+  border: 0;
+  background: transparent;
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-medium);
+  line-height: 1;
+  color: var(--tesseract-fg-tertiary);
+  cursor: pointer;
+
+  &:hover { color: var(--tesseract-fg-link); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+}

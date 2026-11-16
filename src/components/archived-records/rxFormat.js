@@ -21,7 +21,10 @@
  *     (no duration from a quantity) and nothing is guessed (no "After Food").
  *   - Frequency is converted to the Rx pad's short forms only where the
  *     conversion is exact: "1x1" is OD, "2x1" BD, "3x1" TDS, "4x1" QID,
- *     "when needed" SOS. Anything else is kept as written.
+ *     "once daily" OD, "when needed" SOS. Slots (1-0-1) and short forms
+ *     already on the page (BD, TDS, HS) are kept as written.
+ *   - "When" (After Food), duration (5 Day(s)) and unit per dose (1 Tablet)
+ *     are filled only when the page states them in a standard way.
  *   - Whatever has no field of its own goes to notes (route, quantity,
  *     "stopped before surgery"), so no detail is dropped.
  *   - A reading in doubt is not converted at all: a dose that can be read two
@@ -45,6 +48,14 @@ const FORM = { tab: "Tablet", tabs: "Tablet", tablet: "Tablet", tablets: "Tablet
 const parts = (text = "") => text.split(/\s*·\s*/).map((part) => part.trim()).filter(Boolean);
 const upperFirst = (text = "") => (text ? text[0].toUpperCase() + text.slice(1) : text);
 const lowerFirst = (text = "") => (text ? text[0].toLowerCase() + text.slice(1) : text);
+
+// Parts of a prescription line, recognised only when they are written in a
+// standard way. Anything else falls through to notes, as written.
+const SHORT_FREQUENCY = /^(od|bd|bid|tds|tid|qid|qds|hs|sos|stat|prn|q\d{1,2}h|alt(ernate)? days?|weekly|once a week)$/i;
+const WORD_FREQUENCY = { "once daily": "OD", "once a day": "OD", "twice daily": "BD", "twice a day": "BD", "thrice daily": "TDS", "three times a day": "TDS", "four times a day": "QID", "at bedtime": "HS", "at night": "HS" };
+const WHEN = /^((before|after|with) (food|meals?|breakfast|lunch|dinner)|empty stomach|bed ?time|a\/?f|b\/?f)$/i;
+const DURATION_UNIT = { day: "Day(s)", d: "Day(s)", week: "Week(s)", wk: "Week(s)", month: "Month(s)", mth: "Month(s)", year: "Year(s)" };
+const UNIT_PER_DOSE = /^(\d+(\.\d+)?|\d\/\d|half|one|two)\s*(tabs?|tablets?|caps?|capsules?|ml|units?|iu|puffs?|drops?|sachets?|tsp|spoons?|amp(oule)?s?|vials?)$/i;
 
 // A reading that is in doubt (two ways to read it, pages that differ, hard to
 // read) is never tidied into a short form: it would look settled when it is not.
@@ -71,6 +82,20 @@ function medication(finding) {
     } else if (!row.frequency && (m = part.match(/^(\d(?:-\d)?) (capsules?|tablets?) a day$/i))) {
       row.dosage = `${m[1]} ${FORM[m[2].toLowerCase()]}`;
       row.frequency = "Daily";
+    } else if (!row.frequency && /^\d(\s*-\s*\d){2,3}$/.test(part)) {
+      row.frequency = part.replace(/\s+/g, ""); // slots as written: 1-0-1
+    } else if (!row.frequency && SHORT_FREQUENCY.test(part)) {
+      // Already the Rx pad's short form (BD, STAT, Q12H). A frequency in words
+      // ("Once a week") keeps its words.
+      row.frequency = /\s/.test(part) || /^weekly$/i.test(part) ? upperFirst(part.toLowerCase()) : part.toUpperCase();
+    } else if (!row.frequency && WORD_FREQUENCY[part.toLowerCase()]) {
+      row.frequency = WORD_FREQUENCY[part.toLowerCase()];
+    } else if (!row.when && WHEN.test(part)) {
+      row.when = part.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+    } else if (!row.duration && (m = part.match(/^(?:x\s*|for\s+)?(\d+)\s*(days?|weeks?|months?|years?|d|wks?|mths?)$/i))) {
+      row.duration = `${m[1]} ${DURATION_UNIT[m[2].toLowerCase().replace(/s$/, "")] || upperFirst(m[2])}`;
+    } else if (!row.dosage && UNIT_PER_DOSE.test(part)) {
+      row.dosage = part.replace(/\b(tabs?|tablets?|caps?|capsules?)\b/i, (unit) => FORM[unit.toLowerCase()] || unit);
     } else if ((m = part.match(/^qty (\d+)$/i))) {
       notes.push(`Qty ${m[1]}`);
     } else {
@@ -302,10 +327,16 @@ export function factFromRx(finding, row) {
 
 // The short bracket after a medicine name, in Rx pad order:
 // Nexium 40 mg (1, OD, PO, Qty 7)
+// A remark about how well something was read ("frequency drawn as tally
+// marks", "could not be read") is not a clinical fact. It never shows in a
+// row: the part is simply left out, and the row keeps its doubt mark.
+const READER_REMARK = /tally|not read|unreadable|illegible|not legible|could not be read|cannot be read|can't be read|unclear|read two ways|read as |hard to read|no strength written|not written|as drawn/i;
+export const isReaderRemark = (text) => READER_REMARK.test(typeof text === "string" ? text : text?.v || "");
+
 export function rxQuals(finding) {
-  if (finding.domain !== "MED") return finding.quals;
+  if (finding.domain !== "MED") return finding.quals?.filter((item) => !isReaderRemark(item));
   const { dosage, frequency, when, duration, notes } = rxRow(finding).row;
-  return [dosage ? (/[a-z]/i.test(dosage) ? dosage : `${dosage} per dose`) : null, frequency, when, duration, notes].filter(Boolean);
+  return [dosage ? (/[a-z]/i.test(dosage) ? dosage : `${dosage} per dose`) : null, frequency, when, duration, ...notes.split(", ")].filter((item) => item && !isReaderRemark(item));
 }
 
 // The whole file as the Rx pad's `digitization` object: what "Copy to RxPad"

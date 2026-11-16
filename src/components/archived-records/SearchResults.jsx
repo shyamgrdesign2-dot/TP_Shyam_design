@@ -17,7 +17,6 @@ import styles from "./ArchivedRecords.module.scss";
  * numbers (0,5 finds 0.5). Every word typed must be present.
  */
 
-const SEARCH_HINTS = ["tumor", "albumin", "alergi", "Nexium", "cystoscopy"];
 export const MIN_QUERY = 2;
 
 const fold = (text = "") => String(text).toLowerCase().replace(/,/g, ".").replace(/\s+/g, " ").trim();
@@ -51,6 +50,29 @@ export function searchFile(bundle, index, query) {
   return { data, docs, pages, total: data.length + docs.length + pages.length };
 }
 
+// Words worth trying, taken from this file: its main diagnosis, an abnormal
+// result, a medicine the patient left with, the operation, and "allergy".
+// One plain word each, and only if searching for it finds something.
+const firstWord = (text = "") => (text.match(/[A-Za-z][A-Za-z-]{3,}/) || [""])[0];
+const longestWord = (text = "") => (text.match(/[A-Za-z][A-Za-z-]{3,}/g) || []).sort((a, b) => b.length - a.length)[0] || "";
+const lastWord = (text = "") => (text.match(/[A-Za-z][A-Za-z-]{3,}/g) || []).pop() || "";
+export function searchHints(bundle, index, review = {}) {
+  const shown = bundle.findings.filter((item) => isShownToDoctor(item, review));
+  const pick = (domain, test = () => true) => shown.find((item) => item.domain === domain && test(item));
+  const diagnosis = pick("DX", (item) => item.role === "final") || pick("DX", (item) => item.role !== "chronic") || pick("DX");
+  const result = pick("LAB", (item) => item.abnormal) || pick("LAB");
+  const medicine = pick("MED", (item) => item.role === "discharge" || item.role === "prescribed") || pick("MED");
+  const procedure = pick("PROC", (item) => item.role === "procedure") || pick("PROC");
+  const words = [lastWord(diagnosis?.title), firstWord(result?.title), firstWord(medicine?.title), longestWord(procedure?.title), pick("ALG") ? "allergy" : ""];
+  const seen = new Set();
+  return words.filter((word) => {
+    const key = word.toLowerCase();
+    if (!word || seen.has(key) || !searchFile(bundle, index, word).total) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // Marks every place any typed word appears. Longer words go first so "albumin"
 // is marked whole when "al" was typed too.
 function Marked({ text = "", query }) {
@@ -67,6 +89,7 @@ export default function SearchResults({ bundle, review = {}, query, setQuery, on
   const index = useMemo(() => buildIndex(bundle), [bundle]);
   const term = query.trim();
   const found = useMemo(() => searchFile(bundle, index, term), [bundle, index, term]);
+  const hints = useMemo(() => searchHints(bundle, index, review), [bundle, index, review]);
 
   if (fold(term).length < MIN_QUERY) {
     return (
@@ -74,9 +97,9 @@ export default function SearchResults({ bundle, review = {}, query, setQuery, on
         icon={<SearchNormal1 size={32} />}
         title="Search every page of this file"
         description={term.length ? `Type at least ${MIN_QUERY} characters. Results open on the exact line.` : "Type a medicine, a test, a diagnosis or any word, in English or as written on the page. Results open on the exact line."}
-        action={
+        action={hints.length ? (
           <div className={styles.chipRow}>
-            {SEARCH_HINTS.map((hint) => (
+            {hints.map((hint) => (
               <Chip
                 key={hint}
                 label={hint}
@@ -93,7 +116,7 @@ export default function SearchResults({ bundle, review = {}, query, setQuery, on
               />
             ))}
           </div>
-        }
+        ) : undefined}
       />
     );
   }

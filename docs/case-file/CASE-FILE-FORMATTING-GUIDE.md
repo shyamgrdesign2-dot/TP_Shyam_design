@@ -15,6 +15,8 @@ Code: `src/components/archived-records/`. Preview without login: `http://localho
 
 ---
 
+> **Sample data, 16 Nov 2026.** The built-in sample is now a de-identified copy of a real patient folder from the hospital's records department: six PDFs, 275 pages, two emergency visits and two admissions. The examples in this guide were written against an earlier sample (one admission with a pre-admission visit); the rules are the same. A folder of several files is treated as one run of pages, and each file stays visible under Documents.
+
 ## 1. The name
 
 The doctor-facing name is **Case File**. It lives in one constant (`archivedRecordsName.js`), so changing it is a one-line edit.
@@ -97,6 +99,15 @@ Rules:
 ---
 
 ## 5. Separators, dates and citations
+
+**Fewer citations, on purpose.** A row shows one citation: the page a reader would open first (the discharge summary or a typed report where one exists). Other sources sit behind a small grey `+2`. A summary pointer shows at most two. A screen full of blue numbers is a screen nobody clicks.
+
+**Short forms for spans of time.** `2 weeks` is shown as `2w`, `2 years` as `2y`, `5 days` as `5d`, `3 months` as `3mo`. Display only; the stored data keeps the words as written.
+
+**No remarks about reading problems in a row.** "Frequency drawn as tally marks" is not a clinical fact. The part that could not be read is left out, the row keeps its warning mark, and the explanation is kept for the reviewer (`readerNote`). A fact whose main value could not be read is held back.
+
+**Links inside the summary are not blue.** A visit number or a count that jumps to a section reads as a key phrase (dark ink, medium weight) and underlines on hover.
+
 
 | Symbol | Use | Example |
 |---|---|---|

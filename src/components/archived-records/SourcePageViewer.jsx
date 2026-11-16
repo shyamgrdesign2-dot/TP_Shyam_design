@@ -265,13 +265,19 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
   const tag = documentName(doc);
   const number = doc ? bundle.documents.indexOf(doc) + 1 : null;
   const span = doc ? doc.to - doc.from + 1 : 1;
+  // A folder of several PDFs: which one the page under the reader's eye is in.
+  const files = bundle.source.files || [];
+  const file = files.find((item) => dataPage >= item.from && dataPage <= item.to) || null;
+  // A page of another size than most (a landscape chart, an A3 sheet) keeps
+  // its own room in the strip before its image has loaded.
+  const sizeOf = (pageNo) => scan?.sizes?.[pageNo] || [scan?.width, scan?.height];
 
   return (
     <section className={styles.viewer} aria-label="Original pages">
       <header className={styles.viewerBar}>
         <strong>Original pages</strong>
         <span>
-          {total} pages, {bundle.documents.length} documents{scan ? " · scanned originals" : ""}
+          {total} pages, {files.length > 1 ? `${files.length} files, ` : ""}{bundle.documents.length} documents{scan ? " · scanned originals" : ""}
         </span>
       </header>
 
@@ -279,6 +285,7 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
       <div className={styles.docTag} data-named={tag.named ? "true" : undefined} aria-live="polite">
         {number ? <span className={styles.docTagNo}>[{number}]</span> : null}
         <strong>{tag.name}</strong>
+        {file ? <span className={styles.docTagFile}>{file.name}</span> : null}
         {span > 1 && !scan ? <small>{dataPage - doc.from + 1} of {span}</small> : null}
       </div>
 
@@ -295,8 +302,8 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
                   src={`${process.env.PUBLIC_URL || ""}/case-file-local/${scan.image.replace("{n}", String(pageNo).padStart(scan.pad || 3, "0"))}`}
                   alt={`Scanned page ${pageNo}`}
                   loading="lazy"
-                  width={scan.width || undefined}
-                  height={scan.height || undefined}
+                  width={sizeOf(pageNo)[0] || undefined}
+                  height={sizeOf(pageNo)[1] || undefined}
                   style={{ width: `${Math.round(ZOOMS[zoomIndex] * 100)}%` }}
                 />
               </div>

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Badge, Button, Chip, Empty, SectionCard } from "@dhspl-tatvacare/tesseract-ui";
-import { ArrowDown2, ArrowRight2, Eye } from "iconsax-reactjs";
+import { ArrowDown2, ArrowRight2, Eye, Folder2 } from "iconsax-reactjs";
 import { DOCUMENT_CATEGORIES, DOMAINS } from "./mock/archivedRecordsMock";
 import { archivedRecordsStore, isShownToDoctor, statusOf } from "./archivedRecordsStore";
 import { Carousel, FindingBody, RowMarks } from "./findingFormat";
@@ -13,6 +13,11 @@ import styles from "./ArchivedRecords.module.scss";
  * rows used everywhere else. This is the view for someone who thinks in
  * papers ("what does the discharge summary say?") instead of in problems.
  *
+ * A patient folder often arrives as several PDFs. When the bundle names them
+ * (source.files), the documents are listed under the PDF they are in: its
+ * name, its page range and what it is. Citation numbers still run across the
+ * whole folder.
+ *
  * A document with no rows is still listed: forms, consents and charts are
  * part of the file and stay one click from their pages.
  *
@@ -23,6 +28,9 @@ import styles from "./ArchivedRecords.module.scss";
 
 const SCRIPT_LABEL = { typed: "Typed", handwritten: "Handwritten", mixed: "Typed and handwritten", image: "Images" };
 const pagesLabel = (doc) => (doc.from === doc.to ? `Page ${doc.from}` : `Pages ${doc.from}-${doc.to}`);
+const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+// A document belongs to the PDF it names, or failing that the one its pages are in.
+const inFile = (doc, file) => (doc.fileId ? doc.fileId === file.id : doc.from >= file.from && doc.to <= file.to);
 const DOMAIN_LABEL = Object.fromEntries(DOMAINS.map((domain) => [domain.code, domain.label]));
 
 function DocumentCard({ doc, number, items, held, unread, encounter, review, open, onToggle, onOpenAttention }) {
@@ -96,8 +104,13 @@ export default function DocumentsTab({ bundle, review, onOpenAttention }) {
 
   const docs = bundle.documents.filter((doc) => category === "all" || doc.category === category);
   const allOpen = docs.length > 0 && docs.every((doc) => openIds.has(doc.id));
+  // Pages that could not be read, not disagreements that have no row of their own.
   const unreadIn = (doc) =>
-    bundle.exceptions.filter((item) => !item.findingId && item.cites.some((cite) => cite.page >= doc.from && cite.page <= doc.to)).length;
+    bundle.exceptions.filter((item) => !item.findingId && item.kind === "unreadable" && item.cites.some((cite) => cite.page >= doc.from && cite.page <= doc.to)).length;
+  // The folder as it was handed over: each PDF with the documents found in it.
+  const files = bundle.source.files || [];
+  const fileGroups = files.map((file) => ({ file, list: docs.filter((doc) => inFile(doc, file)), all: bundle.documents.filter((doc) => inFile(doc, file)).length })).filter((group) => group.list.length);
+  const unfiled = docs.filter((doc) => !files.some((file) => inFile(doc, file)));
   const pageCount = docs.reduce((sum, doc) => sum + (doc.to - doc.from + 1), 0);
   const toggle = (id) =>
     setOpenIds((prev) => {
@@ -106,6 +119,21 @@ export default function DocumentsTab({ bundle, review, onOpenAttention }) {
       else next.add(id);
       return next;
     });
+  const card = (doc) => (
+    <DocumentCard
+      key={doc.id}
+      doc={doc}
+      number={bundle.documents.indexOf(doc) + 1}
+      items={itemsByDoc[doc.id]}
+      held={heldByDoc[doc.id]}
+      onOpenAttention={onOpenAttention}
+      unread={unreadIn(doc)}
+      encounter={bundle.encounters.find((item) => item.id === doc.encounterId)}
+      review={review}
+      open={openIds.has(doc.id)}
+      onToggle={() => toggle(doc.id)}
+    />
+  );
 
   return (
     <div className={styles.stack}>
@@ -137,7 +165,7 @@ export default function DocumentsTab({ bundle, review, onOpenAttention }) {
         </Carousel>
         <div className={styles.dataBarEnd}>
           <span className={styles.muted}>
-            {docs.length} {docs.length === 1 ? "document" : "documents"}, {pageCount} {pageCount === 1 ? "page" : "pages"}
+            {fileGroups.length ? `${plural(fileGroups.length, "file")}, ` : ""}{plural(docs.length, "document")}, {plural(pageCount, "page")}
           </span>
           <Button
             variant="ghost"
@@ -175,23 +203,19 @@ export default function DocumentsTab({ bundle, review, onOpenAttention }) {
         />
       ) : null}
 
-      <ul className={styles.docList}>
-        {docs.map((doc) => (
-          <DocumentCard
-            key={doc.id}
-            doc={doc}
-            number={bundle.documents.indexOf(doc) + 1}
-            items={itemsByDoc[doc.id]}
-            held={heldByDoc[doc.id]}
-            onOpenAttention={onOpenAttention}
-            unread={unreadIn(doc)}
-            encounter={bundle.encounters.find((item) => item.id === doc.encounterId)}
-            review={review}
-            open={openIds.has(doc.id)}
-            onToggle={() => toggle(doc.id)}
-          />
-        ))}
-      </ul>
+      {fileGroups.map(({ file, list, all }) => (
+        <SectionCard
+          key={file.id}
+          title={file.name}
+          subtitle={`${pagesLabel(file)} · ${list.length === all ? plural(all, "document") : `${list.length} of ${plural(all, "document")}`}`}
+          icon={<Folder2 size={20} variant="Bulk" />}
+          collapsible
+        >
+          {file.what ? <p className={styles.fileWhat}>{file.what}</p> : null}
+          <ul className={styles.docList}>{list.map(card)}</ul>
+        </SectionCard>
+      ))}
+      {unfiled.length ? <ul className={styles.docList}>{unfiled.map(card)}</ul> : null}
     </div>
   );
 }

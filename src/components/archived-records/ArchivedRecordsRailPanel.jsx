@@ -161,7 +161,7 @@ export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {} }) {
         <ul>
           {story.beats.map((beat) => (
             <li key={beat.key} data-kind={beat.kind}>
-              <RichLine text={beat.text} quick /> <Cites findings={beat.cites.map((id) => byId[id])} quick />
+              <RichLine text={beat.text} quick /> <Cites max={2} more={false} findings={beat.cites.map((id) => byId[id])} quick />
             </li>
           ))}
         </ul>

@@ -76,7 +76,7 @@ export default function RecordTab({ bundle, review, onOpenDomain, onOpenAttentio
           {story.beats.map((beat) => (
             <li key={beat.key} data-kind={beat.kind}>
               <RichLine text={beat.text} />
-              <Cites findings={beat.cites.map((id) => byId[id])} />
+              <Cites max={2} more={false} findings={beat.cites.map((id) => byId[id])} />
             </li>
           ))}
         </ul>

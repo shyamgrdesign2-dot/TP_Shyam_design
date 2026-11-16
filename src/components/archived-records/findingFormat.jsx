@@ -35,7 +35,7 @@ export const FLAG_LABEL = {
   lowConfidence: "Hard to read",
   conflictingValue: "Two values in file",
   partlyRead: "Partly readable",
-  ambiguous: "Ambiguous dose",
+  ambiguous: "Reads two ways",
 };
 
 // House date style, as on the Past Visits cards: 27 Feb'26, 04 Mar'26.
@@ -75,8 +75,14 @@ export function CiteChip({ page, rid, label, quick = false }) {
 }
 
 // Every place one or more findings can be checked, one number per document.
-export function Cites({ findings, quick = false }) {
+// A row shows ONE citation: the page a reader would open first. Any others are
+// behind a small "+2", so a screen of facts is not a screen of blue numbers.
+// A summary pointer, which draws on several facts, may show two.
+// `more={false}` drops the "+N" as well: used by the summary, whose every
+// fact is listed with its own source in the details below.
+export function Cites({ findings, quick = false, max = 1, more = true }) {
   const bundle = ARCHIVED_RECORDS_MOCK;
+  const [open, setOpen] = React.useState(false);
   const seen = new Set();
   const list = [].concat(findings).filter(Boolean).flatMap((finding) => citesOf(bundle, finding)).filter((cite) => {
     const number = citeNumberForPage(bundle, cite.page);
@@ -85,12 +91,35 @@ export function Cites({ findings, quick = false }) {
     return true;
   });
   if (!list.length) return null;
+  const shown = open ? list : list.slice(0, max);
+  const rest = list.length - shown.length;
   return (
     <span className={styles.cites}>
-      {list.map((cite) => <CiteChip key={`${cite.page}-${cite.rid}`} page={cite.page} rid={cite.rid} quick={quick} />)}
+      {shown.map((cite) => <CiteChip key={`${cite.page}-${cite.rid}`} page={cite.page} rid={cite.rid} quick={quick} />)}
+      {rest > 0 && more ? (
+        <button
+          type="button"
+          className={styles.citeMore}
+          aria-label={`Show ${rest} more ${rest === 1 ? "source" : "sources"}`}
+          title={`${rest} more ${rest === 1 ? "source" : "sources"}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpen(true);
+          }}
+        >
+          +{rest}
+        </button>
+      ) : null}
     </span>
   );
 }
+
+// Spans of time in the short form used across the product: 2 weeks is 2w,
+// 2 years 2y, 5 days 5d, 3 months 3mo. Only a number followed by the unit is
+// touched ("60-year-old" and dates are left alone). The stored data keeps the
+// words as written; this is display only.
+const SPANS = [[/\b(\d+(?:\.\d+)?)\s*(?:Day\(s\)|days?)(?![\w(])/gi, "$1d"], [/\b(\d+(?:\.\d+)?)\s*(?:Week\(s\)|weeks?|wks?)(?![\w(])/gi, "$1w"], [/\b(\d+(?:\.\d+)?)\s*(?:Month\(s\)|months?)(?![\w(])/gi, "$1mo"], [/\b(\d+(?:\.\d+)?)\s*(?:Year\(s\)|years?|yrs?)(?![\w(-])/gi, "$1y"]];
+export const shortSpan = (text) => (typeof text === "string" ? SPANS.reduce((out, [from, to]) => out.replace(from, to), text) : text);
 
 // A summary line. **double stars** mark the key words; [[label|page|rid]]
 // is a reference to a page, such as an admission number, and opens that page.
@@ -105,7 +134,8 @@ function jumpToSection(event, code) {
   if (target) scrollWithin(box, target, { offset: 64, smooth: true });
 }
 
-export function RichLine({ text, quick = false }) {
+export function RichLine({ text: raw, quick = false }) {
+  const text = shortSpan(raw);
   const parts = [];
   let last = 0;
   let key = 0;
@@ -167,7 +197,7 @@ export function Quals({ quals }) {
       {quals.map((item, index) => (
         <React.Fragment key={index}>
           {index ? ", " : null}
-          <span data-tone={item.tone || undefined}>{item.v || item}</span>
+          <span data-tone={item.tone || undefined}>{shortSpan(item.v || item)}</span>
         </React.Fragment>
       ))}
       {")"}
@@ -180,9 +210,9 @@ const seriesLine = (series) => series.map((point) => `${point.v}${point.f === "H
 
 // The light bracket after a lab's latest value: when it was taken and, for a
 // test that was repeated, where it started and how many readings there are.
-//   (03 Nov'26)                          one reading
-//   (03 Nov'26, from 12.8, 3 readings)   repeated, and it moved
-//   (03 Nov'26, from 447 ↑, 3 readings)  back in range now; it started high
+//   (12 Mar'26)                          one reading
+//   (12 Mar'26, from 12.1, 3 readings)   repeated, and it moved
+//   (12 Mar'26, from 460 ↑, 3 readings)  back in range now; it started high
 function LabBracket({ finding }) {
   const series = finding.series || [];
   const first = series[0];
@@ -326,10 +356,15 @@ export function FindingBody({ finding, marks = null, dated = true, compact = fal
 // Reports and notes read in this order: what to keep in mind, then results,
 // then the operation, then the stay.
 export const REPORT_GROUPS = ["Keep in mind", "Investigations", "Surgery", "Course"];
-const REPORT_ORDER = ["rpt9", "rpt8", "rpt6", "rpt7", "rpt10", "rpt13", "rpt14", "rpt1", "rpt11", "rpt5", "rpt2", "rpt3", "rpt12", "rpt4"];
+// Inside a group a note is placed by the part it plays (its role), so the
+// order holds for any file: what to watch, results, the operation, then the
+// stay from complaint to follow-up. Notes with the same role keep the order
+// the file gave them. A group or role this list does not know goes last.
+const REPORT_ROLES = ["alert", "investigation", "anaesthesia", "complaint", "course", "hospitalMeds", "dischargeDate", "conditionAtDischarge", "detail", "followUp"];
+const placeIn = (list, value) => (list.indexOf(value) < 0 ? list.length : list.indexOf(value));
 export const inReadingOrder = (items) =>
   items[0]?.domain === "RPT"
-    ? [...items].sort((a, b) => REPORT_GROUPS.indexOf(a.group) - REPORT_GROUPS.indexOf(b.group) || REPORT_ORDER.indexOf(a.id) - REPORT_ORDER.indexOf(b.id))
+    ? [...items].sort((a, b) => placeIn(REPORT_GROUPS, a.group) - placeIn(REPORT_GROUPS, b.group) || placeIn(REPORT_ROLES, a.role) - placeIn(REPORT_ROLES, b.role))
     : items;
 
 // Labs are grouped so a date is written once per group, not on every row:
@@ -345,7 +380,7 @@ export const labGroup = (finding) => (finding.abnormal ? LAB_GROUPS[0] : finding
 export function groupFindings(items) {
   const groups = new Map();
   inReadingOrder(items).forEach((item) => {
-    // A vitals set is named by its tag: "At discharge (04 Nov'26)".
+    // A vitals set is named by its tag: "At discharge (12 Mar'26)".
     const key =
       item.domain === "LAB" ? labGroup(item)
       : item.domain === "VIT" ? `${item.title}${item.dateLabel ? ` (${houseDate(item.dateLabel)})` : ""}`

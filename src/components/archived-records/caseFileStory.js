@@ -10,6 +10,11 @@ import { encounterMix, encounterType } from "./encounterTypes";
  * home on, what was due next, then the background to keep in mind and what
  * the file does not contain.
  *
+ * An emergency visit that ended in admission is not a visit of its own in
+ * the story: it is how that admission began ("Came to the emergency on ...
+ * and was admitted"). Its facts speak only where the admission's own pages
+ * are silent, so the same complaint or diagnosis is never told twice.
+ *
  * Every sentence is assembled here from facts read off the pages. No model
  * writes it, so it cannot say more than the file does. A beat with no facts
  * is left out; a fact that is held back or removed adds no words and no
@@ -42,7 +47,8 @@ export const STORY_LIMITS = {
 /* ------------------------------------------------------------- wording */
 
 const bold = (text) => `**${text}**`; // marks key words; rendered as darker ink, not weight
-const lowerFirst = (text = "") => (/^[A-Z][a-z]/.test(text) ? text[0].toLowerCase() + text.slice(1) : text);
+// Leaves acronyms (SCC, T2DM) alone, and looks past the stars that mark key words.
+const lowerFirst = (text = "") => text.replace(/^(\**)([A-Z])(?=[a-z])/, (match, stars, letter) => stars + letter.toLowerCase());
 const stripDot = (text = "") => text.trim().replace(/\.$/, "");
 const sentence = (text = "") => (text ? `${stripDot(text)}.` : "");
 // House date: 04 Mar'26. Leaves anything that is not a full date alone.
@@ -87,8 +93,11 @@ function plain(item, review = {}) {
 
 /* ---------------------------------------------------- how they came in */
 
+// The words "the emergency" open the emergency record the admission came in
+// through, when the file has it (entryCite).
+const pageLink = (label, cite) => (cite?.page ? `[[${label}|${cite.page}|${cite.rid ?? ""}]]` : label);
 const ADMIT_OPENING = {
-  emergency: (date) => `Came to the emergency${date} and was admitted`,
+  emergency: (date, encounter) => `Came to ${pageLink("the emergency", encounter.entryCite)}${date} and was admitted`,
   referral: (date) => `Referred in and admitted${date}`,
   fromOpd: (date) => `Admitted from OPD${date}`,
   transfer: (date) => `Transferred in from another hospital${date}`,
@@ -119,9 +128,10 @@ const refOf = (encounter) =>
 
 function opening(encounter) {
   const date = `${on(startOf(encounter))}${refOf(encounter)}`;
-  if (encounter.type === "IPD") return (ADMIT_OPENING[encounter.entry] || ((value) => `Admitted${value}`))(date);
+  if (encounter.type === "IPD") return (ADMIT_OPENING[encounter.entry] || ((value) => `Admitted${value}`))(date, encounter);
   if (encounter.type === "OPD") return (VISIT_OPENING[encounter.visitKind] || ((value) => `Seen in OPD${value}`))(date);
-  if (encounter.type === "ER") return `Seen in the emergency${date}`;
+  // Admitted from the emergency, but the admission itself is not in this file.
+  if (encounter.type === "ER") return `Seen in the emergency${date}${encounter.outcome === "admitted" ? " and admitted" : ""}`;
   if (encounter.type === "DAYCARE") return `Day care admission${date}`;
   if (encounter.type === "TELE") return `Teleconsultation${date}`;
   return `Record dated${date ? date.replace(" on ", " ") : " (undated)"}`; // unknown kind: say only what is known
@@ -129,10 +139,18 @@ function opening(encounter) {
 
 /* ------------------------------------------------------- one encounter */
 
-function tell(encounter, mine, review, brief = false) {
+// `wayIn` holds the facts of the emergency visit an admission came in
+// through. The admission speaks for itself first: what the emergency record
+// says is used only where the admission's own pages say nothing of that kind
+// (the complaint, a working diagnosis), so nothing is told twice.
+function tell(encounter, mine, review, brief = false, wayIn = []) {
   const ipd = Boolean(encounterType(encounter.type).stay); // a stay: IPD or day care
-  const role = (domain, name) => mine.filter((item) => item.domain === domain && item.role === name);
-  const of = (domain) => mine.filter((item) => item.domain === domain);
+  const own = (list, test) => list.filter(test);
+  const either = (test) => (own(mine, test).length ? own(mine, test) : own(wayIn, test));
+  const role = (domain, name) => either((item) => item.domain === domain && item.role === name);
+  const of = (domain) => either((item) => item.domain === domain);
+  // How the stay ended is only ever read from the stay's own pages.
+  const ownRole = (domain, name) => own(mine, (item) => item.domain === domain && item.role === name);
   const beats = [];
   const add = (key, text, cites) => {
     if (text) beats.push({ key: `${encounter.id}-${key}`, kind: key, text, cites: cites.filter(Boolean).map((item) => item.id) });
@@ -143,19 +161,20 @@ function tell(encounter, mine, review, brief = false) {
   const where = encounter.department && encounter.department !== "Outpatient" ? ` under ${encounter.department}` : "";
   add(
     "arrival",
-    `${opening(encounter)}${where}${complaint ? ` with ${lowerFirst(stripDot(complaint.detail))}` : ""}.${complaint ? "" : ipd ? " The reason for admission is not recorded." : ""}`,
+    `${opening(encounter)}${where}${complaint ? ` with ${lowerFirst(stripDot(brief ? firstSentence(complaint.detail) : complaint.detail))}` : ""}.${complaint ? "" : ipd ? " The reason for admission is not recorded." : ""}`,
     [complaint],
   );
 
   // What was found.
-  const dx = of("DX").filter((item) => item.role !== "chronic");
+  const dx = either((item) => item.domain === "DX" && item.role !== "chronic");
   const final = dx.filter((item) => item.role === "final");
   const working = dx.filter((item) => item.role === "working");
   const other = dx.filter((item) => item.role !== "final" && item.role !== "working");
   const dxParts = [
     final.length ? `${ipd ? "Final diagnosis" : "Diagnosis"}: ${listOf(final.map((item) => named(item, review)), 3)}` : null,
     working.length ? `Working diagnosis: ${listOf(working.map((item) => named(item, review)), 3)}` : null,
-    other.length ? `Also ${listOf(other.map((item) => named(item, review)), 3)}` : null,
+    // The short story counts the secondary diagnoses and points at them.
+    other.length ? (brief && other.length > 1 ? `Also ${link(plural(other.length, "secondary diagnosis", "secondary diagnoses"), "DX")}` : `Also ${listOf(other.map((item) => named(item, review)), 3)}`) : null,
   ].filter(Boolean);
   add("diagnosis", dxParts.map(sentence).join(" "), dx);
 
@@ -193,8 +212,8 @@ function tell(encounter, mine, review, brief = false) {
   add("reports", reports.length && !brief ? `Reports: ${reports.map((item) => `${bold(item.title)}: ${lowerFirst(stripDot(item.short || firstSentence(item.detail)))}`).join("; ")}.` : "", reports);
 
   // How they left (admissions only).
-  const condition = role("RPT", "conditionAtDischarge")[0];
-  const vitals = role("VIT", "last")[0] || (ipd ? null : of("VIT")[0]);
+  const condition = ownRole("RPT", "conditionAtDischarge")[0];
+  const vitals = ownRole("VIT", "last")[0] || (ipd ? null : of("VIT")[0]);
   const vitalsText = vitals?.facts?.length && !brief
     ? `Last vitals: ${vitals.facts.slice(0, STORY_LIMITS.vitals).map((fact) => `${fact.k} ${fact.v}`).join(", ")}`
     : null;
@@ -203,9 +222,9 @@ function tell(encounter, mine, review, brief = false) {
     // condition-at-discharge note). An end date alone is not an outcome.
     const out = OUTCOME[encounter.outcome] || (condition ? "Discharged" : endOf(encounter) ? "Stay ended" : null);
     // If the file gives two dates for leaving, say so; do not pick quietly.
-    const dated = role("RPT", "dischargeDate")[0];
+    const dated = ownRole("RPT", "dischargeDate")[0];
     const disputed = dated && dated.flags?.some((flag) => READING_DOUBT[flag]) && statusOf(review, dated.id) !== "verified";
-    const leaving = out ? `${out}${on(endOf(encounter))}${disputed ? " (pages differ)" : ""}${condition ? `: ${lowerFirst(stripDot(condition.detail))}` : ""}` : null;
+    const leaving = out ? `${out}${on(endOf(encounter))}${disputed ? " (pages differ)" : ""}${condition ? `: ${lowerFirst(stripDot(brief ? firstSentence(condition.detail) : condition.detail))}` : ""}` : null;
     add("leaving", [leaving, vitalsText].filter(Boolean).map(sentence).join(" ") || "How this admission ended is not in this file.", [condition, disputed ? dated : null, vitals]);
   } else if (vitalsText) {
     add("leaving", sentence(vitalsText), [vitals]);
@@ -215,7 +234,7 @@ function tell(encounter, mine, review, brief = false) {
 
   // What they went home on. Not said after a death in hospital.
   const died = encounter.outcome === "died";
-  const current = ipd ? role("MED", "discharge") : role("MED", "prescribed");
+  const current = ipd ? ownRole("MED", "discharge") : ownRole("MED", "prescribed");
   if (current.length && !died) {
     add(
       "medicines",
@@ -229,14 +248,22 @@ function tell(encounter, mine, review, brief = false) {
   }
 
   // What was due next.
-  const followUp = role("RPT", "followUp")[0];
+  const followUp = ownRole("RPT", "followUp")[0];
   add("followUp", followUp && !died && encounter.outcome !== "transferred" ? `Follow-up planned: ${sentence(followUp.detail)}` : "", [followUp]);
 
   return beats;
 }
 
 // An earlier encounter, in one line: when, what kind, the headline.
-function oneLine(encounter, mine, review, brief = false) {
+// An admission that began in the emergency is one line with that visit: the
+// admission's own facts first, then the emergency record's (`wayIn`).
+function oneLine(encounter, own, review, brief = false, wayIn = []) {
+  const mine = [...own, ...wayIn];
+  const stay = Boolean(encounterType(encounter.type).stay);
+  const where = stay && encounter.department ? ` under ${encounter.department}` : "";
+  // How a stay ended, when the file says: "discharged 12 Mar'26".
+  const ended = stay && OUTCOME[encounter.outcome] ? `, ${lowerFirst(OUTCOME[encounter.outcome])}${on(endOf(encounter)).replace(" on ", " ")}` : "";
+  const head = `${opening(encounter)}${where}${ended}`;
   const dx = mine.find((item) => item.domain === "DX" && item.role !== "chronic");
   const procedure = mine.find((item) => item.domain === "PROC" && item.role === "procedure");
   const complaint = mine.find((item) => item.role === "complaint");
@@ -256,7 +283,7 @@ function oneLine(encounter, mine, review, brief = false) {
     key: `${encounter.id}-line`,
     kind: "earlier",
     // In the short story an earlier visit is one clause; its results are in the details.
-    text: brief ? `${opening(encounter)}.` : `${opening(encounter)}${tail.length ? `: ${tail.join("; ")}` : ""}.`,
+    text: brief ? `${head}.` : `${head}${tail.length ? `: ${tail.join("; ")}` : ""}.`,
     cites: [dx, procedure, complaint, ...reports.slice(0, 3), ...labs].filter(Boolean).map((item) => item.id),
   };
 }
@@ -271,8 +298,8 @@ const link = (label, section) => `[[${label}|@${section}|]]`;
 function whoOf(patient) {
   if (!patient) return "";
   const sex = { F: "woman", Female: "woman", M: "man", Male: "man" }[patient.sex];
-  if (patient.age && sex) return `${patient.age}-year-old ${sex}.`;
-  if (patient.age) return `${patient.age}-year-old patient.`;
+  if (patient.age && sex) return `${bold(`${patient.age}-year-old ${sex}`)}.`;
+  if (patient.age) return `${bold(`${patient.age}-year-old patient`)}.`;
   if (sex) return `${sex === "woman" ? "Female" : "Male"} patient.`;
   return "";
 }
@@ -339,11 +366,29 @@ export function buildStory(bundle, review, { brief = false } = {}) {
     return { level: none ? "none" : "withheld", beats: [{ key: "none", kind: "none", text, cites: [] }] };
   }
 
+  // An emergency visit that ended in admission is the way into that
+  // admission. It is told in the admission's opening ("Came to the emergency
+  // ... and was admitted"), never as a visit of its own before it.
+  const stays = bundle.encounters.filter((item) => encounterType(item.type).stay);
+  const admissionOf = (visit) =>
+    visit.type === "ER" && visit.outcome === "admitted"
+      ? stays.find((stay) => stay.id === visit.admissionId || stay.entryEncounterId === visit.id)
+        || stays.find((stay) => stay.entry === "emergency" && !stay.entryEncounterId && stay.sortKey && stay.sortKey === visit.sortKey)
+        || null
+      : null;
+  const wayInOf = new Map(); // admission id -> the emergency visit it came in through
+  bundle.encounters.forEach((visit) => {
+    const stay = admissionOf(visit);
+    if (stay && !wayInOf.has(stay.id)) wayInOf.set(stay.id, visit.id);
+  });
+  const folded = new Set(wayInOf.values());
+
   // Oldest first: a story is told in the order it happened.
   // An encounter with no date sorts first, so it is never told as the latest.
-  const encounters = [...bundle.encounters].sort((a, b) => (a.sortKey || "").localeCompare(b.sortKey || ""));
+  const encounters = bundle.encounters.filter((item) => !folded.has(item.id)).sort((a, b) => (a.sortKey || "").localeCompare(b.sortKey || ""));
   const mineOf = (encounter) => facts.filter((item) => item.encounterId === encounter.id);
-  const withFacts = encounters.filter((encounter) => mineOf(encounter).length);
+  const wayIn = (encounter) => (wayInOf.has(encounter.id) ? facts.filter((item) => item.encounterId === wayInOf.get(encounter.id)) : []);
+  const withFacts = encounters.filter((encounter) => mineOf(encounter).length || wayIn(encounter).length);
   const full = withFacts.slice(-STORY_LIMITS.fullEncounters);
   const before = withFacts.slice(0, -STORY_LIMITS.fullEncounters);
   const lines = before.slice(-STORY_LIMITS.lineEncounters);
@@ -360,8 +405,8 @@ export function buildStory(bundle, review, { brief = false } = {}) {
       cites: [],
     });
   }
-  lines.forEach((encounter) => beats.push(oneLine(encounter, mineOf(encounter), review, brief)));
-  full.forEach((encounter) => beats.push(...tell(encounter, mineOf(encounter), review, brief)));
+  lines.forEach((encounter) => beats.push(oneLine(encounter, mineOf(encounter), review, brief, wayIn(encounter))));
+  full.forEach((encounter) => beats.push(...tell(encounter, mineOf(encounter), review, brief, wayIn(encounter))));
 
   // Background that holds across visits. An allergy is only ever quoted.
   const chronic = facts.filter((item) => item.domain === "DX" && item.role === "chronic");
