@@ -1492,15 +1492,21 @@ p.rowSecondary {
 /* ------------------------------------------------- source document tag */
 
 // Floats at the top left of the pages and names the paper in view.
-.docTag {
+// The tag and the catalogue it opens float together at the top left of the pages.
+.catalog {
   position: absolute;
   top: 48px;
   left: var(--tesseract-space-4);
-  z-index: 2;
+  z-index: 4;
+  max-width: calc(100% - var(--tesseract-space-8));
+}
+
+.docTag {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
   gap: var(--tesseract-space-1-5);
-  max-width: calc(100% - var(--tesseract-space-8));
+  max-width: 100%;
   height: 28px;
   padding: 0 var(--tesseract-space-3);
   border: 1px solid var(--tesseract-border-neutral);
@@ -1509,7 +1515,12 @@ p.rowSecondary {
   box-shadow: var(--tesseract-shadow-sm);
   line-height: 26px;
   white-space: nowrap;
-  pointer-events: none;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+
+  &:hover, &[aria-expanded="true"] { border-color: var(--tesseract-border-focus); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
 
   strong {
     min-width: 0;
@@ -2485,4 +2496,96 @@ html body .dock :is(span, small) { color: inherit; }
 
   &:hover { color: var(--tesseract-fg-link); }
   &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+}
+
+/* --------------------------------------------- catalogue of documents */
+
+.docTagArrow {
+  align-self: center;
+  flex-shrink: 0;
+  color: var(--tesseract-fg-tertiary);
+  transition: transform 140ms ease;
+}
+
+.docTag[aria-expanded="true"] .docTagArrow { transform: rotate(180deg); }
+
+.catalogPanel {
+  position: absolute;
+  top: calc(100% + var(--tesseract-space-1-5));
+  left: 0;
+  width: min(420px, calc(100vw - var(--tesseract-space-8)));
+  max-width: 100%;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 520px);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-surface);
+  box-shadow: var(--tesseract-shadow-lg);
+  overflow: hidden;
+}
+
+.catalogSearch {
+  padding: var(--tesseract-space-2);
+  border-bottom: 1px solid var(--tesseract-slate-100);
+}
+
+.catalogList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--tesseract-space-1) 0 var(--tesseract-space-2);
+}
+
+// A file in the folder: a quiet heading above its documents.
+.catalogFile {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--tesseract-space-2);
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-3);
+  background: var(--tesseract-slate-50);
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-secondary);
+
+  span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { flex-shrink: 0; font-size: inherit; font-weight: var(--tesseract-weight-regular); color: var(--tesseract-fg-tertiary); }
+}
+
+.catalogItem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+  min-height: 28px;
+  padding: var(--tesseract-space-1) var(--tesseract-space-3);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-fg-primary);
+  text-align: left;
+  cursor: pointer;
+
+  small { margin-left: auto; flex-shrink: 0; font-size: var(--tesseract-text-caption-sm); font-variant-numeric: tabular-nums; color: var(--tesseract-fg-tertiary); }
+  &:hover { background: var(--tesseract-bg-surface-hover); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+  &[data-current="true"] { background: var(--tesseract-bg-selected); color: var(--tesseract-fg-heading); }
+}
+
+.catalogTitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.catalogEmpty {
+  margin: 0;
+  padding: var(--tesseract-space-3);
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-fg-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docTagArrow { transition: none; }
 }

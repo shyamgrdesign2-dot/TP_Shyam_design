@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Tooltip } from "@dhspl-tatvacare/tesseract-ui";
-import { Add, ArrowLeft2, ArrowRight2, Minus, SidebarRight } from "iconsax-reactjs";
+import { InputBox, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Add, ArrowDown2, ArrowLeft2, ArrowRight2, Minus, SearchNormal1 } from "iconsax-reactjs";
 import { documentForPage } from "./archivedRecordsStore";
 import { isArchivedRecordsEnabled } from "./archivedRecordsFlag";
 import { scrollWithin } from "./scrollWithin";
@@ -260,6 +260,37 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
     return scrollWithin(scrollRef.current, scrollRef.current?.querySelector(`[data-page="${target}"]`), { offset: 44 });
   };
 
+  // The catalogue: every document, under its file, filtered as you type.
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const catalogRef = useRef(null);
+  useEffect(() => {
+    if (!catalogOpen) return undefined;
+    const close = (event) => {
+      if (catalogRef.current && !catalogRef.current.contains(event.target)) setCatalogOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [catalogOpen]);
+  const catalogGroups = useMemo(() => {
+    const words = catalogQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    const files = bundle.source.files?.length ? bundle.source.files : [{ id: "all", name: "" }];
+    return files
+      .map((group) => ({
+        id: group.id,
+        name: group.name,
+        docs: bundle.documents
+          .map((item, index) => ({ doc: item, number: index + 1 }))
+          .filter((item) => (group.id === "all" || item.doc.fileId === group.id) && words.every((word) => `${documentName(item.doc).name} ${group.name}`.toLowerCase().includes(word))),
+      }))
+      .filter((group) => group.docs.length);
+  }, [bundle, catalogQuery]);
+  const openDocument = (target) => {
+    setCatalogOpen(false);
+    setCatalogQuery("");
+    onPageChange(target.from, null);
+  };
+
   const dataPage = fromStrip(visiblePage);
   const doc = documentForPage(bundle, dataPage);
   const tag = documentName(doc);
@@ -273,20 +304,82 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
   const sizeOf = (pageNo) => scan?.sizes?.[pageNo] || [scan?.width, scan?.height];
 
   return (
-    <section className={styles.viewer} aria-label="Original pages">
+    <section className={styles.viewer} aria-label="Original case file">
       <header className={styles.viewerBar}>
-        <strong>Original pages</strong>
+        <strong>Original case file</strong>
         <span>
           {total} pages, {files.length > 1 ? `${files.length} files, ` : ""}{bundle.documents.length} documents{scan ? " · scanned originals" : ""}
         </span>
       </header>
 
-      {/* Names the paper under the reader's eye; changes as the next one scrolls in. */}
-      <div className={styles.docTag} data-named={tag.named ? "true" : undefined} aria-live="polite">
-        {number ? <span className={styles.docTagNo}>[{number}]</span> : null}
-        <strong>{tag.name}</strong>
-        {file ? <span className={styles.docTagFile}>{file.name}</span> : null}
-        {span > 1 && !scan ? <small>{dataPage - doc.from + 1} of {span}</small> : null}
+      {/* Names the paper under the reader's eye, and opens the catalogue of
+          every document in the file to jump straight to one. */}
+      <div className={styles.catalog} ref={catalogRef}>
+        <button
+          type="button"
+          className={styles.docTag}
+          data-named={tag.named ? "true" : undefined}
+          aria-haspopup="listbox"
+          aria-expanded={catalogOpen}
+          aria-label={`${tag.name}. Open the list of documents`}
+          onClick={() => setCatalogOpen((value) => !value)}
+        >
+          {number ? <span className={styles.docTagNo}>[{number}]</span> : null}
+          <strong aria-live="polite">{tag.name}</strong>
+          {file ? <span className={styles.docTagFile}>{file.name}</span> : null}
+          {span > 1 && !scan ? <small>{dataPage - doc.from + 1} of {span}</small> : null}
+          <ArrowDown2 size={12} className={styles.docTagArrow} aria-hidden="true" />
+        </button>
+        {catalogOpen ? (
+          <div className={styles.catalogPanel} role="dialog" aria-label="Documents in this file">
+            <div className={styles.catalogSearch}>
+              <InputBox
+                fullWidth
+                size="sm"
+                autoFocus
+                placeholder="Find a document"
+                aria-label="Find a document"
+                leftIcon={<SearchNormal1 size={14} />}
+                value={catalogQuery}
+                onChange={(event) => setCatalogQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.stopPropagation();
+                    setCatalogOpen(false);
+                  }
+                }}
+              />
+            </div>
+            <div className={styles.catalogList} role="listbox" aria-label="Documents">
+              {catalogGroups.length === 0 ? <p className={styles.catalogEmpty}>No document matches.</p> : null}
+              {catalogGroups.map((group) => (
+                <div key={group.id} role="group" aria-label={group.name}>
+                  {group.name ? (
+                    <div className={styles.catalogFile}>
+                      <span>{group.name}</span>
+                      <small>{group.docs.length} {group.docs.length === 1 ? "document" : "documents"}</small>
+                    </div>
+                  ) : null}
+                  {group.docs.map((item) => (
+                    <button
+                      key={item.doc.id}
+                      type="button"
+                      role="option"
+                      aria-selected={item.doc === doc}
+                      className={styles.catalogItem}
+                      data-current={item.doc === doc ? "true" : undefined}
+                      onClick={() => openDocument(item.doc)}
+                    >
+                      <span className={styles.docTagNo}>[{item.number}]</span>
+                      <span className={styles.catalogTitle}>{documentName(item.doc).name}</span>
+                      <small>{item.doc.from === item.doc.to ? `p. ${item.doc.from}` : `p. ${item.doc.from}-${item.doc.to}`}</small>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.viewerScroll} ref={scrollRef} onScroll={onScroll}>
@@ -351,14 +444,6 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
         <Tooltip content="Zoom in">
           <button type="button" aria-label="Zoom in" disabled={zoomIndex === ZOOMS.length - 1} onClick={() => setZoomIndex((value) => value + 1)}><Add size={16} /></button>
         </Tooltip>
-        {onHide ? (
-          <>
-            <span className={styles.dockDivider} aria-hidden="true" />
-            <Tooltip content="Hide source page">
-              <button type="button" aria-label="Hide source page" onClick={onHide}><SidebarRight size={16} /></button>
-            </Tooltip>
-          </>
-        ) : null}
       </div>
     </section>
   );
