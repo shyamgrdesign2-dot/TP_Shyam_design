@@ -203,7 +203,12 @@ export function Quals({ quals }) {
       {quals.map((item, index) => (
         <React.Fragment key={index}>
           {index ? ", " : null}
-          {item.tone === "warning" ? (
+          {item.tip ? (
+            // A longer note kept off the line: the word opens it.
+            <Tooltip content={item.tip}>
+              <span data-more="true" tabIndex={0} aria-label={`Note: ${item.tip}`}>{item.v}</span>
+            </Tooltip>
+          ) : item.tone === "warning" ? (
             <Tooltip content={FLAG_NOTE.suspected}>
               <span data-tone="warning" tabIndex={0}>{shortSpan(item.v || item)}</span>
             </Tooltip>

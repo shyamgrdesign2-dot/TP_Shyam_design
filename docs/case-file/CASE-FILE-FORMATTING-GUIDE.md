@@ -78,6 +78,32 @@ Fixed order, every patient: **Notice → Summary → Lens switch → the chosen 
 
 ---
 
+## 3a. Rx pad panel as of 16 Nov 2026: search first, no summary
+
+This replaces the order drawn in section 3 for the panel beside the Rx pad. The review workspace is unchanged.
+
+| Order | Part | Rule |
+|---|---|---|
+| Header | `Case File` + `AI draft` tag | The tag sits beside the title in the blue header. Hover or focus says what a draft is. |
+| 1 | Search | `Search this case file`. Stays under the header while the panel scrolls. |
+| 2 | Notice | `Not verified yet`, as before. Scrolled away, it becomes a one-line strip under the search. |
+| 3 | Details | Medical History, Diagnosis, Procedures, Med (Rx), Lab Results, Vitals, Reports and Notes. |
+
+- **No summary in the panel.** In a consultation there is no time to read one, so the details start straight away. The six-pointer summary stays on the Structured record tab of the review. (`summary` on `ArchivedRecordsRailPanel` brings it back.)
+- **Search looks at the data, not the pages.** Two characters or more. Every word typed must be in the row as shown. Results are the same sections with only the matching rows, all of them: normal lab results are found too, and "+N more" does not apply. No match offers the review, which also searches the pages. Escape clears.
+- **A row's bracket carries only what a reading doctor needs.** Left out, and still in Clinical data and on the page:
+
+| Left out | Example | Why |
+|---|---|---|
+| Form and oral route | `Tablet`, `Capsule`, `PO` | The medicine's name says it |
+| A count of one | `1 Tablet` beside `1-0-1` | Says nothing new. `2 Tablets` stays as `2 per dose` |
+| A long medicine note | `(1-0-1, note)` | Notes over 40 characters wait behind the word `note`; hover or focus shows them whole. A short one (`Last dose this morning`) stays. Routes other than oral (`IV`, `SC`, `Both eyes`) always stay |
+| Proof of a statement | `Stated on 8 pages` | The citations beside the row say where |
+| Routine wording | `under aseptic technique` | Not a finding |
+| An echo of the name | `(s/p WLE (2016))` after `… after wide local excision (2016)` | The bracket only repeats the name |
+
+- **Vitals:** the earlier sets are one link, `+N earlier sets (in the review)`, in place of a sentence.
+
 ## 4. Reading hierarchy
 
 Readability matters more than completeness of display. Every row uses the same four levels, darkest to lightest. Nothing else is allowed to compete.
@@ -220,7 +246,7 @@ Section title bars and icons are the sidebar's own (`RxSection`), the same as Pa
 | | |
 |---|---|
 | Format | `Allergen (reaction)` |
-| Negative | `No known drug allergy (Stated on 3 pages)` |
+| Negative | `No known drug allergy` |
 
 - A negative is shown **only when the file says so**. It is never inferred from an empty field.
 - When pages disagree (one says an allergy, another says none), the allergy is shown with a conflict mark and nothing is added to the allergy list until someone decides.

@@ -7,7 +7,7 @@ import { HeaderPatient } from '../../common/prescription-header/HeaderPatient';
 import { prescriptionHeaderActions, headerIcon } from '../../common/prescription-header/prescriptionHeaderActions';
 import RxActionTooltip from '../../common/prescription-header/RxActionTooltip';
 import { NAV_ITEMS, NavPanel, RxSection, SECTION_TITLES } from '../../components/sideNavbar/SideNavbar';
-import { ArchivedRecordsRailPanel } from '../../components/archived-records';
+import { AiDraftHeaderTag, ArchivedRecordsRailPanel } from '../../components/archived-records';
 import { PrescriptionEmptyLineDraftSearch, PrescriptionEmptyLineRow } from '../../components/PrescriptionEmptyLineUi';
 import PrescriptionNoteInput from '../../components/PrescriptionNoteInput';
 import { attachTesseractCtBehind } from '../../components/tesseractCt';
@@ -241,7 +241,10 @@ function SectionPanel({ activeId, onClose, onOpenReview }) {
   return (
     <section className="snv-content-panel">
       <div className="snv-section-header">
-        <span className="snv-section-title">{title}</span>
+        <span className="snv-section-title">
+          {title}
+          {activeId === 'archivedRecords' ? <AiDraftHeaderTag /> : null}
+        </span>
         <span className="snv-section-actions">
           <button type="button" className="snv-collapse-btn" onClick={onClose} aria-label="Collapse section panel">
             <SidebarLeft size={16} variant="Linear" />

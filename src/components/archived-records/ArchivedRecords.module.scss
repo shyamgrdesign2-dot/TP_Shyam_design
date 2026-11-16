@@ -3064,3 +3064,76 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   .toolbarEnd { order: 1; flex: 1 1 100%; }
   .toolbarSearch { flex: 1 1 auto; }
 }
+
+/* --------------------------------- Rx pad panel: search first, then data */
+
+// The search sits flush under the blue header and stays there while the panel
+// scrolls, so any fact is one word away wherever the doctor is.
+.rail { padding-top: 0; --rail-search-h: 53px; }
+
+.railSearch {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 calc(var(--tesseract-space-3) * -1) var(--tesseract-space-3);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+}
+
+// The "Not verified" strip now tucks under the search, not under the header.
+.railStrip { top: var(--rail-search-h); }
+
+// The lens switch scrolls with the content: two fixed bars are enough.
+.railLens {
+  position: static;
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  border-bottom: 0;
+}
+
+// While searching, results come straight under the box. The full notice makes
+// way for its one-line strip, which keeps saying the data is not verified.
+.rail[data-searching="true"] {
+  .railNotice { display: none; }
+  .railStrip { height: 32px; margin-bottom: var(--tesseract-space-3); margin-top: calc(var(--tesseract-space-3) * -1); }
+}
+
+.railMatches {
+  margin: 0 var(--tesseract-space-2) var(--tesseract-space-2);
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// A longer note kept off the line: the word "note" opens it on hover or focus.
+.quals [data-more="true"] {
+  cursor: help;
+  color: var(--tesseract-fg-secondary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  border-radius: var(--tesseract-radius-4);
+
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+// "AI draft" beside the section title in the Rx pad's blue header.
+.headerTag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  margin-left: var(--tesseract-space-2);
+  padding: 0 var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-full);
+  background: color-mix(in srgb, var(--tesseract-slate-0) 18%, transparent);
+  font-size: var(--tesseract-text-micro);
+  line-height: 1;
+  font-weight: var(--tesseract-weight-medium);
+  letter-spacing: 0.02em;
+  color: var(--tesseract-slate-0) !important;
+  vertical-align: middle;
+  cursor: help;
+
+  &:focus-visible { outline: 2px solid var(--tesseract-slate-0); outline-offset: 2px; }
+}

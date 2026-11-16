@@ -59,7 +59,7 @@ import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-ag
 import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
-import { ArchivedRecordsRailPanel, isArchivedRecordsEnabled } from "../archived-records";
+import { AiDraftHeaderTag, ArchivedRecordsRailPanel, isArchivedRecordsEnabled } from "../archived-records";
 import { toast } from "../dr-agent/voicerx/toast";
 import { useEdgeSwipeNavigation } from "./useEdgeSwipeNavigation";
 import {
@@ -5810,7 +5810,10 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
   return (
     <section ref={containerRef} className={`snv-content-panel ${overlayActive ? "snv-content-panel-overlay-active" : ""}`}>
       <div className="snv-section-header">
-        <span className="snv-section-title">{title}</span>
+        <span className="snv-section-title">
+          {title}
+          {activeId === "archivedRecords" ? <AiDraftHeaderTag /> : null}
+        </span>
         <span className="snv-section-actions">
           <button
             type="button"

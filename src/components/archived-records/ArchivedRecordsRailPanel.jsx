@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
-import { ArrowRight2, InfoCircle, ShieldTick, Warning2 } from "iconsax-reactjs";
+import { Badge, Button, InputBox, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { ArrowRight2, InfoCircle, SearchNormal1, ShieldTick, Warning2 } from "iconsax-reactjs";
 import { TpAiSparkIcon } from "../dr-agent/shared/AiBrandSparkIcon";
 import { DOCUMENT_CATEGORIES } from "./mock/archivedRecordsMock";
 import { archivedRecordsStore, citeNumberForPage, countsFor, useArchivedRecords } from "./archivedRecordsStore";
 import { CiteChip, Cites, RichLine } from "./findingFormat";
 import ArchivedRecordsSourceDrawer from "./ArchivedRecordsSourceDrawer";
 import { buildStory } from "./caseFileStory";
-import DataSections from "./DataSections";
+import DataSections, { MIN_DATA_QUERY } from "./DataSections";
 import { encounterType } from "./encounterTypes";
 import styles from "./ArchivedRecords.module.scss";
 
@@ -17,9 +17,13 @@ import styles from "./ArchivedRecords.module.scss";
  * Job: let a consulting doctor take in a 100-page paper file in under a
  * minute and miss nothing that matters. So it is built to be read, not worked:
  *
- *   1. One notice section says the data is not verified and where to review.
- *   2. A short summary, key words in bold, every line cited as [n].
- *   3. Three lenses on the same facts:
+ *   1. A search box over the data below. It stays in reach while scrolling.
+ *   2. One notice section says the data is not verified and where to review.
+ *   3. The details straight away, in Rx pad order. There is no summary here:
+ *      in a consultation there is no time to read one. (`summary` brings the
+ *      six-pointer summary back above the details; the Structured record tab
+ *      of the review always has it.)
+ *   4. Three lenses on the same facts:
  *        Data      what is true about the patient, grouped by type across
  *                  all visits in the file (the problem-oriented view)
  *        Timeline  what happened when (the hospital course)
@@ -96,13 +100,15 @@ function FilesLens({ bundle }) {
   );
 }
 
-export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {} }) {
+export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {}, summary = false }) {
   const RxSection = kit.RxSection || FallbackRxSection;
   const { bundle, review } = useArchivedRecords();
   const [lens, setLens] = useState("data");
+  const [query, setQuery] = useState("");
+  const searching = query.trim().length >= MIN_DATA_QUERY;
   const totals = countsFor(bundle.findings, review);
   const byId = Object.fromEntries(bundle.findings.map((item) => [item.id, item]));
-  const story = useMemo(() => buildStory(bundle, review, { brief: true }), [bundle, review]);
+  const story = useMemo(() => (summary ? buildStory(bundle, review, { brief: true }) : null), [bundle, review, summary]);
 
   // Is the full notice still on screen? When it is not, the strip shows.
   const noticeRef = useRef(null);
@@ -122,8 +128,29 @@ export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {} }) {
   };
 
   return (
-    <div className={styles.rail}>
-      {/* Once the notice scrolls away, a short strip takes its place under the header. */}
+    <div className={styles.rail} data-searching={searching ? "true" : undefined}>
+      {/* Search over the data below; it stays put while the panel scrolls. */}
+      <div className={styles.railSearch} role="search">
+        <InputBox
+          fullWidth
+          clearable
+          size="sm"
+          placeholder="Search this case file"
+          aria-label="Search the data in this case file"
+          leftIcon={<SearchNormal1 size={16} />}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            // Escape clears the search; it must not also close the panel.
+            if (event.key === "Escape" && query) {
+              event.stopPropagation();
+              setQuery("");
+            }
+          }}
+        />
+      </div>
+
+      {/* Once the notice scrolls away, a short strip takes its place under the search. */}
       <div className={styles.railStrip} data-shown={!noticeInView ? "true" : undefined} data-done={allDone ? "true" : undefined}>
         <button type="button" onClick={openReview} tabIndex={noticeInView ? -1 : 0} aria-hidden={noticeInView ? "true" : undefined}>
           {allDone ? <ShieldTick size={14} variant="Bold" aria-hidden="true" /> : <Warning2 size={14} variant="Bold" aria-hidden="true" />}
@@ -148,6 +175,7 @@ export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {} }) {
         </Button>
       </section>
 
+      {summary && !searching ? (
       <section className={styles.railSummary} aria-label="Summary of the case file">
         <header>
           <TpAiSparkIcon size={16} />
@@ -157,7 +185,7 @@ export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {} }) {
           </Tooltip>
         </header>
         <ul>
-          {story.beats.map((beat) => (
+          {(story?.beats || []).map((beat) => (
             <li key={beat.key} data-kind={beat.kind}>
               {beat.label ? <span className={styles.beatLabel}>{beat.label}</span> : null}
               <RichLine text={beat.text} quick /> <Cites max={2} more={false} findings={beat.cites.map((id) => byId[id])} quick />
@@ -168,14 +196,17 @@ export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {} }) {
           {bundle.encounters.map((item) => `${encounterType(item.type).label} ${item.shortDate}`).join(" · ")}
         </footer>
       </section>
+      ) : null}
 
-      <div className={styles.railLens}>
-        <SegmentedControl options={LENSES} value={lens} onValueChange={setLens} size="sm" fullWidth />
-      </div>
+      {searching ? null : (
+        <div className={styles.railLens}>
+          <SegmentedControl options={LENSES} value={lens} onValueChange={setLens} size="sm" fullWidth />
+        </div>
+      )}
 
-      {lens === "data" ? <DataSections bundle={bundle} review={review} RxSection={RxSection} onOpenReview={openReview} quick /> : null}
-      {lens === "timeline" ? <TimelineLens bundle={bundle} /> : null}
-      {lens === "files" ? <FilesLens bundle={bundle} /> : null}
+      {lens === "data" || searching ? <DataSections bundle={bundle} review={review} RxSection={RxSection} onOpenReview={openReview} quick query={query} /> : null}
+      {lens === "timeline" && !searching ? <TimelineLens bundle={bundle} /> : null}
+      {lens === "files" && !searching ? <FilesLens bundle={bundle} /> : null}
 
       <p className={styles.railFoot}>
         <Badge variant="soft" color="neutral" size="sm">Powered by Velora</Badge>
