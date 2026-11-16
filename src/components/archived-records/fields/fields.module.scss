@@ -1,0 +1,126 @@
+// Cell editors. Tesseract components and tokens only; even dimensions.
+//
+// Every editor is a Tesseract input or dropdown carrying `.control` and one
+// of two shapes:
+//   .cell   in a table cell, with no border of its own (Tesseract "seamless")
+//   .field  in a labelled form, bordered
+// Both are 36px high and write values as the table does: 13px, regular
+// weight, darkest ink.
+//
+// Tesseract sizes its controls from its own root with an attribute selector.
+// The shape class is repeated in the selectors below so these rules win
+// whichever stylesheet loads last.
+
+.control.cell.cell,
+.control.field.field {
+  // Read by the Tesseract input: side padding and text size.
+  --fs: var(--tesseract-text-caption-lg);
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ in a cell */
+
+.control.cell.cell {
+  --px: var(--tesseract-space-1);
+  align-self: flex-start;
+  height: 36px;
+
+  // A field that grows with its text takes the height it needs.
+  &[data-autogrow] { height: auto; min-height: 36px; }
+
+  // The focus ring and its tint fill the cell instead of floating inside it.
+  &::before,
+  &::after { inset: 2px; border-radius: var(--tesseract-radius-6); }
+
+  // The dropdown's trigger: a button, or a box around its text input.
+  > button,
+  > [data-editable] {
+    gap: var(--tesseract-space-1);
+    padding: 0 var(--tesseract-space-1);
+    border-radius: var(--tesseract-radius-6);
+  }
+
+  // One line of a growing field is as tall as an input.
+  textarea {
+    padding-top: var(--tesseract-space-2);
+    padding-bottom: var(--tesseract-space-2);
+    line-height: 20px;
+  }
+}
+
+/* ------------------------------------------------------------ in a form */
+
+.control.field.field {
+  > button,
+  > [data-editable] {
+    min-height: 36px;
+    padding: 0 var(--tesseract-space-2-5);
+  }
+
+  textarea {
+    padding-top: var(--tesseract-space-1-5);
+    padding-bottom: var(--tesseract-space-1-5);
+    line-height: 20px;
+  }
+}
+
+/* ------------------------------------------------------------- the text */
+
+// A dropdown writes its value as an input does.
+.control.cell.cell,
+.control.field.field {
+  > button,
+  > [data-editable],
+  input[role="combobox"] {
+    font-size: var(--tesseract-text-caption-lg);
+    font-weight: var(--tesseract-weight-regular);
+    color: var(--tesseract-fg-heading);
+  }
+
+  input[role="combobox"]::placeholder { color: var(--tesseract-slate-400); }
+
+  // Nothing chosen yet: the placeholder, in placeholder ink.
+  &[data-empty="true"] > button > span:first-of-type { color: var(--tesseract-slate-400); }
+}
+
+// Words still being heard are not settled: lighter ink until they are.
+.control input[data-pending="true"],
+.control textarea[data-pending="true"] { color: var(--tesseract-fg-tertiary); }
+
+/* ------------------------------------------------------- dictation button */
+
+// 28px to hit, inside a 36px field.
+.mic[data-size][data-icon-only][data-variant] {
+  --tesseract-btn-radius: var(--tesseract-radius-8);
+  width: 28px;
+  height: 28px;
+
+  &[aria-disabled="true"] { color: var(--tesseract-fg-tertiary); cursor: not-allowed; }
+}
+
+.micIcon {
+  position: relative;
+  display: inline-flex;
+}
+
+// The Rx pad's recording dot.
+.micPulse {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--tesseract-radius-full);
+  background: var(--tesseract-fg-error);
+  animation: micPulse 1s infinite;
+}
+
+@keyframes micPulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tesseract-fg-error) 44%, transparent); }
+  70% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--tesseract-fg-error) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tesseract-fg-error) 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .micPulse { animation: none; }
+}

@@ -146,23 +146,29 @@ export function RichLine({ text: raw, quick = false }) {
   text.replace(REF, (match, label, page, rid, at) => {
     words(text.slice(last, at));
     parts.push(
-      page.startsWith("@") ? (
-        <button key={key++} type="button" className={styles.refLink} title="Show this section below" onClick={(event) => jumpToSection(event, page.slice(1))}>
-          {label}
-        </button>
-      ) : page ? (
-        <button
+      page ? (
+        // A span, not a button: a long phrase must wrap like the words around
+        // it, which a button cannot do. It still takes focus and both keys.
+        <span
           key={key++}
-          type="button"
+          role="button"
+          tabIndex={0}
           className={styles.refLink}
-          title={`Open page ${page}`}
+          title={page.startsWith("@") ? "Show this section below" : `Open page ${page}`}
           onClick={(event) => {
             event.stopPropagation();
-            archivedRecordsStore.openSource(Number(page), rid || null, { quick });
+            if (page.startsWith("@")) jumpToSection(event, page.slice(1));
+            else archivedRecordsStore.openSource(Number(page), rid || null, { quick });
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              event.currentTarget.click();
+            }
           }}
         >
           {label}
-        </button>
+        </span>
       ) : (
         <React.Fragment key={key++}>{label}</React.Fragment>
       ),
@@ -197,7 +203,13 @@ export function Quals({ quals }) {
       {quals.map((item, index) => (
         <React.Fragment key={index}>
           {index ? ", " : null}
-          <span data-tone={item.tone || undefined}>{shortSpan(item.v || item)}</span>
+          {item.tone === "warning" ? (
+            <Tooltip content={FLAG_NOTE.suspected}>
+              <span data-tone="warning" tabIndex={0}>{shortSpan(item.v || item)}</span>
+            </Tooltip>
+          ) : (
+            <span data-tone={item.tone || undefined}>{shortSpan(item.v || item)}</span>
+          )}
         </React.Fragment>
       ))}
       {")"}
@@ -399,10 +411,13 @@ export function groupFindings(items) {
 // doubt, a tick once verified, a pencil if a reviewer corrected it, then [n].
 export function RowMarks({ finding, status = "draft", quick = false }) {
   const flag = finding.flags?.[0] || (finding.confidence < 0.7 ? "lowConfidence" : null);
+  // "Suspected" is said on the row itself, in amber, with its own hover; it
+  // needs no second mark at the end of the line.
+  const said = flag === "suspected" && finding.quals?.some((item) => item?.tone === "warning");
   const verified = status === "verified";
   return (
     <>
-      {flag && !verified ? (
+      {flag && !verified && !said ? (
         <Tooltip content={FLAG_NOTE[flag]}>
           <span className={styles.rowFlag} role="img" aria-label={FLAG_NOTE[flag]}><Warning2 size={12} variant="Bold" /></span>
         </Tooltip>

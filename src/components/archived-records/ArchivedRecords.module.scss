@@ -2040,69 +2040,41 @@ html body .dock :is(span, small) { color: inherit; }
   cursor: default;
 }
 
-// Four columns. A name takes two (or the line), short fields one, a choice of
-// status two; notes take what is left of their line.
+// The labelled form a row is corrected in when there is no room for its
+// columns: one field a line, its label beside it. The fields are the same
+// ones the table's cells use (fields/).
 .editGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--tesseract-space-2);
-
-  > [data-key="name"],
-  > [data-key="testName"],
-  > [data-key="status"],
-  > [data-key="arrowDirection"],
-  > [data-key="frequency"],
-  > [data-key="when"] { grid-column: span 2; }
-  > [data-key="notes"] { grid-column: 1 / -1; }
-
-  &[data-domain="MED"] > [data-key="name"],
-  &[data-domain="MED"] > [data-key="notes"],
-  &[data-domain="DX"] > [data-key="notes"],
-  &[data-domain="ALG"] > [data-key="notes"] { grid-column: span 3; }
-  &[data-domain="PROC"] > [data-key="name"],
-  &[data-domain="RPT"] > [data-key="name"] { grid-column: 1 / -1; }
-
-  // A narrow pane: two fields a line, the long ones a line each.
-  &[data-narrow="true"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  &[data-narrow="true"] > [data-key] { grid-column: span 1; }
-  &[data-narrow="true"] > [data-key="name"],
-  &[data-narrow="true"] > [data-key="testName"],
-  &[data-narrow="true"] > [data-key="status"],
-  &[data-narrow="true"] > [data-key="arrowDirection"],
-  &[data-narrow="true"] > [data-key="frequency"],
-  &[data-narrow="true"] > [data-key="when"],
-  &[data-narrow="true"] > [data-key="notes"] { grid-column: 1 / -1; }
 }
 
 .editField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--tesseract-space-1);
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--tesseract-space-1) var(--tesseract-space-2);
   margin: 0;
   min-width: 0;
 
-  > label {
+  // The label reads as a column header does: small, medium, lighter ink.
+  // It is as tall as a field so the two sit on one line.
+  > label,
+  > span {
     display: flex;
-    flex-direction: column;
-    gap: var(--tesseract-space-1);
+    align-items: center;
+    min-height: 36px;
     margin: 0;
-    min-width: 0;
-  }
-
-  > span,
-  > label > span:first-child {
     font-size: var(--tesseract-text-caption-sm);
+    line-height: var(--tesseract-text-caption-sm-lh);
     font-weight: var(--tesseract-weight-medium);
     color: var(--tesseract-fg-secondary);
   }
-}
 
-// The Rx pad's short forms under a field: one click fills it in.
-.editSuggest {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--tesseract-space-1);
+  // A narrow pane: the label goes above its field.
+  .editGrid[data-narrow="true"] > & { grid-template-columns: minmax(0, 1fr); }
+  .editGrid[data-narrow="true"] > & > label,
+  .editGrid[data-narrow="true"] > & > span { min-height: 0; }
 }
 
 // Said before a save that would record a suspected diagnosis as anything else.
@@ -2287,8 +2259,6 @@ html body .dock :is(span, small) { color: inherit; }
   .vRow { grid-template-columns: 20px minmax(0, 1fr); }
   .vActions { grid-column: 2; flex-wrap: wrap; }
   .field { grid-template-columns: minmax(0, 1fr); gap: var(--tesseract-space-1); }
-  .editGrid,
-  .editGrid[data-domain="LAB"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 /* ----------------------------------- structured record, sidebar format */
@@ -2589,3 +2559,485 @@ html body .dock :is(span, small) { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .docTagArrow { transition: none; }
 }
+
+/* ------------------------------------- source page viewer: glass floaters */
+
+// One floating bar at the top is the viewer's heading: it names the document
+// in view (title, file, pages, citation number) and opens the catalogue. It
+// and the page dock at the bottom are the same grey glass, so the two
+// controls read as a pair floating over the paper.
+.viewer .catalog {
+  top: var(--tesseract-space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - var(--tesseract-space-6));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.viewer .docTag,
+.viewer .dock {
+  border: 1px solid color-mix(in srgb, var(--tesseract-slate-0) 16%, transparent);
+  background: color-mix(in srgb, var(--tesseract-slate-800) 74%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  color: var(--tesseract-fg-inverse);
+  box-shadow: var(--tesseract-shadow-lg);
+}
+
+.viewer .docTag {
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  height: 36px;
+  padding: 0 var(--tesseract-space-3) 0 var(--tesseract-space-4);
+  line-height: 1;
+
+  &:hover, &[aria-expanded="true"] { border-color: color-mix(in srgb, var(--tesseract-slate-0) 40%, transparent); }
+  &:focus-visible { outline: 2px solid var(--tesseract-slate-0); outline-offset: 2px; }
+
+  strong {
+    font-size: var(--tesseract-text-caption-lg);
+    font-weight: var(--tesseract-weight-medium);
+    color: var(--tesseract-fg-inverse);
+  }
+
+  // The reader could not name this paper: say so quietly.
+  &:not([data-named]) strong { font-weight: var(--tesseract-weight-regular); color: color-mix(in srgb, var(--tesseract-slate-0) 80%, transparent); }
+}
+
+// File, pages and the citation number: lighter, each set off by a hairline.
+.viewer .docTag .docTagFile,
+.viewer .docTag .docTagPages,
+.viewer .docTag .docTagNo {
+  flex-shrink: 0;
+  padding-left: var(--tesseract-space-2);
+  border-left: 1px solid color-mix(in srgb, var(--tesseract-slate-0) 22%, transparent);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--tesseract-slate-0) 72%, transparent);
+}
+
+.viewer .docTag .docTagFile { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.viewer .docTag .docTagNo { font-weight: var(--tesseract-weight-medium); color: var(--tesseract-fg-inverse); }
+.viewer .docTag .docTagArrow { color: color-mix(in srgb, var(--tesseract-slate-0) 80%, transparent); }
+
+html body .viewer .docTag :is(span, strong) { color: inherit; }
+html body .viewer .docTag strong { color: var(--tesseract-fg-inverse); }
+html body .viewer .docTag .docTagFile,
+html body .viewer .docTag .docTagPages { color: color-mix(in srgb, var(--tesseract-slate-0) 72%, transparent); }
+
+// The catalogue opens under the bar, centred on it.
+.viewer .catalogPanel {
+  position: relative;
+  top: auto;
+  left: auto;
+  margin-top: var(--tesseract-space-1-5);
+}
+
+.catalogInfo {
+  margin: 0;
+  padding: var(--tesseract-space-2) var(--tesseract-space-3) 0;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// Room for the bar now that there is no header strip above the pages.
+.viewer .viewerScroll { padding-top: 60px; }
+
+/* -------------------------------- two columns, each with its own header */
+
+// The toolbar now sits inside the record column, so it no longer spans the
+// original document beside it.
+.main > .toolbar { flex-shrink: 0; }
+
+// The viewer's header: same height as the toolbar next to it, in the grey of
+// the paper area, so it reads as the head of the original document.
+.viewerHead {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  flex-shrink: 0;
+  min-height: 52px;
+  padding: 0 var(--tesseract-space-4);
+  background: var(--tesseract-slate-200);
+  border-bottom: 1px solid var(--tesseract-slate-300);
+}
+
+.viewerEyebrow {
+  flex-shrink: 0;
+  padding: var(--tesseract-space-0-5) var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-4);
+  background: var(--tesseract-slate-700);
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tesseract-fg-inverse);
+}
+
+html body .viewerHead .viewerEyebrow { color: var(--tesseract-fg-inverse); }
+
+// The document's name is the heading and the way into the catalogue.
+.viewer .viewerHead .docTag {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--tesseract-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--tesseract-radius-8);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  color: var(--tesseract-fg-heading);
+
+  &:hover, &[aria-expanded="true"] { background: var(--tesseract-slate-300); border-color: transparent; }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--tesseract-text-body-sm);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+  }
+
+  .docTagArrow { color: var(--tesseract-fg-secondary); }
+}
+
+html body .viewer .viewerHead .docTag strong { color: var(--tesseract-fg-heading); }
+
+// File, pages and the citation number: quiet, at the far end.
+.viewerMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin-left: auto;
+  min-width: 0;
+  font-size: var(--tesseract-text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+
+  > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  > span + span { padding-left: var(--tesseract-space-2); border-left: 1px solid var(--tesseract-slate-400); }
+  .docTagNo { font-size: var(--tesseract-text-caption); color: var(--tesseract-fg-link); }
+}
+
+// The catalogue drops from the header, under the document's name.
+.viewer .viewerHead .catalogPanel {
+  position: absolute;
+  top: calc(100% + var(--tesseract-space-1));
+  left: var(--tesseract-space-4);
+  margin-top: 0;
+}
+
+// No floating bar any more: the pages start right under the header.
+.viewer .viewerScroll { padding-top: var(--tesseract-space-4); }
+
+/* ------------------------------------------------------------ tooltips */
+
+// The portal's host stylesheet paints every div, span and p in one dark ink,
+// which made tooltip text vanish into the dark tooltip. Inside a tooltip,
+// text follows the tooltip's own colour again.
+:global {
+  html body [role="tooltip"] :is(div, span, p, strong, small, em) { color: inherit; }
+}
+
+// A word that explains itself on hover ("Suspected").
+.quals [data-tone="warning"][tabindex] {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  border-radius: var(--tesseract-radius-4);
+
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+/* ------------------------- two boxes: the record, and the original file */
+
+// The digitised record and the original case file are two separate cards
+// with a gap between them, so nobody reads one as part of the other.
+.workspace[data-variant] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.pageSlot > .workspace[data-variant="page"] { box-shadow: none; }
+
+.body {
+  gap: var(--tesseract-space-3);
+  padding: 0;
+}
+
+.main,
+.viewer {
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-bg-page);
+  box-shadow: var(--tesseract-shadow-sm);
+  overflow: hidden;
+}
+
+.viewer { border-left: 1px solid var(--tesseract-border-soft); background: var(--tesseract-slate-100); }
+.drawerBody .body { padding: var(--tesseract-space-3); }
+
+// The original's header: white, a plain heading, same height as the toolbar.
+.viewerHead {
+  gap: var(--tesseract-space-3);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+
+  > strong {
+    font-size: var(--tesseract-text-body-sm);
+    font-weight: var(--tesseract-weight-semibold);
+    color: var(--tesseract-fg-heading);
+    white-space: nowrap;
+  }
+}
+
+.viewerLang {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// The index floats over the pages, top left, in grey glass: it feels like a
+// catalogue you pull out, not like a title.
+.viewer .catalog {
+  top: calc(52px + var(--tesseract-space-3));
+  left: var(--tesseract-space-4);
+  right: auto;
+  transform: none;
+  align-items: flex-start;
+  max-width: calc(100% - var(--tesseract-space-8));
+}
+
+.viewer .catalog .docTag {
+  height: 36px;
+  padding: 0 var(--tesseract-space-3) 0 var(--tesseract-space-4);
+  gap: var(--tesseract-space-2);
+  border: 1px solid color-mix(in srgb, var(--tesseract-slate-0) 16%, transparent);
+  border-radius: var(--tesseract-radius-full);
+  background: color-mix(in srgb, var(--tesseract-slate-800) 74%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--tesseract-shadow-lg);
+  color: var(--tesseract-fg-inverse);
+
+  &:hover, &[aria-expanded="true"] { background: color-mix(in srgb, var(--tesseract-slate-800) 86%, transparent); border-color: color-mix(in srgb, var(--tesseract-slate-0) 40%, transparent); }
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+
+  strong { max-width: 320px; font-size: var(--tesseract-text-caption-lg); font-weight: var(--tesseract-weight-medium); }
+  .docTagArrow { color: color-mix(in srgb, var(--tesseract-slate-0) 80%, transparent); }
+}
+
+html body .viewer .catalog .docTag strong { color: var(--tesseract-fg-inverse); }
+
+.viewer .catalog .catalogPanel {
+  position: relative;
+  top: auto;
+  left: auto;
+  margin-top: var(--tesseract-space-1-5);
+}
+
+// Shown once, until the index is first opened.
+.catalogHint {
+  margin-top: var(--tesseract-space-1-5);
+  padding: var(--tesseract-space-1) var(--tesseract-space-2);
+  border: 0;
+  border-radius: var(--tesseract-radius-8);
+  background: var(--tesseract-blue-500);
+  font: inherit;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-fg-inverse);
+  box-shadow: var(--tesseract-shadow-sm);
+  cursor: pointer;
+
+  &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+// The pages start under the header, with room for the floating index.
+.viewer .viewerScroll { padding-top: 64px; }
+.viewer .viewerScroll:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: -2px; }
+
+// A dock control with a word beside its icon.
+.dock .dockWide {
+  width: auto;
+  gap: var(--tesseract-space-1-5);
+  padding: 0 var(--tesseract-space-2);
+  font: inherit;
+  font-size: var(--tesseract-text-caption);
+  white-space: nowrap;
+}
+
+html body .dock .dockWide span { color: inherit; }
+
+/* ------------------------------------------------------- summary labels */
+
+// Each pointer of the summary carries a small label saying which part of
+// the story it is.
+.beatLabel {
+  display: block;
+  margin-bottom: var(--tesseract-space-0-5);
+  font-size: var(--tesseract-text-micro);
+  font-weight: var(--tesseract-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tesseract-fg-tertiary);
+}
+
+html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-tertiary); }
+
+// A link inside a sentence wraps like the words around it.
+.refLink { display: inline; white-space: normal; text-align: inherit; }
+
+/* ------------------------------------------------------------ text size */
+
+.textSize {
+  display: inline-flex;
+  align-items: baseline;
+  flex-shrink: 0;
+  padding: var(--tesseract-space-0-5);
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-8);
+
+  button {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 var(--tesseract-space-1);
+    border: 0;
+    border-radius: var(--tesseract-radius-4);
+    background: transparent;
+    font: inherit;
+    line-height: 28px;
+    color: var(--tesseract-fg-secondary);
+    cursor: pointer;
+
+    &[data-size="sm"] { font-size: var(--tesseract-text-caption-sm); }
+    &[data-size="md"] { font-size: var(--tesseract-text-body-sm); }
+    &[data-size="lg"] { font-size: var(--tesseract-text-body-base); }
+    &[aria-pressed="true"] { background: var(--tesseract-bg-selected); color: var(--tesseract-fg-heading); font-weight: var(--tesseract-weight-medium); }
+    &:hover:not([aria-pressed="true"]) { background: var(--tesseract-bg-surface-hover); }
+    &:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 1px; }
+  }
+}
+
+// The whole record side scales together, so proportions hold.
+.workspace[data-text="sm"] .panel { zoom: 0.92; }
+.workspace[data-text="lg"] .panel { zoom: 1.14; }
+
+@media (max-width: 1100px) {
+  .textSize { display: none; }
+}
+
+// A note shows two lines until clicked, so Reports and Notes is a list of
+// headlines, not a page of prose. The full text is one click away.
+.row[data-note] { cursor: pointer; }
+
+.row[data-note="closed"] .rowLine {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.row[data-note]:hover .rowLabel { text-decoration: underline; text-underline-offset: 2px; }
+
+/* --------------------------------------------- a row corrected in place */
+
+// With room for its columns, a row is corrected where it stands, the way the
+// Rx pad edits a table row: each cell becomes an input under the same header
+// (the row keeps the table's column template), Save and Cancel take the place
+// of the row's actions, and one quiet line under the cells gives the words on
+// the page. The inputs themselves are the cell editors in fields/.
+.vRow[data-editing="true"] { cursor: default; }
+
+// One cell. A cell reaches half the column gap to each side, so cells meet
+// and a field's text starts exactly where the column's text does.
+.rxEditCell {
+  display: flex;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0 calc(var(--tesseract-space-1) * -1);
+  background: var(--tesseract-bg-surface);
+  // A hairline all round. Where two cells meet, one line shows.
+  box-shadow: 0 0 0 1px var(--tesseract-border-neutral);
+
+  &[data-first="true"] { border-radius: var(--tesseract-radius-8) 0 0 var(--tesseract-radius-8); }
+  &[data-last="true"] { border-radius: 0 var(--tesseract-radius-8) var(--tesseract-radius-8) 0; }
+  // A column this row has nothing in cannot be typed in.
+  &[data-off="true"] { background: var(--tesseract-bg-page-subtle); }
+}
+
+// Save and Cancel, where the row's own actions were. The cell is put in the
+// last column by name, so the fields before it fill the columns in order.
+.rxEditEnd {
+  grid-row: 1;
+  grid-column: -2 / -1;
+}
+
+.rxEditActions {
+  min-height: 36px;
+  gap: var(--tesseract-space-1-5);
+
+  // A little tighter than usual, so both fit the actions column on one line.
+  > button[data-variant="solid"] { padding: 0 var(--tesseract-space-3); }
+}
+
+// A field with no column of its own (a lab's flag): under the column it
+// belongs to, with its name beside it.
+.rxEditExtra {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  min-width: 0;
+  margin-top: var(--tesseract-space-1);
+}
+
+.rxEditLabel {
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// Under the cells: the words on the page, then anything worth saying.
+.rxEditBelow { margin-top: var(--tesseract-space-1); }
+
+.rxEditNote,
+.rxEditVoice {
+  margin: 0;
+  font-size: var(--tesseract-text-caption-sm);
+  line-height: var(--tesseract-text-caption-sm-lh);
+  color: var(--tesseract-fg-tertiary);
+}
+
+// Said while the microphone is on. With nothing to say it takes no room.
+.rxEditVoice {
+  color: var(--tesseract-fg-secondary);
+
+  &:empty { display: none; }
+}
+
+// The checkbox sits level with the fields, as it does with a row's text.
+.vRow[data-editing="true"][data-layout="wide"] > .vCheck { height: 36px; }
+
+// Cancel is a link. It is still 28px to hit.
+.rxEditActions > button[data-variant="link"] { min-height: 28px; }

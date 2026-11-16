@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { InputBox, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
-import { Add, ArrowDown2, ArrowLeft2, ArrowRight2, Minus, SearchNormal1 } from "iconsax-reactjs";
-import { documentForPage } from "./archivedRecordsStore";
+import { Add, ArrowDown2, ArrowLeft2, ArrowRight2, Minus, SearchNormal1, TaskSquare } from "iconsax-reactjs";
+import { documentForPage, statusOf, useArchivedRecords } from "./archivedRecordsStore";
 import { isArchivedRecordsEnabled } from "./archivedRecordsFlag";
 import { scrollWithin } from "./scrollWithin";
 import styles from "./ArchivedRecords.module.scss";
@@ -196,7 +196,9 @@ function useLocalScan() {
   return scan;
 }
 
-export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageChange, onHide }) {
+// `onGoToFinding`, when given, is how the viewer asks its host to bring one
+// fact up on the record side too, so the row and its page sit side by side.
+export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageChange, onHide, onGoToFinding }) {
   const scan = useLocalScan();
   const [zoomIndex, setZoomIndex] = useState(2);
   const [visiblePage, setVisiblePage] = useState(page);
@@ -285,6 +287,49 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
       }))
       .filter((group) => group.docs.length);
   }, [bundle, catalogQuery]);
+  // Shown once: the tag is the only way to move around a long file by name.
+  const [hintSeen, setHintSeen] = useState(() => {
+    try {
+      return window.localStorage.getItem("tp-case-file-catalog-hint") === "1";
+    } catch (error) {
+      return true;
+    }
+  });
+  const openCatalog = () => {
+    setCatalogOpen((value) => !value);
+    if (!hintSeen) {
+      setHintSeen(true);
+      try {
+        window.localStorage.setItem("tp-case-file-catalog-hint", "1");
+      } catch (error) {
+        // Private mode: the hint simply shows again next time.
+      }
+    }
+  };
+
+  // The next page that still has something to review, after the one in view.
+  const { review } = useArchivedRecords();
+  const nextToReview = useMemo(() => {
+    const open = bundle.findings
+      .filter((item) => statusOf(review, item.id) === "draft")
+      .sort((a, b) => a.cite.page - b.cite.page);
+    return open.find((item) => item.cite.page > fromStrip(visiblePage)) || open[0] || null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bundle, review, visiblePage, Boolean(scan)]);
+
+  // The pages can be read from the keyboard alone.
+  const onKeys = (event) => {
+    if (event.target !== event.currentTarget || event.metaKey || event.ctrlKey || event.altKey) return;
+    const moves = { PageDown: visiblePage + 1, PageUp: visiblePage - 1, Home: 1, End: total };
+    if (moves[event.key] !== undefined) {
+      event.preventDefault();
+      go(moves[event.key]);
+    } else if (event.key.toLowerCase() === "d") {
+      event.preventDefault();
+      openCatalog();
+    }
+  };
+
   const openDocument = (target) => {
     setCatalogOpen(false);
     setCatalogQuery("");
@@ -304,16 +349,20 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
   const sizeOf = (pageNo) => scan?.sizes?.[pageNo] || [scan?.width, scan?.height];
 
   return (
-    <section className={styles.viewer} aria-label="Original case file">
-      <header className={styles.viewerBar}>
+    <section className={styles.viewer} aria-label="Source page viewer">
+
+      {/* The viewer's header: says this side is the original document, names
+          the paper in view, and opens the catalogue of every document. */}
+      {/* A plain heading says which side this is. */}
+      <header className={styles.viewerHead}>
         <strong>Original case file</strong>
-        <span>
-          {total} pages, {files.length > 1 ? `${files.length} files, ` : ""}{bundle.documents.length} documents{scan ? " · scanned originals" : ""}
-        </span>
+        {bundle.source.languagesNotRead ? (
+          <span className={styles.viewerLang}>Read: {bundle.source.language}. Not read: {bundle.source.languagesNotRead}</span>
+        ) : null}
       </header>
 
-      {/* Names the paper under the reader's eye, and opens the catalogue of
-          every document in the file to jump straight to one. */}
+      {/* The index of the file floats over the pages, top left: it names the
+          paper in view and opens the list of every document. */}
       <div className={styles.catalog} ref={catalogRef}>
         <button
           type="button"
@@ -321,17 +370,27 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
           data-named={tag.named ? "true" : undefined}
           aria-haspopup="listbox"
           aria-expanded={catalogOpen}
-          aria-label={`${tag.name}. Open the list of documents`}
-          onClick={() => setCatalogOpen((value) => !value)}
+          aria-label={`${tag.name}. Open the list of documents (press D)`}
+          title={tag.name}
+          onClick={openCatalog}
         >
-          {number ? <span className={styles.docTagNo}>[{number}]</span> : null}
           <strong aria-live="polite">{tag.name}</strong>
-          {file ? <span className={styles.docTagFile}>{file.name}</span> : null}
-          {span > 1 && !scan ? <small>{dataPage - doc.from + 1} of {span}</small> : null}
-          <ArrowDown2 size={12} className={styles.docTagArrow} aria-hidden="true" />
+          {doc ? <span className={styles.docTagPages}>{doc.from === doc.to ? `p. ${doc.from}` : `p. ${doc.from}-${doc.to}`}</span> : null}
+          {number ? <span className={styles.docTagNo}>[{number}]</span> : null}
+          <ArrowDown2 size={14} className={styles.docTagArrow} aria-hidden="true" />
         </button>
+        {!hintSeen && !catalogOpen ? (
+          <button type="button" className={styles.catalogHint} onClick={openCatalog}>
+            All {bundle.documents.length} documents are listed here
+          </button>
+        ) : null}
         {catalogOpen ? (
           <div className={styles.catalogPanel} role="dialog" aria-label="Documents in this file">
+            <p className={styles.catalogInfo}>
+              {bundle.source.files?.length ? `${bundle.source.files.length} files · ` : ""}
+              {bundle.documents.length} documents · {total} pages{scan ? " · scanned originals" : ""}
+              {bundle.source.languagesNotRead ? ` · not read: ${bundle.source.languagesNotRead}` : ""}
+            </p>
             <div className={styles.catalogSearch}>
               <InputBox
                 fullWidth
@@ -382,7 +441,15 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
         ) : null}
       </div>
 
-      <div className={styles.viewerScroll} ref={scrollRef} onScroll={onScroll}>
+      <div
+        className={styles.viewerScroll}
+        ref={scrollRef}
+        onScroll={onScroll}
+        tabIndex={0}
+        role="region"
+        aria-label="Pages of the original case file. Page Up and Page Down move by page, Home and End go to the first and last page, D opens the list of documents."
+        onKeyDown={onKeys}
+      >
         {scan
           ? pageNumbers.map((pageNo) => (
               <div key={pageNo} className={styles.sheet} data-page={pageNo} data-cited={pageNo === cited && rid ? "true" : undefined}>
@@ -427,13 +494,13 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
 
       {/* Page and zoom controls float over the page so the page gets the height. */}
       <div className={styles.dock} role="toolbar" aria-label="Page controls">
-        <Tooltip content="Previous page">
+        <Tooltip content="Previous page (Page Up)">
           <button type="button" aria-label="Previous page" disabled={visiblePage <= 1} onClick={() => go(visiblePage - 1)}><ArrowLeft2 size={16} /></button>
         </Tooltip>
         <span className={styles.dockCount} aria-live="polite" aria-label={`Page ${visiblePage} of ${total}`}>
           {visiblePage} <small>/ {total}</small>
         </span>
-        <Tooltip content="Next page">
+        <Tooltip content="Next page (Page Down)">
           <button type="button" aria-label="Next page" disabled={visiblePage >= total} onClick={() => go(visiblePage + 1)}><ArrowRight2 size={16} /></button>
         </Tooltip>
         <span className={styles.dockDivider} aria-hidden="true" />
@@ -444,6 +511,22 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
         <Tooltip content="Zoom in">
           <button type="button" aria-label="Zoom in" disabled={zoomIndex === ZOOMS.length - 1} onClick={() => setZoomIndex((value) => value + 1)}><Add size={16} /></button>
         </Tooltip>
+        {nextToReview ? (
+          <>
+            <span className={styles.dockDivider} aria-hidden="true" />
+            <Tooltip content="Open the next item to review, here and in Clinical data">
+              <button
+                type="button"
+                className={styles.dockWide}
+                aria-label="Next page to review"
+                onClick={() => (onGoToFinding ? onGoToFinding(nextToReview) : onPageChange(nextToReview.cite.page, nextToReview.cite.rid))}
+              >
+                <TaskSquare size={16} />
+                <span>Next to review</span>
+              </button>
+            </Tooltip>
+          </>
+        ) : null}
       </div>
     </section>
   );

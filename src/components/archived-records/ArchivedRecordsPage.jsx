@@ -1,7 +1,7 @@
 import React from "react";
 import AiDraftBadge from "./AiDraftBadge";
 import ARCHIVED_RECORDS_MOCK from "./mock/archivedRecordsMock";
-import ArchivedRecordsWorkspace, { fileLine } from "./ArchivedRecordsWorkspace";
+import ArchivedRecordsWorkspace, { fileDetails, fileLine } from "./ArchivedRecordsWorkspace";
 import { FEATURE_NAME } from "./archivedRecordsName";
 import styles from "./ArchivedRecords.module.scss";
 
@@ -16,10 +16,10 @@ export const caseFileBanner = (bundle = ARCHIVED_RECORDS_MOCK) => ({
   title: (
     <span className={styles.bannerTitle}>
       {FEATURE_NAME}
-      <AiDraftBadge onDark />
+      <AiDraftBadge onDark details={fileDetails(bundle)} />
     </span>
   ),
-  subtitle: fileLine(bundle),
+  subtitle: fileLine(bundle).replace(/^\(|\)$/g, ""),
 });
 
 export default function ArchivedRecordsPage({ reviewerName }) {

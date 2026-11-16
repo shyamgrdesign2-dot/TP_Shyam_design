@@ -1,16 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { ArrowRight2, InfoCircle, ShieldTick, Warning2 } from "iconsax-reactjs";
-import { ASSETS } from "../../assets";
 import { TpAiSparkIcon } from "../dr-agent/shared/AiBrandSparkIcon";
 import { DOCUMENT_CATEGORIES } from "./mock/archivedRecordsMock";
-import { archivedRecordsStore, citeNumberForPage, countsFor, isNotableLab, isShownToDoctor, statusOf, useArchivedRecords } from "./archivedRecordsStore";
-import { CiteChip, Cites, FLAG_NOTE, FindingBody, RichLine, groupFindings } from "./findingFormat";
+import { archivedRecordsStore, citeNumberForPage, countsFor, useArchivedRecords } from "./archivedRecordsStore";
+import { CiteChip, Cites, RichLine } from "./findingFormat";
 import ArchivedRecordsSourceDrawer from "./ArchivedRecordsSourceDrawer";
 import { buildStory } from "./caseFileStory";
 import DataSections from "./DataSections";
 import { encounterType } from "./encounterTypes";
-import { ImageTileArt } from "./SourcePageViewer";
 import styles from "./ArchivedRecords.module.scss";
 
 /**
@@ -161,6 +159,7 @@ export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {} }) {
         <ul>
           {story.beats.map((beat) => (
             <li key={beat.key} data-kind={beat.kind}>
+              {beat.label ? <span className={styles.beatLabel}>{beat.label}</span> : null}
               <RichLine text={beat.text} quick /> <Cites max={2} more={false} findings={beat.cites.map((id) => byId[id])} quick />
             </li>
           ))}

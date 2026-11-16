@@ -167,24 +167,6 @@ export function rxRow(finding) {
   return { section: readRow(finding.original || finding).section, row: finding.rx };
 }
 
-// The Rx pad's own column order and labels for each kind of fact, with the
-// row key each column reads. Used to lay facts out as a table and to edit
-// them field by field.
-export const RX_COLUMNS = {
-  DX: [{ key: "name", label: "Diagnosis", wide: true }, { key: "status", label: "Status" }, { key: "duration", label: "Since" }, { key: "notes", label: "Notes", wide: true }],
-  ALG: [{ key: "name", label: "Allergy", wide: true }, { key: "status", label: "Status" }, { key: "duration", label: "Since" }, { key: "notes", label: "Notes", wide: true }],
-  PROC: [{ key: "name", label: "Surgery / procedure", wide: true }, { key: "notes", label: "Notes", wide: true }],
-  MED: [{ key: "name", label: "Medicine", wide: true }, { key: "dosage", label: "Unit per dose" }, { key: "frequency", label: "Frequency" }, { key: "when", label: "When" }, { key: "duration", label: "Duration" }, { key: "notes", label: "Notes", wide: true }],
-  LAB: [{ key: "testName", label: "Test", wide: true }, { key: "value", label: "Value" }, { key: "units", label: "Unit" }, { key: "refRange", label: "Ref. range" }, { key: "date", label: "Date" }],
-  VIT: [{ key: "date", label: "Date" }, { key: "blood_pressure", label: "BP" }, { key: "pulse", label: "Pulse" }, { key: "spo2", label: "SpO2" }, { key: "temperature", label: "Temp" }, { key: "respiratory_rate", label: "RR" }, { key: "weight", label: "Weight" }, { key: "height", label: "Height" }, { key: "notes", label: "Notes", wide: true }],
-  RPT: [{ key: "name", label: "Note", wide: true }, { key: "notes", label: "Details", wide: true }],
-};
-
-// The vitals the Rx pad has a field for, in its order, with the short label
-// each is written with on a row (BP: 102/74 | Pulse: 72).
-const VITAL_LABELS = [["blood_pressure", "BP"], ["pulse", "Pulse"], ["spo2", "SpO2"], ["temperature", "Temp"], ["respiratory_rate", "RR"], ["weight", "Wt"], ["height", "Ht"]];
-export const RX_VITAL_KEYS = VITAL_LABELS.map(([key]) => key);
-
 // What the Rx pad offers for a field. Frequency and When still take free
 // text; a status is one of its list.
 export const RX_SUGGESTIONS = {
@@ -195,13 +177,95 @@ export const RX_STATUS = {
   diagnosis: ["Confirmed", "Suspected", "Ruled Out"],
   medical_history: ["Active", "Inactive"],
 };
+// A lab's flag, in the words a reviewer picks from. The row keeps the Rx
+// pad's own values (up, down, or nothing for normal).
+export const RX_FLAG = [{ value: "", label: "Normal" }, { value: "up", label: "High" }, { value: "down", label: "Low" }];
 
-// The fields a reviewer may correct, in column order. A lab also has its
-// high / low flag. Something recorded as "none" (enable N) has no status.
+// Since and Duration are a number and a unit. A typed number offers its
+// units, as the Rx pad does: "2" gives 2 Day(s), 2 Week(s), 2 Month(s), 2 Year(s).
+export const RX_DURATION_UNITS = ["Day(s)", "Week(s)", "Month(s)", "Year(s)"];
+const durationOptions = ({ value } = {}) => {
+  const count = String(value ?? "").match(/^\s*(\d+)/)?.[1];
+  return count ? RX_DURATION_UNITS.map((unit) => `${count} ${unit}`) : [];
+};
+
+// The Rx pad's own column order and labels for each kind of fact, with the
+// row key each column reads. Used to lay facts out as a table and to edit
+// them in place, so a column also says how its cell is edited:
+//   kind         "text", "multiline" (grows with its text), "select" (one of
+//                a closed list) or "suggest" (free text with a short list)
+//   placeholder  the Rx pad's placeholder for that field
+//   options      for a select or a suggestion list: a list, or a function of
+//                { value, section, row } that returns one
+//   dictate      true on the one field of a row that takes dictation
+//   wide         the column shares the spare width; the others are fixed
+// A new kind of row is a new list of columns here, not new form code.
+const NOTES = { key: "notes", label: "Notes", placeholder: "Notes", kind: "multiline", wide: true, dictate: true };
+const SINCE = { key: "duration", label: "Since", placeholder: "Since", kind: "suggest", options: durationOptions };
+const STATUS = { key: "status", label: "Status", placeholder: "Status", kind: "select", options: ({ section } = {}) => RX_STATUS[section] || [] };
+const vital = (key, label) => ({ key, label, kind: "text" });
+
+export const RX_COLUMNS = {
+  DX: [{ key: "name", label: "Diagnosis", placeholder: "Diagnosis name", kind: "text", wide: true }, SINCE, STATUS, NOTES],
+  ALG: [{ key: "name", label: "Allergy", placeholder: "Allergy name", kind: "text", wide: true }, STATUS, SINCE, NOTES],
+  PROC: [{ key: "name", label: "Surgery / procedure", placeholder: "Surgery or procedure name", kind: "text", wide: true }, NOTES],
+  MED: [
+    { key: "name", label: "Medicine", placeholder: "Medicine name", kind: "text", wide: true },
+    { key: "dosage", label: "Unit per dose", placeholder: "e.g 1 Tablet", kind: "text" },
+    { key: "frequency", label: "Frequency", placeholder: "e.g 1-0-1", kind: "suggest", options: RX_SUGGESTIONS.frequency },
+    { key: "when", label: "When", placeholder: "e.g Before Food", kind: "suggest", options: RX_SUGGESTIONS.when },
+    { key: "duration", label: "Duration", placeholder: "e.g 1 Day", kind: "suggest", options: durationOptions },
+    NOTES,
+  ],
+  LAB: [
+    { key: "testName", label: "Test", placeholder: "Test name", kind: "text", wide: true },
+    { key: "value", label: "Value", placeholder: "Value", kind: "text" },
+    { key: "units", label: "Unit", placeholder: "Unit", kind: "text" },
+    { key: "refRange", label: "Ref. range", placeholder: "Ref. range", kind: "text" },
+    { key: "date", label: "Date", placeholder: "Date", kind: "text" },
+  ],
+  VIT: [
+    { key: "date", label: "Date", placeholder: "Date", kind: "text" },
+    vital("blood_pressure", "BP"),
+    vital("pulse", "Pulse"),
+    vital("spo2", "SpO2"),
+    vital("temperature", "Temp"),
+    vital("respiratory_rate", "RR"),
+    vital("weight", "Weight"),
+    vital("height", "Height"),
+    NOTES,
+  ],
+  RPT: [
+    { key: "name", label: "Note", placeholder: "Note", kind: "text", wide: true },
+    { key: "notes", label: "Details", placeholder: "Details", kind: "multiline", wide: true, dictate: true },
+  ],
+};
+
+// Fields a reviewer may correct that have no column of their own. While a
+// row is edited in place they sit under the column named by `under`.
+export const RX_EXTRA_FIELDS = {
+  LAB: [{ key: "arrowDirection", label: "Flag", placeholder: "Flag", kind: "select", options: RX_FLAG, under: "value" }],
+};
+
+// The vitals the Rx pad has a field for, in its order, with the short label
+// each is written with on a row (BP: 102/74 | Pulse: 72).
+const VITAL_LABELS = [["blood_pressure", "BP"], ["pulse", "Pulse"], ["spo2", "SpO2"], ["temperature", "Temp"], ["respiratory_rate", "RR"], ["weight", "Wt"], ["height", "Ht"]];
+export const RX_VITAL_KEYS = VITAL_LABELS.map(([key]) => key);
+
+// The fields a reviewer may correct, as column definitions in tab order: the
+// row's columns, then a lab's high / low flag. Something recorded as "none"
+// (enable N) has no status. A complaint runs long, so its name grows with
+// the text.
+export function rxEditFields(finding) {
+  const { section, row } = rxRow(finding);
+  return [...(RX_COLUMNS[finding.domain] || RX_COLUMNS.RPT), ...(RX_EXTRA_FIELDS[finding.domain] || [])]
+    .filter((column) => !(column.key === "status" && row.enable === "N"))
+    .map((column) => (section === "symptoms" && column.key === "name" ? { ...column, kind: "multiline" } : column));
+}
+
+// The same fields by key.
 export function rxEditKeys(finding) {
-  const { row } = rxRow(finding);
-  const keys = (RX_COLUMNS[finding.domain] || RX_COLUMNS.RPT).map((column) => column.key).filter((key) => !(key === "status" && row.enable === "N"));
-  return finding.domain === "LAB" ? [...keys, "arrowDirection"] : keys;
+  return rxEditFields(finding).map((column) => column.key);
 }
 
 // What a row cannot be saved without: its first column, and for a lab the
@@ -331,10 +395,13 @@ export function factFromRx(finding, row) {
 // marks", "could not be read") is not a clinical fact. It never shows in a
 // row: the part is simply left out, and the row keeps its doubt mark.
 const READER_REMARK = /tally|not read|unreadable|illegible|not legible|could not be read|cannot be read|can't be read|unclear|read two ways|read as |hard to read|no strength written|not written|as drawn/i;
+const ROLE_WORD = /^(final|working|secondary|primary|provisional|principal)( dx| diagnosis)?(, as written)?$|^past (history|surgery)$|^as written$/i;
 export const isReaderRemark = (text) => READER_REMARK.test(typeof text === "string" ? text : text?.v || "");
 
 export function rxQuals(finding) {
-  if (finding.domain !== "MED") return finding.quals?.filter((item) => !isReaderRemark(item));
+  // What kind of diagnosis or history item this is, is said by the tag above
+  // the row ("Final diagnosis", "Medical conditions"), never inside its bracket.
+  if (finding.domain !== "MED") return finding.quals?.filter((item) => !isReaderRemark(item) && !ROLE_WORD.test(typeof item === "string" ? item : item?.v || ""));
   const { dosage, frequency, when, duration, notes } = rxRow(finding).row;
   return [dosage ? (/[a-z]/i.test(dosage) ? dosage : `${dosage} per dose`) : null, frequency, when, duration, ...notes.split(", ")].filter((item) => item && !isReaderRemark(item));
 }

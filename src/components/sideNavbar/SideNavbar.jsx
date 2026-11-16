@@ -90,7 +90,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartToo
 
 const LEGACY_VITALS_DATE_FORMAT = "DD MMM, YY";
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { id: "pastVisits", label: "Past Visits", icon: { kind: "iconsax", Icon: Note1 } },
   // UI draft: digitized paper records from the hospital archive (mock data).
   { id: "archivedRecords", label: "Case File", icon: { kind: "iconsax", Icon: ArchiveBook } },
@@ -152,7 +152,7 @@ function getCustomizedPadNavId(item, access = {}) {
   }
 }
 
-const SECTION_TITLES = {
+export const SECTION_TITLES = {
   pastVisits: "Past Visit",
   archivedRecords: "Case File",
   vitals: "Vitals and Body Composition",
@@ -2808,7 +2808,7 @@ function NavItem({ item, active, onClick, signal }) {
   );
 }
 
-function NavPanel({ activeId, onSelect, items = NAV_ITEMS, signals = {} }) {
+export function NavPanel({ activeId, onSelect, items = NAV_ITEMS, signals = {} }) {
   const scrollRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
 
@@ -2907,7 +2907,7 @@ function formatMedicalHistoryDetail(detail) {
     .join(", ");
 }
 
-function RxSection({ title, icon, children, onCopy, stickyTitle = false }) {
+export function RxSection({ title, icon, children, onCopy, stickyTitle = false }) {
   return (
     <div className={`snv-rx-section ${stickyTitle ? "snv-rx-section-sticky-title" : ""}`}>
       <div className={`snv-rx-section-title ${stickyTitle ? "snv-rx-section-title-sticky" : ""}`}>

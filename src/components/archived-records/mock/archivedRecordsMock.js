@@ -1947,6 +1947,8 @@ export const ARCHIVED_RECORDS_MOCK = {
     facility: "Teaching hospital",
     totalPages: 275,
     language: "English",
+    // Scripts the reader saw and did not read. Said on screen so nothing is assumed read.
+    languagesNotRead: "a regional language",
     processedOn: "14 Nov 2026, 9:40 pm",
     trigger: "Prepared last night for today's appointment",
     engine: "Velora reader v0.3 (sample)",

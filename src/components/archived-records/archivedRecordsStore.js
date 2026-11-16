@@ -111,14 +111,31 @@ function applyEdit(finding, patch) {
   return { ...finding, ...factFromRx(finding, patch.rx), rx: patch.rx, edited: true, original: finding };
 }
 
-let cache = { edits: null, bundle: ARCHIVED_RECORDS_MOCK };
+// Vitals: a file can hold hundreds of sets (every nursing chart, every
+// visit). Only the last recorded one is clinically current, so it is the only
+// one that is shown, reviewed and saved. The rest are counted, never listed:
+// saving them all would flood the patient's vitals. "Last" is the set marked
+// last in the newest encounter, or failing that the newest set there is.
+function lastVitalsOnly(bundle) {
+  const sets = bundle.findings.filter((item) => item.domain === "VIT");
+  if (sets.length < 2) return bundle;
+  const when = Object.fromEntries(bundle.encounters.map((item) => [item.id, item.sortKey || ""]));
+  const [last] = [...sets].sort(
+    (a, b) => (when[b.encounterId] || "").localeCompare(when[a.encounterId] || "") || Number(b.role === "last") - Number(a.role === "last"),
+  );
+  return { ...bundle, findings: bundle.findings.filter((item) => item.domain !== "VIT" || item.id === last.id), vitalsNotShown: { count: sets.length - 1 } };
+}
+
+const BASE = lastVitalsOnly(ARCHIVED_RECORDS_MOCK);
+
+let cache = { edits: null, bundle: BASE };
 const bundleWith = (edits) => {
   if (cache.edits !== edits) {
     cache = {
       edits,
       bundle: Object.keys(edits).length
-        ? { ...ARCHIVED_RECORDS_MOCK, findings: ARCHIVED_RECORDS_MOCK.findings.map((item) => applyEdit(item, edits[item.id])) }
-        : ARCHIVED_RECORDS_MOCK,
+        ? { ...BASE, findings: BASE.findings.map((item) => applyEdit(item, edits[item.id])) }
+        : BASE,
     };
   }
   return cache.bundle;

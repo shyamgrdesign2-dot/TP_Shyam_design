@@ -29,6 +29,7 @@ import ErrorFallback from "./common/ErrorFallback";
 import GrowthBookPhoneSync from "./components/GrowthBookPhoneSync";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
+import { isArchivedRecordsEnabled } from "./components/archived-records/archivedRecordsFlag";
 import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
@@ -800,7 +801,8 @@ function App() {
         {['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) && (
           <Route path="/dev/rx-pad-keyboard" element={<PrescriptionKeyboardSmoke />} />
         )}
-        {['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) && (
+        {/* Case File UI draft; sample data only. Also on for the hosted design preview. */}
+        {isArchivedRecordsEnabled() && (
           <Route path="/dev/archived-records" element={<ArchivedRecordsSmoke />} />
         )}
         {/* Public route */}

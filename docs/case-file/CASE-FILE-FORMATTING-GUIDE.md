@@ -106,6 +106,8 @@ Rules:
 
 **No remarks about reading problems in a row.** "Frequency drawn as tally marks" is not a clinical fact. The part that could not be read is left out, the row keeps its warning mark, and the explanation is kept for the reviewer (`readerNote`). A fact whose main value could not be read is held back.
 
+**"Suspected" explains itself.** The word is amber with a dotted underline, and hovering or focusing it says "Written as suspected, not confirmed". There is no second warning mark at the end of that row. Tooltip text is always white on the dark tooltip.
+
 **Links inside the summary are not blue.** A visit number or a count that jumps to a section reads as a key phrase (dark ink, medium weight) and underlines on hover.
 
 
@@ -466,16 +468,17 @@ Rules: two characters or more; every word typed must be present; case, extra spa
 
 ---
 
-## 12. Original pages
+## 12. Source page viewer
 
 Shown beside the workspace, and as a drawer on the Rx pad when any `[n]`, thumbnail or Files row is opened.
 
-- **One strip for the whole file.** All pages scroll continuously, in page order, with extra air and a hairline where a new document starts.
-- **Top:** a fixed heading, "Original pages", with the page and document count. It does not change while scrolling.
-- **Floating tag, top left:** names the paper under the reader's eye, `[2] Discharge summary 1 of 4`, and changes as the next document scrolls in.
-- **When a paper has no name.** The reader names most documents. When it cannot, the tag says something true instead of inventing a title: "Photographs and images" for pictures with no text, "Unclassified pages" for text it could not classify, "Unfiled page" for a page in no document. These read lighter than a real title.
-- **Bottom, floating:** a dark pill with previous page, `2 / 99`, next page, zoom out, zoom level, zoom in, and hide. The strip has spare room at both ends so neither the tag nor the pill covers a line of the page.
-- The cited line is outlined in amber.
+- **One strip for the whole file.** All pages scroll continuously, in page order. A folder of several files is one run of pages.
+- **Two columns, each with its own header.** The tabs, the search box and the verified count belong to the digitised record and sit over the left column only. The original document on the right has its own header at the same height. The feature name, the "AI draft" badge and the one-line description of the file live in the page's top header (the violet banner on the patient page, the drawer header in review), not inside the workspace.
+- **The viewer's header** is in the grey of the paper area, not white. It reads, left to right on one centre line: a small `ORIGINAL` label, the document's title with an arrow, then at the far end the file name, the page range and the citation number. Example: `ORIGINAL  Discharge summary ⌄ ...... File 6 | p. 164-169 | [54]`. It changes as the next document scrolls in. A long title is cut with an ellipsis; the full title is on hover.
+- **The title opens the catalogue.** A list of every document, grouped under its file, with a "Find a document" box and one quiet line saying what the file holds (`6 files · 77 documents · 275 pages`). Choosing a document jumps to it.
+- **When a paper has no name.** The reader names most documents. When it cannot, the header says something true instead of inventing a title: "Photographs and images", "Unclassified pages" or "Unfiled page", in lighter ink.
+- **Bottom, centred: the page dock**, the one floating control, in grey glass. Previous page, `164 / 275`, next page, zoom out, zoom level, zoom in. There is no collapse control.
+- The cited line is outlined in amber; on a real scan, where no region is known yet, the whole cited page is marked.
 - No review tools here. On the Rx pad, "Review and save" in the drawer header moves to the workspace on the same page.
 
 ---

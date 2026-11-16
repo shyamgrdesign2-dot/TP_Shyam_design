@@ -26,7 +26,7 @@ import styles from "./ArchivedRecords.module.scss";
  * record.
  *
  *   Verify   the row is right as read
- *   Edit     the row is wrong; correct it field by field, which also verifies it
+ *   Edit     the row is wrong; correct it in its own columns, which also verifies it
  *   Remove   the row should not go into the patient record
  *
  * Nothing is ever deleted and nothing on the page changes: a removed row stays
@@ -165,10 +165,10 @@ function ReviewRow({ finding, bundle, entry, layout, narrow, active, selected, d
 
   let content;
   if (editing) {
+    // With room for the columns the row is corrected in place: its cells
+    // become inputs under the same headers. Otherwise it is a labelled form.
     content = (
-      <div className={styles.vBody} role={cell}>
-        <RxEditForm finding={finding} draft={draft} narrow={narrow} onChange={onEditChange} onSave={() => onEditSave(finding)} onCancel={() => onEditCancel(finding)} />
-      </div>
+      <RxEditForm finding={finding} draft={draft} layout={layout} narrow={narrow} onChange={onEditChange} onSave={() => onEditSave(finding)} onCancel={() => onEditCancel(finding)} />
     );
   } else if (table) {
     content = (
@@ -210,6 +210,7 @@ function ReviewRow({ finding, bundle, entry, layout, narrow, active, selected, d
       data-finding={finding.id}
       data-status={status}
       data-layout={layout}
+      data-editing={editing ? "true" : undefined}
       data-active={active ? "true" : undefined}
       data-selected={selected ? "true" : undefined}
       // The row itself opens its source page, by click or by Enter / Space.

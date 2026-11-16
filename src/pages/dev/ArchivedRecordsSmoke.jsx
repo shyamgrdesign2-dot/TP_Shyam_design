@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Button, SegmentedControl } from '@dhspl-tatvacare/tesseract-ui';
-import { ArchivedRecordsDrawer, ArchivedRecordsRailPanel, ArchivedRecordsWorkspace } from '../../components/archived-records';
+import { SegmentedControl } from '@dhspl-tatvacare/tesseract-ui';
+import { ArchivedRecordsDrawer, ArchivedRecordsWorkspace, FEATURE_NAME, useArchivedRecords } from '../../components/archived-records';
+import AiDraftBadge from '../../components/archived-records/AiDraftBadge';
+import { fileDetails, fileLine } from '../../components/archived-records/ArchivedRecordsWorkspace';
+import SampleRxPad from './SampleRxPad';
 import '../../components/sideNavbar/sideNavbar.css';
 import './ArchivedRecordsSmoke.scss';
 
@@ -13,28 +16,24 @@ const VIEWS = [
 export default function ArchivedRecordsSmoke() {
   const [view, setView] = useState('workspace');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { bundle } = useArchivedRecords();
   return (
-    <div className="ars-root">
+    <div className="ars-root" data-view={view}>
       <div className="ars-bar">
-        <strong>Case File · design preview</strong>
+        <div className="ars-title">
+          <strong>{FEATURE_NAME}</strong>
+          <AiDraftBadge details={fileDetails(bundle)} />
+          <span>{fileLine(bundle)}</span>
+        </div>
         <SegmentedControl options={VIEWS} value={view} onValueChange={setView} size="sm" />
       </div>
       {view === 'workspace' ? (
         <div className="ars-stage">
-          <ArchivedRecordsWorkspace reviewerName="Dr. Demo" variant="page" />
+          <ArchivedRecordsWorkspace reviewerName="Dr. Demo" variant="page" header="banner" />
         </div>
       ) : (
         <div className="ars-rail-stage">
-          <div className="ars-rail-panel">
-            <div className="ars-rail-title">Case File</div>
-            <div className="snv-content-scroll snv-archived-records-content">
-              <ArchivedRecordsRailPanel onOpenReview={() => setDrawerOpen(true)} />
-            </div>
-          </div>
-          <div className="ars-rail-pad">
-            <p>Rx pad area (placeholder)</p>
-            <Button variant="outline" theme="neutral" size="sm" onClick={() => setDrawerOpen(true)}>Open review drawer</Button>
-          </div>
+          <SampleRxPad onOpenReview={() => setDrawerOpen(true)} />
           <ArchivedRecordsDrawer open={drawerOpen} onOpenChange={setDrawerOpen} reviewerName="Dr. Demo" />
         </div>
       )}

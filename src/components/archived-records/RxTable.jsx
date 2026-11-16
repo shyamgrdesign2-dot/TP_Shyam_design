@@ -14,11 +14,16 @@ import styles from "./ArchivedRecords.module.scss";
  *   wide    one line: cells, then the row's actions
  *   tight   cells take the full width, the actions sit beneath them
  *   stack   too narrow for columns: the row is written as a sentence instead
+ *
+ * A row being corrected keeps these columns: in the wide layout its cells
+ * become inputs under the same headers (RxEditForm.jsx).
  */
 
 // Narrow columns hold short, closed values and keep a fixed width (even
-// pixels). Wide columns (names, notes) share what is left.
-const NARROW = { status: 84, duration: 68, dosage: 64, frequency: 72, when: 76, value: 88, units: 68, refRange: 96, date: 68 };
+// pixels). Wide columns (names, notes) share what is left. Status is wide
+// enough for its select to show "Confirmed" beside the arrow when the row is
+// edited in place.
+const NARROW = { status: 96, duration: 68, dosage: 64, frequency: 72, when: 76, value: 88, units: 68, refRange: 96, date: 68 };
 const NARROW_VITAL = 48;
 const GAP = 8;
 const CHECK = 28; // the checkbox column and the gap after it

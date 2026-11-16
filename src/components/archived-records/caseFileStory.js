@@ -314,15 +314,25 @@ function whoOf(patient) {
 //   4. How they left and what was planned
 //   5. Keep in mind                    (allergy line, background, alerts)
 //   6. Not in this file
-const SHORT_GROUPS = [["earlier", "arrival"], ["diagnosis", "treatment"], ["course"], ["leaving", "after", "medicines", "followUp"], ["background"], ["gaps"], ["none"]];
+// Each pointer has a fixed label, so a reader always knows which part of the
+// story they are in and a developer can see which rule wrote the line.
+const SHORT_GROUPS = [
+  { label: "Arrival", kinds: ["earlier", "arrival"] },
+  { label: "Diagnosis and treatment", kinds: ["diagnosis", "treatment"] },
+  { label: "Background", kinds: ["background"] },
+  { label: "Hospital course", kinds: ["course"] },
+  { label: "Discharge and follow-up", kinds: ["leaving", "after", "medicines", "followUp"] },
+  { label: "Not in this file", kinds: ["gaps"] },
+  { label: "", kinds: ["none"] },
+];
 
 function shorten(beats, patient) {
   const who = whoOf(patient);
-  return SHORT_GROUPS.map((kinds, index) => {
+  return SHORT_GROUPS.map(({ label, kinds }, index) => {
     const mine = beats.filter((beat) => kinds.includes(beat.kind)).sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind));
     if (!mine.length) return null;
     const text = mine.map((beat) => beat.text).join(" ");
-    return { key: `short-${index}`, kind: kinds[kinds.length - 1], text: index === 0 && who ? `${who} ${text}` : text, cites: [...new Set(mine.flatMap((beat) => beat.cites))] };
+    return { key: `short-${index}`, label, kind: kinds[kinds.length - 1], text: index === 0 && who ? `${who} ${text}` : text, cites: [...new Set(mine.flatMap((beat) => beat.cites))] };
   }).filter(Boolean);
 }
 
