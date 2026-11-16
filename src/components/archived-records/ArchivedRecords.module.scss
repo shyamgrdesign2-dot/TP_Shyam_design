@@ -3041,3 +3041,26 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
 
 // Cancel is a link. It is still 28px to hit.
 .rxEditActions > button[data-variant="link"] { min-height: 28px; }
+
+/* ------------------------------------ toolbar answers to its own column */
+
+// The toolbar sits in the record column, so it is that column's width that
+// decides what fits, not the window's. Without this the search box slid over
+// the Documents tab whenever the original pages were open beside it.
+.main { container-type: inline-size; }
+
+@container (max-width: 980px) {
+  // The count is still on the Clinical data tab and in its review bar.
+  .toolbarProgress { display: none; }
+  .toolbar { gap: var(--tesseract-space-3); }
+  .toolbarEnd { gap: var(--tesseract-space-2); }
+  .toolbarSearch { flex: 1 1 200px; min-width: 120px; }
+}
+
+@container (max-width: 720px) {
+  // Too narrow for one line: the search and text size take a row of their own.
+  .toolbar { flex-wrap: wrap; row-gap: var(--tesseract-space-1); padding-top: var(--tesseract-space-2); }
+  .toolbar > :first-child { order: 2; }
+  .toolbarEnd { order: 1; flex: 1 1 100%; }
+  .toolbarSearch { flex: 1 1 auto; }
+}
