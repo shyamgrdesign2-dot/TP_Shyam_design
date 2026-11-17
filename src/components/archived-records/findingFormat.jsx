@@ -5,6 +5,7 @@ import ARCHIVED_RECORDS_MOCK from "./mock/archivedRecordsMock";
 import { archivedRecordsStore, citeNumberForPage, citesOf, documentForPage } from "./archivedRecordsStore";
 import { DX_TITLES, dxTitle, isDiagnosis } from "./diagnosisTypes";
 import { HISTORY_TITLES, historyNeedsDate, historyTitle, isHistory } from "./medicalHistory";
+import { LISTED_NOTE_GROUPS } from "./noteGroups";
 import { PROC_TITLES, isProcedure, procGroupOf } from "./procedureTypes";
 import { rxQuals, rxRow } from "./rxFormat";
 import { scrollWithin } from "./scrollWithin";
@@ -412,12 +413,10 @@ export function FindingBody({ finding, marks = null, dated = true, compact = fal
 
 /* --------------------------------------------------------------- grouping */
 
-// Reports and notes read in this order: what to keep in mind, then results,
-// then the operation, then the stay.
-// (the order a discharge summary tells it in: what to watch, why the patient
-// came, what was found, what the specialists said, the operation, the stay,
-// what was advised, then the rest)
-export const REPORT_GROUPS = ["Keep in mind", "Symptoms", "Examination", "Investigations", "Opinions", "Operation notes", "Course", "Advice and follow-up", "Other notes"];
+// Clinical notes read in the order a discharge summary tells it: why the
+// patient came, what was found, what was done, what was advised. Only these
+// tags are kept as facts (noteGroups.js).
+export const REPORT_GROUPS = LISTED_NOTE_GROUPS;
 // Inside a group a note is placed by the part it plays (its role), so the
 // order holds for any file: what to watch, results, the operation, then the
 // stay from complaint to follow-up. Notes with the same role keep the order

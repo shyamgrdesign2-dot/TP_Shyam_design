@@ -1090,8 +1090,9 @@ html body :where(.workspace, .rail, .sourceOnly) :is(div, span, p, table, tr, th
 // A subheading inside a section ("On discharge", "In hospital", a sample
 // date) is a short tag: enough to catch the eye, not a second heading.
 // The tag over a group of rows ("Medical Condition", "Final diagnosis"). It
-// is a heading, so it is read before the rows under it: caption size in the
-// darker ink at semibold. No dot or icon: size and ink carry it.
+// sits one step under the section heading: a size smaller, in the same
+// lighter ink and medium weight, so the rows stay the darkest thing on the
+// page. No dot or icon.
 .rowGroupTitle {
   margin: var(--tesseract-space-3) var(--tesseract-space-2) var(--tesseract-space-1);
   display: inline-flex;
@@ -1103,8 +1104,8 @@ html body :where(.workspace, .rail, .sourceOnly) :is(div, span, p, table, tr, th
   background: var(--tesseract-slate-100);
   font-size: var(--tesseract-text-caption);
   line-height: var(--tesseract-text-caption-lh);
-  font-weight: var(--tesseract-weight-semibold);
-  color: var(--tesseract-fg-primary);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
 }
 
 .rows {
@@ -3452,3 +3453,11 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
     margin-left: calc(-48px - var(--tesseract-space-2));
   }
 }
+
+// The course as the discharge summary wrote it: one paragraph, read whole.
+.courseText {
+  margin: 0;
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-2);
+  color: var(--tesseract-fg-primary);
+}
+.rail .courseText { padding-left: 0; }
