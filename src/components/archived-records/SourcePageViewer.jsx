@@ -184,29 +184,47 @@ export function documentName(doc) {
 // page image. It is what the extraction service returns with every fact (the
 // box of the words it read). A citation then lands on those words, marked,
 // not just on their page. A region with no box falls back to marking the page.
+// Fetched once for the whole app, as soon as this module loads, so a
+// citation never waits for it. Until it has answered the strip shows a
+// loading state, never the drawn sample pages: a doctor must not see a
+// stand-in page, even for a moment, where the real one is coming.
+const json = (response) => (response.ok && (response.headers.get("content-type") || "").includes("json") ? response.json() : null);
+let scanCache = { done: false, value: null, promise: null };
+function loadScan() {
+  if (scanCache.promise) return scanCache.promise;
+  const base = process.env.PUBLIC_URL || "";
+  scanCache.promise = fetch(`${base}/case-file-local/manifest.json`)
+    .then(json)
+    .then((manifest) => {
+      if (!manifest?.pages || !manifest.map) return null;
+      return fetch(`${base}/case-file-local/regions.json`)
+        .then(json)
+        .catch(() => null)
+        .then((regions) => ({ ...manifest, regions: regions || {} }));
+    })
+    .catch(() => null)
+    .then((value) => {
+      scanCache = { ...scanCache, done: true, value };
+      return value;
+    });
+  return scanCache.promise;
+}
+if (typeof window !== "undefined" && isArchivedRecordsEnabled()) loadScan();
+
 function useLocalScan() {
-  const [scan, setScan] = useState(null);
+  const enabled = isArchivedRecordsEnabled();
+  const [state, setState] = useState(() => (!enabled || scanCache.done ? { pending: false, scan: scanCache.value } : { pending: true, scan: null }));
   useEffect(() => {
+    if (!enabled || !state.pending) return undefined;
     let alive = true;
-    if (!isArchivedRecordsEnabled()) return undefined;
-    fetch(`${process.env.PUBLIC_URL || ""}/case-file-local/manifest.json`)
-      .then((response) => (response.ok && (response.headers.get("content-type") || "").includes("json") ? response.json() : null))
-      .then((manifest) => {
-        if (!alive || !manifest?.pages || !manifest.map) return null;
-        const json = (response) => (response.ok && (response.headers.get("content-type") || "").includes("json") ? response.json() : null);
-        return fetch(`${process.env.PUBLIC_URL || ""}/case-file-local/regions.json`)
-          .then(json)
-          .catch(() => null)
-          .then((regions) => {
-            if (alive) setScan({ ...manifest, regions: regions || {} });
-          });
-      })
-      .catch(() => {});
+    loadScan().then((value) => {
+      if (alive) setState({ pending: false, scan: value });
+    });
     return () => {
       alive = false;
     };
-  }, []);
-  return scan;
+  }, [enabled, state.pending]);
+  return state;
 }
 
 // `onGoToFinding`, when given, is how the viewer asks its host to bring one
@@ -215,7 +233,7 @@ function useLocalScan() {
 // "Next to review" belongs to the people who verify the file, not to a doctor
 // checking one line during a consultation.
 export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageChange, onHide, onGoToFinding, reviewTools = true }) {
-  const scan = useLocalScan();
+  const { scan, pending: scanPending } = useLocalScan();
   const [zoomIndex, setZoomIndex] = useState(2);
   const [visiblePage, setVisiblePage] = useState(page);
   const scrollRef = useRef(null);
@@ -445,7 +463,9 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
         aria-label="Pages of the original case file. Page Up and Page Down move by page, Home and End go to the first and last page, D opens the list of documents."
         onKeyDown={onKeys}
       >
-        {scan
+        {scanPending ? (
+          <p className={styles.scanLoading} role="status">Loading the original pages…</p>
+        ) : scan
           ? pageNumbers.map((pageNo) => (
               <div key={pageNo} className={styles.sheet} data-page={pageNo} data-cited={pageNo === cited && rid ? (box ? "words" : "true") : undefined}>
                 <span className={styles.sheetNo}>
