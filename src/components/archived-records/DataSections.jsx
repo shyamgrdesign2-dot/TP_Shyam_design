@@ -245,7 +245,7 @@ export default function DataSections({ bundle, review, RxSection, onOpenReview, 
                 <p className={styles.fieldEmpty}>{allergyGap(bundle, review)}</p>
               </div>
             ) : null}
-            {section.code === "RPT" && !searching ? (
+            {section.code === "RPT" && !searching && bundle.images.length ? (
               <div className={styles.railThumbs}>
                 {bundle.images.map((image) => (
                   <Tooltip key={image.id} content={`${image.title}, ${image.dateLabel}`}>
