@@ -152,7 +152,13 @@ function lastVitalsOnly(bundle) {
 // reviewed or saved.
 const listedOnly = (bundle) => ({ ...bundle, findings: bundle.findings.filter(isListed), unlisted: bundle.findings.filter((item) => !isListed(item)) });
 
-const BASE = listedOnly(lastVitalsOnly(ARCHIVED_RECORDS_MOCK));
+// Images: only scanned reports (an ECG strip, an X-ray, an echo, a scope or
+// angiogram picture) are shown as images. A photo on a page (implant
+// stickers, a wound photo) is part of its page, not a report of its own.
+const REPORT_IMAGES = ["ecg", "xray", "echo", "scope", "angio", "ct", "mri", "usg"];
+const reportImagesOnly = (bundle) => ({ ...bundle, images: (bundle.images || []).filter((image) => REPORT_IMAGES.includes(image.kind)) });
+
+const BASE = reportImagesOnly(listedOnly(lastVitalsOnly(ARCHIVED_RECORDS_MOCK)));
 
 let cache = { edits: null, bundle: BASE };
 const bundleWith = (edits) => {
