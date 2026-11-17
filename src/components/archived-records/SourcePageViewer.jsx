@@ -305,25 +305,7 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
       }))
       .filter((group) => group.docs.length);
   }, [bundle, catalogQuery]);
-  // Shown once: the tag is the only way to move around a long file by name.
-  const [hintSeen, setHintSeen] = useState(() => {
-    try {
-      return window.localStorage.getItem("tp-case-file-catalog-hint") === "1";
-    } catch (error) {
-      return true;
-    }
-  });
-  const openCatalog = () => {
-    setCatalogOpen((value) => !value);
-    if (!hintSeen) {
-      setHintSeen(true);
-      try {
-        window.localStorage.setItem("tp-case-file-catalog-hint", "1");
-      } catch (error) {
-        // Private mode: the hint simply shows again next time.
-      }
-    }
-  };
+  const openCatalog = () => setCatalogOpen((value) => !value);
 
   // The next page that still has something to review, after the one in view.
   const { review } = useArchivedRecords();
@@ -397,11 +379,6 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
           {number ? <span className={styles.docTagNo}>[{number}]</span> : null}
           <ArrowDown2 size={14} className={styles.docTagArrow} aria-hidden="true" />
         </button>
-        {!hintSeen && !catalogOpen ? (
-          <button type="button" className={styles.catalogHint} onClick={openCatalog}>
-            All {bundle.documents.length} documents are listed here
-          </button>
-        ) : null}
         {catalogOpen ? (
           <div className={styles.catalogPanel} role="dialog" aria-label="Documents in this file">
             <p className={styles.catalogInfo}>

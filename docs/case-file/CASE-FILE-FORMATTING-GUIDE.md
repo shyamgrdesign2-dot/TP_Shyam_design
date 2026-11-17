@@ -149,7 +149,7 @@ Rules:
 - **Emphasis in content is by colour, never by weight.** The fact is the darkest ink; what introduces or qualifies it is lighter. Semibold is kept for headings (card titles, section names, group titles). Bold is not used. In a summary sentence the key words are the darker ink at medium weight; in rows the fact is the darker ink at regular weight.
 - **Colour is spent only on two things:** red for a value the source flagged high or low, amber for a warning the doctor should see (suspected, conflict, unclear). Citations are link blue. Everything else is grey scale.
 - **Sizes:** 13px for a row, 12px for bracket details, 11px for trends and units, 10px for citations. Summary text is 12px.
-- **A group tag is a heading and must be seen first** (17 Nov 2026): the tag over a group of rows (`Medical Condition`, `Final diagnosis`, a stay in Hospital Course) is 12px semibold in the darker ink on a soft grey tag, 24px tall, with a 6px dot in the brand blue before the name. Row dots stay grey, so the blue dot always means "a new group starts here". A tag too long for the panel wraps; it is never cut.
+- **A group tag is a heading and must be seen first** (17 Nov 2026): the tag over a group of rows (`Medical Condition`, `Final diagnosis`, a stay in Hospital Course) is 12px semibold in the darker ink on a soft grey tag, 24px tall. No dot and no icon on it: size and ink carry it, and the only dots are the grey ones on rows. A tag too long for the panel wraps; it is never cut.
 - **One idea per row.** A row never mixes two facts to save space.
 
 ---
@@ -559,6 +559,8 @@ Two dashed boxes at the end of Data:
 The workspace is the Case File tab of the patient page and the review drawer opened by "Review and save". It serves two people: a doctor who wants to read the file properly, and a records (MRD) reviewer who turns the AI draft into patient record.
 
 **Layout.** One toolbar row: three tabs on the left, one search box and the verified count on the right. The source page stays alongside. On the patient page the violet banner carries the heading (Case File, the "AI draft until verified" badge and the one-line file description) and the workspace card overlaps the lower half of the banner.
+
+**Drawer width (17 Nov 2026).** Over the Rx pad the review drawer covers 90% of the page on every screen (`90vw`, no pixel cap), so the data and the original pages both have room and a strip of the pad stays in view.
 
 ### 11.1 Structured record (read)
 
