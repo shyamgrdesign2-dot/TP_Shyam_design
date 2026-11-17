@@ -6,15 +6,18 @@
  * way the product already stores that kind of thing. So each fact is mapped
  * onto the row shape the Rx pad and VoiceRx use, with the same keys:
  *
- *   Diagnosis        name, duration, status, notes, icd_code
- *   Medication       name, dosage (unit per dose), frequency, when, duration, notes
- *   Surgery          name, notes
- *   Medical history  type, name, enable, status, duration, date, notes
+ *   Diagnosis        name, type, duration, status, notes, icd_code (type: see diagnosisTypes.js)
+ *   Medication       name, generic, type (form), dosage (unit per dose), frequency, when,
+ *                    duration, notes, stage (At home, In hospital, On discharge)
+ *   Surgery          name, type, date, time, anaesthesia, notes (see procedureTypes.js)
+ *   Medical history  type, name, enable, status, duration, medication, relation,
+ *                    dateType, date, notes (by section: see medicalHistory.js)
  *   Lab result       reportName, testName, value, units, refRange, arrowDirection, date
  *   Vitals           temperature, pulse, respiratory_rate, blood_pressure, spo2, height, weight, date
  *   Symptom          name, duration, severity, notes
- *   Investigation    name, notes
- *   Follow-up, Others  text
+ *   Examination, Investigation, Advice    name, notes
+ *   Follow-up        name, notes (the date is the row's own)
+ *   Others           name, notes, kind (the tag: Keep in mind, Opinions, Course, ...)
  *
  * Rules:
  *   - A field is filled only from what the page says. Nothing is computed
@@ -43,7 +46,10 @@
  * JSON to store in the backend.
  */
 
-import { SINCE_UNITS, STATUS_OPTIONS } from "../medical-history/constants";
+import { MEDICATION_OPTIONS, RELATIONSHIP_LIST, SINCE_UNITS, STATUS_OPTIONS } from "../medical-history/constants";
+import { DX_TYPE_OPTIONS, dxType, isDiagnosis, roleOfDxType } from "./diagnosisTypes";
+import { historyQuals, historyRow, historyType } from "./medicalHistory";
+import { PROC_TYPE_OPTIONS, isProcedure, procType, roleOfProcType } from "./procedureTypes";
 
 const TIMES_A_DAY = { 1: "OD", 2: "BD", 3: "TDS", 4: "QID" };
 const FORM = { tab: "Tablet", tabs: "Tablet", tablet: "Tablet", tablets: "Tablet", cap: "Capsule", caps: "Capsule", capsule: "Capsule", capsules: "Capsule", ml: "ml" };
@@ -64,12 +70,26 @@ const UNIT_PER_DOSE = /^(\d+(\.\d+)?|\d\/\d|half|one|two)\s*(tabs?|tablets?|caps
 const DOUBTFUL = ["ambiguous", "conflict", "conflictingValue", "lowConfidence", "partlyRead"];
 const inDoubt = (finding) => Boolean(finding.hold) || finding.confidence < 0.7 || (finding.flags || []).some((flag) => DOUBTFUL.includes(flag));
 
+// Where in the patient's care a medicine was written. Stored on the row, and
+// the tag the medicine sits under on screen.
+export const MED_STAGE = { home: "At home", inHospital: "In hospital", discharge: "On discharge" };
+// What a medicine comes as: the Rx pad's medicine type. An old file names
+// these; anything else is kept as written.
+export const MED_FORMS = ["Tablet", "Capsule", "Syrup", "Injection", "Eye drops", "Nebulisation", "Inhaler", "Ointment", "Dressing"];
+
 function medication(finding) {
-  const row = { name: finding.title, dosage: "", frequency: "", when: "", duration: "", notes: "" };
+  // `med` is what the page says about the medicine itself: its generic (the
+  // short name of what is in it), the full composition as printed, and its
+  // form. The name is then the brand and strength alone, which is what makes
+  // medicines countable.
+  const said = finding.med || {};
+  const row = { name: finding.title, generic: said.generic || "", type: said.form || "", dosage: "", frequency: "", when: "", duration: "", notes: "", stage: MED_STAGE[finding.role] || "" };
   const notes = [];
   const doubt = inDoubt(finding);
   parts(finding.detail).forEach((part) => {
     let m;
+    // The form is a field of its own now; it is not also a note.
+    if (finding.med && FORM_WORD.test(part)) return;
     if (!row.frequency && doubt && /^\d\s*x\s*\d+/i.test(part)) {
       row.frequency = part; // kept exactly as written
     } else if (!row.frequency && (m = part.match(/^(\d)\s*x\s*(\d+)\s*([a-z]+)?$/i))) {
@@ -123,7 +143,16 @@ function vitals(finding) {
 }
 
 // Where a note belongs in the Rx pad, by the part it plays in the file.
-const NOTE_SECTION = { complaint: "symptoms", followUp: "follow_up", investigation: "lab_investigation" };
+// Where a note goes in the Rx pad's structure, by the tag it sits under.
+// What the Rx pad has no section for (an alert, a specialist's opinion, the
+// course of the stay) is kept under `others` with its tag as `kind`.
+const NOTE_SECTION = { Symptoms: "symptoms", Examination: "examinations", Investigations: "lab_investigation" };
+const noteSection = (finding) =>
+  finding.role === "symptom" || finding.role === "complaint" ? "symptoms"
+  : finding.role === "advice" ? "advice"
+  : finding.role === "followUp" ? "follow_up"
+  : NOTE_SECTION[finding.group] || (finding.role === "investigation" ? "lab_investigation" : "others");
+export const RX_SEVERITY = ["Mild", "Moderate", "Severe"];
 
 // The row as it was read from the page.
 function readRow(finding) {
@@ -131,31 +160,61 @@ function readRow(finding) {
   // diagnosis read clearly; anything else gets no status at all, because the
   // page did not give one and a reviewer has not chosen one.
   const status = finding.flags?.includes("suspected") ? "Suspected" : finding.role === "final" && !inDoubt(finding) ? "Confirmed" : "";
+  // Whatever the Rx pad keeps under Medical History (a long-standing
+  // condition, an allergy, a past operation, habits, family history) is a
+  // medical_history row, with that section's own fields.
+  if (historyType(finding)) return { section: "medical_history", row: historyRow(finding) };
   switch (finding.domain) {
-    case "DX":
-      if (finding.role === "chronic") {
-        return { section: "medical_history", row: { type: "medical_condition", name: finding.title, enable: "Y", status: "", duration: "", notes: finding.detail || "" } };
-      }
-      return { section: "diagnosis", row: { name: finding.title, duration: "", status, notes: finding.detail || "", icd_code: (finding.coding || "").replace(/^ICD-10\s*/i, "").split(" ")[0] || "" } };
-    case "ALG":
-      return { section: "medical_history", row: { type: "allergy", name: finding.negative ? "Drug allergy" : finding.title, enable: finding.negative ? "N" : "Y", status: finding.negative ? "" : "Active", duration: "", notes: finding.detail || "" } };
-    case "PROC":
-      if (finding.role === "pastSurgery") {
-        return { section: "medical_history", row: { type: "surgery", name: finding.title, enable: "Y", date: "", notes: finding.detail || "" } };
-      }
-      return { section: "surgery", row: { name: finding.title, notes: finding.detail || "" } };
+    case "DX": {
+      // `dx` is what the page says in the Rx pad's fields: since, a status
+      // where the page gives one, and a note. The type comes from where the
+      // diagnosis is written (final, secondary, provisional).
+      const said = finding.dx || {};
+      return {
+        section: "diagnosis",
+        row: {
+          name: finding.title,
+          type: dxType(finding).type,
+          duration: said.since || "",
+          status: said.status || status,
+          notes: finding.dx ? said.note || "" : finding.detail || "",
+          icd_code: (finding.coding || "").replace(/^ICD-10\s*/i, "").split(" ")[0] || "",
+        },
+      };
+    }
+    case "PROC": {
+      // `proc` is what the page says in fields of its own: the time, the
+      // anaesthetic type and a clinical note. The date is the row's own.
+      const said = finding.proc || {};
+      return {
+        section: "surgery",
+        row: {
+          name: finding.title,
+          type: procType(finding).type,
+          date: finding.dateLabel || "",
+          time: said.time || "",
+          anaesthesia: said.anaesthesia || "",
+          notes: finding.proc ? said.note || "" : finding.detail || "",
+        },
+      };
+    }
     case "MED":
       return { section: "medications", row: medication(finding) };
     case "LAB":
       return {
         section: "lab_results",
-        row: { reportName: "", testName: finding.title, value: finding.value || "", units: finding.unit || "", refRange: finding.range || "", arrowDirection: finding.abnormal === "H" ? "up" : finding.abnormal === "L" ? "down" : "", date: finding.dateLabel || "" },
+        // The report is the panel the test belongs to (Complete blood count,
+        // Electrolytes), so results can be grouped and counted like the Rx pad's.
+        row: { reportName: finding.lab?.report || "", testName: finding.title, value: finding.value || "", units: finding.unit || "", refRange: finding.range || "", arrowDirection: finding.abnormal === "H" ? "up" : finding.abnormal === "L" ? "down" : "", date: finding.dateLabel || "" },
       };
     case "VIT":
       return { section: "vitals_and_body_composition", row: vitals(finding) };
     default: {
-      const section = NOTE_SECTION[finding.role] || "others";
+      const section = noteSection(finding);
+      // A symptom is one row in the Rx pad's symptom fields.
+      if (finding.sym) return { section, row: { name: finding.title, duration: finding.sym.since || "", severity: finding.sym.severity || "", notes: finding.sym.note || "" } };
       if (section === "symptoms") return { section, row: { name: finding.detail || finding.title, duration: "", severity: "", notes: "" } };
+      if (section === "others") return { section, row: { name: finding.title, notes: finding.detail || "", kind: finding.group || "" } };
       return { section, row: { name: finding.title, notes: finding.detail || "" } };
     }
   }
@@ -183,6 +242,8 @@ export const RX_STATUS = {
 };
 // A lab's flag, in the words a reviewer picks from. The row keeps the Rx
 // pad's own values (up, down, or nothing for normal).
+// The reports (panels) a hospital file's results usually come under.
+export const LAB_REPORTS = ["Complete blood count", "Blood glucose", "Electrolytes", "Renal function test", "Liver function test", "Coagulation profile", "Arterial blood gas", "Thyroid function test", "Lipid profile", "Inflammatory markers", "Cardiac markers", "Serology", "Urine routine"];
 export const RX_FLAG = [{ value: "", label: "Normal" }, { value: "up", label: "High" }, { value: "down", label: "Low" }];
 
 // Since and Duration are a number and a unit. A typed number offers its
@@ -224,17 +285,51 @@ const STATUS = { key: "status", label: "Status", placeholder: "Status", kind: "s
 const HISTORY_STATUS = { key: "status", label: "Status", kind: "segment", options: STATUS_OPTIONS, width: 168 };
 const HISTORY_SINCE = { key: "duration", label: "Since", placeholder: "Select duration", kind: "suggest", options: sinceOptions, width: 136 };
 const HISTORY_NOTES = { ...NOTES, label: "Note", placeholder: "Enter any specific notes here" };
+const HISTORY_MEDICATION = { key: "medication", label: "Medication", kind: "segment", options: MEDICATION_OPTIONS, width: 132 };
+const HISTORY_RELATION = { key: "relation", label: "Relationship", placeholder: "Select relationship", kind: "select", options: RELATIONSHIP_LIST, width: 184 };
+const HISTORY_DATE = { key: "date", label: "Date of surgery", placeholder: "Year or date", kind: "text", width: 148 };
+const historyName = (label, placeholder) => ({ key: "name", label, placeholder, kind: "text", wide: true });
+
+// Medical History, section by section, with the fields that section has in
+// the Rx pad (see medicalHistory.js). Keyed by VoiceRx's row type.
+export const HISTORY_COLUMNS = {
+  medical_condition: [historyName("Medical condition", "Medical condition"), HISTORY_STATUS, HISTORY_SINCE, HISTORY_MEDICATION, HISTORY_NOTES],
+  allergy: [historyName("Allergy", "Allergy"), HISTORY_STATUS, HISTORY_SINCE, HISTORY_NOTES],
+  surgery: [historyName("Surgery", "Surgical history"), HISTORY_DATE, { ...HISTORY_NOTES, label: "Remarks" }],
+  family_history: [historyName("Family history", "Condition in the family"), HISTORY_RELATION, HISTORY_NOTES],
+  lifestyle: [historyName("Lifestyle", "Lifestyle"), HISTORY_STATUS, HISTORY_SINCE, HISTORY_NOTES],
+  others: [{ key: "name", label: "Additional history", placeholder: "Additional history", kind: "multiline", wide: true, dictate: true }],
+};
 // A reading as the Rx pad's vitals take it: "Enter", with the unit after it.
 const vital = (key, label, unit) => ({ key, label, placeholder: "Enter", kind: "measure", unit, inputClass: "inputheight41-group" });
 
 export const RX_COLUMNS = {
-  DX: [{ key: "name", label: "Diagnosis", placeholder: "Diagnosis Name", kind: "text", wide: true }, SINCE, STATUS, NOTES],
-  // A long-standing condition is Medical History on the Rx pad, not a diagnosis.
-  COND: [{ key: "name", label: "Condition", placeholder: "Medical condition", kind: "text", wide: true }, HISTORY_STATUS, HISTORY_SINCE, HISTORY_NOTES],
-  ALG: [{ key: "name", label: "Allergy", placeholder: "Allergy", kind: "text", wide: true }, HISTORY_STATUS, HISTORY_SINCE, HISTORY_NOTES],
-  PROC: [{ key: "name", label: "Surgery / procedure", placeholder: "Surgeries/Procedures Name", kind: "text", wide: true }, NOTES],
+  // The Rx pad's diagnosis row (name, since, status, notes), with the two
+  // fields the database keeps beside it: the type and the ICD-10 code.
+  DX: [
+    { key: "name", label: "Diagnosis", placeholder: "Diagnosis Name", kind: "text", wide: true },
+    { key: "type", label: "Type", placeholder: "Type", kind: "select", options: DX_TYPE_OPTIONS, width: 132 },
+    SINCE,
+    STATUS,
+    { key: "icd_code", label: "ICD-10", placeholder: "Code", kind: "text", width: 96 },
+    NOTES,
+  ],
+  // The Rx pad's surgery row (name, notes), with the fields the inpatient
+  // record keeps beside it: type, date, time and anaesthetic type.
+  PROC: [
+    { key: "name", label: "Surgery / procedure", placeholder: "Surgeries/Procedures Name", kind: "text", wide: true },
+    { key: "type", label: "Type", placeholder: "Type", kind: "select", options: PROC_TYPE_OPTIONS, width: 132 },
+    { key: "date", label: "Date", placeholder: "Date", kind: "text" },
+    { key: "time", label: "Time", placeholder: "Time", kind: "text", width: 96 },
+    { key: "anaesthesia", label: "Anaesthesia", placeholder: "Type", kind: "text", width: 148 },
+    NOTES,
+  ],
   MED: [
     { key: "name", label: "Medicine", placeholder: "Medicine Name", kind: "text", wide: true },
+    // Beside the Rx pad's own columns: what is in it and what it comes as
+    // (the medicine master's generic and type).
+    { key: "generic", label: "Generic", placeholder: "Generic name", kind: "text", wide: true },
+    { key: "type", label: "Form", placeholder: "Form", kind: "suggest", options: MED_FORMS, width: 128 },
     { key: "dosage", label: "Unit per dose", placeholder: "e.g 1 Tablet", kind: "text" },
     { key: "frequency", label: "Frequency", placeholder: "e.g 1-0-1", kind: "suggest", options: RX_SUGGESTIONS.frequency },
     { key: "when", label: "When", placeholder: "e.g Before Food", kind: "suggest", options: RX_SUGGESTIONS.when },
@@ -242,6 +337,7 @@ export const RX_COLUMNS = {
     { ...NOTES, label: "Note" },
   ],
   LAB: [
+    { key: "reportName", label: "Report", placeholder: "Report", kind: "suggest", options: LAB_REPORTS, width: 168 },
     { key: "testName", label: "Test", placeholder: "Test name", kind: "text", wide: true },
     { key: "value", label: "Value", placeholder: "Value", kind: "measure", inputClass: "lab-params-input" },
     { key: "units", label: "Unit", placeholder: "Unit", kind: "text" },
@@ -259,6 +355,13 @@ export const RX_COLUMNS = {
     vital("spo2", "SPO2", "%"),
     vital("height", "Height", "cms"),
     vital("weight", "Weight", "kgs"),
+    NOTES,
+  ],
+  // The Rx pad's symptoms table.
+  SYM: [
+    { key: "name", label: "Symptom", placeholder: "Symptom Name", kind: "text", wide: true },
+    SINCE,
+    { key: "severity", label: "Severity", placeholder: "Severity", kind: "select", options: RX_SEVERITY, width: 132 },
     NOTES,
   ],
   RPT: [
@@ -279,11 +382,11 @@ const VITAL_LABELS = [["blood_pressure", "BP"], ["pulse", "Pulse"], ["spo2", "Sp
 export const RX_VITAL_KEYS = VITAL_LABELS.map(([key]) => key);
 
 // The columns one fact is corrected in: its kind's, except that whatever the
-// Rx pad keeps under Medical History (an allergy, a long-standing condition)
-// takes Medical History's fields.
+// Rx pad keeps under Medical History takes the fields of its section there.
 export function rxColumns(finding) {
-  const { section, row } = rxRow(finding);
-  if (section === "medical_history" && row.type === "medical_condition") return RX_COLUMNS.COND;
+  const type = historyType(finding);
+  if (type) return HISTORY_COLUMNS[type] || HISTORY_COLUMNS.others;
+  if (finding.sym) return RX_COLUMNS.SYM;
   return RX_COLUMNS[finding.domain] || RX_COLUMNS.RPT;
 }
 
@@ -295,13 +398,15 @@ export function rxEditColumns(finding) {
 }
 
 // The fields a reviewer may correct, as column definitions in tab order.
-// Something recorded as "none" (enable N) has no status. A complaint runs
-// long, so its name grows with the text.
+// Something recorded as "none" (enable N) has no status, duration or
+// medication: only its name and a note. A complaint runs long, so its name
+// grows with the text.
+const NOT_FOR_NONE = ["status", "duration", "medication"];
 export function rxEditFields(finding) {
   const { section, row } = rxRow(finding);
   return rxEditColumns(finding)
-    .filter((column) => !(column.key === "status" && row.enable === "N"))
-    .map((column) => (section === "symptoms" && column.key === "name" ? { ...column, kind: "multiline" } : column));
+    .filter((column) => !(row.enable === "N" && NOT_FOR_NONE.includes(column.key)))
+    .map((column) => (section === "symptoms" && !finding.sym && column.key === "name" ? { ...column, kind: "multiline" } : column));
 }
 
 // The same fields by key.
@@ -397,6 +502,9 @@ export function factFromRx(finding, row) {
     case "diagnosis":
       rename();
       renote();
+      // The type decides the tag the diagnosis sits under.
+      if (changed("type")) fact.role = roleOfDxType(text("type"));
+      if (changed("icd_code")) fact.coding = text("icd_code") ? `ICD-10 ${text("icd_code")}` : "";
       // Suspected is never dropped or added by itself: only a reviewer
       // choosing another status changes it.
       if (changed("status")) {
@@ -406,16 +514,27 @@ export function factFromRx(finding, row) {
       }
       requalify();
       break;
+    case "surgery":
+      rename();
+      renote();
+      // The type decides the tag the procedure sits under.
+      if (changed("type")) fact.role = roleOfProcType(text("type"));
+      if (changed("date")) fact.dateLabel = text("date");
+      break;
     case "medical_history":
       // "None" is written with the word in front: No known drug allergy.
       if (row.enable === "N" && changed("name")) {
         fact.title = `No ${lowerFirst(text("name"))}`;
-        fact.label = `No known ${lowerFirst(text("name"))}`;
+        if (finding.label) fact.label = `No known ${lowerFirst(text("name"))}`;
       } else rename();
       renote();
       requalify();
       break;
     case "symptoms":
+      if (finding.sym) {
+        rename();
+        break;
+      }
       // The complaint is the symptom's name; its heading stays.
       if (changed("name")) {
         fact.detail = text("name");
@@ -448,6 +567,9 @@ export const isReaderRemark = (text) => READER_REMARK.test(typeof text === "stri
 //   echo     a bracket that only repeats the row's own name, as its short form
 const FORM_WORD = /^(tab(let)?s?|cap(sule)?s?|syr(up)?|susp(ension)?|inj(ection)?|drops?|oint(ment)?|cream|gel|lotion|solution|dressing|sachets?|po|p\/o|oral(ly)?|per oral|by mouth)\.?$|^form (printed|written) as /i;
 const ROUTE = /^(iv|im|sc|s\/c|sl|pr|pv|id|topical|local application|nebuli[sz](ed|ation)|inhal(ed|ation)|intranasal|both eyes|(left|right) eye|[lrb]e|via .{1,14}|iv infusion|iv bolus)$/i;
+const ORAL_SOLID = /^(tablet|capsule)s?$/i;
+// A note that only repeats the form ("nebulised" on a nebulisation).
+const FORM_ECHO = { nebulisation: /^(nebuli[sz](ed|ation)|inhal(ed|ation))$/i, injection: /^inj(ection)?\.?$/i, "eye drops": /^(eye )?drops?$/i, dressing: /^dressing$/i };
 const PROOF = /^stated on \d+ pages?$/i;
 const ROUTINE = /^under aseptic (technique|precautions?)$/i;
 const NOTES_FIT = 40;
@@ -476,20 +598,51 @@ function echoesTitle(qual, title = "") {
   });
 }
 
+// "9 Jul 2026" as the product writes a date on a row: 09 Jul'26.
+const shortDate = (label = "") => String(label).replace(/^(\d) /, "0$1 ").replace(/ 20(\d\d)$/, "'$1");
+
 export function rxQuals(finding) {
   // What kind of diagnosis or history item this is, is said by the tag above
   // the row ("Final diagnosis", "Medical conditions"), never inside its bracket.
+  // A history item's bracket is read off its Rx pad fields, so it always says
+  // what is stored (and what a reviewer corrected).
+  if (historyType(finding) && (finding.history || finding.rx)) return historyQuals(rxRow(finding).row);
+  // A diagnosis likewise: status where it is not plain ("Suspected", "Ruled
+  // out", in amber), since, then the note. "Confirmed" is not said; the ICD
+  // code and the type are stored, not read out (the tag above says the type).
+  if (isDiagnosis(finding) && (finding.dx || finding.rx)) {
+    const { status, duration, notes } = rxRow(finding).row;
+    const note = String(notes || "").trim();
+    return [STATUS_QUAL[status], duration, note ? (note.length <= NOTES_FIT ? lowerFirst(note) : { v: "note", tip: note }) : null].filter(Boolean);
+  }
+  // A symptom: how long, how bad, then the note.
+  if (finding.sym) {
+    const { duration, severity, notes } = rxRow(finding).row;
+    const note = String(notes || "").trim();
+    return [duration, severity ? severity.toLowerCase() : null, note ? (note.length <= NOTES_FIT ? lowerFirst(note) : { v: "note", tip: note }) : null].filter(Boolean);
+  }
+  // A procedure: when it was done, the anaesthetic, then the note. The time
+  // of day and the type are stored, not read out.
+  if (isProcedure(finding) && (finding.proc || finding.rx)) {
+    const { date, anaesthesia, notes } = rxRow(finding).row;
+    const note = String(notes || "").trim();
+    return [shortDate(date), anaesthesia, note ? (note.length <= NOTES_FIT ? note : { v: "note", tip: note }) : null].filter(Boolean);
+  }
   if (finding.domain !== "MED") {
     return finding.quals?.filter((item) => !isReaderRemark(item) && !ROLE_WORD.test(text(item)) && !PROOF.test(text(item)) && !ROUTINE.test(text(item)) && !echoesTitle(item, finding.label || finding.title));
   }
-  const { dosage, frequency, when, duration, notes } = rxRow(finding).row;
-  const extra = notes.split(", ").map((item) => item.trim()).filter((item) => item && !isReaderRemark(item) && !FORM_WORD.test(item));
+  const { type = "", dosage, frequency, when, duration, notes } = rxRow(finding).row;
+  // A tablet or a capsule is the usual thing and is not said. Any other form
+  // changes how the medicine is given, so it leads the bracket: (injection, ...).
+  const form = type && !ORAL_SOLID.test(type) ? type.toLowerCase() : null;
+  const saysForm = form && FORM_ECHO[form];
+  const extra = notes.split(", ").map((item) => item.trim()).filter((item) => item && !isReaderRemark(item) && !FORM_WORD.test(item) && !(saysForm && saysForm.test(item)));
   const routes = extra.filter((item) => ROUTE.test(item));
   const said = extra.filter((item) => !ROUTE.test(item));
   // A short note stays on the line. A long one waits behind "note": hover or
   // focus shows it whole.
   const fits = said.join(", ").length <= NOTES_FIT;
-  return [perDose(dosage), frequency, when, duration, ...routes, ...(fits ? said : [{ v: "note", tip: said.join(", ") }])].filter((item) => item && !isReaderRemark(item));
+  return [form, perDose(dosage), frequency, when, duration, ...routes, ...(fits ? said : [{ v: "note", tip: said.join(", ") }])].filter((item) => item && !isReaderRemark(item));
 }
 
 // The whole file as the Rx pad's `digitization` object: what "Copy to RxPad"
@@ -519,6 +672,18 @@ export function buildDigitization(findings, { statusOf = () => "draft", reviewOf
         ...(review ? { reviewedBy: review.by, reviewedAt: review.at } : null),
       },
     };
+    // A test read several times is one row per reading, each with its own
+    // date, so a trend can be drawn from the stored rows alone.
+    if (section === "lab_results" && finding.series?.length > 1) {
+      const year = (finding.dateLabel || "").match(/\d{4}$/)?.[0] || "";
+      finding.series.forEach((point, index) => {
+        const latest = index === finding.series.length - 1;
+        (digitization[section] = digitization[section] || []).push(
+          latest ? entry : { ...entry, value: point.v, arrowDirection: point.f === "H" ? "up" : point.f === "L" ? "down" : "", date: [point.d, year].filter(Boolean).join(" ") },
+        );
+      });
+      return;
+    }
     (digitization[section] = digitization[section] || []).push(entry);
   });
   return digitization;

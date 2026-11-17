@@ -1089,19 +1089,32 @@ html body :where(.workspace, .rail, .sourceOnly) :is(div, span, p, table, tr, th
 
 // A subheading inside a section ("On discharge", "In hospital", a sample
 // date) is a short tag: enough to catch the eye, not a second heading.
+// The tag over a group of rows ("Medical Condition", "Final diagnosis"). It
+// is a heading, so it is read before the rows under it: caption size in the
+// darker ink at semibold, behind a small dot in the brand colour.
 .rowGroupTitle {
-  margin: var(--tesseract-space-2) var(--tesseract-space-2) var(--tesseract-space-0-5);
+  margin: var(--tesseract-space-3) var(--tesseract-space-2) var(--tesseract-space-1);
   display: inline-flex;
   align-items: center;
-  height: 18px;
-  padding: 0 var(--tesseract-space-1-5);
+  gap: var(--tesseract-space-1-5);
+  max-width: 100%;
+  min-height: 24px;
+  padding: var(--tesseract-space-1) var(--tesseract-space-2);
   border-radius: var(--tesseract-radius-4);
   background: var(--tesseract-slate-100);
-  font-size: var(--tesseract-text-micro);
-  line-height: 1;
-  font-weight: var(--tesseract-weight-medium);
-  color: var(--tesseract-fg-secondary);
-  white-space: nowrap;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-primary);
+
+  &::before {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tesseract-blue-500);
+  }
 }
 
 .rows {
@@ -2387,17 +2400,48 @@ html body .dock :is(span, small) { color: inherit; }
 /* ------------------------------------------------- real scanned pages */
 
 // A real scan (local demos). The image is the page; zoom changes its width.
+.scanWrap {
+  position: relative;
+  flex-shrink: 0;
+  max-width: none;
+}
+
 .scanPage {
   display: block;
+  width: 100%;
   max-width: none;
   height: auto;
   background: var(--tesseract-bg-surface);
   box-shadow: var(--tesseract-shadow-sm);
 }
 
-// No region is known on a real scan yet, so the whole cited page is marked.
+// The cited words on a real scan: the same amber mark as on a drawn page.
+// The fill is see-through and multiplied, so ink under it stays readable.
+.scanHit {
+  position: absolute;
+  box-sizing: content-box;
+  margin: -4px;
+  padding: 4px;
+  border-radius: var(--tesseract-radius-4);
+  background: color-mix(in srgb, var(--tesseract-amber-300) 34%, transparent);
+  outline: 2px solid var(--tesseract-amber-500);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  animation: scanHitIn 900ms ease-out 1;
+}
+
+@keyframes scanHitIn {
+  0% { outline-width: 6px; outline-color: var(--tesseract-amber-400); background: color-mix(in srgb, var(--tesseract-amber-300) 70%, transparent); }
+  100% { outline-width: 2px; outline-color: var(--tesseract-amber-500); background: color-mix(in srgb, var(--tesseract-amber-300) 34%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanHit { animation: none; }
+}
+
+// When the words' box is not known, the whole cited page is marked instead.
 .sheet[data-cited="true"] .scanPage { outline: 2px solid var(--tesseract-amber-400); outline-offset: 2px; }
-.sheet[data-cited="true"] .sheetNo { color: var(--tesseract-amber-700); font-weight: var(--tesseract-weight-medium); }
+.sheet[data-cited] .sheetNo { color: var(--tesseract-amber-700); font-weight: var(--tesseract-weight-medium); }
 
 /* ------------------------------------------------ facts that run along */
 
@@ -3255,6 +3299,17 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
 .railTabs { border-bottom: 1px solid var(--tesseract-border-soft); }
 .railTop > .railTabs:last-child { border-bottom: 0; }
 
+// In the Rx pad panel the tab strip runs from one edge of the panel to the
+// other: no gutter either side, no gap between tabs, and the line under the
+// open tab is as wide as the tab. (Equal widths come from TabsList fullWidth.)
+.rail[data-host="rail"] .railTabs {
+  margin: 0 calc(var(--cf-bleed) * -1);
+
+  [role="tablist"] { gap: 0; }
+  [role="tab"] { border-radius: 0; }
+  [role="tab"]::after { left: 0; right: 0; border-radius: 0; }
+}
+
 // On its own (no panel around it) the block has no band behind it.
 .rail[data-host="page"] .railTop { border-bottom: 0; }
 .rail[data-host="page"] .railTop .railSearch { padding: var(--tesseract-space-3) 0 0; }
@@ -3371,4 +3426,55 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   font-size: var(--tesseract-text-caption);
   font-variant-numeric: tabular-nums;
   color: var(--tesseract-fg-secondary);
+}
+
+/* ------------------------------------------------------ Medical History */
+
+// A sub-heading tag starts where the section's heading starts: the two boxes
+// share a left edge, in the narrow panel and on a wide page alike.
+.rail .rowGroupTitle { margin-left: 0; }
+.rail[data-wide="true"] .cfSection > .rowGroup,
+.rail[data-wide="true"] .cfSection > .moreLink,
+.rail[data-wide="true"] .cfSection > .fieldEmpty { margin-left: 0; }
+
+// Medical History in a narrow column is the Rx pad's own list: a tag for the
+// section (Medical Condition, Allergies, ...), then one dot per item. Dots,
+// not rules: the items are short and there are many small groups.
+.rows[data-dots="true"] {
+  list-style: disc outside;
+  padding-left: var(--tesseract-space-5);
+
+  .row {
+    display: list-item;
+    padding: var(--tesseract-space-0-5) var(--tesseract-space-2) var(--tesseract-space-0-5) 0;
+    border-top: 0;
+    font-size: var(--tesseract-text-caption-lg);
+    line-height: var(--tesseract-text-caption-lg-lh);
+
+    &::marker { color: var(--tesseract-slate-400); }
+  }
+}
+
+.rail .fieldEmpty { margin-left: 0; }
+
+// A medicine's generic, after its brand name: mid grey, between the dark
+// name and the light bracket.
+.rowGeneric {
+  color: var(--tesseract-fg-secondary);
+
+  &[data-info="true"] { cursor: default; border-radius: var(--tesseract-radius-4); }
+  &[data-info="true"]:focus-visible { outline: 2px solid var(--tesseract-border-focus); outline-offset: 2px; }
+}
+
+/* ------------------------------------------------------ Hospital Course */
+
+// One row per event. The day stands in a column of its own and is written
+// once per day; a line that wraps stays clear of that column.
+.courseLine {
+  padding-left: calc(48px + var(--tesseract-space-2));
+
+  .courseDate {
+    min-width: 48px;
+    margin-left: calc(-48px - var(--tesseract-space-2));
+  }
 }

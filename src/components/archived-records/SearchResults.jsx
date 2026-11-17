@@ -62,7 +62,7 @@ export function searchHints(bundle, index, review = {}) {
   const diagnosis = pick("DX", (item) => item.role === "final") || pick("DX", (item) => item.role !== "chronic") || pick("DX");
   const result = pick("LAB", (item) => item.abnormal) || pick("LAB");
   const medicine = pick("MED", (item) => item.role === "discharge" || item.role === "prescribed") || pick("MED");
-  const procedure = pick("PROC", (item) => item.role === "procedure") || pick("PROC");
+  const procedure = pick("PROC", (item) => item.role === "surgery") || pick("PROC", (item) => item.role === "procedure") || pick("PROC");
   const words = [lastWord(diagnosis?.title), firstWord(result?.title), firstWord(medicine?.title), longestWord(procedure?.title), pick("ALG") ? "allergy" : ""];
   const seen = new Set();
   return words.filter((word) => {

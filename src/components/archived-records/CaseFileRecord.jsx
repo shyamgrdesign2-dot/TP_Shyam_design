@@ -362,7 +362,8 @@ export default function CaseFileRecord({
         <div ref={topRef} className={styles.railTop}>
           {tabList.length > 1 ? (
             <Tabs value={lens} onValueChange={setTab} className={styles.railTabs}>
-              <TabsList>
+              {/* In the narrow panel the tabs share the width equally, edge to edge. */}
+              <TabsList fullWidth={host === "rail"}>
                 {tabList.map((item) => (
                   <TabsTrigger key={item} value={item} tag={item === "documents" ? String(bundle.documents.length) : undefined}>{TAB_LABEL[item]}</TabsTrigger>
                 ))}

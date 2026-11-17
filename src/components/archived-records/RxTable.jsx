@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
-import { RX_COLUMNS, RX_EXTRA_FIELDS } from "./rxFormat";
+import { HISTORY_COLUMNS, RX_COLUMNS, RX_EXTRA_FIELDS } from "./rxFormat";
 // The Rx pad's table skin, as its section boxes load it.
 import "../tesseractRxPad.scss";
 import styles from "./clinicalData.module.scss";
@@ -58,9 +58,12 @@ export function tableRoom(columns) {
 
 // Every list of columns a kind of fact may be corrected in.
 function columnSets(domain) {
+  // Medical History has a list of columns for each of its sections.
+  if (domain === "HX") return Object.values(HISTORY_COLUMNS);
   const extras = RX_EXTRA_FIELDS[domain] || [];
   const own = [...(RX_COLUMNS[domain] || RX_COLUMNS.RPT), ...extras];
-  return domain === "DX" ? [own, RX_COLUMNS.COND] : [own];
+  // Reports and notes also hold symptoms, which have a table of their own.
+  return domain === "RPT" ? [own, RX_COLUMNS.SYM] : [own];
 }
 
 export function rowFit(domain, width) {

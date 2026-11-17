@@ -59,7 +59,7 @@ import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-ag
 import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
-import { AiDraftHeaderTag, ArchivedRecordsRailPanel, isArchivedRecordsEnabled } from "../archived-records";
+import { AiDraftHeaderTag, ArchivedRecordsRailPanel, isArchivedRecordsEnabled, useCaseFileRailSignal } from "../archived-records";
 import { toast } from "../dr-agent/voicerx/toast";
 import { useEdgeSwipeNavigation } from "./useEdgeSwipeNavigation";
 import {
@@ -5860,6 +5860,9 @@ export function SideNavbar({
   const sideNavVoiceLockIdRef = useRef(`side-nav-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const sideNavVoiceSessionIdRef = useRef(null);
   const [sideNavSignals, setSideNavSignals] = useState({});
+  // A red dot on the Case File icon until the doctor has opened that panel.
+  const caseFileSignal = useCaseFileRailSignal();
+  const navSignals = useMemo(() => ({ ...sideNavSignals, ...caseFileSignal }), [sideNavSignals, caseFileSignal]);
   const [vitalsCopyUpdating, setVitalsCopyUpdating] = useState(false);
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
   const pastVisitRows = useSelector((state) => state.pastVisits.rowsByPatient[patientId]?.rows ?? EMPTY_PAST_VISIT_ROWS);
@@ -6898,7 +6901,7 @@ export function SideNavbar({
 
   return (
     <aside className="snv-root" data-side-navbar="true">
-      <NavPanel activeId={activeId} onSelect={handleSelect} items={navItems} signals={sideNavSignals} />
+      <NavPanel activeId={activeId} onSelect={handleSelect} items={navItems} signals={navSignals} />
       {activeId && !SIDE_NAV_FULL_PAGE_SECTIONS.has(activeId) ? (
         <SectionPanel
           activeId={activeId}
