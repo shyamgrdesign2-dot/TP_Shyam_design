@@ -3467,3 +3467,12 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   display: flex;
   align-items: center;
 }
+
+// Source viewer: the original pages are still loading.
+.scanLoading {
+  margin: 0;
+  padding: var(--tesseract-space-8) var(--tesseract-space-4);
+  text-align: center;
+  color: var(--tesseract-fg-secondary);
+  font-size: var(--tesseract-text-body-sm);
+}
