@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import ARCHIVED_RECORDS_MOCK, { DOMAINS } from "./mock/archivedRecordsMock";
 import { HISTORY_SECTIONS, historyType, kindOf } from "./medicalHistory";
+import { isListed } from "./noteGroups";
 import { RX_COLUMNS, factFromRx, rxEditKeys } from "./rxFormat";
 
 /**
@@ -123,11 +124,12 @@ function applyEdit(finding, patch) {
 // one that is shown, reviewed and saved. The rest are counted, never listed:
 // saving them all would flood the patient's vitals. "Last" is the set marked
 // last in the newest encounter, or failing that the newest set there is.
-// The last set is sometimes one reading off a chart (a blood pressure and
-// nothing else). A doctor still needs pulse, SpO2, temperature and breathing,
-// so when the last set carries fewer than three of the main vitals, the most
-// recent set of the same stay that does is kept with it. Each set stays whole,
-// under its own date: readings from two moments are never merged into one.
+// One set only, always. The last entry is sometimes one reading off a chart
+// (a blood pressure and nothing else), which is not what a doctor needs, so
+// "last" means the last set that is filled in: when the newest entry carries
+// fewer than three of the main vitals, the most recent set of the same stay
+// that does is shown in its place. The set stays whole, under its own date:
+// readings from two moments are never merged into one.
 const MAIN_VITALS = ["BP", "Pulse", "HR", "SpO2", "Temp", "RR"];
 const mainVitals = (item) => new Set((item.facts || []).map((fact) => fact.k).filter((key) => MAIN_VITALS.includes(key))).size;
 const takenOn = (item) => Date.parse(item.dateLabel || "") || 0;
@@ -138,17 +140,19 @@ function lastVitalsOnly(bundle) {
   const [last] = [...sets].sort(
     (a, b) => (when[b.encounterId] || "").localeCompare(when[a.encounterId] || "") || Number(b.role === "last") - Number(a.role === "last"),
   );
-  const keep = [last.id];
-  if (mainVitals(last) < 3) {
-    const [fuller] = sets
-      .filter((item) => item.id !== last.id && item.encounterId === last.encounterId && mainVitals(item) >= 3)
-      .sort((a, b) => takenOn(b) - takenOn(a));
-    if (fuller) keep.push(fuller.id);
-  }
-  return { ...bundle, findings: bundle.findings.filter((item) => item.domain !== "VIT" || keep.includes(item.id)), vitalsNotShown: { count: sets.length - keep.length } };
+  const [filled] = mainVitals(last) >= 3
+    ? [last]
+    : sets.filter((item) => item.encounterId === last.encounterId && mainVitals(item) >= 3).sort((a, b) => takenOn(b) - takenOn(a));
+  const keep = (filled || last).id;
+  return { ...bundle, findings: bundle.findings.filter((item) => item.domain !== "VIT" || item.id === keep), vitalsNotShown: { count: sets.length - 1 } };
 }
 
-const BASE = lastVitalsOnly(ARCHIVED_RECORDS_MOCK);
+// Notes that have no structure to go into are not facts of the record
+// (noteGroups.js). They are set aside as `unlisted`: never listed, counted,
+// reviewed or saved.
+const listedOnly = (bundle) => ({ ...bundle, findings: bundle.findings.filter(isListed), unlisted: bundle.findings.filter((item) => !isListed(item)) });
+
+const BASE = listedOnly(lastVitalsOnly(ARCHIVED_RECORDS_MOCK));
 
 let cache = { edits: null, bundle: BASE };
 const bundleWith = (edits) => {

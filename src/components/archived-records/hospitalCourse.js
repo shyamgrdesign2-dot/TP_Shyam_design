@@ -3,9 +3,13 @@
  *
  * A discharge summary tells the course of a stay as a paragraph, and the
  * product keeps it that way (the Hospital Course box of the inpatient
- * discharge summary). A paragraph can be read but not counted, so a file
- * read from paper keeps the course as rows first and writes the paragraph
- * from them:
+ * discharge summary). So when the file has that paragraph ("Course in
+ * hospital", "Hospital course"), it is the course: shown whole, as written,
+ * with its citation, and never rewritten or broken into rows on screen.
+ *
+ * Only when a stay has no such paragraph in the file is its course shown as
+ * the dated events read from its pages. Those rows are also what is stored
+ * for counting, for every stay:
  *
  *   a stay      encounterId, type, department, admittedOn, dischargedOn,
  *               days, entry (how they came in), outcome (how they left)
@@ -20,7 +24,7 @@
  *   title   what happened, in a few plain words
  *   note    one short remark; never a second event, never a date or a time
  *
- * Rules, the same as for every other fact:
+ * Rules for the rows:
  *   - One event, one row. "Operated, then shifted to HDU" is two rows.
  *   - A row says what happened, not what was found: results, diagnoses and
  *     medicines are in their own sections. A number is in the note only
@@ -87,13 +91,16 @@ export const courseLine = (event) => `${event.title}${event.detail ? `: ${lowerF
 
 /**
  * The course of every stay in the file, newest stay first.
- *   options.matches   keep only events that pass (search)
- *   options.factOf    (factId) => the fact as it now stands, or null when it
- *                     was removed or held back in review
- * Each stay: { id, encounter, title, days, events }. A day is written once:
- * `event.sameDay` is true for the second and later events of a day.
+ *   options.matches     keep only events that pass (search)
+ *   options.factOf      (factId) => the fact as it now stands, or null when
+ *                       it was removed or held back in review
+ *   options.summaryOf   (encounterId) => the stay's own course paragraph
+ *                       from the discharge summary, as a fact, or null
+ * Each stay: { id, encounter, title, days, summary, events }. `summary`, when
+ * there is one, is what is shown; `events` are shown only without it. A day
+ * is written once: `event.sameDay` is true for the later events of a day.
  */
-export function hospitalCourse(bundle, { matches = null, factOf = null } = {}) {
+export function hospitalCourse(bundle, { matches = null, factOf = null, summaryOf = null } = {}) {
   const stays = bundle.encounters.filter((item) => encounterType(item.type).stay);
   const inOrder = [...stays].sort((a, b) => String(a.sortKey || "").localeCompare(String(b.sortKey || "")));
   return [...inOrder]
@@ -120,10 +127,11 @@ export function hospitalCourse(bundle, { matches = null, factOf = null } = {}) {
         encounter: stay,
         days,
         title: `${label}${same.length > 1 ? ` ${same.indexOf(stay) + 1}` : ""}${stay.department ? ` · ${stay.department}` : ""}${span ? ` (${span})` : ""}`,
+        summary: summaryOf ? summaryOf(stay.id) : null,
         events,
       };
     })
-    .filter((stay) => stay.events.length);
+    .filter((stay) => stay.summary || stay.events.length);
 }
 
 // The course as the discharge summary's paragraph, written from the rows:
@@ -155,6 +163,10 @@ export function buildHospitalCourse(bundle, options) {
         note: event.detail || "",
         _source: { eventId: event.id, factId: event.factId || null, page: event.cite?.page, region: event.cite?.rid },
       })),
-      text: courseText(stay),
+      // The paragraph as the discharge summary wrote it; without one, the
+      // same course written out from the rows.
+      text: stay.summary ? stay.summary.detail : courseText(stay),
+      textSource: stay.summary ? "asWritten" : "fromEvents",
+      ...(stay.summary ? { _source: { factId: stay.summary.id, page: stay.summary.cite?.page, region: stay.summary.cite?.rid } } : null),
     }));
 }

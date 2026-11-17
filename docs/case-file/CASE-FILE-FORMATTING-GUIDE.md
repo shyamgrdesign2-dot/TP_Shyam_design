@@ -64,7 +64,7 @@ The panel is built for the first row. Verifying is a separate job in a separate 
 │ ▤ Diagnosis                                          │  4. One lens at a time
 │   Lipoma or liposarcoma (Suspected, Working dx…) [2] │
 │ ▤ Allergies … ▤ Procedures … ▤ Med (Rx) …            │
-│ ▤ Lab Results … ▤ Vitals … ▤ Reports and Notes …     │
+│ ▤ Lab Results … ▤ Vitals … ▤ Clinical Notes …        │
 │                                                      │
 │ ┌ 3 unclear readings are held back ────────────────┐ │  5. Gaps
 │ └──────────────────────────────────────────────────┘ │
@@ -87,7 +87,7 @@ This replaces the order drawn in section 3 for the panel beside the Rx pad. The 
 | Header | `Case File` + `AI draft` tag | The tag sits beside the title in the blue header. Hover or focus says what a draft is. |
 | 1 | Search | `Search this case file`. Stays under the header while the panel scrolls. |
 | 2 | Notice | `Not verified yet`, as before. Scrolled away, it becomes a one-line strip under the search. |
-| 3 | Details | Medical History, Diagnosis, Procedures, Med (Rx), Lab Results, Vitals, Reports and Notes. |
+| 3 | Details | Medical History, Diagnosis, Procedures, Med (Rx), Lab Results, Vitals, Clinical Notes, Hospital Course. |
 
 - **No summary in the panel.** In a consultation there is no time to read one, so the details start straight away. The six-pointer summary stays on the Structured record tab of the review. (`summary` on `ArchivedRecordsRailPanel` brings it back.)
 - **Search looks at the data, not the pages.** Two characters or more. Every word typed must be in the row as shown. Results are the same sections with only the matching rows, all of them: normal lab results are found too, and "+N more" does not apply. No match offers the review, which also searches the pages. Escape clears.
@@ -126,7 +126,7 @@ The record is one component, `CaseFileRecord` (`src/components/archived-records/
 - **No summary anywhere a doctor reads.** The record is the notice, then the details. The summary logic stays in `caseFileStory.js` and is off by default (`summary`).
 - **It lays itself out from its own width.** Under 640px, one fact per line. From 640px, short facts run along the line with hairline dividers and lab results sit in an even grid. The host does not say which.
 - **It carries its own look.** The section title bar is drawn by the record (`CaseFileSection`), matching the Rx pad panel, so no sidebar stylesheet is needed. A host with its own frame passes `RxSection`.
-- **Tabs at the top.** The Rx pad panel has two, Data and Documents: the course of each stay is already the Hospital Course section at the foot of Data, so the panel has no Timeline tab. In the panel the two tabs share the width equally and run from one edge of the panel to the other (Tesseract `TabsList fullWidth`, no side gutter). The record on its own has three, Data, Timeline, Documents. Tabs and search stay fixed together while the record scrolls; search looks at the tab that is open.
+- **Tabs at the top, except in the Rx pad panel.** As of 17 Nov 2026 the panel has no tabs: it is the data under its search box, and a page is opened from a citation. Browsing the file document by document belongs to the record page and the review. The record on its own has three tabs, Data, Timeline, Documents; the review has Structured record, Clinical data, Documents. Tabs and search stay fixed together while the record scrolls; search looks at the tab that is open.
 - **Documents are listed by period.** One entry per visit or stay, newest first: `IPD · Orthopaedics  09 Jul-16 Jul'26  62 documents, 235 pages`. The newest is open. Inside, papers sit under their kind (Summaries, Doctor notes, Lab reports, Imaging, Medication charts, Nursing and forms). Papers that share a name within a period are one line that opens to its parts: `Consultation record  13 papers, 27 pages`. The workspace's Documents tab uses the same periods; each document there names the PDF it is in.
 - **Red dot on the rail icon.** When the Rx pad opens for a patient who has a Case File, the Case File icon in the blue rail carries the rail's own red dot. Opening the panel clears it. In the real build "seen" is kept per doctor and patient, and the dot comes back when new pages are added.
 - **Timeline** (record on its own only) events sit under the visit they belong to.
@@ -149,7 +149,7 @@ Rules:
 - **Emphasis in content is by colour, never by weight.** The fact is the darkest ink; what introduces or qualifies it is lighter. Semibold is kept for headings (card titles, section names, group titles). Bold is not used. In a summary sentence the key words are the darker ink at medium weight; in rows the fact is the darker ink at regular weight.
 - **Colour is spent only on two things:** red for a value the source flagged high or low, amber for a warning the doctor should see (suspected, conflict, unclear). Citations are link blue. Everything else is grey scale.
 - **Sizes:** 13px for a row, 12px for bracket details, 11px for trends and units, 10px for citations. Summary text is 12px.
-- **A group tag is a heading and must be seen first** (17 Nov 2026): the tag over a group of rows (`Medical Condition`, `Final diagnosis`, a stay in Hospital Course) is 12px semibold in the darker ink on a soft grey tag, 24px tall. No dot and no icon on it: size and ink carry it, and the only dots are the grey ones on rows. A tag too long for the panel wraps; it is never cut.
+- **A group tag sits one step under the section heading** (17 Nov 2026): the tag over a group of rows (`Medical Condition`, `Final diagnosis`, a stay in Hospital Course) is 12px, medium weight, in the same lighter ink as the section heading, on a soft grey tag 24px tall. No dot and no icon. The rows under it stay the darkest thing on the page. A tag too long for the panel wraps; it is never cut.
 - **One idea per row.** A row never mixes two facts to save space.
 
 ---
@@ -253,7 +253,7 @@ It is **built by code from the facts**, not written by a model, so it cannot say
 
 **Section order** (the order a doctor scans a discharge summary; empty sections are left out, never shown as "none"):
 
-Medical History → Diagnosis → Procedures → Med (Rx) → Lab Results → Vitals → Reports and Notes → Hospital Course
+Medical History → Diagnosis → Procedures → Med (Rx) → Lab Results → Vitals → Clinical Notes → Hospital Course
 
 Section title bars and icons are the sidebar's own (`RxSection`), the same as Past Visits.
 
@@ -395,40 +395,46 @@ Rules:
 
 A set is stored as the Rx pad's vitals row: `temperature`, `pulse`, `respiratory_rate`, `blood_pressure`, `spo2`, `height`, `weight`, `date`, `notes` (the moment, and readings the Rx pad has no field for, such as GCS).
 
-- **Only the last recorded set is shown**, under a tag that says when: `Morning of discharge (16 Jul'26)`, then `BP: 133/84 | Pulse: 89 | SpO2: 99%`.
-- **When the last set is thin, the last full one is shown with it.** A last entry that is one reading off a chart (a blood pressure and nothing else) does not tell a doctor enough, so when it carries fewer than three of the main vitals (BP, pulse, SpO2, temperature, respiratory rate), the most recent set of the same stay that does is shown under it, with its own tag and date. Never more than these two.
-- **Sets are never merged.** Each set keeps its own date and its own citation; readings from two moments are not combined into one line.
+- **One set only, always** (17 Nov 2026): the last set that is filled in, under a tag that says when: `Evening handover, day before discharge (15 Jul'26)`, then `BP: 133/84 | Pulse: 89 | SpO2: 99%`.
+- **"Last" means last filled.** The newest entry is sometimes one reading off a chart (a blood pressure and nothing else). When it carries fewer than three of the main vitals (BP, pulse, SpO2, temperature, respiratory rate), the most recent set of the same stay that does is shown in its place. Two sets are never shown.
+- **Sets are never merged.** The set keeps its own date and its own citation; readings from two moments are not combined into one line.
 - Earlier sets are not listed and not counted in the reading view (no "+27 earlier sets" line). A long stay has hundreds; saving them all would flood the patient's vitals.
 - Units follow the product: `F`, `/min`, `mmHg`, `%`, `cms`, `kgs`.
 
-### 8.7 Reports and Notes (17 Nov 2026)
+### 8.7 Clinical Notes (17 Nov 2026)
 
-Everything in the file that is prose: what was found, said, done and advised. Notes are sorted into tags, in the order a discharge summary tells it, and each tag is stored where the Rx pad keeps that kind of thing (`rxFormat.js`).
+The prose of the file that has a place in the Rx pad's own structure, and nothing else (`noteGroups.js`). The section was called Reports and Notes before.
 
 | Tag | What goes here | Stored under | In the reading view |
 |---|---|---|---|
-| Keep in mind | What a later doctor must not miss: a low saturation, a hypoglycaemia, a difficult airway, an incidental finding | `others` (kind: Keep in mind) | All shown |
 | Symptoms | Presenting complaints, one row per symptom | `symptoms`: `name`, `duration`, `severity`, `notes` | All shown |
 | Examination | The doctor's examination first, then nursing findings | `examinations`: `name`, `notes` | 1, rest behind "+N more notes" |
 | Investigations | Imaging, ECG, echo and other reports with their findings | `lab_investigation`: `name`, `notes` | 3 |
-| Opinions | What other specialities said | `others` (kind: Opinions) | 2 |
 | Operation notes | Anaesthesia, the operation report, implants | `others` (kind: Operation notes) | 1 |
-| Course | The story of the stay in notes | `others` (kind: Course) | Folded: "Show 22 notes" (the Hospital Course section tells it in short) |
 | Advice and follow-up | Advice on discharge, and each follow-up with its date | `advice`, `follow_up`: `name`, `notes` | 3 |
-| Other notes | Nursing and administrative detail: cannulas, risk scores, intake and output | `others` (kind: Other notes) | Folded: "Show 10 notes" |
 
 Rules:
 
+- **Only what can be structured is kept.** Running course notes, what each speciality said, alerts ("keep in mind") and nursing or administrative detail have no structure to go into. They are not listed, not counted, not reviewed and not saved. The pages they came from are still in Documents.
 - **A symptom is a short fact, not a note:** `Cough (3d, mucoid expectoration, 16 Jan'26)`. Bracket order: since, severity, note, date. A complaint written as a sentence becomes one row per symptom, so symptoms can be counted. It is corrected in the Rx pad's symptoms table (Symptom, Since, Severity, Notes).
 - **A note is `Title: text (date)`**, two lines until it is opened. The title is a short name without a date in it (`CT brain, plain`, not "CT brain, plain (09/07/2026)"); the date is the row's own and shows once, in the bracket.
 - **A follow-up's date is its date field**, not part of its name: `Suture removal at local hospital (25 Jul'26)`.
-- **Nothing a doctor must not miss is folded.** Keep in mind and Symptoms always show in full. Never "+1 more".
-- **Order of tags:** Keep in mind, Symptoms, Examination, Investigations, Opinions, Operation notes, Course, Advice and follow-up, Other notes.
+- **Never "+1 more".** A group one row over its limit shows that row.
+- **Order of tags:** Symptoms, Examination, Investigations, Operation notes, Advice and follow-up.
 - Images found in the file (X-ray, ECG, clinical photographs) are small tiles at the end of the section.
 
 ### 8.8 Hospital Course (17 Nov 2026)
 
-What happened during each stay, in order, at the foot of Data. One tag per stay, newest first; under it one row per event (`hospitalCourse.js`).
+What happened during each stay, at the foot of Data. One tag per stay, newest first (`hospitalCourse.js`).
+
+**The file's own paragraph comes first.** When the discharge summary has a course paragraph ("Course in hospital", "Hospital course"), that paragraph is the course of that stay: shown whole, exactly as written, with its citation. It is never rewritten, shortened or broken into rows on screen. It is a fact like any other (Clinical data, tag `Hospital course`), so a reviewer can verify or correct it.
+
+```
+IPD 2 · Orthopaedics (09 Jul-16 Jul'26, 7d)
+The patient came with the above mentioned complaints and was ... hence being discharged with the following advice [54]
+```
+
+**Only a stay with no such paragraph in the file** is shown as the dated events read from its pages, one row per event:
 
 ```
 IPD 2 · Orthopaedics (09 Jul-16 Jul'26, 7d)
@@ -458,7 +464,7 @@ Rules:
 - **The emergency visit a stay began with is the first row of that stay.** A visit that was not a stay has no course.
 - **An event follows the fact it restates.** If a reviewer removes that fact, the event is not shown; a corrected procedure name is the name the event uses.
 - **Follow-ups are not part of the course.** They are under Advice and follow-up.
-- **Stored twice from the same rows** (`buildHospitalCourse`): as rows per stay (`admittedOn`, `dischargedOn`, `days`, `entry`, `outcome`, `events`) for analytics, and as one paragraph (`text`) for the Hospital Course box of the product's discharge summary.
+- **Stored both ways for every stay** (`buildHospitalCourse`): the rows (`admittedOn`, `dischargedOn`, `days`, `entry`, `outcome`, `events`) for analytics, and one paragraph (`text`) for the Hospital Course box of the product's discharge summary. `text` is the file's own paragraph when there is one (`textSource: "asWritten"`), otherwise the rows written out (`"fromEvents"`).
 
 ### 8.9 What Data never shows
 
@@ -584,7 +590,7 @@ Every fact, one row each, written as on the Rx pad panel, grouped the same way.
 - **Opens here from the Rx pad.** "Review and save" in the panel (and the short sticky "Not verified" strip that replaces the notice once it scrolls away) opens the drawer on this tab, because it is a request to verify.
 - **Review bar:** an amber bar at the top says how much is verified, what to do ("Verify it, edit it, or remove it") and jumps to the next row to review.
 - **Table per kind, in the Rx pad's columns.** Medicines: Medicine, Unit per dose, Frequency, When, Duration, Notes. Diagnoses: Diagnosis, Status, Since, Notes. Labs: Test, Value, Unit, Ref. range, Date. The same fields are what is stored (section 15) and what "Copy JSON" copies.
-- **Kinds:** a strip of chips (All, Diagnoses, Allergies, Medications, Procedures, Lab results, Vitals, Reports and notes) that scrolls sideways with arrows when it does not fit.
+- **Kinds:** a strip of chips (All, Diagnoses, Allergies, Medications, Procedures, Lab results, Vitals, Clinical notes) that scrolls sideways with arrows when it does not fit.
 - **Status:** All, To review, Needs a look, Verified, Removed, each with its count. "Needs a look" is everything flagged, held back or hard to read. This replaces the old "Needs your decision" card: the doubt is shown on the row it belongs to.
 - **A row:** checkbox, the fact, its marks and `[n]`, then the actions. Clicking the row opens its line on the source page and shows what is behind it: why it needs a look, the words as written, the conflicting reading, the code, who acted and when.
 
@@ -717,8 +723,8 @@ Every fact is stored in the row shape the Rx pad and VoiceRx already use, so it 
 | Examination | `examinations` | `name`, `notes` |
 | Investigation report | `lab_investigation` | `name`, `notes` |
 | Advice, follow-up | `advice`, `follow_up` | `name`, `notes` (a follow-up's date is the row's date) |
-| Other notes | `others` | `name`, `notes`, `kind` (Keep in mind, Opinions, Operation notes, Course, Other notes) |
-| Hospital course | `hospital_course` (one entry per stay) | `encounterId`, `type`, `department`, `admittedOn`, `dischargedOn`, `days`, `entry`, `outcome`, `text`, and `events`: `kind`, `date`, `until`, `time`, `day`, `title`, `note` |
+| Operation notes | `others` | `name`, `notes`, `kind` (Operation notes) |
+| Hospital course | `hospital_course` (one entry per stay) | `encounterId`, `type`, `department`, `admittedOn`, `dischargedOn`, `days`, `entry`, `outcome`, `text`, `textSource`, and `events`: `kind`, `date`, `until`, `time`, `day`, `title`, `note` |
 
 Medical history is also available in the shape the product stores it (`buildMedicalHistory` in `medicalHistory.js`, the JSON in `tbl_micro_patient_medical_history.medical_history`): one entry per section with `tmmhs_id`, `title`, `no_know_history` and its `tags` (`title`, `enable`, `status`, `since`, `medication`, `relationship`, `dateType`, `date`, `note`); Additional History is the first entry's `medical_history_remarks`.
 

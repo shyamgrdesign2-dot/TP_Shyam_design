@@ -11,11 +11,12 @@ import { archivedRecordsStore } from "./archivedRecordsStore";
  * light drawer a citation opens, so the original page can be read without
  * leaving the prescription.
  *
- * Two tabs here, Data and Documents. The course of each stay is already the
- * Hospital Course section at the foot of Data, so a Timeline tab would only
- * say it twice.
+ * No tabs here: the panel is the data, under its search box. On the Rx pad a
+ * doctor reads facts and opens a page from its citation; browsing the file
+ * document by document belongs to the review and the record page, which
+ * keep their Documents tab.
  */
-const RAIL_TABS = ["data", "documents"];
+const RAIL_TABS = ["data"];
 
 export default function ArchivedRecordsRailPanel({ onOpenReview, kit = {}, summary = false }) {
   // Opening the panel clears the red dot on the rail's Case File icon.

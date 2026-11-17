@@ -3,6 +3,7 @@ import { Button, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { ASSETS } from "../../assets";
 import { archivedRecordsStore, isNotableLab, isShownToDoctor, statusOf } from "./archivedRecordsStore";
 import { courseKind, courseLine, hospitalCourse } from "./hospitalCourse";
+import { COURSE_GROUP, isCourseSummary } from "./noteGroups";
 import { CiteChip, FindingBody, RowMarks, groupFindings, houseDate } from "./findingFormat";
 import { DX_TITLES, dxTitle, isDiagnosis } from "./diagnosisTypes";
 import { HISTORY_TITLES, historyTitle, historyType, isHistory } from "./medicalHistory";
@@ -12,8 +13,8 @@ import { ImageTileArt } from "./SourcePageViewer";
 import styles from "./ArchivedRecords.module.scss";
 
 /**
- * The detailed sections of a Case File: Diagnosis, Allergies, Procedures,
- * Med (Rx), Lab Results, Vitals, Reports and Notes.
+ * The detailed sections of a Case File: Medical History, Diagnosis,
+ * Procedures, Med (Rx), Lab Results, Vitals, Clinical Notes, Hospital Course.
  *
  * One component draws them everywhere (the Rx pad panel, the Structured
  * record tab on the patient page and in the review drawer), so the structure,
@@ -47,7 +48,10 @@ const SECTIONS = [
   { code: "MED", title: "Med (Rx)", icon: ASSETS.images.medication, pick: (item) => item.domain === "MED" },
   { code: "LAB", title: "Lab Results", icon: ASSETS.images.lab, pick: (item) => item.domain === "LAB" },
   { code: "VIT", title: "Vitals", icon: ASSETS.images.examination, pick: (item) => item.domain === "VIT" },
-  { code: "RPT", title: "Reports and Notes", icon: ASSETS.images.notes, pick: (item) => item.domain === "RPT" && !isHistory(item) },
+  // Prose with a place in the Rx pad: symptoms, examination, investigations,
+  // operation notes, advice and follow-up (noteGroups.js). The course of a
+  // stay is not here: it is the Hospital Course section.
+  { code: "RPT", title: "Clinical Notes", icon: ASSETS.images.notes, pick: (item) => item.domain === "RPT" && !isHistory(item) && item.group !== COURSE_GROUP },
 ];
 
 // On a wide page short facts run along the line, so a section takes a line or
@@ -58,10 +62,9 @@ const FLOW = { HX: "bar", DX: "bar", PROC: "bar", MED: "bar", LAB: "grid" };
 // rest are one click away. A long stay can have hundreds of notes, chart
 // entries and results, and nobody reads a wall.
 const GROUP_LIMIT = { RPT: 2, MED: 6, LAB: 9 };
-// Notes, tag by tag: what a doctor must not miss is shown in full; what the
-// Hospital Course section already tells, and the nursing detail, wait behind
-// one link each.
-const NOTE_LIMIT = { "Keep in mind": 99, Symptoms: 99, Examination: 1, Investigations: 3, Opinions: 2, "Operation notes": 1, Course: 0, "Advice and follow-up": 3, "Other notes": 0 };
+// Notes, tag by tag: symptoms are short and all shown; the longer notes show
+// their first few, the rest one click away.
+const NOTE_LIMIT = { Symptoms: 99, Examination: 1, Investigations: 3, "Operation notes": 1, "Advice and follow-up": 3 };
 const DEFAULT_LIMIT = 8;
 
 // What a row says on screen, for the panel's search: its name, value, bracket
@@ -180,7 +183,7 @@ function allergyGap(bundle, review) {
 export default function DataSections({ bundle, review, RxSection, onOpenReview, quick = false, flow = false, query = "" }) {
   const searching = fold(query).length >= MIN_DATA_QUERY;
   const shownToDoctor = bundle.findings.filter((item) => isShownToDoctor(item, review));
-  const visible = searching ? shownToDoctor.filter(matcher(query)) : shownToDoctor;
+  const matched = searching ? shownToDoctor.filter(matcher(query)) : shownToDoctor;
   // A course event is found by its day, its words and its kind ("transfer").
   const eventMatches = searching
     ? (event) => {
@@ -190,10 +193,22 @@ export default function DataSections({ bundle, review, RxSection, onOpenReview, 
     : null;
   // An event that restates a fact follows it: removed or held back in review,
   // the event is not shown either.
+  // A note that is not kept as a fact (`unlisted`) can still be what an event
+  // points at; it has no review state, so it only has to exist.
   const byId = Object.fromEntries(bundle.findings.map((item) => [item.id, item]));
-  const factOf = (id) => (byId[id] && isShownToDoctor(byId[id], review) ? byId[id] : null);
-  const course = hospitalCourse(bundle, { matches: eventMatches, factOf });
-  const courseCount = course.reduce((sum, stay) => sum + stay.events.length, 0);
+  const loose = Object.fromEntries((bundle.unlisted || []).map((item) => [item.id, item]));
+  const factOf = (id) => (byId[id] ? (isShownToDoctor(byId[id], review) ? byId[id] : null) : loose[id] || null);
+  // The stay's own course paragraph from the discharge summary, when the file
+  // has one: it is shown whole, as written, in place of the dated rows.
+  const summaryOf = (encounterId) => {
+    const fact = shownToDoctor.find((item) => isCourseSummary(item) && item.encounterId === encounterId);
+    return fact && (!searching || matcher(query)(fact)) ? fact : null;
+  };
+  const course = hospitalCourse(bundle, { matches: eventMatches, factOf, summaryOf })
+    .map((stay) => (stay.summary ? { ...stay, events: [] } : stay))
+    .filter((stay) => stay.summary || stay.events.length);
+  const courseCount = course.reduce((sum, stay) => sum + (stay.summary ? 1 : stay.events.length), 0);
+  const visible = searching ? matched.filter((item) => !isCourseSummary(item)) : matched;
   if (searching && !visible.length && !courseCount) {
     return (
       <div className={styles.railGap} role="status">
@@ -255,6 +270,12 @@ export default function DataSections({ bundle, review, RxSection, onOpenReview, 
           {course.map((stay) => (
             <div key={stay.id} className={styles.rowGroup}>
               <div className={styles.rowGroupTitle}>{stay.title}</div>
+              {stay.summary ? (
+                <p className={`${styles.rowLine} ${styles.courseText}`}>
+                  {stay.summary.detail}
+                  {stay.summary.cite ? <CiteChip quick={quick} page={stay.summary.cite.page} rid={stay.summary.cite.rid} /> : null}
+                </p>
+              ) : null}
               <ul className={styles.rows}>
                 {stay.events.map((event) => (
                   <li key={event.id} className={styles.row}>
