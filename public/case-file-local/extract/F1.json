@@ -1,0 +1,328 @@
+{
+  "file": {
+    "id": "F1",
+    "pages": 4,
+    "offset": 0,
+    "what": "ICU patient monitoring chart (Department of Critical Care), two sheets, 7 and 8 Nov 2026: hand-plotted hourly vitals, intake and output, lines and drains"
+  },
+  "patient": {
+    "sex": "Female",
+    "age": 84,
+    "cite": { "page": 3, "rid": "p3-label" }
+  },
+  "encounters": [
+    {
+      "key": "IPD-2026-11-05",
+      "type": "IPD",
+      "startLabel": "5 Nov 2026",
+      "endLabel": null,
+      "sortKey": "2026-11-05",
+      "department": "Orthopaedics (ORT004); chart from the Department of Critical Care",
+      "clinician": null,
+      "entry": null,
+      "visitKind": null,
+      "outcome": null,
+      "ref": "1127801",
+      "refCite": { "page": 3, "rid": "p3-label" },
+      "pages": 4
+    }
+  ],
+  "documents": [
+    {
+      "title": "ICU monitoring chart, 7 Nov 2026: intake/output, GCS, lines and drains",
+      "category": "nursingForms",
+      "from": 1,
+      "to": 1,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "ICU monitoring chart, 7 Nov 2026: hourly vitals graph",
+      "category": "nursingForms",
+      "from": 2,
+      "to": 2,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "ICU monitoring chart, 8 Nov 2026: intake/output, GCS, lines and drains",
+      "category": "nursingForms",
+      "from": 3,
+      "to": 3,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "ICU monitoring chart, 8 Nov 2026: hourly vitals graph",
+      "category": "nursingForms",
+      "from": 4,
+      "to": 4,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    }
+  ],
+  "findings": [
+    {
+      "domain": "DX",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "working",
+      "title": "Left neck of femur fracture",
+      "detail": "Working diagnosis · written as (L) NOF # in the Diagnosis box of both ICU sheets",
+      "verbatim": "DIAGNOSIS : (L) NOF #",
+      "cite": { "page": 3, "rid": "p3-dx" },
+      "also": [ { "page": 1, "rid": "p1-dx" } ],
+      "confidence": 0.9,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "Nov 2026"
+    },
+    {
+      "domain": "PROC",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "procedure",
+      "title": "Hip bipolar, left (as written: \"hip Bipolar\")",
+      "detail": "Written under Diagnosis on the ICU sheet dated 7/11 · the circled side letter is not clear (read as L) · operation date, anaesthesia and approach are not written on this chart",
+      "verbatim": "(L) hip Bipolar.",
+      "cite": { "page": 1, "rid": "p1-proc" },
+      "also": [],
+      "confidence": 0.7,
+      "handwritten": true,
+      "flags": [ "partlyRead" ],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Inj. Advent",
+      "detail": "On the input list of the ICU sheet of 7 Nov 2026 · dose, frequency and route not written",
+      "verbatim": "2. Inj: Advent",
+      "cite": { "page": 1, "rid": "p1-inf-2" },
+      "also": [],
+      "confidence": 0.7,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Inj. Tramadol",
+      "detail": "On the input list of the ICU sheet of 7 Nov 2026 · dose, frequency and route not written",
+      "verbatim": "3. Inj Tramadol",
+      "cite": { "page": 1, "rid": "p1-inf-3" },
+      "also": [],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "interim",
+      "title": "ICU, 7 Nov 2026, 17:00 (first charted set)",
+      "detail": "BP about 140/70 · Pulse about 77 · SpO2 99% · Temp about 36.3 C · RR about 13",
+      "verbatim": "Marks plotted in the 17:00 column of the graph; SpO2 row: 99%",
+      "cite": { "page": 2, "rid": "p2-vitals-17" },
+      "also": [],
+      "confidence": 0.6,
+      "handwritten": true,
+      "flags": [ "partlyRead" ],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "last",
+      "title": "ICU, 8 Nov 2026, 12:00 (last charted set)",
+      "detail": "BP about 120/58 · Pulse about 75 · SpO2 96% · Temp about 37 C · RR about 17",
+      "verbatim": "Marks plotted in the 12:00 column of the graph; SpO2 row 8:00 to 12:00: 96, 95, 97, 98, 96 (last figure overwritten)",
+      "cite": { "page": 4, "rid": "p4-vitals-12" },
+      "also": [],
+      "confidence": 0.6,
+      "handwritten": true,
+      "flags": [ "partlyRead" ],
+      "dateLabel": "8 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "course",
+      "group": "Course",
+      "title": "Received in ICU, 7 Nov 2026",
+      "detail": "A note written upright along the 16:00 column reads as 'Patient received ... to KHSB OT' (partly read). Hourly charting starts at 17:00 on 7 Nov and the last entries are at 12:00 on 8 Nov.",
+      "verbatim": "Patient rec[...] to KHSB OT",
+      "cite": { "page": 1, "rid": "p1-received" },
+      "also": [ { "page": 2, "rid": "p2-vitals-17" }, { "page": 4, "rid": "p4-vitals-12" } ],
+      "confidence": 0.6,
+      "handwritten": true,
+      "flags": [ "partlyRead" ],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "hospitalMeds",
+      "group": "Course",
+      "title": "Fluids and injections listed on the ICU chart",
+      "detail": "Input list on the 7 Nov sheet: IVF RL, Inj. Advent, Inj. Tramadol, Inj. Pan. No doses are written; volumes of 100 ml are entered against the hourly columns. The input list on the 8 Nov sheet is blank.",
+      "verbatim": "1. IVF RL  2. Inj: Advent  3. Inj Tramadol  4. Inj Pan",
+      "cite": { "page": 1, "rid": "p1-inf-1" },
+      "also": [ { "page": 1, "rid": "p1-inf-2" }, { "page": 1, "rid": "p1-inf-3" }, { "page": 1, "rid": "p1-inf-4" } ],
+      "confidence": 0.75,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Course",
+      "title": "Intake and output in ICU",
+      "detail": "7 Nov sheet: total intake 2550 ml, total output 1440 ml; a note beside the totals reads as 'DT - 40 ml'. Urine is charted every hour, 200 ml at first and 50 to 75 ml an hour overnight. 8 Nov sheet, 8:00 to 12:00: feed 100, 50 and 50 ml (running total 200); urine 50, 50, 30, 25 and 25 ml (running total 180).",
+      "verbatim": "Total intake: 2550 ml.   DT - 40ml.   Total output: 1440 ml.",
+      "cite": { "page": 1, "rid": "p1-totals" },
+      "also": [ { "page": 3, "rid": "p3-io" } ],
+      "confidence": 0.75,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 to 8 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Keep in mind",
+      "title": "Lines and drains in ICU",
+      "detail": "7 Nov sheet: left DT (drain) inserted 7/11/26; a 20G cannula, right side, 7/11/26; an 18 gauge cannula 7/11/26. 8 Nov sheet: IV cannula 20G; 18G cannula 7/11/26; Foley's catheter 5/11/26; a fourth entry reads as '(R) surgical DT' with no date. The device names are hard to read and the side of the drain differs between the two sheets.",
+      "verbatim": "(L) DT 7/11/26 · [..] 20G (R) 7/11/26 · (18) Gauge 7/11/26  //  IV cannula 20G · (18) [..] cannula 7/11/26 · Foley's cath 5/11/26 · (R) s[..]gical DT",
+      "cite": { "page": 1, "rid": "p1-devices" },
+      "also": [ { "page": 3, "rid": "p3-devices" } ],
+      "confidence": 0.6,
+      "handwritten": true,
+      "flags": [ "partlyRead" ],
+      "dateLabel": "7 to 8 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Course",
+      "title": "Consciousness and pupils in ICU",
+      "detail": "GCS is entered as 15 (E4V5M6) in every charted hour on both sheets. Pupils are entered as 2 mm / 2 mm.",
+      "verbatim": "GCS: 15, 15, 15, E4V5M6 ... · PUPILS (R/L): 2mm / 2mm",
+      "cite": { "page": 1, "rid": "p1-gcs" },
+      "also": [ { "page": 3, "rid": "p3-gcs" } ],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 to 8 Nov 2026"
+    }
+  ],
+  "lines": [
+    { "page": 3, "rid": "p3-label", "label": "Patient label", "text": "(name and hospital number removed) F · ORT004 · 84 Y · KHSB SPA5F B" },
+    { "page": 3, "rid": "p3-dx", "label": "DIAGNOSIS", "text": "(L) NOF #" },
+    { "page": 1, "rid": "p1-dx", "label": "DIAGNOSIS", "text": "(L) NOF #" },
+    { "page": 1, "rid": "p1-proc", "label": "DIAGNOSIS (second line)", "text": "(L) hip Bipolar." },
+    { "page": 1, "rid": "p1-inf-1", "label": "INPUT 1", "text": "IVF RL" },
+    { "page": 1, "rid": "p1-inf-2", "label": "INPUT 2", "text": "Inj: Advent" },
+    { "page": 1, "rid": "p1-inf-3", "label": "INPUT 3", "text": "Inj Tramadol" },
+    { "page": 1, "rid": "p1-inf-4", "label": "INPUT 4", "text": "Inj Pan" },
+    { "page": 2, "rid": "p2-vitals-17", "label": "Graph, 17:00 column", "text": "Temp mark just below 36.5 · systolic mark at about 140 · diastolic mark at about 70 · HR mark at about 77 · RR mark at about 13 · SpO2 99%" },
+    { "page": 4, "rid": "p4-vitals-12", "label": "Graph, 12:00 column", "text": "Temp mark at 37 · systolic mark at about 120 · diastolic mark just below 60 · HR mark at about 75 · RR mark at about 17 · SpO2 96 (overwritten)" },
+    { "page": 1, "rid": "p1-received", "label": "Note written along the 16:00 column", "text": "Patient rec[...] to KHSB OT" },
+    { "page": 1, "rid": "p1-totals", "label": "Totals", "text": "Total intake: 2550 ml.   DT - 40ml.   Total output: 1440 ml." },
+    { "page": 3, "rid": "p3-io", "label": "FEED / URINE, 8:00 to 12:00", "text": "Feed 100, 50, 50 · running total 100, 150, 200 · Urine 50, 50, 30, 25, 25 · running total 50, 100, 130, 155, 180" },
+    { "page": 1, "rid": "p1-devices", "label": "DEVICE / Insertion Date", "text": "(L) DT 7/11/26 · [..] 20G (R) 7/11/26 · (18) Gauge 7/11/26" },
+    { "page": 3, "rid": "p3-devices", "label": "DEVICE / Insertion Date", "text": "IV cannula 20G · (18) [..] cannula 7/11/26 · Foley's cath 5/11/26 · (R) s[..]gical DT" },
+    { "page": 1, "rid": "p1-gcs", "label": "GCS / PUPILS (R/L)", "text": "15, 15, 15, then E4V5M6 in each hour · 2mm / 2mm" },
+    { "page": 3, "rid": "p3-gcs", "label": "GCS / PUPILS (R/L)", "text": "15, 15, 15, 15, 15 · 2mm / 2mm" }
+  ],
+  "images": [],
+  "notFound": [
+    "Blood gas and electrolyte values (the ABG grid is blank on both sheets)",
+    "Admitting team, plan and ICU ward round plan (the boxes are blank)",
+    "Weight, ideal body weight and ICU day count (blank or outside the scan)",
+    "Doses and timings of the injections listed on the chart",
+    "Operation note and anaesthesia record for the hip surgery",
+    "ICU doctor's notes, and any sheet after 12:00 on 8 Nov 2026",
+    "Ventilator settings (all ventilator rows are blank)"
+  ],
+  "exceptions": [
+    {
+      "kind": "lowConfidence",
+      "title": "Vitals are read off a hand-plotted graph",
+      "body": "Blood pressure, pulse, temperature and breathing rate on the ICU sheets are marks on a graph, not written numbers. The figures given are approximate. Only SpO2 is written as a number.",
+      "cites": [
+        { "label": "ICU chart, 7 Nov", "page": 2, "rid": "p2-vitals-17" },
+        { "label": "ICU chart, 8 Nov", "page": 4, "rid": "p4-vitals-12" }
+      ]
+    },
+    {
+      "kind": "conflict",
+      "title": "Side of the drain differs between the two ICU sheets",
+      "body": "The 7 Nov sheet lists a left drain (DT) inserted on 7/11/26. The 8 Nov sheet has an entry read as a right surgical drain, with no date. The handwriting in both device lists is hard to read.",
+      "cites": [
+        { "label": "ICU chart, 7 Nov", "page": 1, "rid": "p1-devices" },
+        { "label": "ICU chart, 8 Nov", "page": 3, "rid": "p3-devices" }
+      ]
+    },
+    {
+      "kind": "lowConfidence",
+      "title": "Procedure and arrival note partly read",
+      "body": "The second diagnosis line reads as 'hip Bipolar' with a side letter that is not clear, and the note along the 16:00 column is only partly readable. The chart does not state the operation date in words.",
+      "cites": [
+        { "label": "ICU chart, 7 Nov", "page": 1, "rid": "p1-proc" },
+        { "label": "ICU chart, 7 Nov", "page": 1, "rid": "p1-received" }
+      ]
+    },
+    {
+      "kind": "unreadable",
+      "title": "Part of each A3 sheet is outside the scan",
+      "body": "The right edge of every page is cut off: the date box shows only '7/11' and '8/', and the hourly columns after about 02:00 to 06:00 are missing or only visible as a folded strip. Entries in those hours were not extracted.",
+      "cites": [
+        { "label": "ICU chart, 7 Nov", "page": 2, "rid": "p2-vitals-17" },
+        { "label": "ICU chart, 8 Nov", "page": 3, "rid": "p3-io" }
+      ]
+    }
+  ],
+  "pagesUnread": [],
+  "pagesFormsOnly": 0,
+  "normalLabs": { "count": 0, "names": "" },
+  "timeline": [
+    {
+      "date": "5 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Urinary catheter dated",
+      "detail": "Foley's catheter is listed with insertion date 5/11/26.",
+      "cite": { "page": 3, "rid": "p3-devices" }
+    },
+    {
+      "date": "7 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Received in ICU",
+      "detail": "Note along the 16:00 column mentions KHSB OT; charting starts at 17:00. Left drain and two cannulas dated 7/11/26.",
+      "cite": { "page": 1, "rid": "p1-received" }
+    },
+    {
+      "date": "7 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "First ICU sheet totals",
+      "detail": "Total intake 2550 ml, total output 1440 ml.",
+      "cite": { "page": 1, "rid": "p1-totals" }
+    },
+    {
+      "date": "8 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Last ICU chart entries, 12:00",
+      "detail": "GCS 15, SpO2 96%, urine 25 ml in the last charted hour.",
+      "cite": { "page": 4, "rid": "p4-vitals-12" }
+    }
+  ],
+  "notes": "No text layer; all four pages were read from the image. The pages are A3 sheets scanned with the right edge cut off, so the full date, the ICU-days box and the late-night columns are partly missing. Sheet dates are read as 7/11 (pages 1-2) and 8/ (pages 3-4); the year 26 comes from the device insertion dates. The admission start date (5 Nov 2026) is not on these pages: it is taken from the admission order in F4 (global page 48) so that the encounter key matches F3 and F4. The encounter ref is the number printed on the patient label on page 3; F4 page 48 confirms it is the I.P. number. Vitals are plotted marks and are approximate. 'Inj. Advent' and 'Inj. Pan' are brand or short names as written; no doses appear. The left-edge strip of pages 1 and 3 shows hours 5 to 7 of the facing vitals graph (SpO2 98% entries) and was not extracted separately. The procedure finding duplicates the planned left bipolar hemiarthroplasty recorded in F4."
+}

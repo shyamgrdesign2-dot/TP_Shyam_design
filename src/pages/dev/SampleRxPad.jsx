@@ -14,6 +14,7 @@ import { attachTesseractCtBehind } from '../../components/tesseractCt';
 import shellStyles from '../../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss';
 import moduleStyles from '../../components/dr-agent/voicerx/VoiceRxModuleCapture.module.scss';
 import { ASSETS } from '../../assets';
+import CASE_FILE from '../../components/archived-records/mock/archivedRecordsMock';
 import '../../components/tesseractRxPad.scss';
 import './SampleRxPad.scss';
 
@@ -30,8 +31,11 @@ import './SampleRxPad.scss';
 const { Content } = Layout;
 const NOOP = () => {};
 const NO_OPTIONS = [];
-const SAMPLE_PATIENT = { pm_fullname: 'Sample patient', pm_gender: 'Female' };
-const SAMPLE_AGE = '82y';
+// The patient the Case File belongs to: the name, sex and age read from the
+// file when the bundle carries them, a placeholder otherwise.
+const FILE_PATIENT = CASE_FILE.patient || {};
+const SAMPLE_PATIENT = { pm_fullname: FILE_PATIENT.name || 'Sample patient', pm_gender: FILE_PATIENT.sex || 'Female' };
+const SAMPLE_AGE = FILE_PATIENT.age ? `${FILE_PATIENT.age}y` : '82y';
 
 // The rail of a general consultation, in the product's order.
 const RAIL_IDS = ['pastVisits', 'archivedRecords', 'vitals', 'history', 'labResults', 'medicalRecords', 'gynec', 'obstetric', 'vaccine', 'growth', 'optal', 'personalNotes', 'carePlan'];

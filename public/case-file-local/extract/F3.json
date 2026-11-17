@@ -1,0 +1,71 @@
+{
+  "file": {
+    "id": "F3",
+    "pages": 1,
+    "offset": 31,
+    "what": "Counselling and consent form for HIV testing, signed 6 Nov 2026 during the orthopaedic admission"
+  },
+  "patient": {
+    "sex": "Female",
+    "age": 84,
+    "cite": { "page": 32, "rid": "p32-label" }
+  },
+  "encounters": [
+    {
+      "key": "IPD-2026-11-05",
+      "type": "IPD",
+      "startLabel": "5 Nov 2026",
+      "endLabel": null,
+      "sortKey": "2026-11-05",
+      "department": "Orthopaedics (ORT004)",
+      "clinician": "Junior Resident, Orthopaedics",
+      "entry": null,
+      "visitKind": null,
+      "outcome": null,
+      "ref": "1127801",
+      "refCite": { "page": 32, "rid": "p32-label" },
+      "pages": 1
+    }
+  ],
+  "documents": [
+    {
+      "title": "Counselling and consent form for HIV testing",
+      "category": "nursingForms",
+      "from": 32,
+      "to": 32,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    }
+  ],
+  "findings": [],
+  "lines": [
+    {
+      "page": 32,
+      "rid": "p32-label",
+      "label": "Patient label",
+      "text": "(name and hospital number removed) F · ORT004 · 84 Y · KHSB SPA5F B"
+    },
+    {
+      "page": 32,
+      "rid": "p32-date",
+      "label": "Date / Time",
+      "text": "6/11/26 · 6 am"
+    },
+    {
+      "page": 32,
+      "rid": "p32-test",
+      "label": "Tests consented to",
+      "text": "HIV 1 & 2 Antibodies Test (circled by hand)"
+    }
+  ],
+  "images": [],
+  "notFound": [
+    "Result of the HIV 1 & 2 antibodies test this form gives consent for"
+  ],
+  "exceptions": [],
+  "pagesUnread": [],
+  "pagesFormsOnly": 1,
+  "normalLabs": { "count": 0, "names": "" },
+  "timeline": [],
+  "notes": "Single consent page, no clinical finding recorded from it. It belongs to the orthopaedic admission that began on 5 Nov 2026 (same key as in F1 and F4); the admission date itself is not on this page, only the form date 6/11/26, 6 am. 'HIV 1 & 2 Antibodies Test' is circled; the other three options are not marked. Signed by a junior resident of Orthopaedics and by the patient. The label on the form carries the admission (I.P.) number used as the encounter ref; the admission order in F4 (global page 48) confirms it is the I.P. number. Lines p32-date and p32-test are given for the merger's use and are not cited by any finding."
+}

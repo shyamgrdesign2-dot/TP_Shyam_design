@@ -51,8 +51,8 @@ import styles from "./ArchivedRecords.module.scss";
  *   search         the search box (off where the host already has one)
  *   notice         the "not verified" notice
  *   tabs           which tabs to show, in order: "data", "timeline",
- *                  "documents". The review workspace leaves "documents" out
- *                  (it has a Documents tab of its own); `false` shows Data only
+ *                  "documents". Default is Data alone, with no tab strip:
+ *                  the record is its data everywhere it is placed
  *   quick          citations open the light source drawer, not the review
  *   host           "rail" inside the Rx pad's panel (12px gutters), else "page"
  */
@@ -79,7 +79,6 @@ export function CaseFileSection({ code, title, icon, children, onOpenDomain }) {
 }
 
 const TAB_LABEL = { data: "Data", timeline: "Timeline", documents: "Documents" };
-const ALL_TABS = ["data", "timeline", "documents"];
 
 // Search within a tab: every word typed must be in the line.
 const fold = (value = "") => String(value).toLowerCase().replace(/\s+/g, " ").trim();
@@ -267,7 +266,7 @@ export default function CaseFileRecord({
   heading = false,
   search = true,
   notice = true,
-  tabs = ALL_TABS,
+  tabs = ["data"],
   summary = false,
   quick = false,
   host = "page",

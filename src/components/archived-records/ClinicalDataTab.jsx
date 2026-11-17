@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Checkbox, Empty, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
-import { Edit2, ShieldTick, TickCircle, Trash, Warning2 } from "iconsax-reactjs";
+import { Edit2, TickCircle, Trash } from "iconsax-reactjs";
 import {
   archivedRecordsStore,
   confidenceBand,
@@ -16,7 +16,6 @@ import { Carousel, CiteChip, FLAG_LABEL, FindingBody, RowMarks, TrendStrip, grou
 import RxEditForm, { isChanged, readAs, rowFromDraft, startDraft } from "./RxEditForm";
 import { useRowFit } from "./RxTable";
 import { factFromRx, rxQuals } from "./rxFormat";
-import { scrollWithin } from "./scrollWithin";
 import styles from "./ArchivedRecords.module.scss";
 import data from "./clinicalData.module.scss";
 
@@ -253,8 +252,6 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
   const [activeId, setActiveId] = useState(null);
   // Sections the reader has folded away.
   const [closed, setClosed] = useState(() => new Set());
-  // A row "Review next" is on its way to, once the filters have let it in.
-  const [jump, setJump] = useState(null);
   // What the last action did, with the way back when there is one.
   const [note, setNote] = useState(null);
   const say = (text, undo = null) => setNote({ text, undo });
@@ -324,27 +321,6 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
     });
   }, [domainFilter, statusFilter]);
 
-  // "Review next": by now the filters and the section are open, so the row is
-  // on the page. Show it, open its line on the source page, and put the
-  // keyboard on it.
-  const jumped = useRef(null);
-  useEffect(() => {
-    // Each press is handled once, however often the rows redraw after it.
-    if (!jump || jumped.current === jump) return undefined;
-    jumped.current = jump;
-    const finding = byId[jump.id];
-    if (!finding) return undefined;
-    setActiveId(finding.id);
-    archivedRecordsStore.openSource(finding.cite.page, finding.cite.rid);
-    // One frame later, so the row is measured with its details open.
-    const frame = requestAnimationFrame(() => {
-      const node = findRow(rootRef.current, finding.id);
-      if (!node) return;
-      scrollWithin(scrollBoxOf(node), node, { align: "center", smooth: true });
-      node.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [jump, byId]);
 
   const select = (ids, on) => {
     setNote(null);
@@ -374,23 +350,6 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
       return next;
     });
 
-  // The next row still to review, in the order the rows are listed: the first
-  // one after the row that is open, else the first. It stays within the kind
-  // that is chosen while that kind has any left.
-  const reviewNext = () => {
-    const listed = domains.flatMap((domain) => groupFindings(domain.items).flatMap(([, list]) => list));
-    const waiting = listed.filter((item) => statusOf(review, item.id) === "draft");
-    const here = waiting.filter((item) => inDomain(item.domain));
-    const pool = here.length ? here : waiting;
-    if (!pool.length) return;
-    const at = listed.findIndex((item) => item.id === activeId);
-    const next = pool.find((item) => listed.indexOf(item) > at) || pool[0];
-    if (!here.length) setDomainFilter("all");
-    if (!matches(next, review, statusFilter)) setStatusFilter("draft");
-    fold(next.domain, false);
-    setNote(null);
-    setJump({ id: next.id });
-  };
 
   // One row at a time. Where the row then leaves the list (it no longer
   // matches the filter), say where it went and keep Undo within reach.
@@ -499,17 +458,12 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
 
   return (
     <div className={`${styles.stack} ${styles.dataTab}`} ref={rootRef}>
-      {/* Where the review stands, and the way to the next row that needs it. */}
+      {/* Where the review stands: a tag, nothing more. */}
       {bundle.findings.length ? (
-        <div className={styles.reviewEntry} data-done={allDone ? "true" : undefined}>
-          {allDone ? <ShieldTick size={18} variant="Bold" aria-hidden="true" /> : <Warning2 size={18} variant="Bold" aria-hidden="true" />}
-          <div>
-            <strong>{allDone ? "Reviewed and saved" : totals.verified ? `${totals.verified} of ${totals.total} verified` : "Not verified yet"}</strong>
-            <span>{allDone ? "Every row was checked against its page." : "Check each row against its page. Verify it, edit it, or remove it."}</span>
-          </div>
-          {allDone ? null : (
-            <Button variant="solid" theme="primary" size="sm" onClick={reviewNext}>Review next</Button>
-          )}
+        <div className={styles.reviewTag}>
+          <Badge variant="soft" color={allDone ? "success" : "warning"} size="sm">
+            {allDone ? "Reviewed and saved" : totals.verified ? `${totals.verified} of ${totals.total} verified` : "Not verified"}
+          </Badge>
         </div>
       ) : null}
 

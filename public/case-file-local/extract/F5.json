@@ -1,0 +1,2611 @@
+{
+  "file": {
+    "id": "F5",
+    "pages": 90,
+    "offset": 51,
+    "what": "Nursing file of one orthopaedic admission, 5 to 12 Nov 2026: nurse's record, intake-output, nursing assessments, care plans, handover sheets, insulin chart, observation charts, admission order and plan of care. Almost all handwritten. No discharge summary, doctor's notes or lab reports."
+  },
+  "patient": {
+    "sex": "Female",
+    "age": 84,
+    "cite": {
+      "page": 140,
+      "rid": "p140-label"
+    }
+  },
+  "encounters": [
+    {
+      "key": "IPD-2026-11-05",
+      "type": "IPD",
+      "startLabel": "5 Nov 2026",
+      "endLabel": "12 Nov 2026",
+      "sortKey": "2026-11-05",
+      "department": "Orthopaedics (Dept/Unit written as ORT004)",
+      "clinician": "Orthopaedics unit 4 team (consultant and residents)",
+      "entry": null,
+      "visitKind": null,
+      "outcome": "discharged",
+      "ref": "1127801",
+      "refCite": {
+        "page": 140,
+        "rid": "p140-ipno"
+      },
+      "pages": 90
+    }
+  ],
+  "documents": [
+    {
+      "title": "Intake and output charts",
+      "category": "nursingForms",
+      "from": 52,
+      "to": 57,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Nurse's record (5 to 12 Nov 2026)",
+      "category": "nursingForms",
+      "from": 58,
+      "to": 85,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Nursing initial assessment",
+      "category": "nursingForms",
+      "from": 86,
+      "to": 86,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Pain, fall and pressure-ulcer risk assessment with medication reconciliation",
+      "category": "medication",
+      "from": 87,
+      "to": 87,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Fall-prevention awareness and nursing care plan",
+      "category": "nursingForms",
+      "from": 88,
+      "to": 88,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Peripheral venous access documentation",
+      "category": "nursingForms",
+      "from": 89,
+      "to": 90,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "DVT risk assessment",
+      "category": "nursingForms",
+      "from": 91,
+      "to": 91,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Patient and family education record",
+      "category": "nursingForms",
+      "from": 92,
+      "to": 92,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Discharge check list",
+      "category": "nursingForms",
+      "from": 93,
+      "to": 93,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Nutritional assessment and diet reassessment",
+      "category": "nursingForms",
+      "from": 94,
+      "to": 97,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Daily nursing care plans and checklists",
+      "category": "nursingForms",
+      "from": 98,
+      "to": 113,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "SBAR nursing report handover sheets",
+      "category": "nursingForms",
+      "from": 114,
+      "to": 121,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Insulin chart (GRBS and insulin doses)",
+      "category": "medication",
+      "from": 122,
+      "to": 123,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Urinary catheter maintenance and insertion care bundles",
+      "category": "nursingForms",
+      "from": 124,
+      "to": 125,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Daily monitoring for worsening of pressure sore",
+      "category": "nursingForms",
+      "from": 126,
+      "to": 127,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "MEWS charts",
+      "category": "nursingForms",
+      "from": 128,
+      "to": 131,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Graphic (T.P.R.) charts",
+      "category": "nursingForms",
+      "from": 132,
+      "to": 135,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Blood pressure charts",
+      "category": "nursingForms",
+      "from": 136,
+      "to": 139,
+      "script": "handwritten",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Admission order, general consent and discharge slip",
+      "category": "summaries",
+      "from": 140,
+      "to": 140,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    },
+    {
+      "title": "Plan of care",
+      "category": "doctorNotes",
+      "from": 141,
+      "to": 141,
+      "script": "mixed",
+      "encounterKey": "IPD-2026-11-05"
+    }
+  ],
+  "findings": [
+    {
+      "domain": "DX",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "working",
+      "title": "Left femur neck fracture",
+      "detail": "Working diagnosis · written as provisional diagnosis on the plan of care",
+      "verbatim": "Provisional Diagnosis: (L) femur neck fracture",
+      "cite": {
+        "page": 141,
+        "rid": "p141-dx"
+      },
+      "also": [
+        {
+          "page": 58,
+          "rid": "p58-dx"
+        },
+        {
+          "page": 86,
+          "rid": "p86-complaint"
+        },
+        {
+          "page": 94,
+          "rid": "p94-dx"
+        },
+        {
+          "page": 117,
+          "rid": "p117-dx"
+        }
+      ],
+      "confidence": 0.9,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "DX",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "chronic",
+      "title": "Type 2 diabetes mellitus",
+      "detail": "Past history · written as T2DM · diabetic diet ticked on the plan of care",
+      "verbatim": "Previous History: T2DM HTN",
+      "cite": {
+        "page": 94,
+        "rid": "p94-history"
+      },
+      "also": [
+        {
+          "page": 141,
+          "rid": "p141-plan"
+        },
+        {
+          "page": 87,
+          "rid": "p87-med-4"
+        }
+      ],
+      "confidence": 0.88,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "Past history"
+    },
+    {
+      "domain": "DX",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "chronic",
+      "title": "Hypertension",
+      "detail": "Past history · written as HTN · hypertensive diet ticked on the plan of care",
+      "verbatim": "Previous History: T2DM HTN",
+      "cite": {
+        "page": 94,
+        "rid": "p94-history"
+      },
+      "also": [
+        {
+          "page": 141,
+          "rid": "p141-plan"
+        },
+        {
+          "page": 87,
+          "rid": "p87-med-1"
+        }
+      ],
+      "confidence": 0.88,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "Past history"
+    },
+    {
+      "domain": "DX",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "chronic",
+      "title": "SCC, right gluteal skin",
+      "detail": "Past history · s/p wide excision · year in brackets partly hidden by a number stamp, read as 2017",
+      "verbatim": "SCC (R) gluteal skin s/p wide excision (201?, last digit under a stamp)",
+      "cite": {
+        "page": 94,
+        "rid": "p94-dx"
+      },
+      "confidence": 0.7,
+      "handwritten": true,
+      "flags": [
+        "partlyRead"
+      ],
+      "dateLabel": "Past history"
+    },
+    {
+      "domain": "DX",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "secondary",
+      "title": "Pressure sore, grade I: right buttock and right shoulder",
+      "detail": "Secondary diagnosis · ticked hospital acquired · right buttock blister 1x1 cm, right shoulder multiple small blisters with redness · grade I from 8 to 12 Nov",
+      "verbatim": "Origin: B Hospital Acquired. Grade 1 Reddened area skin intact. (R) buttock blister measuring 1x1cm and (R) shoulder multiple small blisters with redness present",
+      "cite": {
+        "page": 126,
+        "rid": "p126-sore"
+      },
+      "also": [
+        {
+          "page": 127,
+          "rid": "p127-sore"
+        },
+        {
+          "page": 68,
+          "rid": "p68-skin"
+        },
+        {
+          "page": 67,
+          "rid": "p67-blister"
+        },
+        {
+          "page": 83,
+          "rid": "p83-coloplast"
+        }
+      ],
+      "confidence": 0.82,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "8 Nov 2026"
+    },
+    {
+      "domain": "ALG",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "No known drug allergy",
+      "detail": "Known drug allergies ticked No on the nursing initial assessment. The handover sheets repeat no history of allergy.",
+      "verbatim": "Known Drug Allergies: No [x]  Yes [ ]",
+      "cite": {
+        "page": 86,
+        "rid": "p86-allergy"
+      },
+      "also": [
+        {
+          "page": 114,
+          "rid": "p114-allergy"
+        },
+        {
+          "page": 116,
+          "rid": "p116-surgery"
+        },
+        {
+          "page": 117,
+          "rid": "p117-dx"
+        }
+      ],
+      "confidence": 0.93,
+      "handwritten": true,
+      "flags": [],
+      "negative": true,
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "ALG",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "No food allergy or intolerance",
+      "detail": "None is ticked on the nutritional assessment.",
+      "verbatim": "Food Allergy/Intolerance: [x] None  [ ] Yes (Specify)",
+      "cite": {
+        "page": 94,
+        "rid": "p94-food-allergy"
+      },
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "negative": true,
+      "dateLabel": "6 Nov 2026"
+    },
+    {
+      "domain": "PROC",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "procedure",
+      "title": "Left bipolar hemiarthroplasty",
+      "detail": "7 Nov 2026 · spinal anaesthesia",
+      "verbatim": "Patient underwent Left Bipolar Hemiarthroplasty under Spinal Anaesthesia",
+      "cite": {
+        "page": 67,
+        "rid": "p67-surgery"
+      },
+      "also": [
+        {
+          "page": 141,
+          "rid": "p141-surgery"
+        },
+        {
+          "page": 116,
+          "rid": "p116-surgery"
+        },
+        {
+          "page": 117,
+          "rid": "p117-dx"
+        },
+        {
+          "page": 94,
+          "rid": "p94-dx"
+        }
+      ],
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "PROC",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "procedure",
+      "title": "Urinary catheterisation (Foley)",
+      "detail": "5 Nov 2026, 5:40 PM · removed 10 Nov 2026, 9:30 pm",
+      "verbatim": "Date & time of Urinary catheterization: 5:40PM 5/11/26. Catheter removed on 10/11/26 @ 9:30pm",
+      "cite": {
+        "page": 125,
+        "rid": "p125-catheter"
+      },
+      "also": [
+        {
+          "page": 124,
+          "rid": "p124-catheter"
+        },
+        {
+          "page": 81,
+          "rid": "p81-catheter"
+        },
+        {
+          "page": 86,
+          "rid": "p86-catheter"
+        }
+      ],
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [
+        "conflictingValue"
+      ],
+      "conflictWith": {
+        "text": "The maintenance bundle gives the date of insertion as 6/11/26",
+        "page": 124,
+        "rid": "p124-catheter"
+      },
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "PROC",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "pastSurgery",
+      "title": "Wide excision, SCC right gluteal skin",
+      "detail": "Past surgery · year partly hidden by a number stamp, read as 2017",
+      "verbatim": "SCC (R) gluteal skin s/p wide excision (201?, last digit under a stamp)",
+      "cite": {
+        "page": 94,
+        "rid": "p94-dx"
+      },
+      "confidence": 0.7,
+      "handwritten": true,
+      "flags": [
+        "partlyRead"
+      ],
+      "dateLabel": "Past history"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "home",
+      "group": "At home",
+      "title": "Stamlo 5 mg",
+      "detail": "1-0-0 · last dose 5/11/26 at 8am · not given on 8 Nov at 9 am, BP 110/60 noted",
+      "verbatim": "T. Stamlo  5 mg  1-0-0  5/11/26 at 8am",
+      "cite": {
+        "page": 87,
+        "rid": "p87-med-1"
+      },
+      "also": [
+        {
+          "page": 72,
+          "rid": "p72-withheld"
+        }
+      ],
+      "confidence": 0.86,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "home",
+      "group": "At home",
+      "title": "Rozavel 5 mg",
+      "detail": "0-0-1 · last dose 4/11/26 at 8pm",
+      "verbatim": "T. Rozavel  5 mg  0-0-1  4/11/26 at 8pm",
+      "cite": {
+        "page": 87,
+        "rid": "p87-med-2"
+      },
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "home",
+      "group": "At home",
+      "title": "Evion",
+      "detail": "0-1-0 · last dose 4/11/26 at 2pm · no dose written · name read as Evion",
+      "verbatim": "T. Evion  (dose blank)  0-1-0  4/11/26 at 2pm",
+      "cite": {
+        "page": 87,
+        "rid": "p87-med-3"
+      },
+      "confidence": 0.7,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "home",
+      "group": "At home",
+      "title": "Glimy M1 500 mg",
+      "detail": "1-0-1 · last dose 5/11/26 at 8am · withheld on 8 Nov on Medicine advice, insulin given instead",
+      "verbatim": "T. Glimy M1  500 mg  1-0-1  5/11/26 at 8am",
+      "cite": {
+        "page": 87,
+        "rid": "p87-med-4"
+      },
+      "also": [
+        {
+          "page": 72,
+          "rid": "p72-withheld"
+        }
+      ],
+      "confidence": 0.82,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Human Actrapid (insulin)",
+      "detail": "4 or 6 units · as advised by Medicine for each GRBS · SC · 8 to 11 Nov 2026 · 8 Nov: 6 units three times; 9 Nov: 4 units twice; 10 Nov: 4 units then 6 units; 11 Nov: 4 units twice · other doses skipped on Medicine advice",
+      "verbatim": "Inj. H. Actrapid 6 unit / Inj H-Actrapid (4) units / 4u H. Actrapid / 6 unit H Actrapid / (4) units s/c / Skip",
+      "cite": {
+        "page": 122,
+        "rid": "p122-insulin"
+      },
+      "also": [
+        {
+          "page": 72,
+          "rid": "p72-actrapid"
+        },
+        {
+          "page": 75,
+          "rid": "p75-grbs"
+        },
+        {
+          "page": 76,
+          "rid": "p76-grbs"
+        },
+        {
+          "page": 83,
+          "rid": "p83-grbs"
+        },
+        {
+          "page": 123,
+          "rid": "p123-grbs"
+        }
+      ],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "8 to 11 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Clexane 0.4 ml (injection)",
+      "detail": "0.4 ml · SC · right thigh · 8 Nov 2026, 11 am · only this one dose is written in the nurse's record",
+      "verbatim": "Inj CLEXANE 0.4ml given over right thigh S/C. Inj site no redness, no bleed",
+      "cite": {
+        "page": 73,
+        "rid": "p73-clexane"
+      },
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "8 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Advent 1.2 g (injection)",
+      "detail": "1 vial · sent to theatre with the patient · 7 Nov 2026 · when it was given is not written in this PDF",
+      "verbatim": "Inj Advent 1.2gm - 1 sent to OT",
+      "cite": {
+        "page": 66,
+        "rid": "p66-abx"
+      },
+      "also": [
+        {
+          "page": 67,
+          "rid": "p67-ot"
+        }
+      ],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Ticocin 400 mg (injection)",
+      "detail": "1 vial · sent to theatre with the patient · 7 Nov 2026 · when it was given is not written in this PDF",
+      "verbatim": "Inj Ticocin 400mg - 1",
+      "cite": {
+        "page": 67,
+        "rid": "p67-ot"
+      },
+      "also": [
+        {
+          "page": 66,
+          "rid": "p66-abx"
+        }
+      ],
+      "confidence": 0.7,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Vancomycin 1 g (injection)",
+      "detail": "2 vials · sent to theatre with the patient · 7 Nov 2026 · 1 vial is listed again when the patient left theatre · when it was given is not written in this PDF",
+      "verbatim": "Inj Vancomycin 1gm - 2 sent to OT ... & Inj Vanc 1g - 1",
+      "cite": {
+        "page": 66,
+        "rid": "p66-abx"
+      },
+      "also": [
+        {
+          "page": 67,
+          "rid": "p67-ot"
+        },
+        {
+          "page": 67,
+          "rid": "p67-surgery"
+        }
+      ],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Duolin nebulisation",
+      "detail": "1 resp · 8hrly · nebulised · started on pulmonary (PTCD) advice on 7 Nov 2026 · first given 6 Nov 10 pm on the anaesthesia order",
+      "verbatim": "advised to start Neb. Duolin 8hrly and Budecort 12 hrly. 8:30pm Neb. Duolin 1 resp given as per PTCD order",
+      "cite": {
+        "page": 69,
+        "rid": "p69-neb"
+      },
+      "also": [
+        {
+          "page": 64,
+          "rid": "p64-preop-meds"
+        },
+        {
+          "page": 63,
+          "rid": "p63-neb"
+        }
+      ],
+      "confidence": 0.82,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "6 to 8 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Budecort nebulisation",
+      "detail": "1 resp · 12 hrly · nebulised · started on pulmonary (PTCD) advice on 7 Nov 2026 · first given 6 Nov 10:30 pm on the anaesthesia order",
+      "verbatim": "advised to start Neb. Duolin 8hrly and Budecort 12 hrly. 8:40pm Neb. Budecort 1 resp given as per PTCD order",
+      "cite": {
+        "page": 69,
+        "rid": "p69-neb"
+      },
+      "also": [
+        {
+          "page": 64,
+          "rid": "p64-preop-meds"
+        },
+        {
+          "page": 63,
+          "rid": "p63-neb"
+        }
+      ],
+      "confidence": 0.82,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "6 to 8 Nov 2026"
+    },
+    {
+      "domain": "MED",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "inHospital",
+      "group": "In hospital",
+      "title": "Tramadol 50 mg in 100 ml NS (infusion)",
+      "detail": "50 mg · added in 100 ml NS · IV · 11 Nov 2026, 1 pm · the night entries of 10 and 11 Nov on the same charts look similar but could not be read reliably",
+      "verbatim": "1 pm  Inj. Tramadol 50mg added in 100ml NS is on flow",
+      "cite": {
+        "page": 55,
+        "rid": "p55-tramadol"
+      },
+      "confidence": 0.7,
+      "handwritten": true,
+      "flags": [
+        "partlyRead"
+      ],
+      "dateLabel": "11 Nov 2026",
+      "also": [
+        {
+          "page": 54,
+          "rid": "p54-iv"
+        }
+      ]
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "interim",
+      "title": "On admission to the ward",
+      "detail": "BP 140/80 · Pulse 90 · SpO2 95% on 4 L nasal prongs · Temp 98.6 F · RR 22",
+      "verbatim": "T: 98.6°F  BP: 140/80mmHg  PR: 90bpm (overwritten)  RR: 22 b/m  SpO2: 95% c 4 liter nasal prongs",
+      "cite": {
+        "page": 58,
+        "rid": "p58-vitals"
+      },
+      "also": [
+        {
+          "page": 114,
+          "rid": "p114-vitals"
+        }
+      ],
+      "confidence": 0.72,
+      "handwritten": true,
+      "flags": [
+        "conflictingValue"
+      ],
+      "conflictWith": {
+        "text": "The nursing initial assessment form of the same evening says Pulse 80 b/mt",
+        "page": 86,
+        "rid": "p86-vitals"
+      },
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "interim",
+      "title": "Before surgery, at theatre reception",
+      "detail": "BP 142/83 · Pulse 86 · SpO2 98% on 4 L O2 · RR 17",
+      "verbatim": "while receiving vitals are BP: 142/83mmHg  P: 86 b/m  R: 17 b/m  SpO2: 98% on 4L O2 via NP",
+      "cite": {
+        "page": 66,
+        "rid": "p66-preop-vitals"
+      },
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "interim",
+      "title": "After surgery, on arrival in HDU",
+      "detail": "BP 140/70 · Pulse 84 · SpO2 98% on 2 L oxygen · Temp 98.6 F · RR 22",
+      "verbatim": "Temp: 98.6F  pulse: 84 b/mt  Resp: 22 br/mt  BP: 140/70mmHg  SpO2: 98% in 2 liter oxygen",
+      "cite": {
+        "page": 68,
+        "rid": "p68-hdu"
+      },
+      "confidence": 0.82,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "interim",
+      "title": "Day 1 after surgery, HDU",
+      "detail": "BP 120/60 · Pulse 78 · SpO2 95% · Temp 98.6 F · RR 20",
+      "verbatim": "SpO2: 95%  Temp 98.6F  Pulse: 78 b/m  Resp 20 b/m  BP: 120/60 mmHg",
+      "cite": {
+        "page": 72,
+        "rid": "p72-vitals"
+      },
+      "confidence": 0.75,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "8 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "interim",
+      "title": "Back on the ward from HDU",
+      "detail": "BP 120/70 · Pulse 74 · SpO2 96% on 1 L O2 · Temp 98.6 F · RR 20",
+      "verbatim": "Temp: 98.6F  pulse: 74 b/m  RR 20 b/m  BP: 120/70 mmHg  SpO2: 96% on 1L O2 via nasal prongs",
+      "cite": {
+        "page": 75,
+        "rid": "p75-ward"
+      },
+      "confidence": 0.78,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "8 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "interim",
+      "title": "Off oxygen, afternoon",
+      "detail": "SpO2 89% on room air",
+      "verbatim": "4:20pm Patient SpO2: 89% with Room air",
+      "cite": {
+        "page": 78,
+        "rid": "p78-desat"
+      },
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "9 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "interim",
+      "title": "Evening handover, day before discharge",
+      "detail": "BP 130/80 · Pulse 88 · SpO2 98% · Temp 98.6 F · RR 20 · GCS 15",
+      "verbatim": "Temp 98.6F  Pulse: 88bpm  Resp 20bpm  BP: 130/80mmHg  SpO2 98%  GCS 15",
+      "cite": {
+        "page": 121,
+        "rid": "p121-vitals"
+      },
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "11 Nov 2026"
+    },
+    {
+      "domain": "VIT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "last",
+      "title": "Morning of discharge (read off the charts)",
+      "detail": "BP 130/80",
+      "verbatim": "MEWS chart, last column (12/11): systolic mark at 130, diastolic written 80, heart rate 51-100, respiration 15-20, SpO2 >90, temp 97-100, total MEWS score 1",
+      "cite": {
+        "page": 130,
+        "rid": "p130-last"
+      },
+      "confidence": 0.6,
+      "handwritten": true,
+      "flags": [
+        "conflictingValue",
+        "lowConfidence"
+      ],
+      "conflictWith": {
+        "text": "The blood pressure chart arrow for 8AM on 12/11/26 runs from about 120-130 down to about 70",
+        "page": 138,
+        "rid": "p138-bp"
+      },
+      "dateLabel": "12 Nov 2026"
+    },
+    {
+      "domain": "LAB",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "GRBS (bedside blood glucose)",
+      "detail": "",
+      "value": "90",
+      "unit": "mg/dl",
+      "range": "",
+      "abnormal": "",
+      "dateLabel": "12 Nov 2026",
+      "series": [
+        {
+          "d": "5 Nov 10:15pm",
+          "v": "140"
+        },
+        {
+          "d": "6 Nov 7am",
+          "v": "90"
+        },
+        {
+          "d": "6 Nov 10am",
+          "v": "111"
+        },
+        {
+          "d": "6 Nov 3:30pm",
+          "v": "126"
+        },
+        {
+          "d": "6 Nov 10:30pm",
+          "v": "130"
+        },
+        {
+          "d": "7 Nov 6am",
+          "v": "80"
+        },
+        {
+          "d": "7 Nov 8am",
+          "v": "108"
+        },
+        {
+          "d": "7 Nov 6pm",
+          "v": "113"
+        },
+        {
+          "d": "8 Nov 6am",
+          "v": "263"
+        },
+        {
+          "d": "8 Nov 10:30am",
+          "v": "293"
+        },
+        {
+          "d": "8 Nov 1pm",
+          "v": "243"
+        },
+        {
+          "d": "8 Nov 3pm",
+          "v": "298"
+        },
+        {
+          "d": "8 Nov evening",
+          "v": "250"
+        },
+        {
+          "d": "9 Nov 6am",
+          "v": "233"
+        },
+        {
+          "d": "9 Nov 1pm",
+          "v": "136"
+        },
+        {
+          "d": "9 Nov 4pm",
+          "v": "116"
+        },
+        {
+          "d": "9 Nov 7pm",
+          "v": "118"
+        },
+        {
+          "d": "9 Nov 10pm",
+          "v": "120"
+        },
+        {
+          "d": "10 Nov 6am",
+          "v": "102"
+        },
+        {
+          "d": "10 Nov 10am",
+          "v": "167"
+        },
+        {
+          "d": "10 Nov 1:30pm",
+          "v": "196"
+        },
+        {
+          "d": "10 Nov 4:15pm",
+          "v": "146"
+        },
+        {
+          "d": "10 Nov 6:45pm",
+          "v": "160"
+        },
+        {
+          "d": "10 Nov 10pm",
+          "v": "130"
+        },
+        {
+          "d": "11 Nov 7am",
+          "v": "136"
+        },
+        {
+          "d": "11 Nov 10am",
+          "v": "148"
+        },
+        {
+          "d": "11 Nov 12:30pm",
+          "v": "155"
+        },
+        {
+          "d": "11 Nov 7pm",
+          "v": "100"
+        },
+        {
+          "d": "12 Nov 6am",
+          "v": "90"
+        }
+      ],
+      "verbatim": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+      "cite": {
+        "page": 123,
+        "rid": "p123-grbs"
+      },
+      "also": [
+        {
+          "page": 122,
+          "rid": "p122-grbs"
+        },
+        {
+          "page": 65,
+          "rid": "p65-grbs"
+        },
+        {
+          "page": 71,
+          "rid": "p71-grbs"
+        },
+        {
+          "page": 75,
+          "rid": "p75-grbs"
+        },
+        {
+          "page": 76,
+          "rid": "p76-grbs"
+        },
+        {
+          "page": 79,
+          "rid": "p79-insulin-skip"
+        },
+        {
+          "page": 83,
+          "rid": "p83-grbs"
+        }
+      ],
+      "confidence": 0.75,
+      "handwritten": true,
+      "flags": [
+        "partlyRead"
+      ]
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "complaint",
+      "group": "Course",
+      "title": "Presenting complaint",
+      "detail": "Chief complaint is written as left femur neck fracture. Pain in the left leg, rated 0-2. Arrived on a stretcher with oxygen and an IV line.",
+      "verbatim": "CHIEF COMPLAINTS: left femur neck fracture. Mode of arrival: Stretcher. Arrived with: Oxygen, IV line. Pain: Yes, rating 0-2, Location: left leg",
+      "cite": {
+        "page": 86,
+        "rid": "p86-complaint"
+      },
+      "also": [
+        {
+          "page": 87,
+          "rid": "p87-pain"
+        }
+      ],
+      "confidence": 0.9,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "course",
+      "group": "Course",
+      "title": "Admission",
+      "detail": "Admission order dated 5 Nov 2026, 4 pm, under unit ORT004. Reached the ward at 7 pm by trolley on 4 L oxygen by nasal prongs, with a Foley catheter, skin traction on the left leg and an IV cannula. Back skin intact.",
+      "verbatim": "patient got admitted KHSB 5th B by trolly with IP and OP file. patient having foleys catheter. patient having skin traction over the left leg. patient having IV cannula. patient on oxygen with nasal prongs of 4 ltr",
+      "cite": {
+        "page": 58,
+        "rid": "p58-admit"
+      },
+      "also": [
+        {
+          "page": 58,
+          "rid": "p58-dx"
+        },
+        {
+          "page": 140,
+          "rid": "p140-admit"
+        },
+        {
+          "page": 89,
+          "rid": "p89-cannula"
+        }
+      ],
+      "confidence": 0.88,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "course",
+      "group": "Course",
+      "title": "Work-up before surgery",
+      "detail": "Medicine (med-5) and pulmonary (written PTCD-II) consultations were requested and taken on 5 to 6 Nov. Surgery was posted for the next day on the 6 Nov round. PAC chart was viewed at 9:15 pm on 6 Nov. An eye consultation is noted the same night.",
+      "verbatim": "8:15pm med-5 consultation put. 1:15am PTCD-II consultation online done. 9:15am Rounds done, advised to continue same treatment and posted tomorrow. 9:15pm PAC chart viewed",
+      "cite": {
+        "page": 59,
+        "rid": "p59-consults"
+      },
+      "also": [
+        {
+          "page": 60,
+          "rid": "p60-rounds"
+        },
+        {
+          "page": 61,
+          "rid": "p61-ptcd"
+        },
+        {
+          "page": 64,
+          "rid": "p64-pac"
+        },
+        {
+          "page": 64,
+          "rid": "p64-eye"
+        }
+      ],
+      "confidence": 0.75,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 to 6 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "course",
+      "group": "Course",
+      "title": "HDU stay after surgery",
+      "detail": "Received in HDU at 5 pm on 7 Nov, conscious and oriented, left leg dressing with drain. Liquid diet started at 9:30 pm. Shifted back to the ward at 12 noon on 8 Nov on 1 L oxygen.",
+      "verbatim": "5pm patient received to KHSB HDU. patient General condition conscious & oriented. 9:30pm liquid diet started. 12pm Transfer summary: Patient shifted to KHSB 5F B, on 1L of O2 through nasal prongs",
+      "cite": {
+        "page": 68,
+        "rid": "p68-hdu"
+      },
+      "also": [
+        {
+          "page": 69,
+          "rid": "p69-npo"
+        },
+        {
+          "page": 73,
+          "rid": "p73-shift"
+        },
+        {
+          "page": 75,
+          "rid": "p75-ward"
+        },
+        {
+          "page": 140,
+          "rid": "p140-transfer"
+        }
+      ],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 to 8 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "course",
+      "group": "Course",
+      "title": "Blood sugar after surgery",
+      "detail": "GRBS was 263 mg/dl at 6:30 am on 8 Nov. Medicine advised Human Actrapid 6 units SC. Glimy M1 was withheld that day. Sugars were then covered with Actrapid doses on Medicine advice until 11 Nov.",
+      "verbatim": "GRBS - 263 mg/dl ... advised to give Inj. H. Actrapid 6 unit s/c. T. GLIMY M1 not given, MED 5 PG advised to withhold today & give Inj Actrapid today",
+      "cite": {
+        "page": 71,
+        "rid": "p71-grbs"
+      },
+      "also": [
+        {
+          "page": 72,
+          "rid": "p72-withheld"
+        },
+        {
+          "page": 122,
+          "rid": "p122-insulin"
+        }
+      ],
+      "confidence": 0.82,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "8 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "course",
+      "group": "Course",
+      "title": "Wound, drain and physiotherapy",
+      "detail": "Drain output 6 ml on the morning of 9 Nov. The entries for later that morning are hard to read: dressing changed and drain removed at about 10 am, physiotherapy informed and done by 11 am. Knee immobilizer advised on the evening round of 10 Nov.",
+      "verbatim": "5:40am DT: 6ml. (10am, partly read) dressing change ... DT removed. (11am, partly read) physiotherapy done. 5:30pm Rounds done by ortho 4, Advised to knee immobilizer",
+      "cite": {
+        "page": 77,
+        "rid": "p77-day"
+      },
+      "also": [
+        {
+          "page": 76,
+          "rid": "p76-drain"
+        },
+        {
+          "page": 81,
+          "rid": "p81-immobilizer"
+        },
+        {
+          "page": 121,
+          "rid": "p121-vitals"
+        }
+      ],
+      "confidence": 0.6,
+      "handwritten": true,
+      "flags": [
+        "partlyRead"
+      ],
+      "dateLabel": "9 to 10 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "course",
+      "group": "Course",
+      "title": "Urinary catheter removal",
+      "detail": "Catheter was clamped and released from 9 Nov. At 6 am on 10 Nov the patient had no sensation on clamping and the doctor advised not to remove it. That evening sensation was present and the catheter was removed at 9:30 pm.",
+      "verbatim": "6am Patient is not having sensation while clamping foleys catheter. Advised not to remove catheter until further order. (9:30pm, partly read) urinary catheter sensation present, and catheter removed",
+      "cite": {
+        "page": 79,
+        "rid": "p79-catheter"
+      },
+      "also": [
+        {
+          "page": 81,
+          "rid": "p81-catheter"
+        },
+        {
+          "page": 124,
+          "rid": "p124-catheter"
+        }
+      ],
+      "confidence": 0.75,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "9 to 10 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "hospitalMeds",
+      "group": "Course",
+      "title": "Other medicines noted by the nurses",
+      "detail": "Tab Pan 40 mg on the anaesthesia order (6 Nov 10 pm, 7 Nov 6 am). IVF DNS at 50 ml/hr while NPO on 7 Nov. Just Tear eye drops to both eyes on 7 Nov, G. Moxi eye drops 1 drop in each eye on 10 Nov. Dulcolax suppository advised on 10 Nov, refused at noon. The drug chart itself is not in this PDF.",
+      "verbatim": "Tab. Pan 40mg - 1 orally given as per anaesthesia order. IVF DNS 500ml at 50ml/hr is connected. Just tear eye drop 1 drop administered to bilateral eye. G. moxi B/E instilled 1 drops in each eyes. advised Tab. Dulcolax suppository stat",
+      "cite": {
+        "page": 64,
+        "rid": "p64-preop-meds"
+      },
+      "also": [
+        {
+          "page": 65,
+          "rid": "p65-npo"
+        },
+        {
+          "page": 69,
+          "rid": "p69-eye"
+        },
+        {
+          "page": 79,
+          "rid": "p79-eye"
+        },
+        {
+          "page": 79,
+          "rid": "p79-dulcolax"
+        },
+        {
+          "page": 80,
+          "rid": "p80-refused"
+        }
+      ],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "6 to 10 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "conditionAtDischarge",
+      "group": "Course",
+      "title": "Condition at discharge",
+      "detail": "On the morning of 12 Nov the nurse records general condition good and vitals stable. The discharge check list ticks all invasive lines and catheter removed.",
+      "verbatim": "8am patient had food. patient general condition is good. vitals are stable. / 14 All invasive lines and catheter removed: Yes",
+      "cite": {
+        "page": 84,
+        "rid": "p84-discharge"
+      },
+      "also": [
+        {
+          "page": 93,
+          "rid": "p93-checklist"
+        }
+      ],
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "12 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "dischargeDate",
+      "group": "Course",
+      "title": "Discharge date",
+      "detail": "12 Nov 2026 on the discharge slip, after billing. Discharge was advised on the 9 am round. The discharge check list is dated 12/11/26.",
+      "verbatim": "DISCHARGE SLIP: Date of Discharge 12/11/26. Time of Discharge: After billing. Remarks: Discharge",
+      "cite": {
+        "page": 140,
+        "rid": "p140-discharge"
+      },
+      "also": [
+        {
+          "page": 84,
+          "rid": "p84-discharge"
+        },
+        {
+          "page": 93,
+          "rid": "p93-checklist"
+        }
+      ],
+      "confidence": 0.9,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "12 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "followUp",
+      "group": "Course",
+      "title": "Discharge advice",
+      "detail": "Discharge education on diet and medications, follow up and home care was given on 12 Nov. Health education on diet, medication and personal hygiene is noted. No follow-up date or discharge medicine list is in this PDF.",
+      "verbatim": "12/11/26 Discharge education on: Diet/medications, Follow up, Home care. / Health education given about diet, medication and personal hygiene",
+      "cite": {
+        "page": 92,
+        "rid": "p92-education"
+      },
+      "also": [
+        {
+          "page": 85,
+          "rid": "p85-education"
+        }
+      ],
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "12 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "investigation",
+      "group": "Investigations",
+      "title": "CT pulmonary angiogram",
+      "detail": "Done on the morning of 7 Nov 2026 before surgery, on 4 L oxygen (SpO2 96%). The pulmonary team reviewed afterwards. The report and its impression are not in this PDF.",
+      "verbatim": "8:30am Patient shifted to main CT Room for CTPA with IP & OP file. / 9:05 patient CT Pulmonary Angio done",
+      "cite": {
+        "page": 65,
+        "rid": "p65-ctpa"
+      },
+      "also": [
+        {
+          "page": 62,
+          "rid": "p62-ct"
+        },
+        {
+          "page": 63,
+          "rid": "p63-review"
+        }
+      ],
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "investigation",
+      "group": "Investigations",
+      "title": "X-ray of hip, pelvis and left leg after surgery",
+      "detail": "The HDU transfer note of 8 Nov says the X-ray was done. The report is not in this PDF.",
+      "verbatim": "X-ray of hip pelvis + left leg done",
+      "cite": {
+        "page": 74,
+        "rid": "p74-xray"
+      },
+      "confidence": 0.65,
+      "handwritten": true,
+      "flags": [
+        "partlyRead"
+      ],
+      "dateLabel": "8 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Investigations",
+      "title": "Blood tests sent (results not in this PDF)",
+      "detail": "5 Nov: glycated Hb, RBS, TSH, Trop T, uric acid, CRP, RFT, electrolytes, LFT, PT INR, APTT, CBC, ESR. 6 Nov: HIV, HBsAg, anti-HCV; ABG and D-dimer at 10:30 pm. 7 Nov: fasting glucose. 8 Nov: CBC. 10 Nov: NT-pro BNP. A bedside echo was requested on 5 Nov.",
+      "verbatim": "Blood sent for Glyco Hb, RBS, TSH, Trop T, Uric acid, CRP, RFT, Electrolytes (Sod, Pot, Chlo), LFT, PT INR, APTT, CBC, ESR",
+      "cite": {
+        "page": 58,
+        "rid": "p58-bloods"
+      },
+      "also": [
+        {
+          "page": 59,
+          "rid": "p59-consults"
+        },
+        {
+          "page": 60,
+          "rid": "p60-serology"
+        },
+        {
+          "page": 64,
+          "rid": "p64-abg"
+        },
+        {
+          "page": 64,
+          "rid": "p64-fasting"
+        },
+        {
+          "page": 71,
+          "rid": "p71-cbc"
+        },
+        {
+          "page": 82,
+          "rid": "p82-bnp"
+        }
+      ],
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 to 10 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "anaesthesia",
+      "group": "Surgery",
+      "title": "Anaesthesia",
+      "detail": "Spinal anaesthesia. Before surgery the anaesthesia orders were followed: Tab Pan 40 mg, Duolin and Budecort nebulisation, NPO with IVF DNS at 50 ml/hr. The anaesthesia record is not in this PDF.",
+      "verbatim": "Patient underwent Left Bipolar Hemiarthroplasty under Spinal Anaesthesia",
+      "cite": {
+        "page": 67,
+        "rid": "p67-surgery"
+      },
+      "also": [
+        {
+          "page": 64,
+          "rid": "p64-preop-meds"
+        },
+        {
+          "page": 65,
+          "rid": "p65-npo"
+        }
+      ],
+      "confidence": 0.82,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Surgery",
+      "title": "Theatre times and drain",
+      "detail": "Shifted to theatre at 1:10 pm on 7 Nov and received in OR-1 at 1:15 pm. The 4:30 pm note records the surgery done and a 10F drain in the left hip. Received in HDU at 5 pm.",
+      "verbatim": "1:10pm patient shifted to KHSB OT. 1:15pm Patient received to KH OT OR-1. 4:30pm Patient underwent Left Bipolar Hemiarthroplasty ... Romovac 10F DT present in left hip. Patient shifted to KHSB HDU",
+      "cite": {
+        "page": 67,
+        "rid": "p67-ot"
+      },
+      "also": [
+        {
+          "page": 67,
+          "rid": "p67-surgery"
+        },
+        {
+          "page": 68,
+          "rid": "p68-hdu"
+        }
+      ],
+      "confidence": 0.78,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "7 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "alert",
+      "group": "Keep in mind",
+      "title": "Needed oxygen through the stay",
+      "short": "oxygen needed through the stay; SpO2 89% on room air on 9 Nov",
+      "detail": "On 4 L oxygen by nasal prongs from admission (SpO2 95%). 2 L after surgery, 1 L on 8 Nov. Oxygen was stopped at 8:45 am on 9 Nov; at 4:20 pm SpO2 was 89% on room air and oxygen was restarted at 1 L. A CT pulmonary angiogram and pulmonary reviews were done; their findings are not in this PDF.",
+      "verbatim": "SpO2: 95% c 4 liter nasal prongs / 4:20pm Patient SpO2: 89% with Room air. Advised to restart oxygen at 1 liter",
+      "cite": {
+        "page": 78,
+        "rid": "p78-desat"
+      },
+      "also": [
+        {
+          "page": 58,
+          "rid": "p58-vitals"
+        },
+        {
+          "page": 68,
+          "rid": "p68-hdu"
+        },
+        {
+          "page": 76,
+          "rid": "p76-o2stop"
+        },
+        {
+          "page": 65,
+          "rid": "p65-ctpa"
+        }
+      ],
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 to 12 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "alert",
+      "group": "Keep in mind",
+      "title": "Blood products",
+      "short": "2 units PRBC cross-matched, no transfusion per the discharge slip",
+      "detail": "Blood grouping and cross-match for 2 units of PRBC were sent to the blood bank on 6 Nov. The discharge slip circles No for any blood transfusion.",
+      "verbatim": "6:45pm Blood grouping and 2 U PRBC cross matching sent to blood bank / Any Blood Transfusion? No",
+      "cite": {
+        "page": 61,
+        "rid": "p61-xmatch"
+      },
+      "also": [
+        {
+          "page": 140,
+          "rid": "p140-transfusion"
+        }
+      ],
+      "confidence": 0.82,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "6 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Course",
+      "title": "Skin on admission",
+      "detail": "On 6 Nov: back skin intact, dry and fragile skin, blackish discolouration in the right hand. Before theatre on 7 Nov: a blister over the back, 5 cm, near the lower back.",
+      "verbatim": "Back skin intact. dry skin with fragile skin present. Blackish discolouration present in right hand / 5cm blister present near lower back",
+      "cite": {
+        "page": 60,
+        "rid": "p60-skin"
+      },
+      "also": [
+        {
+          "page": 67,
+          "rid": "p67-blister"
+        }
+      ],
+      "confidence": 0.78,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "6 to 7 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Course",
+      "title": "Nutrition and diet",
+      "detail": "NRS score 02, at nutritional risk on 6 Nov. About 1600 kcal and 60 g protein a day, diabetic low salt soft diet. On 11 Nov the reassessment says NRS score 02, not at nutritional risk.",
+      "verbatim": "NRS/PNRS Score - 02. Nutritional Status - At Nutritional Risk. Calorie (Kcal): 1600 Approx/day. Protein (g): 60g Approx/day. Therapeutic Diet: Diabetic low salt soft diet",
+      "cite": {
+        "page": 94,
+        "rid": "p94-nutrition"
+      },
+      "also": [
+        {
+          "page": 95,
+          "rid": "p95-diet"
+        }
+      ],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "6 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Course",
+      "title": "Risk scores on admission",
+      "detail": "DVT risk total score 9, low risk (<10%). Fall risk score 02. Pressure ulcer risk score 17.",
+      "verbatim": "TOTAL SCORE: 9. LOW RISK (<10%) SCORE 7-10 [x] / FALL RISK ASSESSMENT Score: 02 / Pressure ulcer risk assessment score: 17",
+      "cite": {
+        "page": 91,
+        "rid": "p91-dvt"
+      },
+      "also": [
+        {
+          "page": 87,
+          "rid": "p87-scores"
+        }
+      ],
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Course",
+      "title": "Plan of care",
+      "detail": "Purpose of admission underlined as diagnostic and curative. Medications as per the doctors' order chart. Hypertensive and diabetic diet. Physiotherapy ticked. Senior citizen ticked under special needs. Build and nourishment moderate, no signs of deficiency.",
+      "verbatim": "Desired Result: Diagnostic / Curative. Medications: As per the Doctors' Order chart (MR 011). Diet: Hypertensive Diet [x] Diabetic Diet [x]. Rehabilitative advice: Physiotherapy [x]. Senior citizens (>65 yrs) [x]",
+      "cite": {
+        "page": 141,
+        "rid": "p141-plan"
+      },
+      "confidence": 0.85,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Course",
+      "title": "Habits",
+      "detail": "Smoking: No. Alcohol: No.",
+      "verbatim": "Habits: Smoking Yes [ ] No [x]. Alcohol Yes [ ] No [x]",
+      "cite": {
+        "page": 86,
+        "rid": "p86-habits"
+      },
+      "confidence": 0.9,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 Nov 2026"
+    },
+    {
+      "domain": "RPT",
+      "encounterKey": "IPD-2026-11-05",
+      "role": "detail",
+      "group": "Course",
+      "title": "IV cannulas",
+      "detail": "Right hand 20G on 5 Nov, removed 7 Nov for leaking. Left hand 18G placed in theatre on 7 Nov, removed 10 Nov for leaking. Right hand 20G on 10 Nov, removed at discharge on 12 Nov.",
+      "verbatim": "DATE 05/11/26 TIME 1:35pm SITE (R) hand SIZE 20G ... REASON: leaking. DATE 7/11/26 SITE (L) hand SIZE 18G INSERTED BY: OT ... DATE 10/11/26 TIME 11am SITE (R) hand SIZE 20G ... REASON: Discharge",
+      "cite": {
+        "page": 89,
+        "rid": "p89-cannula"
+      },
+      "confidence": 0.8,
+      "handwritten": true,
+      "flags": [],
+      "dateLabel": "5 to 12 Nov 2026"
+    }
+  ],
+  "lines": [
+    {
+      "page": 54,
+      "rid": "p54-iv",
+      "label": "10/11/26, I.V. - S.C. Infusion, 12 am",
+      "text": "IV entry of 100 ml, name not read reliably (possibly Tramadol in NS). Total IV 100 ml"
+    },
+    {
+      "page": 55,
+      "rid": "p55-tramadol",
+      "label": "11/11/2026, I.V. - S.C. Infusion, 1 pm",
+      "text": "Inj. Tramadol 50mg added in 100ml NS is on flow"
+    },
+    {
+      "page": 58,
+      "rid": "p58-admit",
+      "label": "05/11/2026 Thursday, 7pm",
+      "text": "patient got admitted KHSB 5th B by trolly with IP and OP file. patient general condition is good. vitals are checked"
+    },
+    {
+      "page": 58,
+      "rid": "p58-vitals",
+      "label": "7pm vitals",
+      "text": "T: 98.6°F  BP: 140/80mmHg  PR: 90bpm (overwritten)  RR: 22 b/m  SpO2: 95% c 4 liter nasal prongs"
+    },
+    {
+      "page": 58,
+      "rid": "p58-dx",
+      "label": "7pm",
+      "text": "patient diagnosis is left femur neck fracture. patient having foleys catheter. patient having skin traction over the left leg. patient having IV cannula. patient on oxygen with nasal prongs of 4 ltr. patient back skin intact. bowel and bladder pattern normal"
+    },
+    {
+      "page": 58,
+      "rid": "p58-bloods",
+      "label": "7:10pm",
+      "text": "Blood sent for Glyco Hb, RBS, TSH, Trop T, Uric acid, CRP, RFT, Electrolytes (Sod, Pot, Chlo), LFT, PT INR, APTT, CBC, ESR"
+    },
+    {
+      "page": 59,
+      "rid": "p59-consults",
+      "label": "5/11/26 continued and 6/11/2026",
+      "text": "7:10pm Bedside echo informed. 8:15pm med-5 consultation put. 12:10am phone call received from ortho duty PG, advised to send serology morning and to put PTCD consultation. 1:15am PTCD-II consultation online done"
+    },
+    {
+      "page": 60,
+      "rid": "p60-serology",
+      "label": "6/11/2026, 5:10am",
+      "text": "Blood sent to lab for HIV, HBsAg and Anti-HCV"
+    },
+    {
+      "page": 60,
+      "rid": "p60-skin",
+      "label": "6am",
+      "text": "Sponge bath given. Back care given. Back skin intact. dry skin with fragile skin present. Blackish discolouration present in right hand. catheter care given"
+    },
+    {
+      "page": 60,
+      "rid": "p60-rounds",
+      "label": "9:15am",
+      "text": "Rounds done, advised to continue same treatment and posted tomorrow"
+    },
+    {
+      "page": 61,
+      "rid": "p61-ptcd",
+      "label": "06/11/26, 5pm",
+      "text": "PTCD 2 consultation taken by PTCD 2 PG"
+    },
+    {
+      "page": 61,
+      "rid": "p61-xmatch",
+      "label": "6:45pm and 7pm",
+      "text": "Blood grouping and 2 U PRBC cross matching sent to blood bank. 2nd grouping blood sent to blood bank"
+    },
+    {
+      "page": 62,
+      "rid": "p62-ct",
+      "label": "Page headed 6/11/26 - continue; 8:45 Am",
+      "text": "Patient received to Main CT for CT Pulmonary Angiogram with IP and OP file by trolley. patient is on 4 liter oxygen support. SpO2 96%  Resp 20 bpm. 9:05 patient CT Pulmonary Angio done. patient shift back to KHSB ward"
+    },
+    {
+      "page": 63,
+      "rid": "p63-review",
+      "label": "7/11/26 continued, 9:50am to 10:20am",
+      "text": "CT scan done, call given to ortho IV duty PG, advised to PTCT II review. PTCT-II review seen, consultation sheet taken"
+    },
+    {
+      "page": 63,
+      "rid": "p63-neb",
+      "label": "11:30am and 11:40am",
+      "text": "Neb Duolin given. Neb Budecort given"
+    },
+    {
+      "page": 64,
+      "rid": "p64-pac",
+      "label": "06/11/2026, 9:15pm",
+      "text": "PAC chart viewed, inform duty PG, advised to follow orders"
+    },
+    {
+      "page": 64,
+      "rid": "p64-preop-meds",
+      "label": "10pm and 10:30pm",
+      "text": "Tab. Pan 40mg - 1 orally given as per anaesthesia order. Neb. Duolin given as per anaesthesia order. Neb Budecort given as per anaesthesia order"
+    },
+    {
+      "page": 64,
+      "rid": "p64-abg",
+      "label": "10:30pm",
+      "text": "Blood sent for ABG, D Dimer and ABG sent"
+    },
+    {
+      "page": 64,
+      "rid": "p64-eye",
+      "label": "10:30pm",
+      "text": "Eye consultation done, inform ortho duty PG, they advised to tomorrow see, not urgent (first word read with some doubt)"
+    },
+    {
+      "page": 64,
+      "rid": "p64-fasting",
+      "label": "07/11/2026, 5:10am",
+      "text": "Blood sent for fasting glucose"
+    },
+    {
+      "page": 65,
+      "rid": "p65-grbs",
+      "label": "07/11/2026, 5:45am",
+      "text": "GRBS 80mg/dl inform duty PG"
+    },
+    {
+      "page": 65,
+      "rid": "p65-npo",
+      "label": "6am to 7:50am",
+      "text": "Tab. Pan 40mg - 1 orally given as per anaesthesia order. IVF DNS 500ml at 50ml/hr is connected. Patient is on NPO. General condition good. Vitals stable"
+    },
+    {
+      "page": 65,
+      "rid": "p65-ctpa",
+      "label": "7:55am and 8:30am",
+      "text": "Unit PG advised to send patient to CT Room. Patient shifted to main CT Room for CTPA with IP & OP file"
+    },
+    {
+      "page": 66,
+      "rid": "p66-abx",
+      "label": "7/11/26 continued, transfer summary",
+      "text": "Patient is on NPO. Foleys catheter present. Back skin intact. Inj Vancomycin 1gm - 2, Inj Ticocin 400mg - 1, Inj Advent 1.2gm - 1 sent to OT"
+    },
+    {
+      "page": 66,
+      "rid": "p66-preop-vitals",
+      "label": "12:10pm",
+      "text": "Patient received with IP OP file by trolley. while receiving vitals are BP: 142/83mmHg  P: 86 b/m  R: 17 b/m  SpO2: 98% on 4L O2 via NP"
+    },
+    {
+      "page": 67,
+      "rid": "p67-blister",
+      "label": "7/11/26 continued",
+      "text": "Back skin: Blister present over back. 5cm blister present near lower back"
+    },
+    {
+      "page": 67,
+      "rid": "p67-ot",
+      "label": "1:10pm and 1:15pm",
+      "text": "patient shifted to KHSB OT. Patient received to KH OT OR-1 with blue sheet, computer sheet, doctor's order, admission order, consent form checklist. Inj Advent 1.2g - 1, Inj Ticocin 400mg - 1, Inj Vankomycin 1g - 2"
+    },
+    {
+      "page": 67,
+      "rid": "p67-surgery",
+      "label": "4:30pm",
+      "text": "Patient underwent Left Bipolar Hemiarthroplasty under Spinal Anaesthesia. IV line patent in right hand. Romovac 10F DT present in left hip. Patient shifted to KHSB HDU with blue sheet, computer sheet, doctor's order & Inj Vanc 1g - 1"
+    },
+    {
+      "page": 68,
+      "rid": "p68-hdu",
+      "label": "7/11/26, 5pm",
+      "text": "patient received to KHSB HDU. patient General condition conscious & oriented. Vitals Temp: 98.6F  pulse: 84 b/mt  Resp: 22 br/mt  BP: 140/70mmHg  SpO2: 98% in 2 liter oxygen"
+    },
+    {
+      "page": 68,
+      "rid": "p68-skin",
+      "label": "5pm",
+      "text": "(L) Leg Dressing with DT present. Right side of buttock skin peel present 1x1 cm, Right side scapula Region Redness with blister present"
+    },
+    {
+      "page": 69,
+      "rid": "p69-neb",
+      "label": "07/11/26 continue, 8:30pm and 8:40pm",
+      "text": "advised to start Neb. Duolin 8hrly and Budecort 12 hrly. Neb. Duolin 1 resp given as per PTCD order. Neb. Budecort 1 resp given as per PTCD order"
+    },
+    {
+      "page": 69,
+      "rid": "p69-eye",
+      "label": "8:40pm to 9pm",
+      "text": "Eyemist eyedrops not available in pharmacy, advised to give Just tear eye drops. Just tear eye drop 1 drop administered to bilateral eye"
+    },
+    {
+      "page": 69,
+      "rid": "p69-npo",
+      "label": "9pm and 9:30pm",
+      "text": "NPO broken, sips of water given. patient not having any vomiting sensation, liquid diet started"
+    },
+    {
+      "page": 71,
+      "rid": "p71-cbc",
+      "label": "08/11/26, 5am",
+      "text": "Blood sample sent for CBC"
+    },
+    {
+      "page": 71,
+      "rid": "p71-grbs",
+      "label": "6:30am and 6:40am",
+      "text": "GRBS - 263 mg/dl informed, advised to inform endocrine. call given to MED 005 regarding GRBS 263mg/dl advised to give Inj. H. Actrapid 6 unit s/c"
+    },
+    {
+      "page": 72,
+      "rid": "p72-actrapid",
+      "label": "08/11/26, 8am",
+      "text": "Inj HUMAN ACTRAPID 6 units given over right hand subcutaneously as per order. Inj site no redness, no bleed"
+    },
+    {
+      "page": 72,
+      "rid": "p72-vitals",
+      "label": "8am",
+      "text": "SpO2: 95%  Temp 98.6F  Pulse: 78 b/m  Resp 20 b/m  BP: 120/60 mmHg"
+    },
+    {
+      "page": 72,
+      "rid": "p72-withheld",
+      "label": "8:35am and 9am",
+      "text": "T. GLIMY M1 not given, MED 5 PG advised to withhold today & give Inj Actrapid today. T. Stamlo not given, informed, BP 110/60 mmHg"
+    },
+    {
+      "page": 73,
+      "rid": "p73-clexane",
+      "label": "8/11/26, 11am",
+      "text": "Inj CLEXANE 0.4ml given over right thigh S/C. Inj site no redness, no bleed. vitals stable"
+    },
+    {
+      "page": 73,
+      "rid": "p73-shift",
+      "label": "11:15am and 12pm",
+      "text": "Rounds done, advised to shift out. Transfer summary: Patient shifted to KHSB 5F B with IP & OP file by trolley. Patient on 1L of O2 through nasal prongs"
+    },
+    {
+      "page": 74,
+      "rid": "p74-xray",
+      "label": "8/11/26, transfer summary continued",
+      "text": "Left leg dressing with (1) Romovac DT present. Foleys catheter present. X-ray of hip pelvis + left leg done. Medicine reconciliation done (partly read)"
+    },
+    {
+      "page": 75,
+      "rid": "p75-ward",
+      "label": "8/11/26, 12:30pm",
+      "text": "Patient received from KHSB HDU. Patient general condition is good. Vital signs: Temp: 98.6F  pulse: 74 b/m  RR 20 b/m  BP: 120/70 mmHg  SpO2: 96% on 1L O2 via nasal prongs. Foleys catheter & 1 DT present. Blister present over the right buttock"
+    },
+    {
+      "page": 75,
+      "rid": "p75-grbs",
+      "label": "1pm",
+      "text": "Patient GRBS is 243mg/dl. Informed to Med-5 PG, advised to give 6 units of Human Actrapid subcutaneously. Air bed applied on orders"
+    },
+    {
+      "page": 76,
+      "rid": "p76-grbs",
+      "label": "8/11/26, 8:5pm",
+      "text": "Patient GRBS 250mg/dl. Informed to Med 5 duty PG. Advised to give Inj Human Actrapid 6 units subcutaneously"
+    },
+    {
+      "page": 76,
+      "rid": "p76-drain",
+      "label": "09/11/2026, 5:40am",
+      "text": "DT: 6ml"
+    },
+    {
+      "page": 76,
+      "rid": "p76-o2stop",
+      "label": "8:30am and 8:45am",
+      "text": "advised to clamp catheter and to stop O2. O2 stopped (partly read)"
+    },
+    {
+      "page": 77,
+      "rid": "p77-day",
+      "label": "9/11/2026, 8:50am to 12:30pm",
+      "text": "urinary catheter clamped. Rounds done. dressing change, DT removed. informed to physiotherapy. physiotherapy done, SpO2 - 96%. clamp released (hard handwriting, partly read)"
+    },
+    {
+      "page": 78,
+      "rid": "p78-desat",
+      "label": "9/11/26 continued, 4:20pm and 4:30pm",
+      "text": "Patient SpO2: 89% with Room air. Informed to Dr, Advised to restart oxygen at 1 liter. O2 with 1 liter with nasal prongs started. Catheter clamped"
+    },
+    {
+      "page": 79,
+      "rid": "p79-catheter",
+      "label": "10/11/2026 Tuesday, 6am",
+      "text": "Patient is not having sensation while clamping foleys catheter. Informed to Dr. Advised not to remove catheter until further order"
+    },
+    {
+      "page": 79,
+      "rid": "p79-eye",
+      "label": "7am",
+      "text": "G. moxi B/E instilled 1 drops in each eyes"
+    },
+    {
+      "page": 79,
+      "rid": "p79-insulin-skip",
+      "label": "7:50am",
+      "text": "call given to med V PG about GRBS (102 mg/dl) advised skip the dose of insulin"
+    },
+    {
+      "page": 79,
+      "rid": "p79-dulcolax",
+      "label": "9:40am",
+      "text": "Rounds done, advised Tab. Dulcolax suppository stat and continue same treatment"
+    },
+    {
+      "page": 80,
+      "rid": "p80-refused",
+      "label": "10/11/26, 12 noon",
+      "text": "Patient refused dulcolax suppository, she wanted it in the evening, informed to duty PG"
+    },
+    {
+      "page": 81,
+      "rid": "p81-immobilizer",
+      "label": "10/11/26 continued, 5:30pm",
+      "text": "Rounds done by ortho 4. Advised to knee immobilizer"
+    },
+    {
+      "page": 81,
+      "rid": "p81-catheter",
+      "label": "8:35pm and 9:30pm",
+      "text": "advised to remove urinary catheter and send NT pro BNP blood investigation. urinary catheter sensation present, and catheter removed (hard handwriting, partly read)"
+    },
+    {
+      "page": 82,
+      "rid": "p82-bnp",
+      "label": "10/11/2026, 10:15pm",
+      "text": "Blood sent for NT-pro BNP"
+    },
+    {
+      "page": 83,
+      "rid": "p83-coloplast",
+      "label": "11/11/2026, 12pm and 5pm",
+      "text": "Back care given and coloplast patch applied in bedsore. Redness present over scapula region, over the skin peel area coloplast applied"
+    },
+    {
+      "page": 83,
+      "rid": "p83-grbs",
+      "label": "12:30pm",
+      "text": "GRBS 155 mg/dl inform med 005 duty PG, they advised to Inj Human Actrapid (4) units s/c give"
+    },
+    {
+      "page": 84,
+      "rid": "p84-discharge",
+      "label": "12/11/2026 Thursday, 8am and 9am",
+      "text": "patient had food. patient general condition is good. vitals are stable. Rounds done, advised to continue same treatment and advised discharge"
+    },
+    {
+      "page": 85,
+      "rid": "p85-education",
+      "label": "12/11/26 continued",
+      "text": "Health education given about diet, medication and personal hygiene"
+    },
+    {
+      "page": 86,
+      "rid": "p86-complaint",
+      "label": "Chief complaints",
+      "text": "left femur neck fracture. DOA: 05/11/26. Time of arrival: 7pm. Informant: Patient. Mode of arrival: Stretcher. Arrived with: Oxygen, IV line"
+    },
+    {
+      "page": 86,
+      "rid": "p86-allergy",
+      "label": "Known Drug Allergies",
+      "text": "No [x]  Yes [ ]  if yes Specify: (blank)"
+    },
+    {
+      "page": 86,
+      "rid": "p86-habits",
+      "label": "Habits",
+      "text": "Smoking Yes [ ] No [x]. Alcohol Yes [ ] No [x]"
+    },
+    {
+      "page": 86,
+      "rid": "p86-vitals",
+      "label": "Vitals",
+      "text": "Temp: 98.6 F  Pulse: 80 b/mt  Resp: 22 b/mt  BP: (blank)  Height / Weight: not able to assess"
+    },
+    {
+      "page": 86,
+      "rid": "p86-catheter",
+      "label": "GU",
+      "text": "Urinary Catheter: Yes [x]. Date Inserted 05/11/26"
+    },
+    {
+      "page": 87,
+      "rid": "p87-pain",
+      "label": "Pain",
+      "text": "Yes [x]. rating: 0-2. Location: left leg"
+    },
+    {
+      "page": 87,
+      "rid": "p87-scores",
+      "label": "Risk assessment",
+      "text": "FALL RISK ASSESSMENT Score: 02. Pressure ulcer risk assessment score: 17"
+    },
+    {
+      "page": 87,
+      "rid": "p87-med-1",
+      "label": "Medication Reconciliation, current medication 1",
+      "text": "T. Stamlo  5 mg  1-0-0  5/11/26 at 8am"
+    },
+    {
+      "page": 87,
+      "rid": "p87-med-2",
+      "label": "Current medication 2",
+      "text": "T. Rozavel  5 mg  0-0-1  4/11/26 at 8pm"
+    },
+    {
+      "page": 87,
+      "rid": "p87-med-3",
+      "label": "Current medication 3",
+      "text": "T. Evion  (dose blank)  0-1-0  4/11/26 at 2pm"
+    },
+    {
+      "page": 87,
+      "rid": "p87-med-4",
+      "label": "Current medication 4",
+      "text": "T. Glimy M1  500 mg  1-0-1  5/11/26 at 8am"
+    },
+    {
+      "page": 89,
+      "rid": "p89-cannula",
+      "label": "Cannula insertion and removal record",
+      "text": "05/11/26 1:35pm (R) hand 20G, inserted by yellow area, removed 7/11/26 2pm, reason leaking. 7/11/26 (L) hand 18G, inserted by OT, removed 10/11/26 11am, reason leaking. 10/11/26 11am (R) hand 20G, removed 12/11/26, reason Discharge"
+    },
+    {
+      "page": 91,
+      "rid": "p91-dvt",
+      "label": "DVT risk assessment",
+      "text": "TOTAL SCORE: 9. LOW RISK (<10%) SCORE 7-10 [x]. DATE: 05/11/26"
+    },
+    {
+      "page": 92,
+      "rid": "p92-education",
+      "label": "12/11/26, Discharge education on",
+      "text": "Diet/medications, Follow up, Home care: given and received"
+    },
+    {
+      "page": 93,
+      "rid": "p93-checklist",
+      "label": "Discharge check list",
+      "text": "1 Written order for discharge: Yes. 11 Received discharge summary: Yes. 14 All invasive lines and catheter removed: Yes. Date & time: 12/11/26"
+    },
+    {
+      "page": 94,
+      "rid": "p94-dx",
+      "label": "Diagnosis",
+      "text": "(L) femur neck #. SCC (R) gluteal skin s/p wide excision (201?, last digit under a stamp). Plan (L) Bipolar hemiarthroplasty"
+    },
+    {
+      "page": 94,
+      "rid": "p94-history",
+      "label": "Previous History",
+      "text": "T2DM HTN"
+    },
+    {
+      "page": 94,
+      "rid": "p94-food-allergy",
+      "label": "Food Allergy/Intolerance",
+      "text": "[x] None  [ ] Yes (Specify)"
+    },
+    {
+      "page": 94,
+      "rid": "p94-nutrition",
+      "label": "Screening",
+      "text": "NRS/PNRS Score - 02. Nutritional Status - At Nutritional Risk. Calorie (Kcal): 1600 Approx/day. Protein (g): 60g Approx/day. Therapeutic Diet: Diabetic low salt soft diet"
+    },
+    {
+      "page": 95,
+      "rid": "p95-diet",
+      "label": "Reassessment",
+      "text": "7/11 NPO. 8/11 oral liquid -> Diabetic low salt soft diet. 9/11 and 10/11 Diabetic low salt soft diet. 11/11 Diabetic low salt soft diet, NRS score 02, Not at nutritional risk"
+    },
+    {
+      "page": 114,
+      "rid": "p114-allergy",
+      "label": "05/11/2026, B - Background",
+      "text": "left femur neck fracture. no any history of allergy / no any past history of allergies"
+    },
+    {
+      "page": 114,
+      "rid": "p114-vitals",
+      "label": "05/11/2026, A - Assessment, Evening",
+      "text": "T: 98.6°F  BP: 140/90mmHg  PR: 90bpm  SpO2: 95% with 4 liter nasal prongs. patient having IV cannula. patient having Foleys catheter"
+    },
+    {
+      "page": 116,
+      "rid": "p116-surgery",
+      "label": "7/11/2026 Evening, B - Background",
+      "text": "Dx: (L) NOF fracture. Left Bipolar Arthroplasty done. no history of allergy"
+    },
+    {
+      "page": 117,
+      "rid": "p117-dx",
+      "label": "07/11/26 Night, B - Background",
+      "text": "Diagnosis: (L) neck of femur fracture. s/p (L) bipolar hemiarthroplasty. No any allergic history"
+    },
+    {
+      "page": 121,
+      "rid": "p121-vitals",
+      "label": "11/11/2026 Evening, A - Assessment",
+      "text": "Temp 98.6F  Pulse: 88bpm  Resp 20bpm  BP: 130/80mmHg  SpO2 98%  GCS 15. IV line over (R) hand. left leg dressing with knee immobilizer present"
+    },
+    {
+      "page": 122,
+      "rid": "p122-grbs",
+      "label": "Insulin chart, GRBS in mgs",
+      "text": "5/11/26 10:15pm 140. 6/11/26 7am 90, 10am 111, 3:30pm 126, 10:30pm 130. 7/11/2026 6am 80, 8am 108, 6pm 113. 8/11/26 6am 263, 10:30am 293, 1pm 243, 3pm 298, evening 250. 9/11/26 6am 233, 1pm 136, 4pm 116, 7pm 118, 10pm 120. 10/11/26 6am 102, 10am 167, 1:30pm 196, 4:15pm 146, 6:45pm 160, 10pm 130. 11/11/26 7am 136"
+    },
+    {
+      "page": 122,
+      "rid": "p122-insulin",
+      "label": "Insulin chart, insulin infusion/bolus",
+      "text": "8/11/26 6am Inj. H. Actrapid 6 unit; 1pm Inj H-Actrapid 6 unit; evening Inj H Actrapid 6 unit. 9/11/26 6am Inj H-Actrapid (4) units; 1pm S/C H-Actrapid (4) U; 7pm Skip. 10/11/26 6am Skip; 10am Skip; 1:30pm 4u H. Actrapid; 6:45pm 6 unit H Actrapid. 11/11/26 7am FBS, (4) units s/c"
+    },
+    {
+      "page": 123,
+      "rid": "p123-grbs",
+      "label": "Insulin chart, continued",
+      "text": "10am 148 mg/dl PPGRBS. 12:30pm 155 mg/dl, Inj Human (4) units s/c. 7pm 100 mg/dl Skip. 6am 90 mg/dl FBS Skip. Stop"
+    },
+    {
+      "page": 124,
+      "rid": "p124-catheter",
+      "label": "Urinary catheter maintenance bundle",
+      "text": "D.O.I: 6/11/26. D1 to D5 ticked (6/11 to 10/11). Catheter removed on 10/11/26 @ 9:30pm"
+    },
+    {
+      "page": 125,
+      "rid": "p125-catheter",
+      "label": "Urinary catheter insertion bundle",
+      "text": "Date & time of Urinary catheterization: 5:40PM 5/11/26. Location: RTR YA. Date of removal: (blank)"
+    },
+    {
+      "page": 126,
+      "rid": "p126-sore",
+      "label": "Daily monitoring for worsening of pressure sore",
+      "text": "Origin: [x] B Hospital Acquired. Grade 1 Reddened area skin intact. Stage 1 Reddened. 8/11/26 to 12/11/26: Grade I, Stage I, site buttock and shoulder. General Remark: (R) buttock blister measuring 1x1cm and (R) shoulder multiple small blisters with redness present"
+    },
+    {
+      "page": 127,
+      "rid": "p127-sore",
+      "label": "11/11/2026",
+      "text": "(R) buttock skin peel present 1x1 cm and (R) shoulder multiple small blister and redness present. oil application. air bed provided. 11/11/26 - coloplast dressing applied"
+    },
+    {
+      "page": 130,
+      "rid": "p130-last",
+      "label": "MEWS chart, last column (12/11)",
+      "text": "Respiration 15-20. SpO2 >90. Temp 97-100. Systolic BP mark at 130. Diastolic BP 80. Heart rate 51-100. AVPU A. Total MEWS score 1"
+    },
+    {
+      "page": 138,
+      "rid": "p138-bp",
+      "label": "Blood pressure chart",
+      "text": "@ 8AM on 12/11/26: arrow from about 120-130 down to about 70 (read off the graph)"
+    },
+    {
+      "page": 140,
+      "rid": "p140-label",
+      "label": "Patient label (identity removed)",
+      "text": "F  84 Y"
+    },
+    {
+      "page": 140,
+      "rid": "p140-ipno",
+      "label": "I.P. No.",
+      "text": "1127801"
+    },
+    {
+      "page": 140,
+      "rid": "p140-admit",
+      "label": "Admission order",
+      "text": "Please Admit. Ward: APR-510. Bed Category: General. Dept/Unit: ORT004. Date 05/11/26 Time 4pm"
+    },
+    {
+      "page": 140,
+      "rid": "p140-transfer",
+      "label": "Handwritten note",
+      "text": "Kindly Transfer KHSB 5th to KHSB HDU"
+    },
+    {
+      "page": 140,
+      "rid": "p140-discharge",
+      "label": "Discharge slip",
+      "text": "Date of Discharge 12/11/26. Time of Discharge: After billing. Patient will leave Ward on 12/11/26 at After billing. Remarks: Discharge"
+    },
+    {
+      "page": 140,
+      "rid": "p140-transfusion",
+      "label": "Discharge slip",
+      "text": "Any Blood Transfusion? Yes / (No). Is it a Delivery Case? (No). Any dressings? (No)"
+    },
+    {
+      "page": 141,
+      "rid": "p141-surgery",
+      "label": "Handwritten above the title",
+      "text": "(L) Bipolar hemiarthroplasty"
+    },
+    {
+      "page": 141,
+      "rid": "p141-dx",
+      "label": "Provisional Diagnosis",
+      "text": "(L) femur neck fracture"
+    },
+    {
+      "page": 141,
+      "rid": "p141-plan",
+      "label": "Plan of care",
+      "text": "Built: moderate. Nourishment: moderate. Signs of deficiency: absent. Desired Result: Diagnostic / Curative. Medications: As per the Doctors' Order chart (MR 011). Diet: Hypertensive Diet [x] Diabetic Diet [x]. Rehabilitative advice: Physiotherapy [x]. Special needs: Senior citizens (>65 yrs) [x]. 05/11/26 4pm"
+    }
+  ],
+  "images": [],
+  "notFound": [
+    "Discharge summary (the check list says it was received; it is not in this PDF)",
+    "Final diagnosis and discharge medicine list",
+    "Follow-up date",
+    "Operative note (findings, implant, blood loss)",
+    "Anaesthesia record and pre-anaesthesia check (PAC) sheet",
+    "Doctors' progress notes and the doctors' order / drug chart (MR 011)",
+    "Results of the blood tests sent: glycated Hb, RBS, TSH, Trop T, uric acid, CRP, RFT, electrolytes, LFT, PT INR, APTT, CBC, ESR, HIV, HBsAg, anti-HCV, ABG, D-dimer, fasting glucose, NT-pro BNP",
+    "CT pulmonary angiogram report",
+    "Echo report (a bedside echo was requested on 5 Nov)",
+    "X-ray reports, before and after surgery",
+    "Consultation notes from Medicine, the pulmonary team (PTCD) and the eye team",
+    "Blood bank cross-match record",
+    "Weight and height (the form says not able to assess)",
+    "How the fracture happened"
+  ],
+  "exceptions": [
+    {
+      "kind": "conflictingValue",
+      "title": "Admission pulse: 90 or 80",
+      "body": "The nurse's record at 7 pm on 5 Nov reads PR 90 bpm, written over an earlier figure, and the handover sheet also says 90. The nursing initial assessment form of the same evening says 80 b/mt. 90 is shown until you decide.",
+      "cites": [
+        {
+          "label": "Nurse's record",
+          "page": 58,
+          "rid": "p58-vitals"
+        },
+        {
+          "label": "Nursing initial assessment",
+          "page": 86,
+          "rid": "p86-vitals"
+        },
+        {
+          "label": "Handover sheet",
+          "page": 114,
+          "rid": "p114-vitals"
+        }
+      ]
+    },
+    {
+      "kind": "conflictingValue",
+      "title": "Catheter insertion date: 5 Nov or 6 Nov",
+      "body": "The insertion bundle and the nursing initial assessment say the urinary catheter was inserted on 5/11/26 (5:40 PM). The maintenance bundle writes the date of insertion as 6/11/26. 5 Nov is shown.",
+      "cites": [
+        {
+          "label": "Insertion bundle",
+          "page": 125,
+          "rid": "p125-catheter"
+        },
+        {
+          "label": "Maintenance bundle",
+          "page": 124,
+          "rid": "p124-catheter"
+        }
+      ]
+    },
+    {
+      "kind": "conflict",
+      "title": "CT pulmonary angiogram page is headed 6/11/26",
+      "body": "The sheet with the CT entries (8:45 am received at CT, 9:05 done) is headed 6/11/26 - continue. The nurse's record of 7/11 sends the patient to CT for CTPA at 8:30 am and the next page, headed 7/11/26, receives the patient back at 9:45 am. The CT is dated 7 Nov here.",
+      "cites": [
+        {
+          "label": "Nurse's record, CT entries",
+          "page": 62,
+          "rid": "p62-ct"
+        },
+        {
+          "label": "Nurse's record, 7 Nov",
+          "page": 65,
+          "rid": "p65-ctpa"
+        }
+      ]
+    },
+    {
+      "kind": "conflictingValue",
+      "title": "Blood pressure on the morning of discharge",
+      "body": "The MEWS chart for 12 Nov marks systolic at 130 with diastolic written as 80. The blood pressure chart arrow for 8 AM on 12/11/26 reads about 120-130 over about 70. Both are read off hand-drawn charts.",
+      "cites": [
+        {
+          "label": "MEWS chart",
+          "page": 130,
+          "rid": "p130-last"
+        },
+        {
+          "label": "Blood pressure chart",
+          "page": 138,
+          "rid": "p138-bp"
+        }
+      ]
+    },
+    {
+      "kind": "lowConfidence",
+      "title": "Two GRBS values on 8 Nov can be read two ways",
+      "body": "On the insulin chart the 10:30 am value is read as 293 (could be 223) and the 3 pm value as 298 (could be 228). The time of the 250 reading is unclear on the chart; the nurse's record gives it at about 8 pm. The first row of the second insulin chart page has an overwritten date (10 or 11/11/26); it matches the nurse's record of 11 Nov.",
+      "cites": [
+        {
+          "label": "Insulin chart",
+          "page": 122,
+          "rid": "p122-grbs"
+        },
+        {
+          "label": "Insulin chart, continued",
+          "page": 123,
+          "rid": "p123-grbs"
+        },
+        {
+          "label": "Nurse's record",
+          "page": 76,
+          "rid": "p76-grbs"
+        }
+      ]
+    },
+    {
+      "kind": "lowConfidence",
+      "title": "One nurse's entries on 9 to 12 Nov are only partly readable",
+      "body": "The entries on drain removal, dressing change, physiotherapy and catheter removal are in hard handwriting. Catheter removal at 9:30 pm on 10 Nov is confirmed by the maintenance bundle. Drain removal and physiotherapy on 9 Nov rest on this reading alone.",
+      "cites": [
+        {
+          "label": "Nurse's record, 9 Nov",
+          "page": 77,
+          "rid": "p77-day"
+        },
+        {
+          "label": "Nurse's record, 10 Nov",
+          "page": 81,
+          "rid": "p81-catheter"
+        }
+      ]
+    },
+    {
+      "kind": "lowConfidence",
+      "title": "Antibiotics were sent to theatre; giving is not recorded here",
+      "body": "Advent 1.2 g, Ticocin 400 mg and Vancomycin 1 g (2 vials) are listed as sent to the operating theatre with the patient on 7 Nov. This PDF does not say when or whether each was given. One name is spelt two ways on the two pages and is read as Ticocin.",
+      "cites": [
+        {
+          "label": "Nurse's record, transfer to theatre",
+          "page": 66,
+          "rid": "p66-abx"
+        },
+        {
+          "label": "Nurse's record, theatre",
+          "page": 67,
+          "rid": "p67-ot"
+        }
+      ]
+    },
+    {
+      "kind": "lowConfidence",
+      "title": "IV entries on the intake charts of 10 to 12 Nov",
+      "body": "The IV column on these charts is hard to read. The 1 pm entry on 11 Nov is read as Inj. Tramadol 50 mg added in 100 ml NS. The night entries on 10 and 11 Nov and the 7 am entries on 11 and 12 Nov (100 ml each) could not be named with confidence.",
+      "cites": [
+        {
+          "label": "Intake and output chart, 11 Nov",
+          "page": 55,
+          "rid": "p55-tramadol"
+        },
+        {
+          "label": "Intake and output chart, 10 Nov",
+          "page": 54,
+          "rid": "p54-iv"
+        }
+      ]
+    },
+    {
+      "kind": "lowConfidence",
+      "title": "Year of the past skin surgery is hidden",
+      "body": "The nutritional assessment writes SCC of the right gluteal skin, s/p wide excision, with a year in brackets that is partly covered by a number stamp. It is read as 2017 with doubt.",
+      "cites": [
+        {
+          "label": "Nutritional assessment",
+          "page": 94,
+          "rid": "p94-dx"
+        }
+      ]
+    }
+  ],
+  "pagesUnread": [],
+  "pagesFormsOnly": 12,
+  "normalLabs": {
+    "count": 0,
+    "names": ""
+  },
+  "timeline": [
+    {
+      "date": "5 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Admitted",
+      "detail": "Orthopaedics. Left femur neck fracture. On 4 L oxygen, with Foley catheter and skin traction on the left leg.",
+      "cite": {
+        "page": 58,
+        "rid": "p58-admit"
+      }
+    },
+    {
+      "date": "6 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Work-up before surgery",
+      "detail": "Medicine and pulmonary consultations, serology, 2 units PRBC cross-matched, PAC chart viewed.",
+      "cite": {
+        "page": 61,
+        "rid": "p61-xmatch"
+      }
+    },
+    {
+      "date": "7 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "CT pulmonary angiogram",
+      "detail": "Done in the morning before surgery. Report not in this PDF.",
+      "cite": {
+        "page": 65,
+        "rid": "p65-ctpa"
+      }
+    },
+    {
+      "date": "7 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Surgery",
+      "detail": "Left bipolar hemiarthroplasty under spinal anaesthesia. Drain in the left hip. To HDU at 5 pm.",
+      "cite": {
+        "page": 67,
+        "rid": "p67-surgery"
+      }
+    },
+    {
+      "date": "8 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Day 1 after surgery",
+      "detail": "GRBS 263, Actrapid started and Glimy M1 withheld. Clexane 0.4 ml. Shifted from HDU to the ward on 1 L oxygen.",
+      "cite": {
+        "page": 71,
+        "rid": "p71-grbs"
+      }
+    },
+    {
+      "date": "9 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Oxygen trial off",
+      "detail": "Oxygen stopped in the morning. SpO2 89% on room air at 4:20 pm, restarted at 1 L.",
+      "cite": {
+        "page": 78,
+        "rid": "p78-desat"
+      }
+    },
+    {
+      "date": "10 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Catheter removed",
+      "detail": "Urinary catheter removed at 9:30 pm. Knee immobilizer advised. NT-pro BNP sent.",
+      "cite": {
+        "page": 124,
+        "rid": "p124-catheter"
+      }
+    },
+    {
+      "date": "12 Nov",
+      "encounterKey": "IPD-2026-11-05",
+      "title": "Discharged",
+      "detail": "General condition good, vitals stable. All lines and catheter removed.",
+      "cite": {
+        "page": 140,
+        "rid": "p140-discharge"
+      }
+    }
+  ],
+  "notes": "This PDF is the nursing half of one admission (5 to 12 Nov 2026): the discharge summary, doctors' notes, drug chart, operative and anaesthesia records and all lab and imaging reports are expected in another PDF of the same folder, so the diagnosis here is kept as working (provisional on the plan of care) and should give way to the discharge summary. The same diagnosis, allergy statement and vitals repeat on the handover sheets (pages 114 to 121), care plans (98 to 113) and charts (128 to 139); they are cited once with a few also-citations. How the patient came in is not stated: the first cannula is marked as inserted by 'yellow area' at 1:35 pm and the catheter location as 'RTR YA' at 5:40 pm on 5 Nov, before the ward arrival at 7 pm, which may mean the emergency area, so entry is left null. PTCD / PTCT is written for the pulmonary team that was consulted; the expansion is not written in the file. Nurse's record sheets are slightly out of time order around the CT (page 62 is headed 6/11 but belongs to the morning of 7 Nov). A medico-legal case was noted as not required (page 61). GRBS has no printed range, so no value is flagged high or low. Antibiotic names are as the nurses wrote them (Advent, Ticocin, Vancomycin); the nurses' record does not give times of administration. Staff names appear on many pages and are left out. The I.P. number in encounters[].ref is read from the handwritten admission order."
+}

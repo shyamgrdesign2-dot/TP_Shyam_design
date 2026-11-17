@@ -7,8 +7,10 @@
  * hospital", "Hospital course"), it is the course: shown whole, as written,
  * with its citation, and never rewritten or broken into rows on screen.
  *
- * Only when a stay has no such paragraph in the file is its course shown as
- * the dated events read from its pages. Those rows are also what is stored
+ * A stay with no discharge summary in the file takes the course as it is
+ * written elsewhere in the file: the emergency record's course and
+ * disposition note for the visit it came in through. Only when nothing is
+ * written as a course is it shown as the dated events read from its pages. Those rows are also what is stored
  * for counting, for every stay:
  *
  *   a stay      encounterId, type, department, admittedOn, dischargedOn,
@@ -127,7 +129,9 @@ export function hospitalCourse(bundle, { matches = null, factOf = null, summaryO
         encounter: stay,
         days,
         title: `${label}${same.length > 1 ? ` ${same.indexOf(stay) + 1}` : ""}${stay.department ? ` · ${stay.department}` : ""}${span ? ` (${span})` : ""}`,
-        summary: summaryOf ? summaryOf(stay.id) : null,
+        // The stay's own paragraph; a stay with no discharge summary in the
+        // file takes the course written on the visit it came in through.
+        summary: summaryOf ? summaryOf(stay.id) || (stay.entryEncounterId ? summaryOf(stay.entryEncounterId) : null) : null,
         events,
       };
     })
@@ -139,8 +143,9 @@ export function hospitalCourse(bundle, { matches = null, factOf = null, summaryO
 export const courseText = (stay) =>
   stay.events.map((event) => `${event.sameDay ? "" : `${event.date}: `}${event.title}${event.detail ? ` (${lowerFirst(event.detail)})` : ""}.`).join(" ");
 
-// What is stored for analytics and reuse: one entry per stay with its events
-// as rows, and the same course as text for the discharge summary's box.
+// What is stored: one entry per stay with the course as the file wrote it
+// (`text`, `textSource: "asWritten"`). Only a stay with no written course
+// gets dated rows (`events`) and a text written out from them.
 export function buildHospitalCourse(bundle, options) {
   return hospitalCourse(bundle, options)
     .reverse()
@@ -153,7 +158,9 @@ export function buildHospitalCourse(bundle, options) {
       days: stay.days,
       entry: stay.encounter.entry || "",
       outcome: stay.encounter.outcome || "",
-      events: stay.events.map((event) => ({
+      // The course is the paragraph as written. Dated rows are stored only
+      // for a stay the file writes no course for.
+      events: (stay.summary ? [] : stay.events).map((event) => ({
         kind: event.kind,
         date: event.on,
         ...(event.until ? { until: event.until } : null),

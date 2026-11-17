@@ -37,7 +37,6 @@ DR_AGENT_VOICERX_AGENT_CONTEXT.md
 # Tesseract MCP config — contains a bearer token, never commit
 .mcp.json
 
-# Case File: real patient pages and data for local demos only.
-# These hold identifiable patient information and must never be committed.
-/public/case-file-local/
-/src/components/archived-records/mock/*.local.js
+# Case File: the demo patient folder (pages and data) is committed on purpose
+# (demo data, approved 17 Nov 2026). Only the old backup copy stays out.
+/public/case-file-local/_earlier/

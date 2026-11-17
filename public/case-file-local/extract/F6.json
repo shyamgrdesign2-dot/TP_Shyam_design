@@ -1,0 +1,4903 @@
+{
+ "file": {
+  "id": "F6",
+  "pages": 134,
+  "offset": 141,
+  "what": "Inpatient case file, Orthopaedics, 5 to 12 Nov 2026: admission record, consents, typed discharge summary, emergency and orthopaedic case records, consultation records, progress sheets, medication orders, anaesthesia record, operation report and nursing forms (mostly handwritten)"
+ },
+ "patient": {
+  "sex": "Female",
+  "age": 84,
+  "cite": {
+   "page": 164,
+   "rid": "p164-age-sex"
+  }
+ },
+ "encounters": [
+  {
+   "key": "ER-2026-11-05",
+   "type": "ER",
+   "startLabel": "5 Nov 2026",
+   "endLabel": "5 Nov 2026",
+   "sortKey": "2026-11-05",
+   "department": "Emergency Medicine, with Orthopaedics and Traumatology",
+   "clinician": "Junior Resident, Emergency Medicine; Junior Resident, Orthopaedics",
+   "entry": "emergency",
+   "visitKind": null,
+   "outcome": null,
+   "ref": null,
+   "refCite": null,
+   "pages": 10
+  },
+  {
+   "key": "IPD-2026-11-05",
+   "type": "IPD",
+   "startLabel": "5 Nov 2026",
+   "endLabel": "12 Nov 2026",
+   "sortKey": "2026-11-05",
+   "department": "ORTHOPAEDICS (Unit ORT004)",
+   "clinician": "Professor and Head of Unit, Orthopaedics",
+   "entry": "emergency",
+   "visitKind": null,
+   "outcome": "discharged",
+   "ref": "1127801",
+   "refCite": {
+    "page": 144,
+    "rid": "p144-ipno"
+   },
+   "pages": 124
+  }
+ ],
+ "documents": [
+  {
+   "title": "Process check slip",
+   "category": "nursingForms",
+   "from": 142,
+   "to": 143,
+   "script": "mixed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Admission record (face sheet)",
+   "category": "summaries",
+   "from": 144,
+   "to": 145,
+   "script": "mixed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Checklists of documents during transfer",
+   "category": "nursingForms",
+   "from": 146,
+   "to": 149,
+   "script": "mixed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Consent forms (HIV testing, CT contrast, treatment, hemiarthroplasty, high risk surgery)",
+   "category": "nursingForms",
+   "from": 150,
+   "to": 159,
+   "script": "mixed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Insurance consent and declaration forms",
+   "category": "nursingForms",
+   "from": 160,
+   "to": 163,
+   "script": "mixed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Discharge summary",
+   "category": "summaries",
+   "from": 164,
+   "to": 169,
+   "script": "typed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Emergency medicine trauma case record",
+   "category": "doctorNotes",
+   "from": 170,
+   "to": 173,
+   "script": "handwritten",
+   "encounterKey": "ER-2026-11-05"
+  },
+  {
+   "title": "Orthopaedics: history and physical examination of an injured person",
+   "category": "doctorNotes",
+   "from": 174,
+   "to": 179,
+   "script": "handwritten",
+   "encounterKey": "ER-2026-11-05"
+  },
+  {
+   "title": "IP assessment form and plan of care",
+   "category": "doctorNotes",
+   "from": 180,
+   "to": 183,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Consultation record: Cardiology",
+   "category": "doctorNotes",
+   "from": 184,
+   "to": 185,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Consultation record: Surgical oncology",
+   "category": "doctorNotes",
+   "from": 186,
+   "to": 187,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Consultation record: General medicine",
+   "category": "doctorNotes",
+   "from": 188,
+   "to": 189,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Consultation record: Pulmonology",
+   "category": "doctorNotes",
+   "from": 190,
+   "to": 193,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Consultation record: Ophthalmology",
+   "category": "doctorNotes",
+   "from": 194,
+   "to": 195,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Consultation record: Pulmonology review",
+   "category": "doctorNotes",
+   "from": 196,
+   "to": 197,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Department of Medicine investigation chart",
+   "category": "labs",
+   "from": 198,
+   "to": 199,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Progress sheets (6 to 12 Nov)",
+   "category": "doctorNotes",
+   "from": 200,
+   "to": 209,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Transfer summaries (nurses) and transfer out forms",
+   "category": "nursingForms",
+   "from": 210,
+   "to": 215,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Doctor's orders: medications and treatment chart (5 to 12 Nov)",
+   "category": "medication",
+   "from": 216,
+   "to": 245,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Physiotherapy record",
+   "category": "doctorNotes",
+   "from": 246,
+   "to": 249,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Pre-anaesthetic record",
+   "category": "doctorNotes",
+   "from": 250,
+   "to": 251,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Anaesthesia consent forms (including high-risk anaesthesia consent)",
+   "category": "nursingForms",
+   "from": 252,
+   "to": 256,
+   "script": "mixed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Anaesthetic record",
+   "category": "doctorNotes",
+   "from": 257,
+   "to": 257,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Blood gas printout (7 Nov)",
+   "category": "labs",
+   "from": 258,
+   "to": 259,
+   "script": "typed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Anaesthetic record (continued), regional anaesthesia and post-anaesthetic record",
+   "category": "doctorNotes",
+   "from": 260,
+   "to": 265,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Pre-operative check list",
+   "category": "nursingForms",
+   "from": 266,
+   "to": 267,
+   "script": "mixed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Operation report",
+   "category": "doctorNotes",
+   "from": 268,
+   "to": 269,
+   "script": "typed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Surgical safety checklist",
+   "category": "nursingForms",
+   "from": 270,
+   "to": 271,
+   "script": "mixed",
+   "encounterKey": "IPD-2026-11-05"
+  },
+  {
+   "title": "Pain assessment score sheets",
+   "category": "nursingForms",
+   "from": 272,
+   "to": 275,
+   "script": "handwritten",
+   "encounterKey": "IPD-2026-11-05"
+  }
+ ],
+ "findings": [
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Closed left neck of femur fracture",
+   "detail": "Final diagnosis · after a slip and fall at home on 05/11/26",
+   "verbatim": "Diagnosis - Closed left neck of femur fracture",
+   "cite": {
+    "page": 164,
+    "rid": "p164-final-dx"
+   },
+   "also": [
+    {
+     "page": 144,
+     "rid": "p144-admission-dx"
+    },
+    {
+     "page": 178,
+     "rid": "p178-impression"
+    },
+    {
+     "page": 183,
+     "rid": "p183-provisional"
+    },
+    {
+     "page": 268,
+     "rid": "p268-indication"
+    },
+    {
+     "page": 144,
+     "rid": "p144-codes"
+    }
+   ],
+   "confidence": 0.96,
+   "handwritten": false,
+   "flags": [],
+   "role": "final",
+   "dateLabel": "5 Nov 2026",
+   "coding": "ICD-10 S72.0 (handwritten in the margin of the admission record)"
+  },
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Type 2 diabetes mellitus",
+   "detail": "Secondary diagnosis · 18 yrs, on OHAs",
+   "verbatim": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)",
+   "cite": {
+    "page": 164,
+    "rid": "p164-final-comorbid"
+   },
+   "also": [
+    {
+     "page": 144,
+     "rid": "p144-secondary-dx"
+    },
+    {
+     "page": 164,
+     "rid": "p164-past"
+    },
+    {
+     "page": 171,
+     "rid": "p171-past-history"
+    },
+    {
+     "page": 250,
+     "rid": "p250-history"
+    },
+    {
+     "page": 144,
+     "rid": "p144-codes"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "chronic",
+   "dateLabel": "Past history",
+   "coding": "ICD-10 E11.9 (handwritten in the margin of the admission record)"
+  },
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Hypertension",
+   "detail": "Secondary diagnosis · 18 yrs, on medicines",
+   "verbatim": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)",
+   "cite": {
+    "page": 164,
+    "rid": "p164-final-comorbid"
+   },
+   "also": [
+    {
+     "page": 144,
+     "rid": "p144-secondary-dx"
+    },
+    {
+     "page": 164,
+     "rid": "p164-past"
+    },
+    {
+     "page": 171,
+     "rid": "p171-past-history"
+    },
+    {
+     "page": 250,
+     "rid": "p250-history"
+    },
+    {
+     "page": 144,
+     "rid": "p144-codes"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "chronic",
+   "dateLabel": "Past history",
+   "coding": "ICD-10 I10 (handwritten in the margin of the admission record)"
+  },
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Squamous cell carcinoma, right gluteal skin, after wide local excision (2017)",
+   "detail": "Secondary diagnosis · s/p WLE (2017) · surgical oncology: well differentiated, margin free, no sign of local recurrence",
+   "verbatim": "SCC right gluteal skin s/p WLE(2017)",
+   "cite": {
+    "page": 164,
+    "rid": "p164-final-comorbid"
+   },
+   "also": [
+    {
+     "page": 144,
+     "rid": "p144-secondary-dx"
+    },
+    {
+     "page": 164,
+     "rid": "p164-past"
+    },
+    {
+     "page": 174,
+     "rid": "p174-past-history"
+    },
+    {
+     "page": 187,
+     "rid": "p187-opinion"
+    },
+    {
+     "page": 250,
+     "rid": "p250-history"
+    },
+    {
+     "page": 144,
+     "rid": "p144-codes"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "chronic",
+   "dateLabel": "Past history",
+   "coding": "ICD-10 C44.5 (handwritten in the margin of the admission record)"
+  },
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Acute bronchitis",
+   "detail": "Secondary diagnosis · listed in the final diagnosis and in past history · the medicine note dates it to May 2026",
+   "verbatim": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)",
+   "cite": {
+    "page": 164,
+    "rid": "p164-final-comorbid"
+   },
+   "also": [
+    {
+     "page": 144,
+     "rid": "p144-secondary-dx"
+    },
+    {
+     "page": 164,
+     "rid": "p164-past"
+    },
+    {
+     "page": 174,
+     "rid": "p174-past-history"
+    },
+    {
+     "page": 188,
+     "rid": "p188-diagnosis"
+    },
+    {
+     "page": 144,
+     "rid": "p144-codes"
+    }
+   ],
+   "confidence": 0.9,
+   "handwritten": false,
+   "flags": [
+    "ambiguous"
+   ],
+   "role": "secondary",
+   "dateLabel": "May 2026",
+   "coding": "ICD-10 J20.9 (handwritten in the margin of the admission record)",
+   "conflictWith": {
+    "text": "Acute bronchitis (in May 2026)",
+    "page": 188,
+    "rid": "p188-diagnosis"
+   }
+  },
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "MASLD (metabolic dysfunction-associated steatotic liver disease)",
+   "detail": "Secondary diagnosis · suspected, written with a question mark",
+   "verbatim": "& ? MASLD",
+   "cite": {
+    "page": 188,
+    "rid": "p188-diagnosis"
+   },
+   "also": [
+    {
+     "page": 250,
+     "rid": "p250-history"
+    },
+    {
+     "page": 254,
+     "rid": "p254-high-risk"
+    }
+   ],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [
+    "suspected"
+   ],
+   "role": "secondary",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Acute bacterial conjunctivitis, both eyes",
+   "detail": "Secondary diagnosis · ophthalmology impression · greenish discharge both eyes for 2 days",
+   "verbatim": "Imp: Acute Bacterial conjunctivitis",
+   "cite": {
+    "page": 195,
+    "rid": "p195-impression"
+   },
+   "also": [
+    {
+     "page": 164,
+     "rid": "p164-subconsult"
+    }
+   ],
+   "confidence": 0.72,
+   "handwritten": true,
+   "flags": [
+    "lowConfidence"
+   ],
+   "role": "secondary",
+   "dateLabel": "6 Nov 2026"
+  },
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Bedsore over right gluteal region",
+   "detail": "Secondary diagnosis · present at discharge, coloplast patch applied",
+   "verbatim": "Bedsore present over right gluteal region- coloplast patch applied",
+   "cite": {
+    "page": 166,
+    "rid": "p166-condition"
+   },
+   "also": [
+    {
+     "page": 214,
+     "rid": "p214-pressure-ulcer"
+    },
+    {
+     "page": 238,
+     "rid": "p238-coloplast"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "secondary",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "DX",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Volume overload or basal atelectasis",
+   "detail": "Working diagnosis · suspected, written with a question mark by pulmonology after an oxygen saturation drop",
+   "verbatim": "? volume overload / Basal atelectasis",
+   "cite": {
+    "page": 196,
+    "rid": "p196-review"
+   },
+   "also": [],
+   "confidence": 0.6,
+   "handwritten": true,
+   "flags": [
+    "suspected",
+    "lowConfidence"
+   ],
+   "role": "working",
+   "dateLabel": "10 Nov 2026"
+  },
+  {
+   "domain": "ALG",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "No known allergy",
+   "detail": "Known allergy: No (surgical safety checklist) · Allergies: None (nurses' transfer summaries) · the drug allergy line on the IP assessment form is left unmarked",
+   "verbatim": "DOES PATIENT HAVE A: KNOWN ALLERGY? NO",
+   "cite": {
+    "page": 270,
+    "rid": "p270-allergy"
+   },
+   "also": [
+    {
+     "page": 210,
+     "rid": "p210-allergy"
+    },
+    {
+     "page": 214,
+     "rid": "p214-allergy"
+    },
+    {
+     "page": 250,
+     "rid": "p250-allergy"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "negative": true,
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "PROC",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Left hip bipolar hemiarthroplasty (cemented)",
+   "detail": "07/11/2026 · Block + Spinal · Southern Moore approach · right lateral decubitus",
+   "verbatim": "Left Hip Bipolar Hemiarthroplasty (cemented)",
+   "cite": {
+    "page": 268,
+    "rid": "p268-indication"
+   },
+   "also": [
+    {
+     "page": 164,
+     "rid": "p164-final-treatment"
+    },
+    {
+     "page": 165,
+     "rid": "p165-operative"
+    },
+    {
+     "page": 144,
+     "rid": "p144-operative"
+    },
+    {
+     "page": 268,
+     "rid": "p268-anaesthesia"
+    },
+    {
+     "page": 268,
+     "rid": "p268-incision"
+    }
+   ],
+   "confidence": 0.96,
+   "handwritten": false,
+   "flags": [],
+   "role": "procedure",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "PROC",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Wide local excision with primary closure, squamous cell carcinoma of right gluteal skin",
+   "detail": "2017",
+   "verbatim": "Old case of SCC over natal cleft -> S/P WLE + 1° closure done in 2017",
+   "cite": {
+    "page": 187,
+    "rid": "p187-opinion"
+   },
+   "also": [
+    {
+     "page": 164,
+     "rid": "p164-past"
+    },
+    {
+     "page": 174,
+     "rid": "p174-past-history"
+    }
+   ],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "pastSurgery",
+   "dateLabel": "2017"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Augmentin 1000 mg Duo (amoxycillin 875 mg + clavulanate potassium 125 mg)",
+   "detail": "1-0-1 · 1 week · Tablet",
+   "verbatim": "AUGMENTIN 1000MG -DUO · Generic: AMOXYCILLIN 875 MG | CLAVULANATE POTASSIUM 125 MG · TABLET · 1 - 0 - 1 · 1 week",
+   "cite": {
+    "page": 166,
+    "rid": "p166-rx-augmentin"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Ultracet Semi 18.75 mg/162.5 mg (tramadol HCl 18.75 mg + paracetamol 162.5 mg)",
+   "detail": "1-0-1 · 1 week · Tablet",
+   "verbatim": "ULTRACET SEMI 18.75MG/162.5MG · Generic: TRAMADOL HCL 18.75MG | PARACETAMOL 162.5MG · TABLET · 1 - 0 - 1 · 1 week",
+   "cite": {
+    "page": 166,
+    "rid": "p166-rx-ultracet"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Gastrorid-DSR 40 mg/30 mg (pantoprazole 40 mg + domperidone 30 mg sustained release)",
+   "detail": "1-0-0 · 1 week · Tablet",
+   "verbatim": "GASTRORID-DSR(40MG/30MG) · Generic: PANTOPRAZOLE 40MG| DOMPERIDONE 30 MG SUSTAINED REL · TABLET · 1 - 0 - 0 · 1 week",
+   "cite": {
+    "page": 166,
+    "rid": "p166-rx-gastrorid"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Chymoral BR (trypsin-chymotrypsin with bromelain and rutoside)",
+   "detail": "1-0-1 · 3 days · Tablet",
+   "verbatim": "CHYMORAL BR TABLET · Generic: TRYPSIN - | CHYMOTRYPSIN WITH BROMELIAN 0RUTOSIDE · TABLET · 1 - 0 - 1 · 3 days",
+   "cite": {
+    "page": 166,
+    "rid": "p166-rx-chymoral"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pradaxa 110 mg (dabigatran etexilate mesilate 110 mg)",
+   "detail": "1-0-1 · 1 month · Capsule",
+   "verbatim": "PRADAXA 110MG CAPSULES · Generic: DABIGATRAN ETEXILATE MEXILATE 110MG · CAPSULE · 1 - 0 - 1 · 1 month",
+   "cite": {
+    "page": 166,
+    "rid": "p166-rx-pradaxa"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Ezorb D3+ (calcium aspartate 1120 mg, magnesium hydroxide)",
+   "detail": "0-1-0 · 1 month · Tablet · the generic line is cut off after 'magnesium hydroxide 180 m'",
+   "verbatim": "EZORB D3+ 15s STRIP TAB · Generic: calcium aspartate 1120mg,magnesium hydroxide 180 m · TABLET · 0 - 1 - 0 · 1 month",
+   "cite": {
+    "page": 166,
+    "rid": "p166-rx-ezorb"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Limcee chewable 500 mg (ascorbic acid 100 mg + sodium ascorbate 450 mg)",
+   "detail": "1-0-1 · 1 month · Tablet",
+   "verbatim": "LIMCEE CHEWABLE 500MG 15\"S STRIP · Generic: ASCORBIC ACID IP 100MG, SODIUM ASOCORBATE 450MG.EQ · TABLET · 1 - 0 - 1 · 1 month",
+   "cite": {
+    "page": 166,
+    "rid": "p166-rx-limcee"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "D3 Must 60K (cholecalciferol 60000 IU)",
+   "detail": "Once a week · 2 months · Tablet",
+   "verbatim": "D3MUST 60K TABLETS · Generic: CHOLECALCIFEROL 60000 IU · TABLET · Once a week · 2 months",
+   "cite": {
+    "page": 167,
+    "rid": "p167-rx-d3must"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Rozavel 5 mg (rosuvastatin calcium 5 mg)",
+   "detail": "0-0-1 · Continue · Tablet",
+   "verbatim": "ROZAVEL 5MG TABLET · Generic: ROSUVASTATIN CALCIUM 5MG · TABLET · 0 - 0 - 1 · Continue",
+   "cite": {
+    "page": 167,
+    "rid": "p167-rx-rozavel"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Stamlo 5 mg (amlodipine besylate 5 mg)",
+   "detail": "1-0-0 · Continue · form printed as Capsule",
+   "verbatim": "STAMLO 5 MG TABLET · Generic: AMLODIPINE BESYLATE 5 MG · CAPSULE · 1 - 0 - 0 · Continue",
+   "cite": {
+    "page": 167,
+    "rid": "p167-rx-stamlo"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Glimy-M1 (glimepiride 1 mg + metformin HCl 500 mg sustained release)",
+   "detail": "1-0-1 · Continue · Tablet",
+   "verbatim": "GLIMY -M1TABLET · Generic: GLIMEPIRIDE 1 MG | METFORMIN HCL 500MG SUSTAINED R · TABLET · 1 - 0 - 1 · Continue",
+   "cite": {
+    "page": 167,
+    "rid": "p167-rx-glimy"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Evion 400 (vitamin E 400 mg)",
+   "detail": "Continue · Capsule · the frequency cell is blank on the discharge list",
+   "verbatim": "EVION 400 CAPSULES · Generic: VIT E 400 MG · CAPSULE · [frequency blank] · Continue",
+   "cite": {
+    "page": 167,
+    "rid": "p167-rx-evion"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [
+    "partlyRead"
+   ],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Mosi eye drops (moxifloxacin ophthalmic solution 0.5%)",
+   "detail": "1-1-1-1 · Both eyes · 1 week · Drops",
+   "verbatim": "MOSI (EYE DROPS) · Generic: MOXIFLOXACIN OPHTHALMIC SOL 0.5% · DROPS · 1 - 1 - 1 - 1 Both eyes · 1 week",
+   "cite": {
+    "page": 167,
+    "rid": "p167-rx-mosi"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Just Tears eye drops 10 ml (carboxymethyl cellulose 0.5%)",
+   "detail": "1-1-1-1 · Both eyes · 1 week · Solution",
+   "verbatim": "JUST TEARS EYE DROPS 10ML · Generic: CARBOXY METHYL CELLULOSE 0.5% · SOLUTION · 1 - 1 - 1 - 1 Both eyes · 1 week",
+   "cite": {
+    "page": 167,
+    "rid": "p167-rx-justtears"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Tegaderm with pad 9 cm x 35 cm (transparent adhesive dressing)",
+   "detail": "5 nos · Dressing",
+   "verbatim": "TEGADERM WITH PAD8593 9CMX35CM · Generic: TRANSPARENT ADHESIVE DRESSING · DRESSING · 5 nos",
+   "cite": {
+    "page": 167,
+    "rid": "p167-rx-tegaderm"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "discharge",
+   "group": "On discharge (12 Nov'26)",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Rozavel 5 (rosuvastatin 5 mg)",
+   "detail": "0-0-1",
+   "verbatim": "T. Rozavel 5  0-0-1",
+   "cite": {
+    "page": 189,
+    "rid": "p189-on-rx"
+   },
+   "also": [
+    {
+     "page": 250,
+     "rid": "p250-drug-therapy"
+    },
+    {
+     "page": 190,
+     "rid": "p190-on-rx"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "home",
+   "group": "At home",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Stamlo 5 (amlodipine 5 mg)",
+   "detail": "1-0-0",
+   "verbatim": "T. Stamlo 5  1-0-0",
+   "cite": {
+    "page": 189,
+    "rid": "p189-on-rx"
+   },
+   "also": [
+    {
+     "page": 250,
+     "rid": "p250-drug-therapy"
+    },
+    {
+     "page": 190,
+     "rid": "p190-on-rx"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "home",
+   "group": "At home",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Glimy M1 (glimepiride 1 mg + metformin 500 mg)",
+   "detail": "1-0-1",
+   "verbatim": "T. Glimy M1  1-0-1",
+   "cite": {
+    "page": 189,
+    "rid": "p189-on-rx"
+   },
+   "also": [
+    {
+     "page": 250,
+     "rid": "p250-drug-therapy"
+    },
+    {
+     "page": 190,
+     "rid": "p190-on-rx"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "home",
+   "group": "At home",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Telma 40 (telmisartan 40 mg)",
+   "detail": "1-0-1 · listed as a current medicine by medicine and anaesthesia; not on the in-hospital orders and not on the discharge list",
+   "verbatim": "T. Telma 40  1-0-1",
+   "cite": {
+    "page": 189,
+    "rid": "p189-on-rx"
+   },
+   "also": [
+    {
+     "page": 250,
+     "rid": "p250-drug-therapy"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [
+    "conflict"
+   ],
+   "role": "home",
+   "group": "At home",
+   "dateLabel": "5 Nov 2026",
+   "conflictWith": {
+    "text": "The discharge drug list has no telmisartan; Stamlo 5 mg is the only blood pressure medicine on it",
+    "page": 167,
+    "rid": "p167-rx-stamlo"
+   }
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Augmentin 1.2 g injection (amoxycillin + clavulanate)",
+   "detail": "1.2 g · Q12H · 6 days (D1 on 7 Nov to D6 on 12 Nov) · IV · first dose 1:45 pm on the day of surgery",
+   "verbatim": "Inj AUGMENTIN 1.2g IV Q12H (D1)",
+   "cite": {
+    "page": 224,
+    "rid": "p224-postop"
+   },
+   "also": [
+    {
+     "page": 222,
+     "rid": "p222-preop"
+    },
+    {
+     "page": 257,
+     "rid": "p257-antibiotic"
+    },
+    {
+     "page": 268,
+     "rid": "p268-drug"
+    },
+    {
+     "page": 226,
+     "rid": "p226-orders"
+    },
+    {
+     "page": 232,
+     "rid": "p232-orders"
+    },
+    {
+     "page": 234,
+     "rid": "p234-orders"
+    },
+    {
+     "page": 238,
+     "rid": "p238-orders"
+    },
+    {
+     "page": 242,
+     "rid": "p242-orders"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "role": "inHospital",
+   "group": "In hospital",
+   "dateLabel": "7 to 12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Teiconin 400 mg injection (teicoplanin)",
+   "detail": "400 mg · Q24H · 2 doses (D1 on 7 Nov, D2/2 on 8 Nov) · IV",
+   "verbatim": "Inj TEICONIN 400mg IV Q24H (D1/D2)",
+   "cite": {
+    "page": 224,
+    "rid": "p224-postop"
+   },
+   "also": [
+    {
+     "page": 222,
+     "rid": "p222-preop"
+    },
+    {
+     "page": 257,
+     "rid": "p257-antibiotic"
+    },
+    {
+     "page": 268,
+     "rid": "p268-drug"
+    },
+    {
+     "page": 226,
+     "rid": "p226-orders"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "inHospital",
+   "group": "In hospital",
+   "dateLabel": "7 to 8 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Unclear injection, 1 g IV (reads like 'Vanking')",
+   "detail": "1 g · IV · circled 2 · last line of the pre-operative orders in a different hand; the name could not be read reliably and it does not appear on the anaesthetic record or the operation report",
+   "verbatim": "Inj [VANKING?] 1g IV - (2)",
+   "cite": {
+    "page": 222,
+    "rid": "p222-preop-last-line"
+   },
+   "also": [],
+   "confidence": 0.45,
+   "handwritten": true,
+   "flags": [
+    "lowConfidence",
+    "partlyRead"
+   ],
+   "role": "inHospital",
+   "group": "In hospital",
+   "dateLabel": "6 Nov 2026",
+   "hold": true
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Clexane 0.4 ml injection (enoxaparin)",
+   "detail": "0.4 ml · OD · SC · started 5 Nov, withheld 6 Nov before surgery, given again 8 to 12 Nov",
+   "verbatim": "Inj. CLEXANE 0.4ml s/c OD",
+   "cite": {
+    "page": 217,
+    "rid": "p217-orders"
+   },
+   "also": [
+    {
+     "page": 220,
+     "rid": "p220-orders"
+    },
+    {
+     "page": 227,
+     "rid": "p227-orders"
+    },
+    {
+     "page": 233,
+     "rid": "p233-orders"
+    },
+    {
+     "page": 235,
+     "rid": "p235-orders"
+    },
+    {
+     "page": 239,
+     "rid": "p239-orders"
+    },
+    {
+     "page": 243,
+     "rid": "p243-orders"
+    },
+    {
+     "page": 250,
+     "rid": "p250-drug-therapy"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "role": "inHospital",
+   "group": "In hospital",
+   "dateLabel": "5 to 12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Human Actrapid injection (regular insulin)",
+   "detail": "8 Nov: 6-6-6 units · 9 Nov: 4-4-0 · 10 Nov: skip-4-6 · 11 Nov: 4-4-0 · 12 Nov: 0 then blank · SC · also 8 U neutralising dose in IV DNS before surgery",
+   "verbatim": "Inj. H. ACTRAPID (6) u s/c - (6) - (6)",
+   "cite": {
+    "page": 228,
+    "rid": "p228-orders"
+   },
+   "also": [
+    {
+     "page": 222,
+     "rid": "p222-preop"
+    },
+    {
+     "page": 233,
+     "rid": "p233-orders"
+    },
+    {
+     "page": 235,
+     "rid": "p235-orders"
+    },
+    {
+     "page": 239,
+     "rid": "p239-orders"
+    },
+    {
+     "page": 243,
+     "rid": "p243-orders"
+    },
+    {
+     "page": 189,
+     "rid": "p189-advice"
+    }
+   ],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [],
+   "role": "inHospital",
+   "group": "In hospital",
+   "dateLabel": "6 to 12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Tramadol 50 mg injection",
+   "detail": "50 mg in 100 ml NS · Q12H · IV · alternating with paracetamol (PCM / Finamac) 1 g IV Q12H · 5 to 12 Nov",
+   "verbatim": "Inj. TRAMADOL 50mg/100ml NS IV Q12H",
+   "cite": {
+    "page": 216,
+    "rid": "p216-orders"
+   },
+   "also": [
+    {
+     "page": 224,
+     "rid": "p224-postop"
+    },
+    {
+     "page": 226,
+     "rid": "p226-orders"
+    },
+    {
+     "page": 232,
+     "rid": "p232-orders"
+    },
+    {
+     "page": 234,
+     "rid": "p234-orders"
+    },
+    {
+     "page": 238,
+     "rid": "p238-orders"
+    },
+    {
+     "page": 242,
+     "rid": "p242-orders"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "role": "inHospital",
+   "group": "In hospital",
+   "dateLabel": "5 to 12 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "ER-2026-11-05",
+   "title": "Hydrocort 100 mg injection (hydrocortisone)",
+   "detail": "100 mg · stat · IV · in the emergency department",
+   "verbatim": "Inj. Hydrocort 100mg IV stat",
+   "cite": {
+    "page": 171,
+    "rid": "p171-treatment"
+   },
+   "also": [],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "inHospital",
+   "group": "In hospital",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "MED",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Budecort nebulisation (budesonide) with Duolin nebulisation",
+   "detail": "Budecort Q12H · Duolin Q8H · nebulised · 2 cycles in emergency on 5 Nov, then regular from 8 to 12 Nov on pulmonology advice",
+   "verbatim": "NEB. DUOLIN Q8H · NEB. BUDECORT Q12H",
+   "cite": {
+    "page": 228,
+    "rid": "p228-orders"
+   },
+   "also": [
+    {
+     "page": 171,
+     "rid": "p171-treatment"
+    },
+    {
+     "page": 193,
+     "rid": "p193-review"
+    },
+    {
+     "page": 233,
+     "rid": "p233-orders"
+    },
+    {
+     "page": 235,
+     "rid": "p235-orders"
+    },
+    {
+     "page": 239,
+     "rid": "p239-orders"
+    },
+    {
+     "page": 243,
+     "rid": "p243-orders"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "role": "inHospital",
+   "group": "In hospital",
+   "dateLabel": "5 to 12 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Haemoglobin",
+   "detail": "",
+   "verbatim": "postop Hb: 10.1 <- 12.5",
+   "cite": {
+    "page": 202,
+    "rid": "p202-pod1"
+   },
+   "also": [
+    {
+     "page": 164,
+     "rid": "p164-labs"
+    },
+    {
+     "page": 198,
+     "rid": "p198-cbc"
+    },
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    },
+    {
+     "page": 196,
+     "rid": "p196-labs"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "value": "10.1",
+   "unit": "g/dl",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "8 Nov 2026",
+   "series": [
+    {
+     "d": "5 Nov",
+     "v": "12.5",
+     "f": ""
+    },
+    {
+     "d": "8 Nov",
+     "v": "10.1",
+     "f": ""
+    }
+   ]
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Total leucocyte count (TLC)",
+   "detail": "",
+   "verbatim": "TLC 12.3 K (circled in the pulmonology note)",
+   "cite": {
+    "page": 198,
+    "rid": "p198-cbc"
+   },
+   "also": [
+    {
+     "page": 191,
+     "rid": "p191-labs"
+    },
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    },
+    {
+     "page": 189,
+     "rid": "p189-labs"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "value": "12.3 K",
+   "unit": "",
+   "range": "",
+   "abnormal": "H",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Neutrophils",
+   "detail": "",
+   "verbatim": "DLC N 92.6 (circled as N = 92.6% in the pulmonology note)",
+   "cite": {
+    "page": 198,
+    "rid": "p198-cbc"
+   },
+   "also": [
+    {
+     "page": 191,
+     "rid": "p191-labs"
+    },
+    {
+     "page": 189,
+     "rid": "p189-labs"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "value": "92.6",
+   "unit": "%",
+   "range": "",
+   "abnormal": "H",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "ESR",
+   "detail": "",
+   "verbatim": "ESR 27 (circled in the pulmonology note)",
+   "cite": {
+    "page": 198,
+    "rid": "p198-cbc"
+   },
+   "also": [
+    {
+     "page": 191,
+     "rid": "p191-labs"
+    },
+    {
+     "page": 200,
+     "rid": "p200-labs"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "value": "27",
+   "unit": "",
+   "range": "",
+   "abnormal": "H",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Platelet count",
+   "detail": "",
+   "verbatim": "PLT 162 K",
+   "cite": {
+    "page": 198,
+    "rid": "p198-cbc"
+   },
+   "also": [
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    },
+    {
+     "page": 191,
+     "rid": "p191-labs"
+    },
+    {
+     "page": 189,
+     "rid": "p189-labs"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "value": "162 K",
+   "unit": "",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "D-dimer",
+   "detail": "",
+   "verbatim": "D-dimer -> 2.1 (circled); typed consent: elevated D-dimer (2.1 µg/mL)",
+   "cite": {
+    "page": 191,
+    "rid": "p191-ddimer"
+   },
+   "also": [
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    },
+    {
+     "page": 254,
+     "rid": "p254-high-risk"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "value": "2.1",
+   "unit": "µg/mL",
+   "range": "",
+   "abnormal": "H",
+   "dateLabel": "6 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Fasting blood sugar (FBS)",
+   "detail": "",
+   "verbatim": "FBS (40, circled) -> GRBS -> 108",
+   "cite": {
+    "page": 251,
+    "rid": "p251-fbs"
+   },
+   "also": [
+    {
+     "page": 196,
+     "rid": "p196-labs"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "value": "40",
+   "unit": "",
+   "range": "",
+   "abnormal": "L",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Capillary glucose (GRBS)",
+   "detail": "",
+   "verbatim": "GRBS - 133",
+   "cite": {
+    "page": 206,
+    "rid": "p206-pod4"
+   },
+   "also": [
+    {
+     "page": 170,
+     "rid": "p170-primary-survey"
+    },
+    {
+     "page": 251,
+     "rid": "p251-fbs"
+    },
+    {
+     "page": 202,
+     "rid": "p202-pod1"
+    },
+    {
+     "page": 203,
+     "rid": "p203-pod2"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "value": "133",
+   "unit": "",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "11 Nov 2026",
+   "series": [
+    {
+     "d": "5 Nov",
+     "v": "260",
+     "f": ""
+    },
+    {
+     "d": "7 Nov",
+     "v": "108",
+     "f": ""
+    },
+    {
+     "d": "8 Nov",
+     "v": "263",
+     "f": ""
+    },
+    {
+     "d": "9 Nov",
+     "v": "233",
+     "f": ""
+    },
+    {
+     "d": "11 Nov",
+     "v": "133",
+     "f": ""
+    }
+   ]
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Random blood sugar (RBS)",
+   "detail": "",
+   "verbatim": "RBS: 175 mg/dl",
+   "cite": {
+    "page": 164,
+    "rid": "p164-labs"
+   },
+   "also": [
+    {
+     "page": 198,
+     "rid": "p198-biochem"
+    },
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    },
+    {
+     "page": 189,
+     "rid": "p189-labs"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "value": "175",
+   "unit": "mg/dl",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "HbA1c",
+   "detail": "",
+   "verbatim": "HbA1c: 6.20 %",
+   "cite": {
+    "page": 164,
+    "rid": "p164-labs"
+   },
+   "also": [
+    {
+     "page": 198,
+     "rid": "p198-other"
+    },
+    {
+     "page": 200,
+     "rid": "p200-labs"
+    },
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    },
+    {
+     "page": 191,
+     "rid": "p191-labs"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "value": "6.20",
+   "unit": "%",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "TSH",
+   "detail": "",
+   "verbatim": "TSH: 1.15 µIU/ml",
+   "cite": {
+    "page": 164,
+    "rid": "p164-labs"
+   },
+   "also": [
+    {
+     "page": 198,
+     "rid": "p198-other"
+    },
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    },
+    {
+     "page": 189,
+     "rid": "p189-labs"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "value": "1.15",
+   "unit": "µIU/ml",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Sodium",
+   "detail": "",
+   "verbatim": "#Na+ 135 mmol/L (blood gas printout, marked outside ref. range)",
+   "cite": {
+    "page": 259,
+    "rid": "p259-abg"
+   },
+   "also": [
+    {
+     "page": 198,
+     "rid": "p198-biochem"
+    },
+    {
+     "page": 196,
+     "rid": "p196-labs"
+    }
+   ],
+   "confidence": 0.93,
+   "handwritten": false,
+   "flags": [
+    "conflictingValue"
+   ],
+   "value": "135",
+   "unit": "mmol/L",
+   "range": "",
+   "abnormal": "L",
+   "dateLabel": "7 Nov 2026",
+   "conflictWith": {
+    "text": "5 Nov sodium is 137 on the investigation chart but 136 on the progress sheet and the pre-anaesthetic record",
+    "page": 200,
+    "rid": "p200-labs"
+   },
+   "series": [
+    {
+     "d": "5 Nov",
+     "v": "137",
+     "f": ""
+    },
+    {
+     "d": "7 Nov",
+     "v": "135",
+     "f": "L"
+    }
+   ]
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Potassium",
+   "detail": "",
+   "verbatim": "#K+ 3.3 mmol/L (blood gas printout, marked outside ref. range)",
+   "cite": {
+    "page": 259,
+    "rid": "p259-abg"
+   },
+   "also": [
+    {
+     "page": 198,
+     "rid": "p198-biochem"
+    },
+    {
+     "page": 196,
+     "rid": "p196-labs"
+    }
+   ],
+   "confidence": 0.93,
+   "handwritten": false,
+   "flags": [
+    "conflictingValue"
+   ],
+   "value": "3.3",
+   "unit": "mmol/L",
+   "range": "",
+   "abnormal": "L",
+   "dateLabel": "7 Nov 2026",
+   "conflictWith": {
+    "text": "5 Nov potassium is 3.5 on the investigation chart but 3.6 on the progress sheet and the pre-anaesthetic record",
+    "page": 200,
+    "rid": "p200-labs"
+   },
+   "series": [
+    {
+     "d": "5 Nov",
+     "v": "3.5",
+     "f": ""
+    },
+    {
+     "d": "7 Nov",
+     "v": "3.3",
+     "f": "L"
+    }
+   ]
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Ionised calcium (Ca++)",
+   "detail": "",
+   "verbatim": "#Ca++ 1.03 mmol/L (marked outside ref. range)",
+   "cite": {
+    "page": 259,
+    "rid": "p259-abg"
+   },
+   "also": [],
+   "confidence": 0.93,
+   "handwritten": false,
+   "flags": [],
+   "value": "1.03",
+   "unit": "mmol/L",
+   "range": "",
+   "abnormal": "L",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Arterial pH",
+   "detail": "",
+   "verbatim": "#pH 7.47 (marked outside ref. range)",
+   "cite": {
+    "page": 259,
+    "rid": "p259-abg"
+   },
+   "also": [
+    {
+     "page": 191,
+     "rid": "p191-abg"
+    }
+   ],
+   "confidence": 0.93,
+   "handwritten": false,
+   "flags": [],
+   "value": "7.47",
+   "unit": "",
+   "range": "",
+   "abnormal": "H",
+   "dateLabel": "7 Nov 2026",
+   "series": [
+    {
+     "d": "6 Nov",
+     "v": "7.44",
+     "f": ""
+    },
+    {
+     "d": "7 Nov",
+     "v": "7.47",
+     "f": "H"
+    }
+   ]
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Arterial pO2 (room air)",
+   "detail": "",
+   "verbatim": "#pO2 51 mmHg (marked outside ref. range; handwritten: Room Air, SpO2 85%)",
+   "cite": {
+    "page": 259,
+    "rid": "p259-abg"
+   },
+   "also": [
+    {
+     "page": 191,
+     "rid": "p191-abg"
+    }
+   ],
+   "confidence": 0.93,
+   "handwritten": false,
+   "flags": [],
+   "value": "51",
+   "unit": "mmHg",
+   "range": "",
+   "abnormal": "L",
+   "dateLabel": "7 Nov 2026",
+   "series": [
+    {
+     "d": "6 Nov",
+     "v": "38",
+     "f": ""
+    },
+    {
+     "d": "7 Nov",
+     "v": "51",
+     "f": "L"
+    }
+   ]
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Oxygen saturation on blood gas (SO2)",
+   "detail": "",
+   "verbatim": "SO2c 88 %",
+   "cite": {
+    "page": 259,
+    "rid": "p259-abg"
+   },
+   "also": [
+    {
+     "page": 191,
+     "rid": "p191-abg"
+    }
+   ],
+   "confidence": 0.93,
+   "handwritten": false,
+   "flags": [],
+   "value": "88",
+   "unit": "%",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "7 Nov 2026",
+   "series": [
+    {
+     "d": "6 Nov",
+     "v": "77",
+     "f": ""
+    },
+    {
+     "d": "7 Nov",
+     "v": "88",
+     "f": ""
+    }
+   ]
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Creatinine",
+   "detail": "",
+   "verbatim": "CREAT 0.52",
+   "cite": {
+    "page": 198,
+    "rid": "p198-biochem"
+   },
+   "also": [
+    {
+     "page": 200,
+     "rid": "p200-labs"
+    },
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "value": "0.52",
+   "unit": "",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Urea",
+   "detail": "",
+   "verbatim": "UREA 12",
+   "cite": {
+    "page": 198,
+    "rid": "p198-biochem"
+   },
+   "also": [
+    {
+     "page": 200,
+     "rid": "p200-labs"
+    },
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "value": "12",
+   "unit": "",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "PT / INR",
+   "detail": "",
+   "verbatim": "PT/INR 10.8 / 1.02",
+   "cite": {
+    "page": 198,
+    "rid": "p198-lft"
+   },
+   "also": [
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "value": "10.8 / 1.02",
+   "unit": "",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Troponin T",
+   "detail": "",
+   "verbatim": "Trop T - 0.009",
+   "cite": {
+    "page": 251,
+    "rid": "p251-investigations"
+   },
+   "also": [
+    {
+     "page": 189,
+     "rid": "p189-labs"
+    },
+    {
+     "page": 191,
+     "rid": "p191-labs"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "value": "0.009",
+   "unit": "",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "CRP",
+   "detail": "",
+   "verbatim": "CRP 5 (5.0 on the progress sheet, 5.01 in the medicine note)",
+   "cite": {
+    "page": 198,
+    "rid": "p198-other"
+   },
+   "also": [
+    {
+     "page": 200,
+     "rid": "p200-labs"
+    },
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    },
+    {
+     "page": 189,
+     "rid": "p189-labs"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "value": "5",
+   "unit": "",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "LAB",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "HBsAg and HCV",
+   "detail": "",
+   "verbatim": "HBsAg NR · HCV NR (pre-anaesthetic record: Sero NR)",
+   "cite": {
+    "page": 198,
+    "rid": "p198-other"
+   },
+   "also": [
+    {
+     "page": 251,
+     "rid": "p251-investigations"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "value": "NR",
+   "unit": "",
+   "range": "",
+   "abnormal": "",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "ER-2026-11-05",
+   "title": "On arrival, emergency",
+   "detail": "BP 130/90 · Pulse 89 · SpO2 90% on room air (FiO2 21%) · RR 20 · GCS 15/15 · GRBS 260 mg/dl",
+   "verbatim": "RR 20/min · SpO2 90% @ FiO2 21% · Air entry: B/L Equal · HR 89 bpm · Rhythm: regular · BP 130/90 mmHg · GCS E4 V5 M6 15/15 · Focal neurologic deficits: Difficulty in (L) lower limb movement · GRBS 260 mg/dl",
+   "cite": {
+    "page": 170,
+    "rid": "p170-primary-survey"
+   },
+   "also": [],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "ER-2026-11-05",
+   "title": "Orthopaedic examination on arrival",
+   "detail": "BP 130/90 · Pulse 89 · Temp 38 °C · RR 20",
+   "verbatim": "Consciousness: conscious, oriented · Pupillary reaction: Bilaterally reactive · Pulse 89 /min (good), Regular · BP 130/90 mm of Hg · Temp 38 °C · Respiration 20 /min",
+   "cite": {
+    "page": 175,
+    "rid": "p175-general-exam"
+   },
+   "also": [],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [
+    "ambiguous"
+   ],
+   "role": "interim",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Transfer to ward",
+   "detail": "BP 130/90 · Pulse 90 · SpO2 95% · Temp 98.6 F · RR 20 · GCS 15",
+   "verbatim": "Temperature 98.6°F · Pulse 90 · BP 130/90 · RR 20 · SPO2 95% · GCS 15 · Existing pressure ulcers: No · On oxygen: Yes · On Nebulization: Yes",
+   "cite": {
+    "page": 210,
+    "rid": "p210-vitals"
+   },
+   "also": [],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "General medicine consult",
+   "detail": "BP 140/80 · Pulse 90 · SpO2 93% on 4 L O2 by nasal prongs",
+   "verbatim": "BP: 140/80 · PR: 90 bpm · SpO2: 93% on 4 L O2 via NP · CVS: S1 + S2 + · RS: B/L NVBS · PA: soft · CNS: HMF intact",
+   "cite": {
+    "page": 189,
+    "rid": "p189-vitals"
+   },
+   "also": [],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pulmonology consult",
+   "detail": "BP 140/80 · Pulse 95 · SpO2 93% on 2 L O2 · RR 20",
+   "verbatim": "PR: 95/min · SpO2: 93% on 2 L O2 · RR: 20 cpm · BP: 140/80 mmHg · R/S: B/L NVBS",
+   "cite": {
+    "page": 191,
+    "rid": "p191-vitals"
+   },
+   "also": [],
+   "confidence": 0.7,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "6 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pre-anaesthetic check",
+   "detail": "BP 160/80 · Pulse 89 · SpO2 94% on 4 L O2 · Temp afebrile · RR 28 · Wt ~60 kg",
+   "verbatim": "anxious · Pulse 89/min · BP 160/80 · RR 28/min, increased effort · Temp afebrile · SpO2 94% on 4 L O2 · GRBS 126 · Weight ~60 kg · Veins accessible · Spine: midline spaces not felt · CVS S1S2 · RS NVBS + · CNS HMF (N) · PA soft · under added cardiac risk",
+   "cite": {
+    "page": 250,
+    "rid": "p250-physical-exam"
+   },
+   "also": [],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [
+    "ambiguous"
+   ],
+   "role": "interim",
+   "dateLabel": "6 or 7 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pulmonology review before surgery",
+   "detail": "BP 130/80 · Pulse 82 · SpO2 96% with 4 L O2, 86% on room air · RR 21",
+   "verbatim": "CTPA ✓ · D-dimer = 2.1 · ABG ✓ · Vitals: BP 130/80 mmHg · PR 82 bpm · RR 21 bpm · SpO2 96% with 4L, 86% with RA · R/S: B/L NVBS · Patient can be taken up for surgery under high risk if surgery cannot be postponed.",
+   "cite": {
+    "page": 192,
+    "rid": "p192-review"
+   },
+   "also": [
+    {
+     "page": 254,
+     "rid": "p254-high-risk"
+    }
+   ],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Before surgery (transfer to theatre and immediate pre-op check)",
+   "detail": "BP 130/80 · Pulse 88 · SpO2 98% · Temp 98.6 · RR 20 · immediate pre-op check: HR 84, BP 142/83",
+   "verbatim": "Temperature 98.6 · Pulse 88 · BP 130/80 · RR 20 · SPO2 98% · Pain score 01/10 · Braden Score 17 · Existing pressure ulcers: No · On oxygen: Yes · On Nebulization: Yes",
+   "cite": {
+    "page": 212,
+    "rid": "p212-vitals"
+   },
+   "also": [
+    {
+     "page": 251,
+     "rid": "p251-fbs"
+    }
+   ],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "After anaesthesia, shifted to HDU",
+   "detail": "BP 140/75 · Pulse 84 · SpO2 97% on 6 L/min O2",
+   "verbatim": "Unplanned mechanical ventilation: NO · Adverse anaesthetic events: NO · Shifted to: HDU · BP 140/75 mmHg · Pulse 84/min · SpO2 97% on 6 L/min 100% O2 · PONV (-) · Reflexes (+) · Level of consciousness: Awake · As per HDU",
+   "cite": {
+    "page": 262,
+    "rid": "p262-post-anaesthesia"
+   },
+   "also": [
+    {
+     "page": 193,
+     "rid": "p193-review"
+    }
+   ],
+   "confidence": 0.75,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Post-operative day 1",
+   "detail": "BP 120/70 · Pulse 74 · SpO2 96% on 1 L O2 · RR 15",
+   "verbatim": "Vitals: HR 74/min · BP 120/70 · RR 15/min · SpO2 96% 1L O2 · GRBS: 263 · BP: 120/70 · postop Hb: 10.1 <- 12.5 · DT: 40ml · Dressing: No soakage · I/O: 2550/1440 ml · plan: Shift to ward, physio",
+   "cite": {
+    "page": 202,
+    "rid": "p202-pod1"
+   },
+   "also": [
+    {
+     "page": 214,
+     "rid": "p214-vitals"
+    }
+   ],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "8 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pulmonology review for oxygen saturation drop",
+   "detail": "BP 170/80 · Pulse 105 · SpO2 90% on room air · RR 23",
+   "verbatim": "Baseline SpO2 (May 26) = 98% RA · Baseline SpO2 @ presentation 90% RA (EMD sheet) · O/E: SOB (-) · PR 105 b/m · SpO2 90% RA · BP 170/80 mmHg · RR 23 cpm · R/S: bibasilar creps + · ? volume overload / Basal atelectasis · 1) NT-Pro BNP 2) Strict I/O charting 4) Maintain I=O 5) Continue O2 @ 1 L/min (SpO2 > 90%) 6) Incentive spirometry",
+   "cite": {
+    "page": 196,
+    "rid": "p196-review"
+   },
+   "also": [],
+   "confidence": 0.6,
+   "handwritten": true,
+   "flags": [
+    "lowConfidence"
+   ],
+   "role": "interim",
+   "dateLabel": "10 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "After physiotherapy",
+   "detail": "Pulse 83 · SpO2 92",
+   "verbatim": "Deep breathing exercises · Incentive spirometry · Static quads · ATM · PWB ambulation with walker · SpO2 - 92 · HR - 83 · Pt is stable post Rx",
+   "cite": {
+    "page": 246,
+    "rid": "p246-physio-10"
+   },
+   "also": [],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "interim",
+   "dateLabel": "10 Nov 2026"
+  },
+  {
+   "domain": "VIT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Post-operative day 4 (last recorded)",
+   "detail": "BP 140/90",
+   "verbatim": "Patient conscious, oriented · Vitals stable · No fresh complaints · GRBS - 133 · BP - 140/90 · Dressing: no soakage · plan: W/I today, Continue physio",
+   "cite": {
+    "page": 206,
+    "rid": "p206-pod4"
+   },
+   "also": [],
+   "confidence": 0.88,
+   "handwritten": true,
+   "flags": [],
+   "role": "last",
+   "dateLabel": "11 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Low oxygen saturation on room air during this admission",
+   "detail": "SpO2 90% on room air on arrival, 86% on room air before surgery (7 Nov) and 90% on room air on 10 Nov. Oxygen at 2 L/min is still on the orders of 12 Nov; the discharge summary does not mention oxygen.",
+   "verbatim": "CTPA ✓ · D-dimer = 2.1 · ABG ✓ · Vitals: BP 130/80 mmHg · PR 82 bpm · RR 21 bpm · SpO2 96% with 4L, 86% with RA · R/S: B/L NVBS · Patient can be taken up for surgery under high risk if surgery cannot be postponed.",
+   "cite": {
+    "page": 192,
+    "rid": "p192-review"
+   },
+   "also": [
+    {
+     "page": 170,
+     "rid": "p170-primary-survey"
+    },
+    {
+     "page": 259,
+     "rid": "p259-abg"
+    },
+    {
+     "page": 196,
+     "rid": "p196-review"
+    },
+    {
+     "page": 244,
+     "rid": "p244-orders"
+    },
+    {
+     "page": 240,
+     "rid": "p240-orders"
+    }
+   ],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [],
+   "role": "alert",
+   "group": "Keep in mind",
+   "dateLabel": "5 to 12 Nov 2026",
+   "short": "low oxygen saturation on room air during this admission (86% before surgery)"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Fasting blood sugar 40 on the morning of surgery",
+   "detail": "FBS 40 (circled) on 7 Nov, GRBS 108 afterwards. Glimy M1 is marked W/H on the orders of 8 to 10 Nov and is given again from 11 Nov; it is continued on discharge.",
+   "verbatim": "Heart rate 84 /min · Blood pressure 142/83 mmHg · NPO status, investigation reports: checked · FBS (40, circled) -> GRBS -> 108",
+   "cite": {
+    "page": 251,
+    "rid": "p251-fbs"
+   },
+   "also": [
+    {
+     "page": 196,
+     "rid": "p196-labs"
+    },
+    {
+     "page": 227,
+     "rid": "p227-orders"
+    },
+    {
+     "page": 239,
+     "rid": "p239-orders"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "alert",
+   "group": "Keep in mind",
+   "dateLabel": "7 Nov 2026",
+   "short": "a fasting blood sugar of 40 on the morning of surgery (7 Nov 2026)"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Thyroid lesions seen on CT, ultrasound suggested",
+   "detail": "CT pulmonary angiography (07/11/2026) notes hypodense lesions with calcification in the right lobe of the thyroid and suggests ultrasound correlation if clinically indicated. No thyroid ultrasound is in this file.",
+   "verbatim": "-Right and left pulmonary arteries are prominent in calibre, however, no evidence of acute pulmonary embolism. -Bilateral(right>left) dependent basal atelectasis. -Hypodense lesions with calcification in right lobe of thyroid. Suggested USG correlation if clinically indicated.",
+   "cite": {
+    "page": 165,
+    "rid": "p165-ctpa"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "alert",
+   "group": "Keep in mind",
+   "dateLabel": "7 Nov 2026",
+   "short": "hypodense calcified lesions in the right lobe of the thyroid on CT (ultrasound correlation suggested)"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Difficult airway features noted by anaesthesia",
+   "detail": "Edentulous, hollow cheeks, short neck, Mallampati class 3. The surgical safety checklist marks difficult airway or aspiration risk as yes.",
+   "verbatim": "Teeth: edentulous · hollow cheeks, short neck · Denture: (-) · Mouth opening: > 6 cm · Thyromental distance: 6 cm · Neck movements: not assessed · BHT < 8 sec · Mallampati: Class 3 (circled)",
+   "cite": {
+    "page": 250,
+    "rid": "p250-airway"
+   },
+   "also": [
+    {
+     "page": 270,
+     "rid": "p270-airway"
+    },
+    {
+     "page": 254,
+     "rid": "p254-high-risk"
+    }
+   ],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [],
+   "role": "alert",
+   "group": "Keep in mind",
+   "dateLabel": "7 Nov 2026",
+   "short": "difficult airway features (Mallampati class 3, short neck, edentulous)"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pain over left hip",
+   "detail": "Pain over left hip after an alleged slip and fall at home on 05/11/26: sudden in onset, severe, non radiating; not able to bear weight on the left lower limb. No loss of consciousness, ENT bleed or seizures.",
+   "verbatim": "Pain over left hip",
+   "cite": {
+    "page": 164,
+    "rid": "p164-complaint"
+   },
+   "also": [
+    {
+     "page": 164,
+     "rid": "p164-hpi"
+    },
+    {
+     "page": 174,
+     "rid": "p174-complaint"
+    },
+    {
+     "page": 180,
+     "rid": "p180-hpi"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "complaint",
+   "group": "Course",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "ER-2026-11-05",
+   "title": "How the injury happened",
+   "detail": "Slip and fall from stairs at home at 11 am on 05/11/2026; reached the trauma centre at 1:15 pm. The pre-anaesthetic record writes the date of the fall as 6/11/26.",
+   "verbatim": "Mechanism of Injury: Alleged history of slip and fall from stairs at [place removed] (Home) · Time and Date of Injury: 11am 05/11/2026 · H/o loss of consciousness: Absent · H/o bleeding from ENT: Absent · Referred by: self · Immunisation status: Not Known",
+   "cite": {
+    "page": 174,
+    "rid": "p174-mechanism"
+   },
+   "also": [
+    {
+     "page": 171,
+     "rid": "p171-mechanism"
+    },
+    {
+     "page": 170,
+     "rid": "p170-triage"
+    },
+    {
+     "page": 180,
+     "rid": "p180-hpi"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [
+    "conflict"
+   ],
+   "role": "detail",
+   "group": "Course",
+   "dateLabel": "5 Nov 2026",
+   "conflictWith": {
+    "text": "A/H/O slip & fall in steps @ home on 6/11/26",
+    "page": 250,
+    "rid": "p250-history"
+   }
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "ER-2026-11-05",
+   "title": "Examination on admission",
+   "detail": "Left lower limb shortened and externally rotated, tenderness over the left hip, movement of left hip and knee not assessed due to pain. Distal pulses palpable and sensations intact. No other injuries on the secondary survey.",
+   "verbatim": "Left lower limb shortened and externally rotated · No external injuries · No swelling · Tenderness present over left hip · ROM left hip and knee couldn't be assessed due to pain · ROM Right hip, Knee, both ankles - within normal limits · Active toe movements present bilaterally · Distal pulses palpable. Distal sensations intact",
+   "cite": {
+    "page": 176,
+    "rid": "p176-local-exam"
+   },
+   "also": [
+    {
+     "page": 182,
+     "rid": "p182-local-exam"
+    },
+    {
+     "page": 172,
+     "rid": "p172-secondary-survey"
+    },
+    {
+     "page": 164,
+     "rid": "p164-exam"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "detail",
+   "group": "Course",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Hospital course (discharge summary)",
+   "detail": "Diagnosed clinically and on imaging; after pre-anaesthetic clearances and consents, operated on 07/11/2026. Intra-operative and post-operative period uneventful. Wound inspected on POD2 and POD4 and found healthy. Supervised physiotherapy with partial weight bearing mobilisation. Symptomatically better at discharge.",
+   "verbatim": "The patient came with the above mentioned complaints and was clinicoradiologically diagnosed as mentioned above. After appropriate pre-anaesthetic clearances and informed consents, the patient underwent on 07/11/2026. Intra-op and Post-op period was uneventful. Wound inspection was done as per unit protocol on POD2, POD4, and was found to be healthy. The patient underwent supervised physiotherapy in the form of PWB mobilization with crutches, knee ROM, sQSE, ankle pumps. The patient is symptomatically better, hence being discharged with the following advice",
+   "cite": {
+    "page": 166,
+    "rid": "p166-course"
+   },
+   "also": [
+    {
+     "page": 166,
+     "rid": "p166-icu"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "5 to 12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "ER-2026-11-05",
+   "title": "Emergency department treatment",
+   "detail": "Triage P3. Inj. Finamac 1 g IV, IV fluid RL at 75 ml/hr, Duolin and Budecort nebulisation (2 cycles), Inj. Hydrocort 100 mg IV stat and oxygen 4 L by nasal prongs. Provisional diagnosis written as ? IT fracture left, ? NOF fracture. Plan: admission, pre-operative work-up, skin traction.",
+   "verbatim": "1) Inj. FINAMAC 1g IV · 2) IVF RL @ 75 ml/hr · Neb Duolin 1 resp, Neb Budecort 1 resp: 2 cycle · Inj. Hydrocort 100mg IV stat · Oxygen mask 4 l via nasal prongs",
+   "cite": {
+    "page": 171,
+    "rid": "p171-treatment"
+   },
+   "also": [
+    {
+     "page": 170,
+     "rid": "p170-triage"
+    },
+    {
+     "page": 172,
+     "rid": "p172-provisional"
+    },
+    {
+     "page": 178,
+     "rid": "p178-plan"
+    }
+   ],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Cardiology opinion",
+   "detail": "Echo normal study with EF 63%, ECG normal sinus rhythm. Can be taken up for the planned surgery under added cardiac risk.",
+   "verbatim": "Case details noted · ECHO - (N) study, 63% EF · ECG - NSR · Planned for (L) Bipolar hemiarthroplasty · Adv: pt. can be taken up for planned Sx under (arrow symbol) added cardiac risk.",
+   "cite": {
+    "page": 185,
+    "rid": "p185-opinion"
+   },
+   "also": [
+    {
+     "page": 164,
+     "rid": "p164-subconsult"
+    }
+   ],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "6 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Surgical oncology opinion",
+   "detail": "Old case of SCC over the natal cleft, wide local excision with primary closure in 2017; biopsy well differentiated SCC, margin free; last follow up May 2023. Scar healthy, no sign of local recurrence. Orthopaedics to proceed with the planned procedure.",
+   "verbatim": "Old case of SCC over natal cleft -> S/P WLE + 1° closure done in 2017. Last follow up - May 2023. Biopsy -> WD SCC -> margin free. L/E: Scar healthy. No signs of any LRR. Orthopaedics to proceed with planned procedure.",
+   "cite": {
+    "page": 187,
+    "rid": "p187-opinion"
+   },
+   "also": [
+    {
+     "page": 200,
+     "rid": "p200-note"
+    }
+   ],
+   "confidence": 0.78,
+   "handwritten": true,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "General medicine opinion",
+   "detail": "Cardiac and pulmonology clearance advised. Can be posted for surgery if BP is below 140/90 and pre-operative GRBS is below a limit that is overwritten on the page. Withhold oral antidiabetic medicines on the day of surgery and give IV DNS with 8 units neutralising dose of Actrapid.",
+   "verbatim": "1. Cardiac clearance 2. PTCD clearance 3. Pt. can be posted for surgery if BP < 140/90 and GRBS pre op < [overwritten number] mg/dl after being cleared for Surgery by PTCD & Cardiology. 4. W/H OHAs on day of surgery & give IVF DNS with 8 U neutralising dose of Actrapid",
+   "cite": {
+    "page": 189,
+    "rid": "p189-advice"
+   },
+   "also": [
+    {
+     "page": 188,
+     "rid": "p188-diagnosis"
+    },
+    {
+     "page": 189,
+     "rid": "p189-vitals"
+    }
+   ],
+   "confidence": 0.75,
+   "handwritten": true,
+   "flags": [
+    "partlyRead"
+   ],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pulmonology opinion before surgery",
+   "detail": "No active respiratory complaints; history of acute bronchitis in May 2026; biomass exposure marked positive. D-dimer and room air ABG were advised; D-dimer 2.1, so CT pulmonary angiography was done to rule out pulmonary thromboembolism. On review, the patient can be taken up for surgery under high risk if surgery cannot be postponed.",
+   "verbatim": "CTPA ✓ · D-dimer = 2.1 · ABG ✓ · Vitals: BP 130/80 mmHg · PR 82 bpm · RR 21 bpm · SpO2 96% with 4L, 86% with RA · R/S: B/L NVBS · Patient can be taken up for surgery under high risk if surgery cannot be postponed.",
+   "cite": {
+    "page": 192,
+    "rid": "p192-review"
+   },
+   "also": [
+    {
+     "page": 190,
+     "rid": "p190-history"
+    },
+    {
+     "page": 191,
+     "rid": "p191-ddimer"
+    },
+    {
+     "page": 191,
+     "rid": "p191-vitals"
+    },
+    {
+     "page": 164,
+     "rid": "p164-subconsult"
+    }
+   ],
+   "confidence": 0.78,
+   "handwritten": true,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "6 to 7 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pulmonology review after surgery",
+   "detail": "CT pulmonary angiography negative for acute pulmonary thromboembolism, with bilateral dependent basal atelectasis. Continue Duolin Q8H and Budecort Q12H nebulisation and oxygen to keep saturation above 90%, chest physiotherapy and incentive spirometry.",
+   "verbatim": "CTPA: (R) & (L) PA prominent, but no e/o acute PTE; B/L (R>L) dependent basal atelectasis · Vitals: BP 142/75 mmHg, PR 79 bpm, RR 13 cpm, SpO2 98% with 6 L O2 via face mask · 1) CTPA (-) 2) Continue nebulized bronchodilators (NEB DUOLIN Q8H, NEB BUDECORT Q12H) and oxygen supplementation (to maintain O2 sat > 90%) 3) Chest Physiotherapy 4) Incentive Spirometry",
+   "cite": {
+    "page": 193,
+    "rid": "p193-review"
+   },
+   "also": [],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pulmonology review for oxygen saturation drop",
+   "detail": "Reviewed for a saturation drop: SpO2 90% on room air, pulse 105, BP 170/80, bibasilar creps; ? volume overload or basal atelectasis. Advised NT-proBNP, strict intake and output charting, oxygen at 1 L/min to keep SpO2 above 90% and incentive spirometry. The page is hard to read and undated.",
+   "verbatim": "Baseline SpO2 (May 26) = 98% RA · Baseline SpO2 @ presentation 90% RA (EMD sheet) · O/E: SOB (-) · PR 105 b/m · SpO2 90% RA · BP 170/80 mmHg · RR 23 cpm · R/S: bibasilar creps + · ? volume overload / Basal atelectasis · 1) NT-Pro BNP 2) Strict I/O charting 4) Maintain I=O 5) Continue O2 @ 1 L/min (SpO2 > 90%) 6) Incentive spirometry",
+   "cite": {
+    "page": 196,
+    "rid": "p196-review"
+   },
+   "also": [
+    {
+     "page": 193,
+     "rid": "p193-referral-10"
+    },
+    {
+     "page": 236,
+     "rid": "p236-orders"
+    }
+   ],
+   "confidence": 0.6,
+   "handwritten": true,
+   "flags": [
+    "lowConfidence",
+    "partlyRead"
+   ],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "10 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Ophthalmology opinion",
+   "detail": "Seen at the bedside for itching and discharge in both eyes for 2 days. Greenish discharge at the fornix in both eyes; impression acute bacterial conjunctivitis. Mosi and Eyemist eye drops 1-1-1-1 in both eyes for 2 weeks. The visual acuity entry could not be read.",
+   "verbatim": "Discharge ++ @ fornix (BE) (greenish) · Imp: Acute Bacterial conjunctivitis · Adv: G. MOSI 1-1-1-1, G. EYEMIST 1-1-1-1 (BE) x 2 weeks · R/w in Eye OPD (1) once stable & shiftable (mon, wed, fri)",
+   "cite": {
+    "page": 195,
+    "rid": "p195-impression"
+   },
+   "also": [
+    {
+     "page": 194,
+     "rid": "p194-history"
+    },
+    {
+     "page": 164,
+     "rid": "p164-subconsult"
+    }
+   ],
+   "confidence": 0.65,
+   "handwritten": true,
+   "flags": [
+    "partlyRead"
+   ],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "6 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Progress after surgery",
+   "detail": "POD 1 (8 Nov): drain 40 ml, dressing dry, intake/output 2550/1440 ml, shifted from HDU to the ward. POD 2: drain 6 ml, partial weight bearing mobilisation. POD 3: no soakage. POD 4: wound inspection that day. POD 5 (12 Nov): vitals stable, no fresh complaints, discharge.",
+   "verbatim": "Vitals: HR 74/min · BP 120/70 · RR 15/min · SpO2 96% 1L O2 · GRBS: 263 · BP: 120/70 · postop Hb: 10.1 <- 12.5 · DT: 40ml · Dressing: No soakage · I/O: 2550/1440 ml · plan: Shift to ward, physio",
+   "cite": {
+    "page": 202,
+    "rid": "p202-pod1"
+   },
+   "also": [
+    {
+     "page": 203,
+     "rid": "p203-pod2"
+    },
+    {
+     "page": 204,
+     "rid": "p204-pod3"
+    },
+    {
+     "page": 206,
+     "rid": "p206-pod4"
+    },
+    {
+     "page": 208,
+     "rid": "p208-pod5"
+    }
+   ],
+   "confidence": 0.86,
+   "handwritten": true,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "8 to 12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Physiotherapy",
+   "detail": "Before surgery: deep breathing and incentive spirometry. From POD 2 (9 Nov): made to stand, partial weight bearing walking with a walker, static quadriceps and ankle exercises; later heel slides, straight leg raise and edge of bed sitting.",
+   "verbatim": "PT Rx: Deep breathing Ex · Incentive Spirometry (900 cc/sec) · static Quads · Ankle toe movements · pt was made to stand with walker · PWB ambulation with walker",
+   "cite": {
+    "page": 246,
+    "rid": "p246-physio-9"
+   },
+   "also": [
+    {
+     "page": 248,
+     "rid": "p248-physio-pre"
+    },
+    {
+     "page": 246,
+     "rid": "p246-physio-10"
+    },
+    {
+     "page": 247,
+     "rid": "p247-physio-11"
+    },
+    {
+     "page": 230,
+     "rid": "p230-orders"
+    }
+   ],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "6 to 12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Skin traction, urinary catheter and drain",
+   "detail": "Skin traction with 3 kg weight before surgery. Foley's catheter (insertion date written as 05/11/26 on one transfer sheet and 6/11/26 on another); clamp and release from 9 Nov with removal ordered for 10 Nov at 6 am. Surgical drain placed on 7 Nov.",
+   "verbatim": "Monitor vitals, BP Q6H, W/F soakage, inform SOS · Chest physio: DBE, Incentive spirometry · Physio (BD): Make her stand followed by PWB mobilization with walker; QSE, Ankle pumps · T. LIMCEE 500  1-0-1 · clamp & release catheter Q4H · Remove catheter tomorrow (6am)",
+   "cite": {
+    "page": 230,
+    "rid": "p230-orders"
+   },
+   "also": [
+    {
+     "page": 217,
+     "rid": "p217-orders"
+    },
+    {
+     "page": 212,
+     "rid": "p212-lines"
+    },
+    {
+     "page": 214,
+     "rid": "p214-lines"
+    }
+   ],
+   "confidence": 0.82,
+   "handwritten": true,
+   "flags": [],
+   "role": "course",
+   "group": "Course",
+   "dateLabel": "5 to 10 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Medicines given in hospital",
+   "detail": "IV Augmentin 1.2 g Q12H (7 to 12 Nov) and IV Teiconin 400 mg (2 doses); IV tramadol alternating with IV paracetamol, Emeset before tramadol; Clexane 0.4 ml SC once daily (withheld 6 Nov); Human Actrapid SC by sugar readings; Duolin and Budecort nebulisations; Gastrorid/Pan, Chymoral BR, Rozavel, Stamlo, Evion, Limcee, Mosi and Just Tears eye drops. Glimy M1 is marked W/H on 8 to 10 Nov.",
+   "verbatim": "Inj AUGMENTIN 1.2g IV Q12H (D1) · Inj TEICONIN 400mg IV Q24H (D1/D2) · Inj TRAMADOL 50mg/100ml NS IV Q12H alt Inj FINAMAC 1g IV Q12H · Inj EMESET 4mg IV 30 min before TRAMADOL · Inj PAN 40mg IV STAT · IVF NS/RL till NPO · After NPO: T. CHYMORAL BR 1-0-1",
+   "cite": {
+    "page": 224,
+    "rid": "p224-postop"
+   },
+   "also": [
+    {
+     "page": 225,
+     "rid": "p225-postop"
+    },
+    {
+     "page": 216,
+     "rid": "p216-orders"
+    },
+    {
+     "page": 226,
+     "rid": "p226-orders"
+    },
+    {
+     "page": 227,
+     "rid": "p227-orders"
+    },
+    {
+     "page": 228,
+     "rid": "p228-orders"
+    },
+    {
+     "page": 242,
+     "rid": "p242-orders"
+    },
+    {
+     "page": 243,
+     "rid": "p243-orders"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "hospitalMeds",
+   "group": "Course",
+   "dateLabel": "5 to 12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Sub-consultations listed on the discharge summary",
+   "detail": "Cardiology (surgical clearance), Pulmonology (acute bronchitis and decreased SpO2 saturation) and Ophthalmology (eye discharge); advice followed for all three.",
+   "verbatim": "Cardio 1: surgical clearance, Advice followed · PUL 2: i/v/o Acute bronchitis and decreased SpO2 saturation, Advice followed · Eye 1: i/v/o eye discharge, Advice followed",
+   "cite": {
+    "page": 164,
+    "rid": "p164-subconsult"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "detail",
+   "group": "Course",
+   "dateLabel": "5 to 12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Condition at discharge",
+   "detail": "Stable, afebrile. Partial weight bearing with walker, on knee immobilizer. Bedsore over the right gluteal region with a coloplast patch applied. The admission record marks the result as Improved.",
+   "verbatim": "Stable, afebrile · PWB with walker · On knee immobilizer · Bedsore present over right gluteal region- coloplast patch applied",
+   "cite": {
+    "page": 166,
+    "rid": "p166-condition"
+   },
+   "also": [
+    {
+     "page": 144,
+     "rid": "p144-result"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "conditionAtDischarge",
+   "group": "Course",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Discharged on 12 Nov 2026",
+   "detail": "Admitted 05/11/2026, discharged 12/11/2026.",
+   "verbatim": "05/11/2026 · 12/11/2026",
+   "cite": {
+    "page": 164,
+    "rid": "p164-dates"
+   },
+   "also": [
+    {
+     "page": 144,
+     "rid": "p144-admitted"
+    },
+    {
+     "page": 208,
+     "rid": "p208-pod5"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "dischargeDate",
+   "group": "Course",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Suture removal on 21/11/2026 at local hospital",
+   "detail": "Suture removal on 21/11/2026 (Saturday) at the local hospital.",
+   "verbatim": "Suture removal on 21/11/2026(Saturday) at local hospital · Review in Ortho 4 OPD on 09/12/2026 (Wednesday) for follow up · Review in PTCD 2 OPD on 09/12/2026 (Wednesday) for follow up. · KINDLY BRING WALKER ON REVIEW",
+   "cite": {
+    "page": 167,
+    "rid": "p167-follow-up"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "followUp",
+   "group": "Course",
+   "dateLabel": "21 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Review in Orthopaedics and Pulmonology OPD on 09/12/2026",
+   "detail": "Review in Ortho 4 OPD and in PTCD 2 OPD on 09/12/2026 (Wednesday). Bring the walker.",
+   "verbatim": "Suture removal on 21/11/2026(Saturday) at local hospital · Review in Ortho 4 OPD on 09/12/2026 (Wednesday) for follow up · Review in PTCD 2 OPD on 09/12/2026 (Wednesday) for follow up. · KINDLY BRING WALKER ON REVIEW",
+   "cite": {
+    "page": 167,
+    "rid": "p167-follow-up"
+   },
+   "also": [
+    {
+     "page": 168,
+     "rid": "p168-review-date"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "followUp",
+   "group": "Course",
+   "dateLabel": "9 Dec 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Advice on discharge",
+   "detail": "Wound care and hygiene; change patch dressings once in 3 days; physiotherapy (partial weight bearing with walker, QSE, SLR, knee ROM, ankle pumps); no left hip adduction, flexion and internal rotation; chest physiotherapy; ice packs; abduction pillow between the legs.",
+   "verbatim": "Maintain hygiene and wound care · Continue medications as advised · Change patch dressings once in 3 days as advised · Continue physiotherapy as advised (PWB mobilization with walker, QSE, SLR, Knee ROM, ankle pumps) · NO LEFT HIP ADDUCTION,FLEXION AND INTERNAL ROTATION · Continue chest physio (DBE, Incentive spirometry) · Icepacks to continue · Abduction pillow between the legs to continue",
+   "cite": {
+    "page": 167,
+    "rid": "p167-advice"
+   },
+   "also": [],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "followUp",
+   "group": "Course",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Diet and when to call",
+   "detail": "Low salt diet, diabetic diet. Call the hospital if fever or pain.",
+   "verbatim": "low salt diet · Diabetic diet",
+   "cite": {
+    "page": 167,
+    "rid": "p167-diet"
+   },
+   "also": [
+    {
+     "page": 167,
+     "rid": "p167-contact"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "followUp",
+   "group": "Course",
+   "dateLabel": "12 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Eye OPD review once stable (ophthalmology note)",
+   "detail": "Ophthalmology asked for a review in Eye OPD once stable and shiftable. This review is not listed in the discharge summary.",
+   "verbatim": "Discharge ++ @ fornix (BE) (greenish) · Imp: Acute Bacterial conjunctivitis · Adv: G. MOSI 1-1-1-1, G. EYEMIST 1-1-1-1 (BE) x 2 weeks · R/w in Eye OPD (1) once stable & shiftable (mon, wed, fri)",
+   "cite": {
+    "page": 195,
+    "rid": "p195-impression"
+   },
+   "also": [],
+   "confidence": 0.68,
+   "handwritten": true,
+   "flags": [
+    "lowConfidence"
+   ],
+   "role": "followUp",
+   "group": "Course",
+   "dateLabel": "6 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "CT brain, plain (05/11/2026)",
+   "detail": "Chronic small vessel ischaemic changes with age related cerebral atrophy. No evidence of trauma related neuro-parenchymal injury.",
+   "verbatim": "Intra axial confluent hypodense areas noted in centrum semiovale, periventricular white matter and corona radiate regions- s/o chronic small vessel ischaemic changes. Sulci, ventricles and cisterns are prominent - age related cerebral atrophy. No e/o extra axial lesions/collection. Mucosal thickening of sphenoid sinus noted. Left concha bullosa noted.",
+   "cite": {
+    "page": 165,
+    "rid": "p165-ct-brain"
+   },
+   "also": [
+    {
+     "page": 165,
+     "rid": "p165-ct-impression"
+    },
+    {
+     "page": 265,
+     "rid": "p265-ct-note"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "investigation",
+   "group": "Investigations",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "CT cervical spine, plain (05/11/2026)",
+   "detail": "No evidence of trauma related cervical spine injury. Diffuse osteopenia and degenerative changes (anterior marginal osteophytes, uncovertebral hypertrophy).",
+   "verbatim": "Craniovertebral junction is normal. Vertebrae are normal in alignment. Disc spaces are grossly maintained. Diffuse osteopenia. Degenerative changes in the form of anterior marginal osteophytes, uncovertebral hypertrophy.",
+   "cite": {
+    "page": 165,
+    "rid": "p165-ct-cspine"
+   },
+   "also": [
+    {
+     "page": 165,
+     "rid": "p165-ct-impression"
+    },
+    {
+     "page": 265,
+     "rid": "p265-ct-note"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "investigation",
+   "group": "Investigations",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "CT pulmonary angiography (07/11/2026)",
+   "detail": "No evidence of acute pulmonary embolism; right and left pulmonary arteries prominent in calibre. Bilateral (right more than left) dependent basal atelectasis. Hypodense lesions with calcification in the right lobe of the thyroid.",
+   "verbatim": "-Right and left pulmonary arteries are prominent in calibre, however, no evidence of acute pulmonary embolism. -Bilateral(right>left) dependent basal atelectasis. -Hypodense lesions with calcification in right lobe of thyroid. Suggested USG correlation if clinically indicated.",
+   "cite": {
+    "page": 165,
+    "rid": "p165-ctpa"
+   },
+   "also": [
+    {
+     "page": 193,
+     "rid": "p193-review"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "investigation",
+   "group": "Investigations",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Echocardiogram (5/11/26)",
+   "detail": "EF 63%, normal biventricular systolic function, no regional wall motion abnormality. MAC present, mild MR, LVH, mild LVDD, TR present, no PAH. The cardiology note calls it a normal study.",
+   "verbatim": "EF 63% · (N) BV sys func · no RWMA · MAC (+) · mild MR · LVH (+) · mild LVDD · TR (+) · no PAH",
+   "cite": {
+    "page": 251,
+    "rid": "p251-echo"
+   },
+   "also": [
+    {
+     "page": 185,
+     "rid": "p185-opinion"
+    },
+    {
+     "page": 189,
+     "rid": "p189-echo"
+    },
+    {
+     "page": 254,
+     "rid": "p254-high-risk"
+    }
+   ],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "investigation",
+   "group": "Investigations",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "ECG",
+   "detail": "Normal sinus rhythm, rate 80, no ST-T changes, PR and QTc within normal limits.",
+   "verbatim": "(N) SR rate 80 · no ST-T · PR / QTc WNL",
+   "cite": {
+    "page": 251,
+    "rid": "p251-ecg"
+   },
+   "also": [
+    {
+     "page": 185,
+     "rid": "p185-opinion"
+    }
+   ],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "investigation",
+   "group": "Investigations",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Chest X-ray",
+   "detail": "General medicine: left sided homogenous opacification of the lung field, cardiophrenic and costophrenic angles not blunted. Pulmonology: rotated film, cannot comment.",
+   "verbatim": "(L) sided homogenous opacification of lung field. Cardio & Costo Phrenic angles not blunted · CT yet to be reported",
+   "cite": {
+    "page": 189,
+    "rid": "p189-cxr"
+   },
+   "also": [
+    {
+     "page": 251,
+     "rid": "p251-cxr"
+    }
+   ],
+   "confidence": 0.75,
+   "handwritten": true,
+   "flags": [
+    "conflict"
+   ],
+   "role": "investigation",
+   "group": "Investigations",
+   "dateLabel": "5 Nov 2026",
+   "conflictWith": {
+    "text": "Rotated film. Cannot comment",
+    "page": 191,
+    "rid": "p191-cxr"
+   }
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "ER-2026-11-05",
+   "title": "X-ray pelvis and left femur",
+   "detail": "Left femur neck fracture.",
+   "verbatim": "left femur neck fracture",
+   "cite": {
+    "page": 178,
+    "rid": "p178-radiology"
+   },
+   "also": [
+    {
+     "page": 178,
+     "rid": "p178-plan"
+    }
+   ],
+   "confidence": 0.85,
+   "handwritten": true,
+   "flags": [],
+   "role": "investigation",
+   "group": "Investigations",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "ER-2026-11-05",
+   "title": "E-FAST in emergency",
+   "detail": "E-FAST negative, with lung sliding present on both sides.",
+   "verbatim": "all views marked (-) · with B/L lung sliding (+)",
+   "cite": {
+    "page": 171,
+    "rid": "p171-efast"
+   },
+   "also": [
+    {
+     "page": 250,
+     "rid": "p250-efast"
+    }
+   ],
+   "confidence": 0.7,
+   "handwritten": true,
+   "flags": [],
+   "role": "investigation",
+   "group": "Investigations",
+   "dateLabel": "5 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Operation report: what was done",
+   "detail": "Right lateral decubitus, Southern Moore approach with a 15 cm curved incision. Fractured femoral head extracted; 28 mm head chosen; 40 mm cement stopper and a cemented femoral stem size 8 in about 15 degrees of anteversion. Drain placed. Above knee compression and knee immobilizer applied; shifted out with stable vitals. Counts verified. Approximate blood loss 200 ml.",
+   "verbatim": "a head size of 28mm was chosen. Broaching was done on femur serially from small to larger size (till 9 size) keeping anteversion ~15 degree. Trial implants were placed; head reduced and hip range of movements assessed. Cement stopper (40mm) was inserted in the femoral canal. A cemented femoral stem (size 8) inserted in approximately 15 degrees of anteversion. Irrigation done, hemostasis achieved and drain placed. Capsular layer sutured with vicryl no.1, short external rotators sutured through transosseously with GT. Deep fascia closed with Stratafix and subcutaneus closure done with Vicryl 1-0. Skin closed with stratafix. Above knee compression & knee immobilizer were applied and patient shifted out with stable vitals",
+   "cite": {
+    "page": 269,
+    "rid": "p269-steps"
+   },
+   "also": [
+    {
+     "page": 268,
+     "rid": "p268-steps"
+    },
+    {
+     "page": 268,
+     "rid": "p268-incision"
+    },
+    {
+     "page": 269,
+     "rid": "p269-closure"
+    },
+    {
+     "page": 268,
+     "rid": "p268-anaesthesia"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "detail",
+   "group": "Surgery",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Implants",
+   "detail": "CORAIL cemented femoral stem 12/14 AMT 135° size 8 standard no collar; Aqurate cement stopper 40 mm; self centering bipolar head 28 mm ID 43 mm OD; ARTICUL/EZE femoral head 28 mm +1.5 12/14 taper; SmartSet GHV gentamicin bone cement 40 g.",
+   "verbatim": "CORAIL Hip system cemented Femoral stem 12/14 AMT 135° size 8 standard no collar · Aqurate cement stopper diameter 40mm UHMWPE · Self centering Bipolar head 28mm ID 43mm OD · ARTICUL/EZE Femoral head 28mm +1.5 12/14 taper · SmartSet GHV Gentamicin bone cement 40g",
+   "cite": {
+    "page": 165,
+    "rid": "p165-implants"
+   },
+   "also": [
+    {
+     "page": 269,
+     "rid": "p269-implants"
+    },
+    {
+     "page": 269,
+     "rid": "p269-implant-labels"
+    }
+   ],
+   "confidence": 0.95,
+   "handwritten": false,
+   "flags": [],
+   "role": "detail",
+   "group": "Surgery",
+   "dateLabel": "7 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pre-anaesthetic assessment",
+   "detail": "High risk consent. Plan: subarachnoid block or general anaesthesia, with or without a block. Pantoprazole 40 mg at night and at 6 am, antidiabetic medicines withheld, IV fluid with neutralising insulin in DNS, Duolin and Budecort nebulisation at night and 30 minutes before the procedure; pulmonology clearance to be reviewed on the morning of surgery.",
+   "verbatim": "under SAB / GA ± Block · T. PANTAPRAZOLE 40mg HS & 6 AM · To cont all medication as per schedule · PTCD clearance -> will be reviewed in the morning prior procedure (i/v/o decreased SpO2, raised RR, CXR changes) · High risk informed consent · NPO: Solids 8 hrs, Clear fluids 2 hr · Arrange blood products: adequately · Investigations required: FBS · To W/H Antidiabetic medication · IVF with neutralising dose of Insulin in DNS as per Medicine order · Neb. Duolin, Budecort: HS & 30 mins prior procedure",
+   "cite": {
+    "page": 251,
+    "rid": "p251-plan"
+   },
+   "also": [
+    {
+     "page": 250,
+     "rid": "p250-airway"
+    },
+    {
+     "page": 250,
+     "rid": "p250-physical-exam"
+    },
+    {
+     "page": 254,
+     "rid": "p254-high-risk"
+    },
+    {
+     "page": 250,
+     "rid": "p250-history"
+    }
+   ],
+   "confidence": 0.8,
+   "handwritten": true,
+   "flags": [],
+   "role": "anaesthesia",
+   "group": "Surgery",
+   "dateLabel": "6 or 7 Nov 2026"
+  },
+  {
+   "domain": "RPT",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Anaesthesia given",
+   "detail": "Subarachnoid block at L3-L4 (2.2 ml of 0.5% heavy bupivacaine + 30 mcg clonidine) with left femoral and left lateral femoral cutaneous nerve blocks under ultrasound (10 ml 0.5% levobupivacaine + 10 ml 2% lignoadrenaline + 4 mg dexamethasone). Spontaneous breathing with face mask oxygen, SpO2 92 to 93%. Blood loss written as 500 ml. No adverse anaesthetic events; shifted to HDU.",
+   "verbatim": "Technique: subarachnoid block · Position: sitting · Approach: midline · Space: L3-L4 · Needle type: 23G Quincke Babcock's needle · Drug injected/Dose: 2.2 ml of 0.5% Heavy bupivacaine + 30 mcg of clonidine · Adequacy of block: Adequate · (L) femoral + (L) LFCN block under USG guidance: 10 ml of 0.5% levobupivacaine + 10 ml of 2% lignoadrenaline + 4 mg dexamethasone - adequate analgesia",
+   "cite": {
+    "page": 261,
+    "rid": "p261-regional"
+   },
+   "also": [
+    {
+     "page": 257,
+     "rid": "p257-record"
+    },
+    {
+     "page": 260,
+     "rid": "p260-fluids"
+    },
+    {
+     "page": 262,
+     "rid": "p262-post-anaesthesia"
+    },
+    {
+     "page": 268,
+     "rid": "p268-anaesthesia"
+    }
+   ],
+   "confidence": 0.72,
+   "handwritten": true,
+   "flags": [
+    "conflictingValue"
+   ],
+   "role": "anaesthesia",
+   "group": "Surgery",
+   "dateLabel": "7 Nov 2026",
+   "conflictWith": {
+    "text": "Approximate Blood Loss: 200ml (operation report)",
+    "page": 269,
+    "rid": "p269-closure"
+   }
+  }
+ ],
+ "lines": [
+  {
+   "page": 144,
+   "rid": "p144-admission-dx",
+   "label": "Provisional / Admission Diagnosis",
+   "text": "CLOSED LEFT FEMUR NECK FRACTURE"
+  },
+  {
+   "page": 144,
+   "rid": "p144-admitted",
+   "label": "Admission Date & Time",
+   "text": "05/11/2026 18:19 · Discipline: ORTHOPAEDICS · Unit: ORT004"
+  },
+  {
+   "page": 144,
+   "rid": "p144-codes",
+   "label": "Codes handwritten in the right margin",
+   "text": "W01 · S72.0 · E11.9 · J20.9 · Z09.0 · C44.5 · I10 · 5816"
+  },
+  {
+   "page": 144,
+   "rid": "p144-ipno",
+   "label": "IP No.",
+   "text": "[admission number, held in encounters.ref]"
+  },
+  {
+   "page": 144,
+   "rid": "p144-operative",
+   "label": "Operative Procedure",
+   "text": "LEFT BIPOLAR HEMIARTHROPLASTY ON 07/11/26"
+  },
+  {
+   "page": 144,
+   "rid": "p144-result",
+   "label": "Result (circle whichever applicable)",
+   "text": "Improved (circled)"
+  },
+  {
+   "page": 144,
+   "rid": "p144-secondary-dx",
+   "label": "Secondary Diagnosis",
+   "text": "T2DM, HTN, SCC RIGHT GLUTEAL SKIN S/P WLE, ACUTE BRONCHITIS"
+  },
+  {
+   "page": 164,
+   "rid": "p164-age-sex",
+   "label": "Age / Sex",
+   "text": "84 Y · F"
+  },
+  {
+   "page": 164,
+   "rid": "p164-complaint",
+   "label": "Complaints on Reporting",
+   "text": "Pain over left hip"
+  },
+  {
+   "page": 164,
+   "rid": "p164-dates",
+   "label": "Date admitted / Date Discharged",
+   "text": "05/11/2026 · 12/11/2026"
+  },
+  {
+   "page": 164,
+   "rid": "p164-exam",
+   "label": "Physical findings of Examination",
+   "text": "General Examination - NAD · Systemic Examination - NAD · Local Examinations - Findings suggestive of above mentioned diagnosis"
+  },
+  {
+   "page": 164,
+   "rid": "p164-final-comorbid",
+   "label": "Final Diagnosis",
+   "text": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)"
+  },
+  {
+   "page": 164,
+   "rid": "p164-final-dx",
+   "label": "Final Diagnosis",
+   "text": "Diagnosis - Closed left neck of femur fracture"
+  },
+  {
+   "page": 164,
+   "rid": "p164-final-treatment",
+   "label": "Final Diagnosis",
+   "text": "Treatment -Left Hip Bipolar Hemiarthroplasty (cemented) on 07/11/2026"
+  },
+  {
+   "page": 164,
+   "rid": "p164-hpi",
+   "label": "History of Present Illness",
+   "text": "Patient gives alleged history of slip and fall at home on 05/11/26. Patient complains of pain over left hip which was sudden in onset, gradually progressive, severe, non radiating and persistent. The patient was not able to bear weight on left lower limb post fall. The pain was aggravated on trying to mobilize and was partially relieved at rest. No history of LOC / ENT bleed / seizures. No history of other injuries. No bowel / bladder disturbances"
+  },
+  {
+   "page": 164,
+   "rid": "p164-labs",
+   "label": "Laboratory Data",
+   "text": "Hb: 12.5 g/dl, RBS: 175 mg/dl, HbA1c: 6.20 %, TSH: 1.15 µIU/ml"
+  },
+  {
+   "page": 164,
+   "rid": "p164-past",
+   "label": "Past History",
+   "text": "T2DM · HTN · SCC right gluteal skin s/p wide excision (2017) · Acute bronchitis"
+  },
+  {
+   "page": 164,
+   "rid": "p164-subconsult",
+   "label": "Sub-Consultation",
+   "text": "Cardio 1: surgical clearance, Advice followed · PUL 2: i/v/o Acute bronchitis and decreased SpO2 saturation, Advice followed · Eye 1: i/v/o eye discharge, Advice followed"
+  },
+  {
+   "page": 165,
+   "rid": "p165-ct-brain",
+   "label": "PLAIN CT STUDY OF BRAIN (05/11/2026)",
+   "text": "Intra axial confluent hypodense areas noted in centrum semiovale, periventricular white matter and corona radiate regions- s/o chronic small vessel ischaemic changes. Sulci, ventricles and cisterns are prominent - age related cerebral atrophy. No e/o extra axial lesions/collection. Mucosal thickening of sphenoid sinus noted. Left concha bullosa noted."
+  },
+  {
+   "page": 165,
+   "rid": "p165-ct-cspine",
+   "label": "PLAIN CT STUDY OF CERVICAL SPINE (05/11/2026)",
+   "text": "Craniovertebral junction is normal. Vertebrae are normal in alignment. Disc spaces are grossly maintained. Diffuse osteopenia. Degenerative changes in the form of anterior marginal osteophytes, uncovertebral hypertrophy."
+  },
+  {
+   "page": 165,
+   "rid": "p165-ct-impression",
+   "label": "CT TRAUMOGRAM: IMPRESSION",
+   "text": "-No e/o trauma related neuro-parenchymal/ cervical spine injury in the present study. -Chronic small vessel ischaemic changes with age related cerebral atrophy"
+  },
+  {
+   "page": 165,
+   "rid": "p165-ctpa",
+   "label": "CT PULMONARY ANGIOGRAPHY (07/11/2026): IMPRESSION",
+   "text": "-Right and left pulmonary arteries are prominent in calibre, however, no evidence of acute pulmonary embolism. -Bilateral(right>left) dependent basal atelectasis. -Hypodense lesions with calcification in right lobe of thyroid. Suggested USG correlation if clinically indicated."
+  },
+  {
+   "page": 165,
+   "rid": "p165-implants",
+   "label": "Implants if any",
+   "text": "CORAIL Hip system cemented Femoral stem 12/14 AMT 135° size 8 standard no collar · Aqurate cement stopper diameter 40mm UHMWPE · Self centering Bipolar head 28mm ID 43mm OD · ARTICUL/EZE Femoral head 28mm +1.5 12/14 taper · SmartSet GHV Gentamicin bone cement 40g"
+  },
+  {
+   "page": 165,
+   "rid": "p165-operative",
+   "label": "Therapeutic /Operative Procedures",
+   "text": "Left Hip Bipolar Hemiarthroplasty (cemented) on 07/11/2026 · Surgery Date: 07/11/2026"
+  },
+  {
+   "page": 166,
+   "rid": "p166-condition",
+   "label": "Condition on Discharge",
+   "text": "Stable, afebrile · PWB with walker · On knee immobilizer · Bedsore present over right gluteal region- coloplast patch applied"
+  },
+  {
+   "page": 166,
+   "rid": "p166-course",
+   "label": "Courses of Treatment in the Hospital",
+   "text": "The patient came with the above mentioned complaints and was clinicoradiologically diagnosed as mentioned above. After appropriate pre-anaesthetic clearances and informed consents, the patient underwent on 07/11/2026. Intra-op and Post-op period was uneventful. Wound inspection was done as per unit protocol on POD2, POD4, and was found to be healthy. The patient underwent supervised physiotherapy in the form of PWB mobilization with crutches, knee ROM, sQSE, ankle pumps. The patient is symptomatically better, hence being discharged with the following advice"
+  },
+  {
+   "page": 166,
+   "rid": "p166-icu",
+   "label": "Summary of ICU Stay",
+   "text": "Not Applicable"
+  },
+  {
+   "page": 166,
+   "rid": "p166-rx-augmentin",
+   "label": "Drugs Advice on Discharge",
+   "text": "AUGMENTIN 1000MG -DUO · Generic: AMOXYCILLIN 875 MG | CLAVULANATE POTASSIUM 125 MG · TABLET · 1 - 0 - 1 · 1 week"
+  },
+  {
+   "page": 166,
+   "rid": "p166-rx-chymoral",
+   "label": "Drugs Advice on Discharge",
+   "text": "CHYMORAL BR TABLET · Generic: TRYPSIN - | CHYMOTRYPSIN WITH BROMELIAN 0RUTOSIDE · TABLET · 1 - 0 - 1 · 3 days"
+  },
+  {
+   "page": 166,
+   "rid": "p166-rx-ezorb",
+   "label": "Drugs Advice on Discharge",
+   "text": "EZORB D3+ 15s STRIP TAB · Generic: calcium aspartate 1120mg,magnesium hydroxide 180 m · TABLET · 0 - 1 - 0 · 1 month"
+  },
+  {
+   "page": 166,
+   "rid": "p166-rx-gastrorid",
+   "label": "Drugs Advice on Discharge",
+   "text": "GASTRORID-DSR(40MG/30MG) · Generic: PANTOPRAZOLE 40MG| DOMPERIDONE 30 MG SUSTAINED REL · TABLET · 1 - 0 - 0 · 1 week"
+  },
+  {
+   "page": 166,
+   "rid": "p166-rx-limcee",
+   "label": "Drugs Advice on Discharge",
+   "text": "LIMCEE CHEWABLE 500MG 15\"S STRIP · Generic: ASCORBIC ACID IP 100MG, SODIUM ASOCORBATE 450MG.EQ · TABLET · 1 - 0 - 1 · 1 month"
+  },
+  {
+   "page": 166,
+   "rid": "p166-rx-pradaxa",
+   "label": "Drugs Advice on Discharge",
+   "text": "PRADAXA 110MG CAPSULES · Generic: DABIGATRAN ETEXILATE MEXILATE 110MG · CAPSULE · 1 - 0 - 1 · 1 month"
+  },
+  {
+   "page": 166,
+   "rid": "p166-rx-ultracet",
+   "label": "Drugs Advice on Discharge",
+   "text": "ULTRACET SEMI 18.75MG/162.5MG · Generic: TRAMADOL HCL 18.75MG | PARACETAMOL 162.5MG · TABLET · 1 - 0 - 1 · 1 week"
+  },
+  {
+   "page": 167,
+   "rid": "p167-advice",
+   "label": "Further Advice on Discharge",
+   "text": "Maintain hygiene and wound care · Continue medications as advised · Change patch dressings once in 3 days as advised · Continue physiotherapy as advised (PWB mobilization with walker, QSE, SLR, Knee ROM, ankle pumps) · NO LEFT HIP ADDUCTION,FLEXION AND INTERNAL ROTATION · Continue chest physio (DBE, Incentive spirometry) · Icepacks to continue · Abduction pillow between the legs to continue"
+  },
+  {
+   "page": 167,
+   "rid": "p167-contact",
+   "label": "To contact if there are any symptoms like",
+   "text": "To Call [hospital phone number removed] if symptoms of fever, pain present."
+  },
+  {
+   "page": 167,
+   "rid": "p167-diet",
+   "label": "Dietry Advice",
+   "text": "low salt diet · Diabetic diet"
+  },
+  {
+   "page": 167,
+   "rid": "p167-follow-up",
+   "label": "Further Advice on Discharge",
+   "text": "Suture removal on 21/11/2026(Saturday) at local hospital · Review in Ortho 4 OPD on 09/12/2026 (Wednesday) for follow up · Review in PTCD 2 OPD on 09/12/2026 (Wednesday) for follow up. · KINDLY BRING WALKER ON REVIEW"
+  },
+  {
+   "page": 167,
+   "rid": "p167-rx-d3must",
+   "label": "Drugs Advice on Discharge",
+   "text": "D3MUST 60K TABLETS · Generic: CHOLECALCIFEROL 60000 IU · TABLET · Once a week · 2 months"
+  },
+  {
+   "page": 167,
+   "rid": "p167-rx-evion",
+   "label": "Drugs Advice on Discharge",
+   "text": "EVION 400 CAPSULES · Generic: VIT E 400 MG · CAPSULE · [frequency blank] · Continue"
+  },
+  {
+   "page": 167,
+   "rid": "p167-rx-glimy",
+   "label": "Drugs Advice on Discharge",
+   "text": "GLIMY -M1TABLET · Generic: GLIMEPIRIDE 1 MG | METFORMIN HCL 500MG SUSTAINED R · TABLET · 1 - 0 - 1 · Continue"
+  },
+  {
+   "page": 167,
+   "rid": "p167-rx-justtears",
+   "label": "Drugs Advice on Discharge",
+   "text": "JUST TEARS EYE DROPS 10ML · Generic: CARBOXY METHYL CELLULOSE 0.5% · SOLUTION · 1 - 1 - 1 - 1 Both eyes · 1 week"
+  },
+  {
+   "page": 167,
+   "rid": "p167-rx-mosi",
+   "label": "Drugs Advice on Discharge",
+   "text": "MOSI (EYE DROPS) · Generic: MOXIFLOXACIN OPHTHALMIC SOL 0.5% · DROPS · 1 - 1 - 1 - 1 Both eyes · 1 week"
+  },
+  {
+   "page": 167,
+   "rid": "p167-rx-rozavel",
+   "label": "Drugs Advice on Discharge",
+   "text": "ROZAVEL 5MG TABLET · Generic: ROSUVASTATIN CALCIUM 5MG · TABLET · 0 - 0 - 1 · Continue"
+  },
+  {
+   "page": 167,
+   "rid": "p167-rx-stamlo",
+   "label": "Drugs Advice on Discharge",
+   "text": "STAMLO 5 MG TABLET · Generic: AMLODIPINE BESYLATE 5 MG · CAPSULE · 1 - 0 - 0 · Continue"
+  },
+  {
+   "page": 167,
+   "rid": "p167-rx-tegaderm",
+   "label": "Drugs Advice on Discharge",
+   "text": "TEGADERM WITH PAD8593 9CMX35CM · Generic: TRANSPARENT ADHESIVE DRESSING · DRESSING · 5 nos"
+  },
+  {
+   "page": 168,
+   "rid": "p168-review-date",
+   "label": "Review Date/ Follow up date",
+   "text": "09/12/2026 · Post Discharge Lab Request: NIL"
+  },
+  {
+   "page": 170,
+   "rid": "p170-primary-survey",
+   "label": "Emergency trauma case record 5/11/26, 1:45 pm",
+   "text": "RR 20/min · SpO2 90% @ FiO2 21% · Air entry: B/L Equal · HR 89 bpm · Rhythm: regular · BP 130/90 mmHg · GCS E4 V5 M6 15/15 · Focal neurologic deficits: Difficulty in (L) lower limb movement · GRBS 260 mg/dl"
+  },
+  {
+   "page": 170,
+   "rid": "p170-triage",
+   "label": "Emergency trauma case record",
+   "text": "Date: 5/11/26 · Time: 1:45 pm · Triage: P3 · Date of Incident: 5/11/26 · Time of Incident: 11 am · Concise Mechanism of Injury: A/H/O slip & fall from stairs"
+  },
+  {
+   "page": 171,
+   "rid": "p171-efast",
+   "label": "E-FAST /RUSH Protocol",
+   "text": "all views marked (-) · with B/L lung sliding (+)"
+  },
+  {
+   "page": 171,
+   "rid": "p171-mechanism",
+   "label": "Mechanism of Injury, Signs & Symptoms (emergency)",
+   "text": "Pat. was walking down the stairs at the home near the kitchen premises & had history of slip & fall & was in sitting down position ... & c/o pain of (L) hip region & decreased movement of (L) lower limb · LOC (-) · Headache (-) · ENT Bleed (-) · Vomiting (-)"
+  },
+  {
+   "page": 171,
+   "rid": "p171-past-history",
+   "label": "Past Medical History",
+   "text": "DM x 18 yrs - On meds · HTN x 18 yrs - On meds"
+  },
+  {
+   "page": 171,
+   "rid": "p171-treatment",
+   "label": "Treatment orders (emergency, 5/11/26)",
+   "text": "1) Inj. FINAMAC 1g IV · 2) IVF RL @ 75 ml/hr · Neb Duolin 1 resp, Neb Budecort 1 resp: 2 cycle · Inj. Hydrocort 100mg IV stat · Oxygen mask 4 l via nasal prongs"
+  },
+  {
+   "page": 172,
+   "rid": "p172-provisional",
+   "label": "Provisional Diagnosis",
+   "text": "? IT # (L) · ? NOF #"
+  },
+  {
+   "page": 172,
+   "rid": "p172-secondary-survey",
+   "label": "Secondary Survey & Injuries noted",
+   "text": "Head, Neck & ENT: no external injuries noted · Thorax: no external injuries noted · Abdomen & Pelvis: Non-tender, no external injury noted · Log roll/ Spine examination: Non-tender · Extremities: No external injuries noted · Neurovascular: Peripheral pulsations +nt · Plan: Admission"
+  },
+  {
+   "page": 174,
+   "rid": "p174-complaint",
+   "label": "Chief Complaints",
+   "text": "i) pain over left hip"
+  },
+  {
+   "page": 174,
+   "rid": "p174-mechanism",
+   "label": "HISTORY OF PRESENT INJURY (5/11/26; arrival 1:15 pm, examined 1:45 pm)",
+   "text": "Mechanism of Injury: Alleged history of slip and fall from stairs at [place removed] (Home) · Time and Date of Injury: 11am 05/11/2026 · H/o loss of consciousness: Absent · H/o bleeding from ENT: Absent · Referred by: self · Immunisation status: Not Known"
+  },
+  {
+   "page": 174,
+   "rid": "p174-past-history",
+   "label": "History of any significant past history",
+   "text": "T2DM, HTN, SCC Right gluteal skin s/p WLE (2017), Acute bronchitis"
+  },
+  {
+   "page": 175,
+   "rid": "p175-general-exam",
+   "label": "GENERAL EXAMINATION (orthopaedic case record, 5/11/26)",
+   "text": "Consciousness: conscious, oriented · Pupillary reaction: Bilaterally reactive · Pulse 89 /min (good), Regular · BP 130/90 mm of Hg · Temp 38 °C · Respiration 20 /min"
+  },
+  {
+   "page": 176,
+   "rid": "p176-local-exam",
+   "label": "EXAMINATION OF THE LOWER EXTREMITY",
+   "text": "Left lower limb shortened and externally rotated · No external injuries · No swelling · Tenderness present over left hip · ROM left hip and knee couldn't be assessed due to pain · ROM Right hip, Knee, both ankles - within normal limits · Active toe movements present bilaterally · Distal pulses palpable. Distal sensations intact"
+  },
+  {
+   "page": 178,
+   "rid": "p178-impression",
+   "label": "IMPRESSION",
+   "text": "Closed left femur neck fracture"
+  },
+  {
+   "page": 178,
+   "rid": "p178-plan",
+   "label": "Treatment planned",
+   "text": "Investigations asked for: X-rays - Chest, pelvis, left femur - AP, lateral · Treatment planned: Admission · Preops · skin traction"
+  },
+  {
+   "page": 178,
+   "rid": "p178-radiology",
+   "label": "Radiological findings",
+   "text": "left femur neck fracture"
+  },
+  {
+   "page": 180,
+   "rid": "p180-hpi",
+   "label": "IP Assessment Form (07/11/26): History of Present illness",
+   "text": "A/h/o slip & fall at home on 05/11/26 at 11am. C/o pain over left hip. No h/o loss of consciousness / ENT bleed / head trauma. Pain over left hip was sudden in onset, progressive, severe, non-radiating & persistent. The patient was not able to bear weight on left side post fall. No h/o other injuries. No bowel / bladder disturbances."
+  },
+  {
+   "page": 182,
+   "rid": "p182-local-exam",
+   "label": "IP Assessment Form: local examination",
+   "text": "(L) Lower limb: No external injuries · No swelling noted · Tenderness elicited over (L) hip · ROM of (L) hip & knee - Not assessed due to pain · Distal sensations intact · Peripheral pulses palpable · Active toe movements +nt · (R) LL: Normal"
+  },
+  {
+   "page": 183,
+   "rid": "p183-provisional",
+   "label": "Provisional Diagnosis / Plan of care",
+   "text": "Closed left neck of femur fracture · Plan of care: (L) hip bipolar hemiarthroplasty"
+  },
+  {
+   "page": 185,
+   "rid": "p185-opinion",
+   "label": "Cardiology opinion (6/11/26)",
+   "text": "Case details noted · ECHO - (N) study, 63% EF · ECG - NSR · Planned for (L) Bipolar hemiarthroplasty · Adv: pt. can be taken up for planned Sx under (arrow symbol) added cardiac risk."
+  },
+  {
+   "page": 187,
+   "rid": "p187-opinion",
+   "label": "Surgical oncology opinion (5/11/26, 7:45 pm)",
+   "text": "Old case of SCC over natal cleft -> S/P WLE + 1° closure done in 2017. Last follow up - May 2023. Biopsy -> WD SCC -> margin free. L/E: Scar healthy. No signs of any LRR. Orthopaedics to proceed with planned procedure."
+  },
+  {
+   "page": 188,
+   "rid": "p188-diagnosis",
+   "label": "General medicine consult (5/11/26, 9 PM)",
+   "text": "Pt is a case of T2DM, HTN, Acute bronchitis (in May 2026) & ? MASLD, (R) gluteal skin SCC s/p Sx 2017."
+  },
+  {
+   "page": 189,
+   "rid": "p189-advice",
+   "label": "General medicine advice (5/11/26)",
+   "text": "1. Cardiac clearance 2. PTCD clearance 3. Pt. can be posted for surgery if BP < 140/90 and GRBS pre op < [overwritten number] mg/dl after being cleared for Surgery by PTCD & Cardiology. 4. W/H OHAs on day of surgery & give IVF DNS with 8 U neutralising dose of Actrapid"
+  },
+  {
+   "page": 189,
+   "rid": "p189-cxr",
+   "label": "CXR (general medicine consult, 5/11/26)",
+   "text": "(L) sided homogenous opacification of lung field. Cardio & Costo Phrenic angles not blunted · CT yet to be reported"
+  },
+  {
+   "page": 189,
+   "rid": "p189-echo",
+   "label": "ECG / Echo (general medicine consult)",
+   "text": "ECG: noted · Echo: EF = 63% · overall good BVSF · no RWMA"
+  },
+  {
+   "page": 189,
+   "rid": "p189-labs",
+   "label": "Labs noted in the general medicine consult (5/11/26)",
+   "text": "Hb 12.5 · Plt 1.62 L · TLC 12.3K · N 92, L 4.3, M 3 · RBS 175 · TSH 1.15 · Trop T 0.009 · UA 4.2 · CRP 5.01 · RFT (N) · T-B 0.97 · DB 0.40 · TP 7.63 · Alb 4.3 · glo 3.28 · AST 36 · ALT 38 · ALP 111 · Urea and Creat written faintly, not read reliably · A1c awaited"
+  },
+  {
+   "page": 189,
+   "rid": "p189-on-rx",
+   "label": "On Rx (general medicine consult, 5/11/26)",
+   "text": "T. Rozavel 5  0-0-1 · T. Stamlo 5  1-0-0 · T. Glimy M1  1-0-1 · T. Telma 40  1-0-1"
+  },
+  {
+   "page": 189,
+   "rid": "p189-vitals",
+   "label": "General medicine consult (5/11/26, 9 PM)",
+   "text": "BP: 140/80 · PR: 90 bpm · SpO2: 93% on 4 L O2 via NP · CVS: S1 + S2 + · RS: B/L NVBS · PA: soft · CNS: HMF intact"
+  },
+  {
+   "page": 190,
+   "rid": "p190-history",
+   "label": "Pulmonology consult (6/11/26, requested 12 AM)",
+   "text": "Patient is a c/o (L) NOF # planned for (L) bipolar hemiarthroplasty · SCC (R) upper gluteal region (WLE) · Patient has Nil Active Respiratory Complaints · H/O Acute Bronchitis May '26 · margin notes: TB/COVID (-), MDI (-), Family (-), Addiction (-), Biomass (+) · ECHO (N)"
+  },
+  {
+   "page": 190,
+   "rid": "p190-on-rx",
+   "label": "On Rx (pulmonology consult, 6/11/26)",
+   "text": "1) [first item not read] · 2) Stamlo 5 · 3) Glimy M-1 BD · 4) Rozavel 5 OD"
+  },
+  {
+   "page": 191,
+   "rid": "p191-abg",
+   "label": "ABG (pulmonology note, 6/11/26; room air ABG was advised)",
+   "text": "pH 7.44 · PCO2 37 · PO2 38 · SO2 77"
+  },
+  {
+   "page": 191,
+   "rid": "p191-cxr",
+   "label": "CXR (pulmonology consult, 6/11/26)",
+   "text": "Rotated film. Cannot comment"
+  },
+  {
+   "page": 191,
+   "rid": "p191-ddimer",
+   "label": "Pulmonology review (6/11/26)",
+   "text": "Reports noted: D-dimer -> 2.1 (circled) · Advise: To do CT pulmonary angiography to r/o ? PTE · R/w with reports for clearance"
+  },
+  {
+   "page": 191,
+   "rid": "p191-labs",
+   "label": "Labs noted in the pulmonology consult (6/11/26)",
+   "text": "ESR = 27 (circled) · Hb = 12.5 · TLC = 12.3 (circled) · N = 92.6% (circled) · AEC = 0 · PLT = 162K · Coag (N) · A1c 6.2% · Trop (-) · RFT (N) · LFT (N)"
+  },
+  {
+   "page": 191,
+   "rid": "p191-vitals",
+   "label": "Pulmonology consult (6/11/26)",
+   "text": "PR: 95/min · SpO2: 93% on 2 L O2 · RR: 20 cpm · BP: 140/80 mmHg · R/S: B/L NVBS"
+  },
+  {
+   "page": 192,
+   "rid": "p192-review",
+   "label": "Pulmonology review (signed 7/11/26)",
+   "text": "CTPA ✓ · D-dimer = 2.1 · ABG ✓ · Vitals: BP 130/80 mmHg · PR 82 bpm · RR 21 bpm · SpO2 96% with 4L, 86% with RA · R/S: B/L NVBS · Patient can be taken up for surgery under high risk if surgery cannot be postponed."
+  },
+  {
+   "page": 193,
+   "rid": "p193-referral-10",
+   "label": "Referral written on 10/11/26",
+   "text": "Respected staff, Kindly review the pt i/v/o O2 saturation drop"
+  },
+  {
+   "page": 193,
+   "rid": "p193-review",
+   "label": "Pulmonology review (7/11/26, after the 5:45 pm referral)",
+   "text": "CTPA: (R) & (L) PA prominent, but no e/o acute PTE; B/L (R>L) dependent basal atelectasis · Vitals: BP 142/75 mmHg, PR 79 bpm, RR 13 cpm, SpO2 98% with 6 L O2 via face mask · 1) CTPA (-) 2) Continue nebulized bronchodilators (NEB DUOLIN Q8H, NEB BUDECORT Q12H) and oxygen supplementation (to maintain O2 sat > 90%) 3) Chest Physiotherapy 4) Incentive Spirometry"
+  },
+  {
+   "page": 194,
+   "rid": "p194-history",
+   "label": "Ophthalmology consult (6/11/26, requested 6:50 pm for eye discharge)",
+   "text": "Pt seen bedside · history noted: c/o itching (BE), c/o discharge (BE) x 2 days · T2DM (+), HTN (+) · O/E: visual acuity unaided: CF @ [distance not read] in each eye · EOM free, painless (pt finds difficult to follow commands)"
+  },
+  {
+   "page": 195,
+   "rid": "p195-impression",
+   "label": "Ophthalmology opinion (6/11/26, 7 pm)",
+   "text": "Discharge ++ @ fornix (BE) (greenish) · Imp: Acute Bacterial conjunctivitis · Adv: G. MOSI 1-1-1-1, G. EYEMIST 1-1-1-1 (BE) x 2 weeks · R/w in Eye OPD (1) once stable & shiftable (mon, wed, fri)"
+  },
+  {
+   "page": 196,
+   "rid": "p196-labs",
+   "label": "Values listed in the pulmonology review (10 Nov)",
+   "text": "Hb = 10.1 · FBS = 40 (circled) · K+ = 3.5 (circled) · Na = 137"
+  },
+  {
+   "page": 196,
+   "rid": "p196-review",
+   "label": "Pulmonology review (undated page; follows the 10/11/26 referral, Augmentin D4)",
+   "text": "Baseline SpO2 (May 26) = 98% RA · Baseline SpO2 @ presentation 90% RA (EMD sheet) · O/E: SOB (-) · PR 105 b/m · SpO2 90% RA · BP 170/80 mmHg · RR 23 cpm · R/S: bibasilar creps + · ? volume overload / Basal atelectasis · 1) NT-Pro BNP 2) Strict I/O charting 4) Maintain I=O 5) Continue O2 @ 1 L/min (SpO2 > 90%) 6) Incentive spirometry"
+  },
+  {
+   "page": 198,
+   "rid": "p198-biochem",
+   "label": "Investigation chart (5/11)",
+   "text": "RBS 175 · UREA 12 · CREAT 0.52 · Na+ 137 · K+ 3.5"
+  },
+  {
+   "page": 198,
+   "rid": "p198-cbc",
+   "label": "Investigation chart, CBC (5/11)",
+   "text": "Hb/pcv 12.5 · TLC 12.3 K · DLC N 92.6, L 4.3, M 3, E 0, B 0.1 · PLT 162 K · ESR 27"
+  },
+  {
+   "page": 198,
+   "rid": "p198-lft",
+   "label": "Investigation chart (5/11)",
+   "text": "AST 36 · ALT 38.7 · ALP 111 · T.P 7.63 · ALB 4.35 · GLO 3.28 · PT/INR 10.8 / 1.02 · APTT 24.9"
+  },
+  {
+   "page": 198,
+   "rid": "p198-other",
+   "label": "Investigation chart, other (5/11)",
+   "text": "TSH 1.15 · Uric Acid 4.2 · CRP 5 · HBsAg NR · HCV NR · HbA1c -> 6.2 %"
+  },
+  {
+   "page": 200,
+   "rid": "p200-labs",
+   "label": "Progress sheet 06/11/26, 7 am (right margin)",
+   "text": "Hb: 12.5 · ESR - 27 · CRP: 5.0 · RFT: 12 / 0.52 / 136 / 3.6 · ALP - 111 · ALT - 38 · AST - 36 · HbA1c: 6.20 %"
+  },
+  {
+   "page": 200,
+   "rid": "p200-note",
+   "label": "Progress sheet 06/11/26, 7 am",
+   "text": "Dx: (L) femur neck fracture · plan: (L) Bipolar hemiarthroplasty · Vitals stable · No fresh complaints · SUO - cleared for surgery · Medicine consult, Cardiology: awaited"
+  },
+  {
+   "page": 202,
+   "rid": "p202-pod1",
+   "label": "Progress sheet 08/11/26, 7 am (POD 1)",
+   "text": "Vitals: HR 74/min · BP 120/70 · RR 15/min · SpO2 96% 1L O2 · GRBS: 263 · BP: 120/70 · postop Hb: 10.1 <- 12.5 · DT: 40ml · Dressing: No soakage · I/O: 2550/1440 ml · plan: Shift to ward, physio"
+  },
+  {
+   "page": 203,
+   "rid": "p203-pod2",
+   "label": "Progress sheet 09/11/26, 7 am (POD 2)",
+   "text": "Patient conscious, oriented · Vitals stable · No fresh complaints · GRBS: 233 mg/dL · BP: 120/80 · DT: 6 ml · physio: PWB mobilization · plan: Continue physio"
+  },
+  {
+   "page": 204,
+   "rid": "p204-pod3",
+   "label": "Progress sheet 10/11/26, 7 am (POD 3)",
+   "text": "Patient conscious, oriented · Vitals stable · No fresh complaints · Dressing: no soakage · plan: Continue physio"
+  },
+  {
+   "page": 206,
+   "rid": "p206-pod4",
+   "label": "Progress sheet 11/11/26, 7 am (POD 4)",
+   "text": "Patient conscious, oriented · Vitals stable · No fresh complaints · GRBS - 133 · BP - 140/90 · Dressing: no soakage · plan: W/I today, Continue physio"
+  },
+  {
+   "page": 208,
+   "rid": "p208-pod5",
+   "label": "Progress sheet 12/11/26, 7 am (POD 5)",
+   "text": "Patient conscious, oriented · Vitals stable · No fresh complaints · GRBS: [blank] · BP: [blank] · Dressing: no soakage · plan: Continue physio, discharge today"
+  },
+  {
+   "page": 210,
+   "rid": "p210-allergy",
+   "label": "Allergies: None / Yes",
+   "text": "None (marked) · nurses' transfer summary 5/11/26"
+  },
+  {
+   "page": 210,
+   "rid": "p210-vitals",
+   "label": "Transfer summary (nurses) 5/11/26, 6:30 PM, emergency to ward",
+   "text": "Temperature 98.6°F · Pulse 90 · BP 130/90 · RR 20 · SPO2 95% · GCS 15 · Existing pressure ulcers: No · On oxygen: Yes · On Nebulization: Yes"
+  },
+  {
+   "page": 212,
+   "rid": "p212-lines",
+   "label": "Lines and drains (transfer summary 07/11/2026)",
+   "text": "Peripheral Line: 06/11/26 · Foley's Catheter: date of insertion 05/11/26 · Medication reconciliation: Inj. Tramadol 50mg 12th · Inj. PCM 1g 12th · Tab. Gastrorid 40mg 1-0-0 · Tab. Chymoral BR 1-0-1 · Tab. Rozavel 5mg 0-0-1 · Tab. Evion 0-1-0 · Tab. Stamlo 5mg 1-0-0 · Tab. Glimy M1 1-0-1"
+  },
+  {
+   "page": 212,
+   "rid": "p212-vitals",
+   "label": "Transfer summary (nurses) 07/11/2026, 12 PM, ward to operation theatre",
+   "text": "Temperature 98.6 · Pulse 88 · BP 130/80 · RR 20 · SPO2 98% · Pain score 01/10 · Braden Score 17 · Existing pressure ulcers: No · On oxygen: Yes · On Nebulization: Yes"
+  },
+  {
+   "page": 214,
+   "rid": "p214-allergy",
+   "label": "Allergies: None / Yes",
+   "text": "None (underlined) · nurses' transfer summary 8/11/26"
+  },
+  {
+   "page": 214,
+   "rid": "p214-lines",
+   "label": "Lines and drains (transfer summary 8/11/26)",
+   "text": "Peripheral Line: 5/11/26, 7/11/26 · Foley's Catheter: date of insertion 6/11/26 · Surgical Drain: 7/11/26 · Medication reconciliation: Inj AUGMENTIN 1.2g Q12H · Inj TEICONIN 400mg OD · Inj TRAMADOL 50mg BD · Inj [paracetamol brand] 1g BD · T. PAN 40mg OD · T. Chymoral BR 1-0-1 · T. ROZAVEL 5mg 0-0-1 · T. STAMLO 5mg BD · T. EVION 0-1-0 · G. MOSI 1-1-1-1 · Inj CLEXANE 0.4ml OD · G. EYEMIST 1-1-1-1"
+  },
+  {
+   "page": 214,
+   "rid": "p214-pressure-ulcer",
+   "label": "Existing pressure ulcers: Yes/No",
+   "text": "Yes (underlined) · transfer HDU to ward, 8/11/26"
+  },
+  {
+   "page": 214,
+   "rid": "p214-vitals",
+   "label": "Transfer summary (nurses) 8/11/26, 12 pm, HDU to ward",
+   "text": "Temperature 98.6 · Pulse 78 · BP 120/80 · RR 20 · SPO2 96 · Pain score 1/10 · GCS 15 · Braden Score 17 · Total ICU Days: 01 · On oxygen: Yes · On Nebulization: Yes"
+  },
+  {
+   "page": 216,
+   "rid": "p216-orders",
+   "label": "Doctor's orders 05/11/26, 4 pm",
+   "text": "Inj. TRAMADOL 50mg/100ml NS IV Q12H alt Inj. PCM 1g IV Q12H · T. GASTRORID 40  1-0-0 (B/F) · T. CHYMORAL BR  1-0-1 · T. ROZAVEL 5  0-0-1 · T. EVION  0-1-0 · T. STAMLO 5  1-0-0 · T. GLIMY M1  1-0-1"
+  },
+  {
+   "page": 217,
+   "rid": "p217-orders",
+   "label": "Doctor's orders 05/11/26 (continued)",
+   "text": "Inj. CLEXANE 0.4ml s/c OD · Adv: Monitor vitals, BP monitoring Q6H · GRBS monitoring - F, PP - B, L, D · skin traction with 3kg weight"
+  },
+  {
+   "page": 220,
+   "rid": "p220-orders",
+   "label": "Doctor's orders 06/11/26 (continued)",
+   "text": "Inj. CLEXANE 0.4ml s/c OD: withhold · Monitor vitals, BP monitoring Q6H · GRBS monitoring F, PP - B, L, D · Skin traction with 3Kg wt · Chest physio - DBE, Incentive spirometry"
+  },
+  {
+   "page": 222,
+   "rid": "p222-preop",
+   "label": "PREOP ORDERS 06/11/26",
+   "text": "Inj. AUGMENTIN 1.2g IV - (1) · Inj. TEICONIN 400mg IV - (1) · NPO from 12am midnight · IVF DNS @ 50ml/hr with 8 U neutralizing dose of Actrapid · Informed consent, FC · parts preparation (L) LL + private parts · Adult diaper"
+  },
+  {
+   "page": 222,
+   "rid": "p222-preop-last-line",
+   "label": "PREOP ORDERS 06/11/26, last line (different hand)",
+   "text": "Inj [name unclear, reads like VANKING] 1g IV - (2)"
+  },
+  {
+   "page": 224,
+   "rid": "p224-postop",
+   "label": "Postop orders 7/11/26, 3 PM",
+   "text": "Inj AUGMENTIN 1.2g IV Q12H (D1) · Inj TEICONIN 400mg IV Q24H (D1/D2) · Inj TRAMADOL 50mg/100ml NS IV Q12H alt Inj FINAMAC 1g IV Q12H · Inj EMESET 4mg IV 30 min before TRAMADOL · Inj PAN 40mg IV STAT · IVF NS/RL till NPO · After NPO: T. CHYMORAL BR 1-0-1"
+  },
+  {
+   "page": 225,
+   "rid": "p225-postop",
+   "label": "Postop orders 7/11/26 (continued)",
+   "text": "T. ROZAVEL 5  0-0-1 · T. EVION  0-1-0 · T. STAMLO 5  1-0-0 · T. GLIMY M1  1-0-1 · G. MOSI 1-1-1-1-1 (BE) (D1/D14) · G. EYEMIST (JUST TEARS) 1-1-1-1 (BE) (D1/D14) · monitor vitals, BP Q6H, W/F soakage · GRBS - F, PP - B, L, D · Abd. pillow, inform SOS · Chest physio: DBE, Incentive spirometry"
+  },
+  {
+   "page": 226,
+   "rid": "p226-orders",
+   "label": "Doctor's orders 08/11/26, 7 am (POD 1)",
+   "text": "Inj. AUGMENTIN 1.2g IV Q12H (D2) · Inj. TEICONIN 400mg IV Q24H (D2/2) · Inj. TRAMADOL 50mg/100ml NS IV Q12H alt Inj. FINAMAC 1g IV Q12H · Inj. EMESET 4mg IV 30mins before TRAMADOL · T. PAN 40  1-0-0 (B/F) · T. CHYMORAL BR  1-0-1 · T. ROZAVEL 5  0-0-1"
+  },
+  {
+   "page": 227,
+   "rid": "p227-orders",
+   "label": "Doctor's orders 08/11/26 (continued)",
+   "text": "T. STAMLO 5  1-0-0 · T. GLIMY M1  1-0-1 (W/H) · T. EVION  0-1-0 · G. MOSI (B/E) 1-1-1-1-1 (D2/D14) · Inj. CLEXANE 0.4ml s/c OD · G. EYEMIST / JUST TEARS 1-1-1-1 (B/E) (D2/D14) · Monitor vitals BP Q6H, W/F soakage · Abduction pillow"
+  },
+  {
+   "page": 228,
+   "rid": "p228-orders",
+   "label": "Doctor's orders 08/11/26 (continued)",
+   "text": "NEB. DUOLIN Q8H · NEB. BUDECORT Q12H · Inj. H. ACTRAPID (6) u s/c - (6) - (6) · Physio: QSE, Ankle pumps"
+  },
+  {
+   "page": 230,
+   "rid": "p230-orders",
+   "label": "Doctor's orders 09/11/26",
+   "text": "Monitor vitals, BP Q6H, W/F soakage, inform SOS · Chest physio: DBE, Incentive spirometry · Physio (BD): Make her stand followed by PWB mobilization with walker; QSE, Ankle pumps · T. LIMCEE 500  1-0-1 · clamp & release catheter Q4H · Remove catheter tomorrow (6am)"
+  },
+  {
+   "page": 232,
+   "rid": "p232-orders",
+   "label": "Doctor's orders 09/11/26, 7 am (POD 2)",
+   "text": "Inj. AUGMENTIN 1.2g IV Q12H (D3) · Inj. TRAMADOL 50mg/100ml NS IV Q12H · Inj. FINAMAC 1g IV Q12H · Inj. EMESET 4mg IV 30mins before TRAMADOL · T. PAN 40  1-0-0 (B/F) · T. CHYMORAL BR  1-0-1 · T. ROZAVEL 5  0-0-1 · T. STAMLO 5  1-0-0 · note at top: stop O2"
+  },
+  {
+   "page": 233,
+   "rid": "p233-orders",
+   "label": "Doctor's orders 09/11/26 (continued)",
+   "text": "T. GLIMY M1  1-0-1 (W/H) · T. EVION  0-1-0 · Inj. CLEXANE 0.4ml s/c OD · Inj. H. ACTRAPID (4) - (4) - (0) s/c · G. MOSI B/E 1-1-1-1 (D3/D14) · G. EYEMIST / JUST TEARS 1-1-1-1 B/E (D3/D14) · NEB. DUOLIN Q8H · NEB. BUDECORT Q12H"
+  },
+  {
+   "page": 234,
+   "rid": "p234-orders",
+   "label": "Doctor's orders 10/11/26 (POD 3)",
+   "text": "Inj. AUGMENTIN 1.2g IV Q12H (D4) · Inj. TRAMADOL 50mg/100ml NS IV Q12H · Inj. FINAMAC 1g IV Q12H · Inj. EMESET 4mg IV 30mins before TRAMADOL · T. PAN 40  1-0-0 (B/F) · T. CHYMORAL BR  1-0-1 · T. ROZAVEL 5  0-0-1 · T. STAMLO 5  1-0-0 · note at top: KNEE IMMOBILIZER (M) - 1, TEGADERM 9x35 - 1"
+  },
+  {
+   "page": 235,
+   "rid": "p235-orders",
+   "label": "Doctor's orders 10/11/26, 7 am (continued)",
+   "text": "T. GLIMY M1  1-0-1 (W/H) · T. EVION  0-1-0 · Inj. CLEXANE 0.4ml s/c OD · Inj. H. ACTRAPID (skip) - (4) - (6) s/c · G. MOSI B/E 1-1-1-1 (D4/D14) · G. EYEMIST / JUST TEARS 1-1-1-1 B/E (D4/D14) · NEB. DUOLIN Q8H · NEB. BUDECORT Q12H"
+  },
+  {
+   "page": 236,
+   "rid": "p236-orders",
+   "label": "Doctor's orders 10/11/26 (continued)",
+   "text": "T. LIMCEE 500  1-0-1 · Monitor vitals, BP Q6H, W/F soakage, inform SOS · Abduction pillow · Chest physio: DBE, Incentive spirometry · Physio (BD): PWB mobilization with walker; QSE, Ankle pumps · O2 @ 2 L/min · DULCOLAX SUPPOSITORY 2 tab (nurse entry 12 am: Refused)"
+  },
+  {
+   "page": 238,
+   "rid": "p238-coloplast",
+   "label": "Note above the 11/11/26 orders",
+   "text": "Arrange: COLOPLAST PATCH FOR BACK SKIN PEEL"
+  },
+  {
+   "page": 238,
+   "rid": "p238-orders",
+   "label": "Doctor's orders 11/11/26, 7 am (POD 4)",
+   "text": "Inj. AUGMENTIN 1.2g IV Q12H (D5) · Inj. TRAMADOL 50mg/100ml NS IV Q12H · Inj. FINAMAC 1g IV Q12H · Inj. EMESET 4mg IV 30mins before TRAMADOL · T. PAN 40  1-0-0 (B/F) · T. CHYMORAL BR  1-0-1 · T. ROZAVEL 5  0-0-1 · T. STAMLO 5  1-0-0"
+  },
+  {
+   "page": 239,
+   "rid": "p239-orders",
+   "label": "Doctor's orders 11/11/26 (continued)",
+   "text": "T. GLIMY M1  1-0-1 · T. EVION  0-1-0 · Inj. CLEXANE 0.4ml s/c OD · Inj. H. ACTRAPID (4) - (4) - (0) s/c · G. MOSI B/E 1-1-1-1 (D5/D14) · G. JUST TEARS 1-1-1-1 B/E (D5/D14) · NEB. DUOLIN Q8H · NEB. BUDECORT Q12H"
+  },
+  {
+   "page": 240,
+   "rid": "p240-orders",
+   "label": "Doctor's orders 11/11/26 (continued)",
+   "text": "T. LIMCEE 500  1-0-1 · Monitor vitals BP Q6H, W/F soakage, inform SOS · Abduction pillow · Chest physio: DBE, Incentive spirometry · Physio (BD): PWB mobilization with walker; QSE, Ankle pumps · O2 @ 2L/min"
+  },
+  {
+   "page": 242,
+   "rid": "p242-orders",
+   "label": "Doctor's orders 12/11/26, 7 am (POD 5)",
+   "text": "Inj. AUGMENTIN 1.2g IV Q12H (D6) · Inj. TRAMADOL 50mg/100ml NS IV Q12H · Inj. FINAMAC 1g IV Q12H · Inj. EMESET 4mg IV 30 mins before TRAMADOL · T. PAN 40  1-0-0 (B/F) · T. CHYMORAL BR  1-0-1 · T. ROZAVEL 5  0-0-1 · T. STAMLO 5  1-0-0"
+  },
+  {
+   "page": 243,
+   "rid": "p243-orders",
+   "label": "Doctor's orders 12/11/26 (continued)",
+   "text": "T. GLIMY M1  1-0-1 · T. EVION  0-1-0 · Inj. CLEXANE 0.4ml s/c OD · Inj. H. ACTRAPID (0) - ( ) - ( ) s/c 30 mins B/F · G. MOSI 1-1-1-1 B/E (D6/D14) · G. JUST TEARS 1-1-1-1 B/E (D6/D14) · NEB. DUOLIN Q8H · NEB. BUDECORT Q12H"
+  },
+  {
+   "page": 244,
+   "rid": "p244-orders",
+   "label": "Doctor's orders 12/11/26 (continued)",
+   "text": "T. LIMCEE 500  1-0-1 · Monitor vitals BP Q6H, W/F soakage, inform SOS · Abduction pillow · Chest physio: DBE, Incentive spirometry · Physio (BD): PWB mobilization with walker; QSE, Ankle pumps · O2 @ 2L/min"
+  },
+  {
+   "page": 246,
+   "rid": "p246-physio-10",
+   "label": "Physiotherapy record 10/11/26",
+   "text": "Deep breathing exercises · Incentive spirometry · Static quads · ATM · PWB ambulation with walker · SpO2 - 92 · HR - 83 · Pt is stable post Rx"
+  },
+  {
+   "page": 246,
+   "rid": "p246-physio-9",
+   "label": "Physiotherapy record 09/11/26 (POD 2)",
+   "text": "PT Rx: Deep breathing Ex · Incentive Spirometry (900 cc/sec) · static Quads · Ankle toe movements · pt was made to stand with walker · PWB ambulation with walker"
+  },
+  {
+   "page": 247,
+   "rid": "p247-physio-11",
+   "label": "Physiotherapy record 11/11/26 and 12/11/26",
+   "text": "11/11/26: ATM · static quads · Heel slides · SLR · EOB sitting · Ambulation with walker · 12/11/26: ATM · Heel slides · SLR · Ambulation · EOB sitting · Static quads"
+  },
+  {
+   "page": 248,
+   "rid": "p248-physio-pre",
+   "label": "Physiotherapy record 06/11/26 and 07/11/26",
+   "text": "06/11/26: Incentive Spirometry (Attempted) · Deep breathing exercises · 07/11/26: Incentive Spirometer · Deep breathing Exs"
+  },
+  {
+   "page": 250,
+   "rid": "p250-airway",
+   "label": "Airway Examination",
+   "text": "Teeth: edentulous · hollow cheeks, short neck · Denture: (-) · Mouth opening: > 6 cm · Thyromental distance: 6 cm · Neck movements: not assessed · BHT < 8 sec · Mallampati: Class 3 (circled)"
+  },
+  {
+   "page": 250,
+   "rid": "p250-allergy",
+   "label": "Allergies / Smoking / Alcohol",
+   "text": "(-) bracketed against all three"
+  },
+  {
+   "page": 250,
+   "rid": "p250-drug-therapy",
+   "label": "Drug therapy (pre-anaesthetic record)",
+   "text": "T. ROSUVASTATIN 5  0-0-1 · T. AMLODIPINE 5mg  1-0-0 · T. GLIMEPRIDE 1 METFORMIN 500  1-0-1 · T. TELMISARTAN 40mg  1-0-1 · INJ. CLEXANE 0.4 s/c OD"
+  },
+  {
+   "page": 250,
+   "rid": "p250-efast",
+   "label": "Pre-anaesthetic record (bedside checks)",
+   "text": "CCT / PCT - WNL · lung sliding (+ve) · eFAST - (-ve)"
+  },
+  {
+   "page": 250,
+   "rid": "p250-history",
+   "label": "History",
+   "text": "A/H/O slip & fall in steps @ home on 6/11/26 sustaining injury to (L) hip. Comorb: T2DM 18 yrs - on OHAs - compliant · HTN 18 yrs, compliant · ? MASLD · prev H/o SCC - skin (R) upper gluteal region s/p WLE (2017) margin free · recent URTI/LRTI: fever 2 weeks ago, Rx outside, symp free 1 wk · chest pain / orthopnea / PND / SOB: NIL · walk with support x 2 yrs · ADL +"
+  },
+  {
+   "page": 250,
+   "rid": "p250-physical-exam",
+   "label": "Physical exam (pre-anaesthetic record)",
+   "text": "anxious · Pulse 89/min · BP 160/80 · RR 28/min, increased effort · Temp afebrile · SpO2 94% on 4 L O2 · GRBS 126 · Weight ~60 kg · Veins accessible · Spine: midline spaces not felt · CVS S1S2 · RS NVBS + · CNS HMF (N) · PA soft · under added cardiac risk"
+  },
+  {
+   "page": 251,
+   "rid": "p251-cxr",
+   "label": "CXR (pre-anaesthetic record)",
+   "text": "sketch of both lungs with the left lung shaded · CP angle free"
+  },
+  {
+   "page": 251,
+   "rid": "p251-ecg",
+   "label": "ECG (pre-anaesthetic record)",
+   "text": "(N) SR rate 80 · no ST-T · PR / QTc WNL"
+  },
+  {
+   "page": 251,
+   "rid": "p251-echo",
+   "label": "Echo (pre-anaesthetic record; 5/11/26)",
+   "text": "EF 63% · (N) BV sys func · no RWMA · MAC (+) · mild MR · LVH (+) · mild LVDD · TR (+) · no PAH"
+  },
+  {
+   "page": 251,
+   "rid": "p251-fbs",
+   "label": "Immediate preoperative re-evaluation 7/11/26",
+   "text": "Heart rate 84 /min · Blood pressure 142/83 mmHg · NPO status, investigation reports: checked · FBS (40, circled) -> GRBS -> 108"
+  },
+  {
+   "page": 251,
+   "rid": "p251-investigations",
+   "label": "Investigations (pre-anaesthetic record, 5/11/26)",
+   "text": "Hb 12.5 · Hct 37.3 % · Plt 162K · WBC 12.3K · urea 12 · creat 0.52 · Na 136 · K 3.6 · Cl 95.4 · PT 10.8 · INR 1.02 · aPTT 24.9 · Sero NR · HbA1c 6.2 · RBS 175 · TSH 1.15 · AST 36, ALT 38.7, ALP 111 (an upward arrow is drawn beside these three) · D-dimer 2.1 · CRP 5 · Trop T 0.009"
+  },
+  {
+   "page": 251,
+   "rid": "p251-plan",
+   "label": "Anaesthetic Plan and preoperative instructions",
+   "text": "under SAB / GA ± Block · T. PANTAPRAZOLE 40mg HS & 6 AM · To cont all medication as per schedule · PTCD clearance -> will be reviewed in the morning prior procedure (i/v/o decreased SpO2, raised RR, CXR changes) · High risk informed consent · NPO: Solids 8 hrs, Clear fluids 2 hr · Arrange blood products: adequately · Investigations required: FBS · To W/H Antidiabetic medication · IVF with neutralising dose of Insulin in DNS as per Medicine order · Neb. Duolin, Budecort: HS & 30 mins prior procedure"
+  },
+  {
+   "page": 254,
+   "rid": "p254-high-risk",
+   "label": "High-risk anaesthesia informed consent (typed, November 7, 2026)",
+   "text": "Patient is scheduled for Bipolar Arthroplasty - Hip (Right NOF fracture) under Subarachnoid Block (SAB) / General Anaesthesia (GA) +/- Peripheral Nerve Block. ... Left Neck of Femur (NOF) fracture s/p slip and fall, long-standing Type 2 Diabetes Mellitus (18 years), Hypertension (18 years), suspected MASLD, history of skin SCC (Right-upper gluteal region s/p WLE 2017), hypoxia/desaturation on room air (SpO2 86% on room air, requiring supplemental O2), elevated D-dimer (2.1 µg/mL), pulmonology evaluation for suspected Pulmonary Thromboembolism (PTE), short neck, edentulous jaw, and echocardiographic findings of EF 63%, mild MR, mild TR, LVH, and mild LVDD"
+  },
+  {
+   "page": 257,
+   "rid": "p257-antibiotic",
+   "label": "ANTIBIOTIC GIVEN (anaesthetic record, 7/11/26)",
+   "text": "I/V AUGMENT 1.2g @ 1:45 pm · I/V TEICOPLANIN 400mg @ 3:15 pm"
+  },
+  {
+   "page": 257,
+   "rid": "p257-record",
+   "label": "Anaesthetic record 7/11/26",
+   "text": "Surgical Procedure: (L) Hip - bipolar Arthroplasty · under SAB + (L) femoral + (L) LFCN block · Regional box ticked, General box also marked · Elective · Anaesthesia: start 1:15 pm, finish 4:30 PM · Surgery: start 1:45 pm, finish 4:25 PM (finish times hard to read) · O2 by face mask, spontaneous breathing · SpO2 93, 92, 92, 93, 93, 93, 93 % · Blood loss: 500 ml · Position: Lateral - (R) lateral · Pressure points padded · forced air warmer"
+  },
+  {
+   "page": 259,
+   "rid": "p259-abg",
+   "label": "Blood gas printout 07/11/2026 13:26:53, arterial (handwritten: Room Air, SpO2 85%)",
+   "text": "#pH 7.47 · pCO2 39 mmHg · #pO2 51 mmHg · #Na+ 135 mmol/L · #K+ 3.3 mmol/L · #Ca++ 1.03 mmol/L · Glu 73 mg/dL · Lac 13 mg/dL · Hct 40 % · Ca++(7.4) 1.06 mmol/L · HCO3- 28.4 mmol/L · HCO3std 28.1 mmol/L · TCO2 29.6 mmol/L · BEecf 4.7 mmol/L · BE(B) 4.4 mmol/L · SO2c 88 % · THbc 12.4 g/dL · # = outside ref. range"
+  },
+  {
+   "page": 260,
+   "rid": "p260-fluids",
+   "label": "Anaesthetic record (page 2)",
+   "text": "under SAB + block · Face mask · Ventilation: Spontaneous · IV fluids: DNS, NS, RL (volumes hard to read)"
+  },
+  {
+   "page": 261,
+   "rid": "p261-regional",
+   "label": "REGIONAL ANAESTHESIA",
+   "text": "Technique: subarachnoid block · Position: sitting · Approach: midline · Space: L3-L4 · Needle type: 23G Quincke Babcock's needle · Drug injected/Dose: 2.2 ml of 0.5% Heavy bupivacaine + 30 mcg of clonidine · Adequacy of block: Adequate · (L) femoral + (L) LFCN block under USG guidance: 10 ml of 0.5% levobupivacaine + 10 ml of 2% lignoadrenaline + 4 mg dexamethasone - adequate analgesia"
+  },
+  {
+   "page": 262,
+   "rid": "p262-post-anaesthesia",
+   "label": "Postanaesthetic record (7/11/26)",
+   "text": "Unplanned mechanical ventilation: NO · Adverse anaesthetic events: NO · Shifted to: HDU · BP 140/75 mmHg · Pulse 84/min · SpO2 97% on 6 L/min 100% O2 · PONV (-) · Reflexes (+) · Level of consciousness: Awake · As per HDU"
+  },
+  {
+   "page": 265,
+   "rid": "p265-ct-note",
+   "label": "Loose note in the anaesthesia section",
+   "text": "CT Brain -> chronic small vessel isch. changes · C spine -> no TBI / bleed"
+  },
+  {
+   "page": 268,
+   "rid": "p268-anaesthesia",
+   "label": "Operation report",
+   "text": "Elective · Surgery Start Date 07/11/2026 · Start Time 14:00 · End Time 16:00 · Duration 02:00 hrs · Anaesthesia: Block + Spinal · Position of Patient: Right lateral decubitus"
+  },
+  {
+   "page": 268,
+   "rid": "p268-drug",
+   "label": "Drug / Dosage (operation report)",
+   "text": "Inj Augmentin 1.2g IV · Inj Teiconin 400mg IV"
+  },
+  {
+   "page": 268,
+   "rid": "p268-incision",
+   "label": "Skin Incision including length",
+   "text": "Southern Moore Approach - 15 cm curved incision one inch posterior to posterior edge of greater trochanter (GT) extending 7 cm above and posterior to GT and along the shaft of femur distally"
+  },
+  {
+   "page": 268,
+   "rid": "p268-indication",
+   "label": "Operation / Indications",
+   "text": "Left Hip Bipolar Hemiarthroplasty (cemented) · Closed Left Neck of Femur fracture"
+  },
+  {
+   "page": 268,
+   "rid": "p268-steps",
+   "label": "Steps of Surgery (page 1)",
+   "text": "Patient was positioned in right lateral decubitus, parts were painted and draped. Fascia lata was incised in line with the skin incision, gluteus maximus was split proximally and distally, hemostasis was achieved using cautery. Short external rotators and piriformis tendon were both incised near their attachment and reflected backwards to protect the sciatic nerve. Capsule was incised. Fractured femoral head was extracted after cutting the ligamentum teres using cork screw."
+  },
+  {
+   "page": 269,
+   "rid": "p269-closure",
+   "label": "Counts, blood loss and wound closure",
+   "text": "Sponge Count Verified: Yes · Gauze Count Verified: Yes · Instrument Count Verified: Yes · Wound Wash: NS · Approximate Blood Loss: 200ml · Muscle Level: No. 1 Vicryl · Deep Facia: Stratafix · Subcutaneous level: Vicryl 1-0 · Skin: Staples"
+  },
+  {
+   "page": 269,
+   "rid": "p269-implant-labels",
+   "label": "Implant sticker labels",
+   "text": "Four manufacturer labels: cemented femoral stem size 8, self centering bi-polar head 28 mm ID 43 mm OD, femoral head 28 mm +1.5, gentamicin bone cement 40 g"
+  },
+  {
+   "page": 269,
+   "rid": "p269-implants",
+   "label": "Implant Details (with the implant sticker labels)",
+   "text": "CORAIL Hip system cemented Femoral stem 12/14 AMT 135° size 8 standard no collar · Aqurate cement stopper diameter 40mm UHMWPE · Self centering Bipolar head 28mm ID 43mm OD · ARTICUL/EZE Femoral head 28mm +1.5 12/14 taper · SmartSet GHV Gentamicin bone cement 40g · Special Equipment: Power Instruments"
+  },
+  {
+   "page": 269,
+   "rid": "p269-steps",
+   "label": "Steps of Surgery (page 2)",
+   "text": "a head size of 28mm was chosen. Broaching was done on femur serially from small to larger size (till 9 size) keeping anteversion ~15 degree. Trial implants were placed; head reduced and hip range of movements assessed. Cement stopper (40mm) was inserted in the femoral canal. A cemented femoral stem (size 8) inserted in approximately 15 degrees of anteversion. Irrigation done, hemostasis achieved and drain placed. Capsular layer sutured with vicryl no.1, short external rotators sutured through transosseously with GT. Deep fascia closed with Stratafix and subcutaneus closure done with Vicryl 1-0. Skin closed with stratafix. Above knee compression & knee immobilizer were applied and patient shifted out with stable vitals"
+  },
+  {
+   "page": 270,
+   "rid": "p270-airway",
+   "label": "Surgical safety checklist, sign in (07/11/2026)",
+   "text": "DIFFICULT AIRWAY/ASPIRATION RISK? YES, AND EQUIPMENT/ASSISTANCE AVAILABLE (ticked) · RISK OF >500ML BLOOD LOSS? YES, AND ADEQUATE INTRAVENOUS ACCESS AND FLUIDS PLANNED (ticked) · Antibiotic prophylaxis given within the last 60 minutes: YES"
+  },
+  {
+   "page": 270,
+   "rid": "p270-allergy",
+   "label": "DOES PATIENT HAVE A: KNOWN ALLERGY?",
+   "text": "NO (ticked) · surgical safety checklist, sign in, 07/11/2026"
+  }
+ ],
+ "images": [
+  {
+   "page": 269,
+   "rid": "p269-implant-labels",
+   "kind": "photo",
+   "title": "Implant sticker labels on the operation report",
+   "dateLabel": "7 Nov 2026"
+  }
+ ],
+ "notFound": [
+  "Printed laboratory reports (CBC, biochemistry, HbA1c, coagulation, D-dimer): only handwritten copies of the values are in this PDF, without units or reference ranges",
+  "ECG tracing and the echocardiogram report (only quoted in notes)",
+  "X-ray films or a radiology report for chest, pelvis and left femur",
+  "Original CT reports (CT brain, cervical spine and pulmonary angiography are only quoted in the discharge summary)",
+  "NT-proBNP result (advised by pulmonology on 10 Nov)",
+  "Thyroid ultrasound suggested by the CT report",
+  "Progress note for 7 Nov (day of surgery)",
+  "Vitals on the day of discharge (GRBS and BP are left blank on the 12 Nov progress sheet)",
+  "Nursing TPR, BP and intake-output charts",
+  "Blood group, and height (weight is written as about 60 kg on the pre-anaesthetic record only)",
+  "A written decision on telmisartan 40 mg (taken at home; not on the in-hospital orders or the discharge list)",
+  "Blood transfusion record (the notes do not say whether any blood product was given)"
+ ],
+ "exceptions": [
+  {
+   "kind": "conflictingValue",
+   "title": "Blood loss at surgery: 200 ml or 500 ml",
+   "body": "The operation report gives an approximate blood loss of 200 ml. The anaesthetic record writes 500 ml.",
+   "cites": [
+    {
+     "label": "Operation report",
+     "page": 269,
+     "rid": "p269-closure"
+    },
+    {
+     "label": "Anaesthetic record",
+     "page": 257,
+     "rid": "p257-record"
+    }
+   ]
+  },
+  {
+   "kind": "conflict",
+   "title": "Side of the fracture on the typed high-risk anaesthesia consent",
+   "body": "The consent's procedure line says 'Right NOF fracture', while its own next paragraph and every other page say left.",
+   "cites": [
+    {
+     "label": "High-risk anaesthesia consent",
+     "page": 254,
+     "rid": "p254-high-risk"
+    },
+    {
+     "label": "Discharge summary",
+     "page": 164,
+     "rid": "p164-final-dx"
+    },
+    {
+     "label": "Operation report",
+     "page": 268,
+     "rid": "p268-indication"
+    }
+   ]
+  },
+  {
+   "kind": "conflict",
+   "title": "Date of the fall",
+   "body": "The discharge summary, the orthopaedic case record and the IP assessment form give 05/11/26 (11 am). The pre-anaesthetic record writes 6/11/26, which is after the admission date.",
+   "cites": [
+    {
+     "label": "Discharge summary",
+     "page": 164,
+     "rid": "p164-hpi"
+    },
+    {
+     "label": "Orthopaedic case record",
+     "page": 174,
+     "rid": "p174-mechanism"
+    },
+    {
+     "label": "Pre-anaesthetic record",
+     "page": 250,
+     "rid": "p250-history"
+    }
+   ]
+  },
+  {
+   "kind": "conflict",
+   "title": "Telmisartan 40 mg: taken at home, missing afterwards",
+   "body": "General medicine and anaesthesia list Telma (telmisartan) 40 mg 1-0-1 as a current medicine. It is not on any in-hospital order sheet and not on the discharge list, and no page says it was stopped.",
+   "cites": [
+    {
+     "label": "General medicine consult",
+     "page": 189,
+     "rid": "p189-on-rx"
+    },
+    {
+     "label": "Pre-anaesthetic record",
+     "page": 250,
+     "rid": "p250-drug-therapy"
+    },
+    {
+     "label": "Discharge drug list",
+     "page": 167,
+     "rid": "p167-rx-stamlo"
+    }
+   ]
+  },
+  {
+   "kind": "conflictingValue",
+   "title": "Sodium and potassium on 5 Nov copied differently",
+   "body": "The investigation chart has Na 137 and K 3.5. The orthopaedic progress sheet and the pre-anaesthetic record have Na 136 and K 3.6. No printed report is in this PDF to settle it.",
+   "cites": [
+    {
+     "label": "Investigation chart",
+     "page": 198,
+     "rid": "p198-biochem"
+    },
+    {
+     "label": "Progress sheet 6 Nov",
+     "page": 200,
+     "rid": "p200-labs"
+    },
+    {
+     "label": "Pre-anaesthetic record",
+     "page": 251,
+     "rid": "p251-investigations"
+    }
+   ]
+  },
+  {
+   "kind": "conflict",
+   "title": "Chest X-ray read two ways",
+   "body": "General medicine describes left sided homogenous opacification of the lung field. Pulmonology writes 'rotated film, cannot comment'. No radiology report is in the file.",
+   "cites": [
+    {
+     "label": "General medicine consult",
+     "page": 189,
+     "rid": "p189-cxr"
+    },
+    {
+     "label": "Pulmonology consult",
+     "page": 191,
+     "rid": "p191-cxr"
+    },
+    {
+     "label": "Pre-anaesthetic record",
+     "page": 251,
+     "rid": "p251-cxr"
+    }
+   ]
+  },
+  {
+   "kind": "conflict",
+   "title": "Acute bronchitis: current or past",
+   "body": "The discharge summary lists acute bronchitis in the final diagnosis. The medicine and pulmonology notes date it to May 2026, and the pre-anaesthetic record mentions a recent chest infection with fever 2 weeks earlier, symptom free for 1 week.",
+   "cites": [
+    {
+     "label": "Discharge summary",
+     "page": 164,
+     "rid": "p164-final-comorbid"
+    },
+    {
+     "label": "General medicine consult",
+     "page": 188,
+     "rid": "p188-diagnosis"
+    },
+    {
+     "label": "Pre-anaesthetic record",
+     "page": 250,
+     "rid": "p250-history"
+    }
+   ]
+  },
+  {
+   "kind": "conflict",
+   "title": "Temperature on arrival",
+   "body": "The orthopaedic examination sheet has 38 written in the printed 'Temp ... °C' field. The nurses' transfer summary the same evening records 98.6°F, and the patient is called afebrile on the pre-anaesthetic record.",
+   "cites": [
+    {
+     "label": "Orthopaedic case record",
+     "page": 175,
+     "rid": "p175-general-exam"
+    },
+    {
+     "label": "Transfer summary",
+     "page": 210,
+     "rid": "p210-vitals"
+    },
+    {
+     "label": "Pre-anaesthetic record",
+     "page": 250,
+     "rid": "p250-physical-exam"
+    }
+   ]
+  },
+  {
+   "kind": "conflict",
+   "title": "Skin closure and surgery times in the operative records",
+   "body": "The steps of surgery say the skin was closed with stratafix, the wound closure table says staples. The operation report times surgery 14:00 to 16:00; the anaesthetic record writes about 1:45 pm to 4:25 pm, and has a mark on the General box although the technique written is spinal with nerve blocks.",
+   "cites": [
+    {
+     "label": "Operation report, steps",
+     "page": 269,
+     "rid": "p269-steps"
+    },
+    {
+     "label": "Operation report, closure",
+     "page": 269,
+     "rid": "p269-closure"
+    },
+    {
+     "label": "Operation report, times",
+     "page": 268,
+     "rid": "p268-anaesthesia"
+    },
+    {
+     "label": "Anaesthetic record",
+     "page": 257,
+     "rid": "p257-record"
+    }
+   ]
+  },
+  {
+   "kind": "lowConfidence",
+   "title": "One pre-operative injection could not be read",
+   "body": "The last line of the pre-operative orders, in a different hand, is an injection of 1 g IV marked '2'. The name reads like 'Vanking' but is not certain, and it is not on the anaesthetic record or the operation report. It is held back from the medicine list.",
+   "cites": [
+    {
+     "label": "Pre-operative orders",
+     "page": 222,
+     "rid": "p222-preop-last-line"
+    },
+    {
+     "label": "Anaesthetic record, antibiotics",
+     "page": 257,
+     "rid": "p257-antibiotic"
+    }
+   ]
+  },
+  {
+   "kind": "lowConfidence",
+   "title": "Hard handwriting on three consultation pages",
+   "body": "The undated pulmonology review (10 Nov), the ophthalmology visual acuity line, and the urea, creatinine and pre-operative sugar limit in the general medicine note were only partly readable. Values taken from them carry low confidence.",
+   "cites": [
+    {
+     "label": "Pulmonology review",
+     "page": 196,
+     "rid": "p196-review"
+    },
+    {
+     "label": "Ophthalmology consult",
+     "page": 194,
+     "rid": "p194-history"
+    },
+    {
+     "label": "General medicine consult",
+     "page": 189,
+     "rid": "p189-advice"
+    },
+    {
+     "label": "General medicine labs",
+     "page": 189,
+     "rid": "p189-labs"
+    }
+   ]
+  },
+  {
+   "kind": "lowConfidence",
+   "title": "Frequency missing for Evion on the discharge list",
+   "body": "The frequency cell for Evion 400 is blank on the typed discharge list. The in-hospital orders gave it 0-1-0.",
+   "cites": [
+    {
+     "label": "Discharge drug list",
+     "page": 167,
+     "rid": "p167-rx-evion"
+    },
+    {
+     "label": "Doctor's orders",
+     "page": 243,
+     "rid": "p243-orders"
+    }
+   ]
+  }
+ ],
+ "pagesUnread": [],
+ "pagesFormsOnly": 50,
+ "normalLabs": {
+  "count": 28,
+  "names": "Lymphocytes, Monocytes, Eosinophils, Basophils, Absolute eosinophil count, Haematocrit, AST, ALT, ALP, Total protein, Albumin, Globulin, Total bilirubin, Direct bilirubin, APTT, Uric acid, Chloride, Blood gas pCO2 (6 and 7 Nov), Blood gas glucose, Lactate, Blood gas haematocrit, HCO3-, HCO3 std, TCO2, BEecf, BE(B), Ca++ (7.4), THbc"
+ },
+ "timeline": [
+  {
+   "date": "5 Nov",
+   "encounterKey": "ER-2026-11-05",
+   "title": "Fall at home, seen in emergency",
+   "detail": "Slip and fall from stairs at 11 am; left hip pain; SpO2 90% on room air",
+   "cite": {
+    "page": 170,
+    "rid": "p170-triage"
+   }
+  },
+  {
+   "date": "5 Nov",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Admitted under Orthopaedics",
+   "detail": "Closed left femur neck fracture; CT brain and cervical spine show no trauma related injury",
+   "cite": {
+    "page": 144,
+    "rid": "p144-admitted"
+   }
+  },
+  {
+   "date": "5 to 6 Nov",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Pre-operative opinions",
+   "detail": "Cardiology, surgical oncology, general medicine, pulmonology and ophthalmology",
+   "cite": {
+    "page": 185,
+    "rid": "p185-opinion"
+   }
+  },
+  {
+   "date": "7 Nov",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "CT pulmonary angiography",
+   "detail": "D-dimer 2.1 and low oxygen: no acute pulmonary embolism; cleared under high risk",
+   "cite": {
+    "page": 165,
+    "rid": "p165-ctpa"
+   }
+  },
+  {
+   "date": "7 Nov",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Left hip bipolar hemiarthroplasty (cemented)",
+   "detail": "Spinal with nerve blocks; shifted to HDU",
+   "cite": {
+    "page": 268,
+    "rid": "p268-indication"
+   }
+  },
+  {
+   "date": "8 Nov",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Post-operative day 1",
+   "detail": "Post-op Hb 10.1; shifted to the ward",
+   "cite": {
+    "page": 202,
+    "rid": "p202-pod1"
+   }
+  },
+  {
+   "date": "9 Nov",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Stood and walked with a walker",
+   "detail": "Partial weight bearing mobilisation started",
+   "cite": {
+    "page": 246,
+    "rid": "p246-physio-9"
+   }
+  },
+  {
+   "date": "12 Nov",
+   "encounterKey": "IPD-2026-11-05",
+   "title": "Discharged",
+   "detail": "Stable, afebrile, partial weight bearing with walker",
+   "cite": {
+    "page": 166,
+    "rid": "p166-condition"
+   }
+  }
+ ],
+ "notes": "Two encounter keys, matching the other files: ER-2026-11-05 for the emergency trauma case record and the orthopaedic injured-person record (global pages 170 to 179, which look like the same sheets that F2 holds), and IPD-2026-11-05 for the rest of the admission (5 to 12 Nov 2026). Findings whose main citation is on pages 170 to 179 carry the ER key; the same diagnoses, complaint and history from the discharge summary carry the IPD key. Only the discharge summary, the operation report, the high-risk anaesthesia consent and the blood gas printout are typed; everything else is handwritten. All laboratory values except the blood gas printout and the four values on the discharge summary are handwritten copies without units or reference ranges; unit and range are left empty where the page gives none. The abnormal flag is set only where the page marks a value (a '#' outside-reference mark on the printout, or a doctor's circle); the H or L direction is my reading of that mark. An upward arrow beside AST, ALT and ALP on the pre-anaesthetic record was not used as a flag. The 5 Nov sodium and potassium points in the series use the investigation chart (137 and 3.5); two other pages copy 136 and 3.6. ICD-10 codes are handwritten as an unlabelled list in the margin of the admission record and were matched to the diagnoses by me (S72.0, E11.9, I10, J20.9, C44.5); W01, Z09.0 and 5816 on the same list were not assigned. The pulmonology review on global page 196 is undated; it is dated 10 Nov from the referral on page 193 and the antibiotic day count. The pre-anaesthetic record date is written unclearly (6 or 7 Nov). Identifiers, names, the place of injury and the hospital phone number were removed from all text. Blank backs, consents and administrative forms are counted in pagesFormsOnly (50 pages). Series for sodium, potassium, pH, pO2 and SO2 join a handwritten copy (5 or 6 Nov) with the blood gas printout of 7 Nov, so the two points come from different sources."
+}
