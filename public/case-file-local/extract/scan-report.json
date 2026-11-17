@@ -1,0 +1,21 @@
+{
+ "clean": true,
+ "counts": {
+  "dates": 0,
+  "refs": 0,
+  "codes": 0,
+  "age": 0,
+  "names": 0,
+  "values": 0,
+  "weekdays": 0
+ },
+ "hits": {
+  "dates": [],
+  "refs": [],
+  "codes": [],
+  "age": [],
+  "names": [],
+  "values": [],
+  "weekdays": []
+ }
+}

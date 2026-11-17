@@ -1,0 +1,33 @@
+{
+ "before": {
+  "DX": 31,
+  "PROC": 11,
+  "MED": 57,
+  "VIT": 34,
+  "RPT": 110,
+  "LAB": 51,
+  "ALG": 3
+ },
+ "after": {
+  "DX": 12,
+  "ALG": 2,
+  "MED": 33,
+  "PROC": 4,
+  "LAB": 33,
+  "VIT": 28,
+  "RPT": 77
+ },
+ "settled": [
+  "One pre-operative injection could not be read",
+  "A circled value of 40 could not be identified",
+  "Cardiology risk wording partly read",
+  "Antibiotics were sent to theatre; giving is not recorded here",
+  "IV entries on the intake charts of 10 to 12 Nov",
+  "Year of the past skin surgery is hidden"
+ ],
+ "clashes": 2,
+ "moved": [
+  "proc4"
+ ],
+ "missing": []
+}

@@ -1,0 +1,3154 @@
+{
+  "patient": {
+    "name": "Flavy Picardo",
+    "sex": "Female",
+    "age": 84,
+    "cite": {
+      "page": 164,
+      "rid": "p164-age-sex"
+    }
+  },
+  "encounters": [
+    {
+      "id": "E1",
+      "type": "IPD",
+      "department": "Orthopaedics",
+      "startLabel": "5 Nov 2026",
+      "endLabel": "12 Nov 2026",
+      "sortKey": "2026-11-05",
+      "entry": "emergency",
+      "outcome": "discharged",
+      "entryEncounterId": "E2",
+      "ref": "1127801"
+    },
+    {
+      "id": "E2",
+      "type": "ER",
+      "department": "Emergency Medicine",
+      "startLabel": "5 Nov 2026",
+      "sortKey": "2026-11-05",
+      "outcome": "admitted",
+      "admissionId": "E1"
+    },
+    {
+      "id": "E3",
+      "type": "IPD",
+      "department": "General Medicine",
+      "startLabel": "15 May 2026",
+      "endLabel": "21 May 2026",
+      "sortKey": "2026-05-15",
+      "entry": "emergency",
+      "outcome": "discharged",
+      "entryEncounterId": "E4",
+      "ref": "1049523"
+    },
+    {
+      "id": "E4",
+      "type": "ER",
+      "department": "Emergency Medicine",
+      "startLabel": "15 May 2026",
+      "sortKey": "2026-05-15",
+      "outcome": "admitted",
+      "admissionId": "E3"
+    }
+  ],
+  "medical_history": [
+    {
+      "tmmhs_id": 2,
+      "title": "Medical Condition",
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "title": "Type 2 diabetes mellitus",
+          "enable": "Y",
+          "status": "Active",
+          "since": "18 Year(s)",
+          "medication": "Yes",
+          "note": "On OHAs",
+          "_source": {
+            "factId": "dx10",
+            "page": 164,
+            "region": "p164-final-comorbid",
+            "asWritten": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)"
+          }
+        },
+        {
+          "tmmhst_id": 0,
+          "title": "Hypertension",
+          "enable": "Y",
+          "status": "Active",
+          "since": "18 Year(s)",
+          "medication": "Yes",
+          "note": "",
+          "_source": {
+            "factId": "dx11",
+            "page": 164,
+            "region": "p164-final-comorbid",
+            "asWritten": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)"
+          }
+        },
+        {
+          "tmmhst_id": 0,
+          "title": "Squamous cell carcinoma, right gluteal skin",
+          "enable": "Y",
+          "status": "Inactive",
+          "since": "",
+          "medication": "",
+          "note": "Excised 2017, no recurrence",
+          "_source": {
+            "factId": "dx12",
+            "page": 164,
+            "region": "p164-final-comorbid",
+            "asWritten": "SCC right gluteal skin s/p WLE(2017)"
+          }
+        },
+        {
+          "tmmhst_id": 0,
+          "title": "Reactive airway disease",
+          "enable": "N",
+          "status": "",
+          "since": "",
+          "medication": "",
+          "note": "",
+          "_source": {
+            "factId": "hx3",
+            "page": 21,
+            "region": "p21-kco",
+            "asWritten": "h/o cough -> 3 days, nonproductive, no blood, wheeze +, no SOB / PND. h/o fever 1 ep - no chills. h/o gen. fatigue, ↓ appetite. k/c/o T2DM, HTN. no h/o RAD / IHD"
+          }
+        },
+        {
+          "tmmhst_id": 0,
+          "title": "Ischaemic heart disease",
+          "enable": "N",
+          "status": "",
+          "since": "",
+          "medication": "",
+          "note": "",
+          "_source": {
+            "factId": "hx4",
+            "page": 21,
+            "region": "p21-kco",
+            "asWritten": "h/o cough -> 3 days, nonproductive, no blood, wheeze +, no SOB / PND. h/o fever 1 ep - no chills. h/o gen. fatigue, ↓ appetite. k/c/o T2DM, HTN. no h/o RAD / IHD"
+          }
+        }
+      ],
+      "medical_history_remarks": "No travel history, no similar illness before\nImmunisation status not known"
+    },
+    {
+      "tmmhs_id": 4,
+      "title": "Allergies",
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "title": "Drug allergy",
+          "enable": "N",
+          "status": "",
+          "since": "",
+          "note": "",
+          "_source": {
+            "factId": "alg1",
+            "page": 86,
+            "region": "p86-allergy",
+            "asWritten": "Known Drug Allergies: No [x]  Yes [ ]"
+          }
+        },
+        {
+          "tmmhst_id": 0,
+          "title": "Food allergy or intolerance",
+          "enable": "N",
+          "status": "",
+          "since": "",
+          "note": "",
+          "_source": {
+            "factId": "alg2",
+            "page": 94,
+            "region": "p94-food-allergy",
+            "asWritten": "Food Allergy/Intolerance: [x] None  [ ] Yes (Specify)"
+          }
+        }
+      ]
+    },
+    {
+      "tmmhs_id": 5,
+      "title": "Surgical History",
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "title": "Wide local excision with primary closure, squamous cell carcinoma of right gluteal skin",
+          "enable": "Y",
+          "dateType": "year",
+          "date": "2017",
+          "note": "",
+          "_source": {
+            "factId": "proc4",
+            "page": 164,
+            "region": "p164-past",
+            "asWritten": "T2DM · HTN · SCC right gluteal skin s/p wide excision (2017) · Acute bronchitis"
+          }
+        }
+      ]
+    },
+    {
+      "tmmhs_id": 1,
+      "title": "Lifestyle",
+      "no_know_history": false,
+      "tags": [
+        {
+          "tmmhst_id": 0,
+          "title": "Smoking",
+          "enable": "N",
+          "status": "",
+          "since": "",
+          "note": "",
+          "_source": {
+            "factId": "hx1",
+            "page": 86,
+            "region": "p86-habits",
+            "asWritten": "Habits: Smoking Yes [ ] No [x]. Alcohol Yes [ ] No [x]"
+          }
+        },
+        {
+          "tmmhst_id": 0,
+          "title": "Alcohol",
+          "enable": "N",
+          "status": "",
+          "since": "",
+          "note": "",
+          "_source": {
+            "factId": "hx2",
+            "page": 86,
+            "region": "p86-habits",
+            "asWritten": "Habits: Smoking Yes [ ] No [x]. Alcohol Yes [ ] No [x]"
+          }
+        }
+      ]
+    }
+  ],
+  "digitization": {
+    "diagnosis": [
+      {
+        "name": "Closed left neck of femur fracture",
+        "type": "Final",
+        "duration": "",
+        "status": "Confirmed",
+        "notes": "After a slip and fall at home",
+        "icd_code": "S72.0",
+        "_source": {
+          "factId": "dx1",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-final-dx",
+          "asWritten": "Diagnosis - Closed left neck of femur fracture",
+          "confidence": 0.96,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Volume overload",
+        "type": "Provisional",
+        "duration": "",
+        "status": "Suspected",
+        "notes": "For desaturation",
+        "icd_code": "",
+        "_source": {
+          "factId": "dx2",
+          "encounterId": "E1",
+          "page": 42,
+          "region": "p42-imp",
+          "asWritten": "? Volume overload / Basal atelectasis",
+          "confidence": 0.7,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Basal atelectasis",
+        "type": "Provisional",
+        "duration": "",
+        "status": "Suspected",
+        "notes": "For desaturation",
+        "icd_code": "",
+        "_source": {
+          "factId": "dx13",
+          "encounterId": "E1",
+          "page": 42,
+          "region": "p42-imp",
+          "asWritten": "? Volume overload / Basal atelectasis",
+          "confidence": 0.7,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Intertrochanteric fracture, left",
+        "type": "Provisional",
+        "duration": "",
+        "status": "Suspected",
+        "notes": "",
+        "icd_code": "",
+        "_source": {
+          "factId": "dx3",
+          "encounterId": "E2",
+          "page": 18,
+          "region": "p18-prov-dx",
+          "asWritten": "Provisional Diagnosis: ? IT # (L).  ? NOF #",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Left lower lobe pneumonia",
+        "type": "Provisional",
+        "duration": "",
+        "status": "",
+        "notes": "",
+        "icd_code": "",
+        "_source": {
+          "factId": "dx4",
+          "encounterId": "E3",
+          "page": 49,
+          "region": "p49-prov-dx",
+          "asWritten": "Provisional Diagnosis: (L) LL pneumonia",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Lower respiratory tract infection",
+        "type": "Provisional",
+        "duration": "",
+        "status": "",
+        "notes": "",
+        "icd_code": "",
+        "_source": {
+          "factId": "dx5",
+          "encounterId": "E4",
+          "page": 30,
+          "region": "p30-prov-dx",
+          "asWritten": "Provisional Diagnosis: LRTI",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Acute bronchitis",
+        "type": "Secondary",
+        "duration": "",
+        "status": "",
+        "notes": "",
+        "icd_code": "J20.9",
+        "_source": {
+          "factId": "dx6",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-final-comorbid",
+          "asWritten": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)",
+          "confidence": 0.9,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "MASLD",
+        "type": "Secondary",
+        "duration": "",
+        "status": "Suspected",
+        "notes": "",
+        "icd_code": "",
+        "_source": {
+          "factId": "dx7",
+          "encounterId": "E1",
+          "page": 188,
+          "region": "p188-diagnosis",
+          "asWritten": "& ? MASLD",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Acute bacterial conjunctivitis, both eyes",
+        "type": "Secondary",
+        "duration": "",
+        "status": "",
+        "notes": "",
+        "icd_code": "",
+        "_source": {
+          "factId": "dx8",
+          "encounterId": "E1",
+          "page": 35,
+          "region": "p35-imp",
+          "asWritten": "Imp: Acute Bacterial conjunctivitis",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Bedsore over right gluteal region",
+        "type": "Secondary",
+        "duration": "",
+        "status": "",
+        "notes": "Coloplast patch applied",
+        "icd_code": "",
+        "_source": {
+          "factId": "dx9",
+          "encounterId": "E1",
+          "page": 166,
+          "region": "p166-condition",
+          "asWritten": "Bedsore present over right gluteal region- coloplast patch applied",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      }
+    ],
+    "medical_history": [
+      {
+        "type": "medical_condition",
+        "name": "Type 2 diabetes mellitus",
+        "enable": "Y",
+        "status": "Active",
+        "duration": "18 Year(s)",
+        "medication": "Yes",
+        "notes": "On OHAs",
+        "_source": {
+          "factId": "dx10",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-final-comorbid",
+          "asWritten": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "medical_condition",
+        "name": "Hypertension",
+        "enable": "Y",
+        "status": "Active",
+        "duration": "18 Year(s)",
+        "medication": "Yes",
+        "notes": "",
+        "_source": {
+          "factId": "dx11",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-final-comorbid",
+          "asWritten": "T2DM,HTN,Acute Bronchitis, SCC right gluteal skin s/p WLE(2017)",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "medical_condition",
+        "name": "Squamous cell carcinoma, right gluteal skin",
+        "enable": "Y",
+        "status": "Inactive",
+        "duration": "",
+        "medication": "",
+        "notes": "Excised 2017, no recurrence",
+        "_source": {
+          "factId": "dx12",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-final-comorbid",
+          "asWritten": "SCC right gluteal skin s/p WLE(2017)",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "allergy",
+        "name": "Drug allergy",
+        "enable": "N",
+        "status": "",
+        "duration": "",
+        "notes": "",
+        "_source": {
+          "factId": "alg1",
+          "encounterId": "E1",
+          "page": 86,
+          "region": "p86-allergy",
+          "asWritten": "Known Drug Allergies: No [x]  Yes [ ]",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "allergy",
+        "name": "Food allergy or intolerance",
+        "enable": "N",
+        "status": "",
+        "duration": "",
+        "notes": "",
+        "_source": {
+          "factId": "alg2",
+          "encounterId": "E1",
+          "page": 94,
+          "region": "p94-food-allergy",
+          "asWritten": "Food Allergy/Intolerance: [x] None  [ ] Yes (Specify)",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "surgery",
+        "name": "Wide local excision with primary closure, squamous cell carcinoma of right gluteal skin",
+        "enable": "Y",
+        "dateType": "year",
+        "date": "2017",
+        "notes": "",
+        "_source": {
+          "factId": "proc4",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-past",
+          "asWritten": "T2DM · HTN · SCC right gluteal skin s/p wide excision (2017) · Acute bronchitis",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "lifestyle",
+        "name": "Smoking",
+        "enable": "N",
+        "status": "",
+        "duration": "",
+        "notes": "",
+        "_source": {
+          "factId": "hx1",
+          "encounterId": "E1",
+          "page": 86,
+          "region": "p86-habits",
+          "asWritten": "Habits: Smoking Yes [ ] No [x]. Alcohol Yes [ ] No [x]",
+          "confidence": 0.9,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "lifestyle",
+        "name": "Alcohol",
+        "enable": "N",
+        "status": "",
+        "duration": "",
+        "notes": "",
+        "_source": {
+          "factId": "hx2",
+          "encounterId": "E1",
+          "page": 86,
+          "region": "p86-habits",
+          "asWritten": "Habits: Smoking Yes [ ] No [x]. Alcohol Yes [ ] No [x]",
+          "confidence": 0.9,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "medical_condition",
+        "name": "Reactive airway disease",
+        "enable": "N",
+        "status": "",
+        "duration": "",
+        "medication": "",
+        "notes": "",
+        "_source": {
+          "factId": "hx3",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-kco",
+          "asWritten": "h/o cough -> 3 days, nonproductive, no blood, wheeze +, no SOB / PND. h/o fever 1 ep - no chills. h/o gen. fatigue, ↓ appetite. k/c/o T2DM, HTN. no h/o RAD / IHD",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "medical_condition",
+        "name": "Ischaemic heart disease",
+        "enable": "N",
+        "status": "",
+        "duration": "",
+        "medication": "",
+        "notes": "",
+        "_source": {
+          "factId": "hx4",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-kco",
+          "asWritten": "h/o cough -> 3 days, nonproductive, no blood, wheeze +, no SOB / PND. h/o fever 1 ep - no chills. h/o gen. fatigue, ↓ appetite. k/c/o T2DM, HTN. no h/o RAD / IHD",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "others",
+        "name": "No travel history, no similar illness before",
+        "notes": "",
+        "_source": {
+          "factId": "hx5",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-history",
+          "asWritten": "h/o cough -> 3 days, nonproductive, no blood, wheeze +, no SOB / PND. h/o fever 1 ep - no chills. h/o gen. fatigue, ↓ appetite. k/c/o T2DM, HTN. no h/o RAD / IHD",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "type": "others",
+        "name": "Immunisation status not known",
+        "notes": "",
+        "_source": {
+          "factId": "hx6",
+          "encounterId": "E2",
+          "page": 174,
+          "region": "p174-mechanism",
+          "asWritten": "Mechanism of Injury: Alleged history of slip and fall from stairs at [place removed] (Home) · Time and Date of Injury: 11am 05/11/2026 · H/o loss of consciousness: Absent · H/o bleeding from ENT: Absent · Referred by: self · Immunisation status: Not Known",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      }
+    ],
+    "medications": [
+      {
+        "name": "Augmentin 1000 mg Duo",
+        "generic": "Amoxycillin + clavulanate",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "1-0-1",
+        "when": "",
+        "duration": "1 Week(s)",
+        "notes": "",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med1",
+          "encounterId": "E1",
+          "page": 166,
+          "region": "p166-rx-augmentin",
+          "asWritten": "AUGMENTIN 1000MG -DUO · Generic: AMOXYCILLIN 875 MG | CLAVULANATE POTASSIUM 125 MG · TABLET · 1 - 0 - 1 · 1 week",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Ultracet Semi",
+        "generic": "Tramadol + paracetamol",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "1-0-1",
+        "when": "",
+        "duration": "1 Week(s)",
+        "notes": "",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med2",
+          "encounterId": "E1",
+          "page": 166,
+          "region": "p166-rx-ultracet",
+          "asWritten": "ULTRACET SEMI 18.75MG/162.5MG · Generic: TRAMADOL HCL 18.75MG | PARACETAMOL 162.5MG · TABLET · 1 - 0 - 1 · 1 week",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Gastrorid-DSR",
+        "generic": "Pantoprazole + domperidone",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "1-0-0",
+        "when": "",
+        "duration": "1 Week(s)",
+        "notes": "",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med3",
+          "encounterId": "E1",
+          "page": 166,
+          "region": "p166-rx-gastrorid",
+          "asWritten": "GASTRORID-DSR(40MG/30MG) · Generic: PANTOPRAZOLE 40MG| DOMPERIDONE 30 MG SUSTAINED REL · TABLET · 1 - 0 - 0 · 1 week",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Chymoral BR",
+        "generic": "Trypsin-chymotrypsin + bromelain + rutoside",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "1-0-1",
+        "when": "",
+        "duration": "3 Day(s)",
+        "notes": "",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med4",
+          "encounterId": "E1",
+          "page": 166,
+          "region": "p166-rx-chymoral",
+          "asWritten": "CHYMORAL BR TABLET · Generic: TRYPSIN - | CHYMOTRYPSIN WITH BROMELIAN 0RUTOSIDE · TABLET · 1 - 0 - 1 · 3 days",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Pradaxa 110 mg",
+        "generic": "Dabigatran",
+        "type": "Capsule",
+        "dosage": "",
+        "frequency": "1-0-1",
+        "when": "",
+        "duration": "1 Month(s)",
+        "notes": "",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med5",
+          "encounterId": "E1",
+          "page": 166,
+          "region": "p166-rx-pradaxa",
+          "asWritten": "PRADAXA 110MG CAPSULES · Generic: DABIGATRAN ETEXILATE MEXILATE 110MG · CAPSULE · 1 - 0 - 1 · 1 month",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Ezorb D3+",
+        "generic": "Calcium aspartate + magnesium",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "0-1-0",
+        "when": "",
+        "duration": "1 Month(s)",
+        "notes": "",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med6",
+          "encounterId": "E1",
+          "page": 166,
+          "region": "p166-rx-ezorb",
+          "asWritten": "EZORB D3+ 15s STRIP TAB · Generic: calcium aspartate 1120mg,magnesium hydroxide 180 m · TABLET · 0 - 1 - 0 · 1 month",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Limcee chewable 500 mg",
+        "generic": "Vitamin C",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "1-0-1",
+        "when": "",
+        "duration": "1 Month(s)",
+        "notes": "",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med7",
+          "encounterId": "E1",
+          "page": 166,
+          "region": "p166-rx-limcee",
+          "asWritten": "LIMCEE CHEWABLE 500MG 15\"S STRIP · Generic: ASCORBIC ACID IP 100MG, SODIUM ASOCORBATE 450MG.EQ · TABLET · 1 - 0 - 1 · 1 month",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "D3 Must 60K",
+        "generic": "Cholecalciferol",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "Once a week",
+        "when": "",
+        "duration": "2 Month(s)",
+        "notes": "",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med8",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-rx-d3must",
+          "asWritten": "D3MUST 60K TABLETS · Generic: CHOLECALCIFEROL 60000 IU · TABLET · Once a week · 2 months",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Rozavel 5 mg",
+        "generic": "Rosuvastatin",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "0-0-1",
+        "when": "",
+        "duration": "",
+        "notes": "Continue",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med9",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-rx-rozavel",
+          "asWritten": "ROZAVEL 5MG TABLET · Generic: ROSUVASTATIN CALCIUM 5MG · TABLET · 0 - 0 - 1 · Continue",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Stamlo 5 mg",
+        "generic": "Amlodipine",
+        "type": "Capsule",
+        "dosage": "",
+        "frequency": "1-0-0",
+        "when": "",
+        "duration": "",
+        "notes": "Continue",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med10",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-rx-stamlo",
+          "asWritten": "STAMLO 5 MG TABLET · Generic: AMLODIPINE BESYLATE 5 MG · CAPSULE · 1 - 0 - 0 · Continue",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Glimy-M1",
+        "generic": "Glimepiride + metformin",
+        "type": "Tablet",
+        "dosage": "",
+        "frequency": "1-0-1",
+        "when": "",
+        "duration": "",
+        "notes": "Continue",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med11",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-rx-glimy",
+          "asWritten": "GLIMY -M1TABLET · Generic: GLIMEPIRIDE 1 MG | METFORMIN HCL 500MG SUSTAINED R · TABLET · 1 - 0 - 1 · Continue",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Evion 400",
+        "generic": "Vitamin E",
+        "type": "Capsule",
+        "dosage": "",
+        "frequency": "",
+        "when": "",
+        "duration": "",
+        "notes": "Continue",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med12",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-rx-evion",
+          "asWritten": "EVION 400 CAPSULES · Generic: VIT E 400 MG · CAPSULE · [frequency blank] · Continue",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Mosi",
+        "generic": "Moxifloxacin 0.5%",
+        "type": "Eye drops",
+        "dosage": "",
+        "frequency": "1-1-1-1",
+        "when": "",
+        "duration": "1 Week(s)",
+        "notes": "Both eyes",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med13",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-rx-mosi",
+          "asWritten": "MOSI (EYE DROPS) · Generic: MOXIFLOXACIN OPHTHALMIC SOL 0.5% · DROPS · 1 - 1 - 1 - 1 Both eyes · 1 week",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Just Tears 10 ml",
+        "generic": "Carboxymethyl cellulose 0.5%",
+        "type": "Eye drops",
+        "dosage": "",
+        "frequency": "1-1-1-1",
+        "when": "",
+        "duration": "1 Week(s)",
+        "notes": "Both eyes",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med14",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-rx-justtears",
+          "asWritten": "JUST TEARS EYE DROPS 10ML · Generic: CARBOXY METHYL CELLULOSE 0.5% · SOLUTION · 1 - 1 - 1 - 1 Both eyes · 1 week",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Tegaderm with pad 9 cm x 35 cm",
+        "generic": "",
+        "type": "Dressing",
+        "dosage": "",
+        "frequency": "",
+        "when": "",
+        "duration": "",
+        "notes": "5 nos",
+        "stage": "On discharge",
+        "_source": {
+          "factId": "med15",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-rx-tegaderm",
+          "asWritten": "TEGADERM WITH PAD8593 9CMX35CM · Generic: TRANSPARENT ADHESIVE DRESSING · DRESSING · 5 nos",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Evion",
+        "generic": "",
+        "type": "",
+        "dosage": "",
+        "frequency": "0-1-0",
+        "when": "",
+        "duration": "",
+        "notes": "Last dose 4/11/26 at 2pm",
+        "stage": "At home",
+        "_source": {
+          "factId": "med16",
+          "encounterId": "E1",
+          "page": 87,
+          "region": "p87-med-3",
+          "asWritten": "T. Evion  (dose blank)  0-1-0  4/11/26 at 2pm",
+          "confidence": 0.7,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Rozavel 5",
+        "generic": "Rosuvastatin",
+        "type": "",
+        "dosage": "",
+        "frequency": "0-0-1",
+        "when": "",
+        "duration": "",
+        "notes": "",
+        "stage": "At home",
+        "_source": {
+          "factId": "med17",
+          "encounterId": "E1",
+          "page": 189,
+          "region": "p189-on-rx",
+          "asWritten": "T. Rozavel 5  0-0-1",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Stamlo 5",
+        "generic": "Amlodipine",
+        "type": "",
+        "dosage": "",
+        "frequency": "1-0-0",
+        "when": "",
+        "duration": "",
+        "notes": "",
+        "stage": "At home",
+        "_source": {
+          "factId": "med18",
+          "encounterId": "E1",
+          "page": 189,
+          "region": "p189-on-rx",
+          "asWritten": "T. Stamlo 5  1-0-0",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Glimy M1",
+        "generic": "Glimepiride + metformin",
+        "type": "",
+        "dosage": "",
+        "frequency": "1-0-1",
+        "when": "",
+        "duration": "",
+        "notes": "",
+        "stage": "At home",
+        "_source": {
+          "factId": "med19",
+          "encounterId": "E1",
+          "page": 189,
+          "region": "p189-on-rx",
+          "asWritten": "T. Glimy M1  1-0-1",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Telma 40",
+        "generic": "Telmisartan",
+        "type": "",
+        "dosage": "",
+        "frequency": "1-0-1",
+        "when": "",
+        "duration": "",
+        "notes": "Listed as a current medicine by medicine and anaesthesia; not on the in-hospital orders and not on the discharge list",
+        "stage": "At home",
+        "_source": {
+          "factId": "med20",
+          "encounterId": "E1",
+          "page": 189,
+          "region": "p189-on-rx",
+          "asWritten": "T. Telma 40  1-0-1",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Tramadol 50 mg",
+        "generic": "Tramadol",
+        "type": "Injection",
+        "dosage": "",
+        "frequency": "Q12H",
+        "when": "",
+        "duration": "",
+        "notes": "50 mg in 100 ml NS, IV, Alternating with paracetamol (PCM / Finamac) 1 g IV Q12H, 5 to 12 Nov",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med21",
+          "encounterId": "E1",
+          "page": 216,
+          "region": "p216-orders",
+          "asWritten": "Inj. TRAMADOL 50mg/100ml NS IV Q12H",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Clexane 0.4 ml",
+        "generic": "Enoxaparin",
+        "type": "Injection",
+        "dosage": "0.4 ml",
+        "frequency": "OD",
+        "when": "",
+        "duration": "",
+        "notes": "SC, Started 5 Nov, withheld 6 Nov before surgery, given again 8 to 12 Nov",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med22",
+          "encounterId": "E1",
+          "page": 217,
+          "region": "p217-orders",
+          "asWritten": "Inj. CLEXANE 0.4ml s/c OD",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Budecort",
+        "generic": "Budesonide",
+        "type": "Nebulisation",
+        "dosage": "",
+        "frequency": "Q12H",
+        "when": "",
+        "duration": "",
+        "notes": "Nebulised, 2 cycles in emergency on 5 Nov, then regular from 8 to 12 Nov on pulmonology advice",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med23",
+          "encounterId": "E1",
+          "page": 228,
+          "region": "p228-orders",
+          "asWritten": "NEB. DUOLIN Q8H · NEB. BUDECORT Q12H",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Duolin",
+        "generic": "",
+        "type": "Nebulisation",
+        "dosage": "",
+        "frequency": "Q8H",
+        "when": "",
+        "duration": "",
+        "notes": "Nebulised, 2 cycles in emergency on 5 Nov, then regular from 8 to 12 Nov on pulmonology advice",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med34",
+          "encounterId": "E1",
+          "page": 228,
+          "region": "p228-orders",
+          "asWritten": "NEB. DUOLIN Q8H · NEB. BUDECORT Q12H",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "G. Mosi",
+        "generic": "",
+        "type": "Eye drops",
+        "dosage": "",
+        "frequency": "",
+        "when": "",
+        "duration": "2 Week(s)",
+        "notes": "Both eyes",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med24",
+          "encounterId": "E1",
+          "page": 35,
+          "region": "p35-adv",
+          "asWritten": "Adv: G MOSI [marks] } (BE) x 2 weeks",
+          "confidence": 0.65,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "G. Eyemist",
+        "generic": "",
+        "type": "Eye drops",
+        "dosage": "",
+        "frequency": "",
+        "when": "",
+        "duration": "2 Week(s)",
+        "notes": "Both eyes",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med25",
+          "encounterId": "E1",
+          "page": 35,
+          "region": "p35-adv",
+          "asWritten": "G EYEMIST [marks] } (BE) x 2 weeks",
+          "confidence": 0.65,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Human Actrapid",
+        "generic": "Regular insulin",
+        "type": "Injection",
+        "dosage": "",
+        "frequency": "",
+        "when": "",
+        "duration": "",
+        "notes": "8 Nov: 6-6-6 units, 9 Nov: 4-4-0, 10 Nov: skip-4-6, 11 Nov: 4-4-0, 12 Nov: 0, SC, Also 8 U neutralising dose in IV DNS before surgery",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med26",
+          "encounterId": "E1",
+          "page": 228,
+          "region": "p228-orders",
+          "asWritten": "Inj. H. ACTRAPID (6) u s/c - (6) - (6)",
+          "confidence": 0.82,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Vancomycin 1 g",
+        "generic": "Vancomycin",
+        "type": "Injection",
+        "dosage": "2 vials",
+        "frequency": "",
+        "when": "",
+        "duration": "",
+        "notes": "Sent to theatre with the patient, 7 Nov 2026, 1 vial is listed again when the patient left theatre",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med27",
+          "encounterId": "E1",
+          "page": 66,
+          "region": "p66-abx",
+          "asWritten": "Inj Vancomycin 1gm - 2 sent to OT ... & Inj Vanc 1g - 1",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Augmentin 1.2 g",
+        "generic": "Amoxycillin + clavulanate",
+        "type": "Injection",
+        "dosage": "",
+        "frequency": "Q12H",
+        "when": "",
+        "duration": "",
+        "notes": "1.2 g, 6 days (D1 on 7 Nov to D6 on 12 Nov), IV, First dose 1:45 pm on the day of surgery",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med28",
+          "encounterId": "E1",
+          "page": 224,
+          "region": "p224-postop",
+          "asWritten": "Inj AUGMENTIN 1.2g IV Q12H (D1)",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Teiconin 400 mg",
+        "generic": "Teicoplanin",
+        "type": "Injection",
+        "dosage": "",
+        "frequency": "Q24H",
+        "when": "",
+        "duration": "",
+        "notes": "400 mg, 2 doses (D1 on 7 Nov, D2/2 on 8 Nov), IV",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med29",
+          "encounterId": "E1",
+          "page": 224,
+          "region": "p224-postop",
+          "asWritten": "Inj TEICONIN 400mg IV Q24H (D1/D2)",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Hydrocort 100 mg",
+        "generic": "",
+        "type": "Injection",
+        "dosage": "",
+        "frequency": "STAT",
+        "when": "",
+        "duration": "",
+        "notes": "100 mg, IV, Given 5 Nov 2026, 4:00 PM in the ED",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med30",
+          "encounterId": "E2",
+          "page": 19,
+          "region": "p19-rx-hydrocort",
+          "asWritten": "Inj. Hydrocort 100 mg IV stat",
+          "confidence": 0.9,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Budecort",
+        "generic": "",
+        "type": "Nebulisation",
+        "dosage": "",
+        "frequency": "",
+        "when": "",
+        "duration": "",
+        "notes": "1 resp, 2 cycles, Inhalation, Given 5 Nov 2026 at 4:15 PM and 4:50 PM in the ED",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med31",
+          "encounterId": "E2",
+          "page": 19,
+          "region": "p19-rx-neb",
+          "asWritten": "Neb Budecort 1 resp } 2 cycle",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Duolin",
+        "generic": "",
+        "type": "Nebulisation",
+        "dosage": "",
+        "frequency": "",
+        "when": "",
+        "duration": "",
+        "notes": "1 resp, 2 cycles, Inhalation, Given 5 Nov 2026 at 4:00 PM and 4:25 PM in the ED",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med32",
+          "encounterId": "E2",
+          "page": 19,
+          "region": "p19-rx-neb",
+          "asWritten": "Neb Duolin 1 resp inhalation } 2 cycle",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Finamac 1 g",
+        "generic": "Paracetamol",
+        "type": "Injection",
+        "dosage": "",
+        "frequency": "",
+        "when": "",
+        "duration": "",
+        "notes": "1 g, IV, Given 5 Nov 2026, 1:40 PM in the ED",
+        "stage": "In hospital",
+        "_source": {
+          "factId": "med33",
+          "encounterId": "E2",
+          "page": 19,
+          "region": "p19-rx-1",
+          "asWritten": "(1) Inj. FINAMAC 1g IV",
+          "confidence": 0.6,
+          "status": "draft"
+        }
+      }
+    ],
+    "surgery": [
+      {
+        "name": "Left hip bipolar hemiarthroplasty, cemented",
+        "type": "Surgery",
+        "date": "7 Nov 2026",
+        "time": "",
+        "anaesthesia": "Block + Spinal",
+        "notes": "Southern Moore approach",
+        "_source": {
+          "factId": "proc1",
+          "encounterId": "E1",
+          "page": 268,
+          "region": "p268-indication",
+          "asWritten": "Left Hip Bipolar Hemiarthroplasty (cemented)",
+          "confidence": 0.96,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Skin traction, left leg",
+        "type": "Procedure",
+        "date": "5 Nov 2026",
+        "time": "4:35 PM",
+        "anaesthesia": "",
+        "notes": "",
+        "_source": {
+          "factId": "proc2",
+          "encounterId": "E2",
+          "page": 9,
+          "region": "p9-proc-3",
+          "asWritten": "Skin traction Applied to left leg",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Bladder catheterisation",
+        "type": "Procedure",
+        "date": "5 Nov 2026",
+        "time": "5:40 PM",
+        "anaesthesia": "",
+        "notes": "16 No. Foley's, 550 ml drained",
+        "_source": {
+          "factId": "proc3",
+          "encounterId": "E2",
+          "page": 9,
+          "region": "p9-proc-4",
+          "asWritten": "Bladder Catheterization done c 16 No Folleys under Aseptic technique",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      }
+    ],
+    "lab_results": [
+      {
+        "reportName": "Coagulation profile",
+        "testName": "D-dimer",
+        "value": "2.1",
+        "units": "µg/mL",
+        "refRange": "",
+        "arrowDirection": "up",
+        "date": "6 Nov 2026",
+        "_source": {
+          "factId": "lab1",
+          "encounterId": "E1",
+          "page": 191,
+          "region": "p191-ddimer",
+          "asWritten": "D-dimer -> 2.1 (circled); typed consent: elevated D-dimer (2.1 µg/mL)",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Complete blood count",
+        "testName": "Total leucocyte count",
+        "value": "12.3",
+        "units": "K",
+        "refRange": "",
+        "arrowDirection": "up",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab2",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-cbc",
+          "asWritten": "TLC 12.3 K (circled in the pulmonology note)",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Complete blood count",
+        "testName": "Neutrophils",
+        "value": "92.6",
+        "units": "%",
+        "refRange": "",
+        "arrowDirection": "up",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab3",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-cbc",
+          "asWritten": "DLC N 92.6 (circled as N = 92.6% in the pulmonology note)",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Inflammatory markers",
+        "testName": "ESR",
+        "value": "27",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "up",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab4",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-cbc",
+          "asWritten": "ESR 27 (circled in the pulmonology note)",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Fasting blood sugar",
+        "value": "40",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "down",
+        "date": "7 Nov 2026",
+        "_source": {
+          "factId": "lab5",
+          "encounterId": "E1",
+          "page": 251,
+          "region": "p251-fbs",
+          "asWritten": "FBS (40, circled) -> GRBS -> 108",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Arterial blood gas",
+        "testName": "Arterial pH",
+        "value": "7.44",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "6 Nov 2026",
+        "_source": {
+          "factId": "lab6",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#pH 7.47 (marked outside ref. range)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Arterial blood gas",
+        "testName": "Arterial pH",
+        "value": "7.47",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "up",
+        "date": "7 Nov 2026",
+        "_source": {
+          "factId": "lab6",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#pH 7.47 (marked outside ref. range)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Arterial blood gas",
+        "testName": "Arterial pO2 (room air)",
+        "value": "38",
+        "units": "mmHg",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "6 Nov 2026",
+        "_source": {
+          "factId": "lab7",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#pO2 51 mmHg (marked outside ref. range; handwritten: Room Air, SpO2 85%)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Arterial blood gas",
+        "testName": "Arterial pO2 (room air)",
+        "value": "51",
+        "units": "mmHg",
+        "refRange": "",
+        "arrowDirection": "down",
+        "date": "7 Nov 2026",
+        "_source": {
+          "factId": "lab7",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#pO2 51 mmHg (marked outside ref. range; handwritten: Room Air, SpO2 85%)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Electrolytes",
+        "testName": "Potassium",
+        "value": "3.5",
+        "units": "mmol/L",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab8",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#K+ 3.3 mmol/L (blood gas printout, marked outside ref. range)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Electrolytes",
+        "testName": "Potassium",
+        "value": "3.3",
+        "units": "mmol/L",
+        "refRange": "",
+        "arrowDirection": "down",
+        "date": "7 Nov 2026",
+        "_source": {
+          "factId": "lab8",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#K+ 3.3 mmol/L (blood gas printout, marked outside ref. range)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Electrolytes",
+        "testName": "Sodium",
+        "value": "137",
+        "units": "mmol/L",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab9",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#Na+ 135 mmol/L (blood gas printout, marked outside ref. range)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Electrolytes",
+        "testName": "Sodium",
+        "value": "135",
+        "units": "mmol/L",
+        "refRange": "",
+        "arrowDirection": "down",
+        "date": "7 Nov 2026",
+        "_source": {
+          "factId": "lab9",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#Na+ 135 mmol/L (blood gas printout, marked outside ref. range)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Electrolytes",
+        "testName": "Ionised calcium",
+        "value": "1.03",
+        "units": "mmol/L",
+        "refRange": "",
+        "arrowDirection": "down",
+        "date": "7 Nov 2026",
+        "_source": {
+          "factId": "lab10",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "#Ca++ 1.03 mmol/L (marked outside ref. range)",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Arterial blood gas",
+        "testName": "Arterial pCO2",
+        "value": "37",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "6 Nov 2026",
+        "_source": {
+          "factId": "lab11",
+          "encounterId": "E1",
+          "page": 45,
+          "region": "p45-abg",
+          "asWritten": "PCO2 -> 37",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "260",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "140",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 10:15pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "90",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "6 Nov 7am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "111",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "6 Nov 10am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "126",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "6 Nov 3:30pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "130",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "6 Nov 10:30pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "80",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "7 Nov 6am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "108",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "7 Nov 8am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "113",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "7 Nov 6pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "263",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "8 Nov 6am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "293",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "8 Nov 10:30am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "243",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "8 Nov 1pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "298",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "8 Nov 3pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "250",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "8 Nov evening 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "233",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "9 Nov 6am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "136",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "9 Nov 1pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "116",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "9 Nov 4pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "118",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "9 Nov 7pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "120",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "9 Nov 10pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "102",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "10 Nov 6am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "167",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "10 Nov 10am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "196",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "10 Nov 1:30pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "146",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "10 Nov 4:15pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "160",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "10 Nov 6:45pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "130",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "10 Nov 10pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "133",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "11 Nov 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "136",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "11 Nov 7am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "148",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "11 Nov 10am 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "155",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "11 Nov 12:30pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "100",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "11 Nov 7pm 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "90",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "12 Nov 2026",
+        "_source": {
+          "factId": "lab12",
+          "encounterId": "E1",
+          "page": 123,
+          "region": "p123-grbs",
+          "asWritten": "6am  90 mg/dl  FBS  Skip (last row of the insulin chart; the date is not written on this row)",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "HbA1c",
+        "value": "6.20",
+        "units": "%",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab13",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-labs",
+          "asWritten": "HbA1c: 6.20 %",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Random blood sugar",
+        "value": "175",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab14",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-labs",
+          "asWritten": "RBS: 175 mg/dl",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Thyroid function test",
+        "testName": "TSH",
+        "value": "1.15",
+        "units": "µIU/ml",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab15",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-labs",
+          "asWritten": "TSH: 1.15 µIU/ml",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Complete blood count",
+        "testName": "Platelet count",
+        "value": "162",
+        "units": "K",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab16",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-cbc",
+          "asWritten": "PLT 162 K",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Inflammatory markers",
+        "testName": "CRP",
+        "value": "5",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab17",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-other",
+          "asWritten": "CRP 5 (5.0 on the progress sheet, 5.01 in the medicine note)",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Renal function test",
+        "testName": "Creatinine",
+        "value": "0.52",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab18",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-biochem",
+          "asWritten": "CREAT 0.52",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Renal function test",
+        "testName": "Urea",
+        "value": "12",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab19",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-biochem",
+          "asWritten": "UREA 12",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Coagulation profile",
+        "testName": "Prothrombin time",
+        "value": "10.8",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab20",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-lft",
+          "asWritten": "PT/INR 10.8 / 1.02",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Coagulation profile",
+        "testName": "INR",
+        "value": "1.02",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab34",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-lft",
+          "asWritten": "PT/INR 10.8 / 1.02",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Serology",
+        "testName": "HBsAg",
+        "value": "NR",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab21",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-other",
+          "asWritten": "HBsAg NR · HCV NR (pre-anaesthetic record: Sero NR)",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Serology",
+        "testName": "HCV",
+        "value": "NR",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab35",
+          "encounterId": "E1",
+          "page": 198,
+          "region": "p198-other",
+          "asWritten": "HBsAg NR · HCV NR (pre-anaesthetic record: Sero NR)",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Complete blood count",
+        "testName": "Haemoglobin",
+        "value": "12.5",
+        "units": "g/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab22",
+          "encounterId": "E1",
+          "page": 202,
+          "region": "p202-pod1",
+          "asWritten": "postop Hb: 10.1 <- 12.5",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Complete blood count",
+        "testName": "Haemoglobin",
+        "value": "10.1",
+        "units": "g/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "8 Nov 2026",
+        "_source": {
+          "factId": "lab22",
+          "encounterId": "E1",
+          "page": 202,
+          "region": "p202-pod1",
+          "asWritten": "postop Hb: 10.1 <- 12.5",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Cardiac markers",
+        "testName": "Troponin T",
+        "value": "0.009",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab23",
+          "encounterId": "E1",
+          "page": 251,
+          "region": "p251-investigations",
+          "asWritten": "Trop T - 0.009",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Arterial blood gas",
+        "testName": "Arterial oxygen saturation",
+        "value": "77",
+        "units": "%",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "6 Nov 2026",
+        "_source": {
+          "factId": "lab24",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "SO2c 88 %",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Arterial blood gas",
+        "testName": "Arterial oxygen saturation",
+        "value": "88",
+        "units": "%",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "7 Nov 2026",
+        "_source": {
+          "factId": "lab24",
+          "encounterId": "E1",
+          "page": 259,
+          "region": "p259-abg",
+          "asWritten": "SO2c 88 %",
+          "confidence": 0.93,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "260",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "5 Nov 2026",
+        "_source": {
+          "factId": "lab25",
+          "encounterId": "E2",
+          "page": 10,
+          "region": "p10-grbs",
+          "asWritten": "GRBS: 260 mg/dl",
+          "confidence": 0.9,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Complete blood count",
+        "testName": "Haemoglobin",
+        "value": "12",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "15 May 2026",
+        "_source": {
+          "factId": "lab26",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-lab-hb",
+          "asWritten": "Hb 12",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Complete blood count",
+        "testName": "Total leucocyte count",
+        "value": "8.3",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "15 May 2026",
+        "_source": {
+          "factId": "lab27",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-lab-tc",
+          "asWritten": "TC 8.3",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Complete blood count",
+        "testName": "Platelet count",
+        "value": "167",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "15 May 2026",
+        "_source": {
+          "factId": "lab28",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-lab-plt",
+          "asWritten": "Plt 167",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Renal function test",
+        "testName": "Creatinine",
+        "value": "0.5",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "15 May 2026",
+        "_source": {
+          "factId": "lab29",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-lab-cr",
+          "asWritten": "Cr 0.5",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Renal function test",
+        "testName": "Urea",
+        "value": "19",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "15 May 2026",
+        "_source": {
+          "factId": "lab30",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-lab-urea",
+          "asWritten": "urea 19",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Electrolytes",
+        "testName": "Potassium",
+        "value": "3.5",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "15 May 2026",
+        "_source": {
+          "factId": "lab31",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-lab-k",
+          "asWritten": "K 3.5",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Electrolytes",
+        "testName": "Sodium",
+        "value": "138",
+        "units": "",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "15 May 2026",
+        "_source": {
+          "factId": "lab32",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-lab-na",
+          "asWritten": "Na 138",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "reportName": "Blood glucose",
+        "testName": "Capillary blood glucose",
+        "value": "221",
+        "units": "mg/dl",
+        "refRange": "",
+        "arrowDirection": "",
+        "date": "15 May 2026",
+        "_source": {
+          "factId": "lab33",
+          "encounterId": "E4",
+          "page": 27,
+          "region": "p27-grbs",
+          "asWritten": "GRBS: 221 mg/dl",
+          "confidence": 0.9,
+          "status": "draft"
+        }
+      }
+    ],
+    "vitals_and_body_composition": [
+      {
+        "date": "11 Nov 2026",
+        "notes": "Evening handover, day before discharge, GCS 15",
+        "blood_pressure": "130/80",
+        "pulse": "88",
+        "spo2": "98%",
+        "temperature": "98.6 F",
+        "respiratory_rate": "20",
+        "_source": {
+          "factId": "vit2",
+          "encounterId": "E1",
+          "page": 121,
+          "region": "p121-vitals",
+          "asWritten": "Temp 98.6F  Pulse: 88bpm  Resp 20bpm  BP: 130/80mmHg  SpO2 98%  GCS 15",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      }
+    ],
+    "lab_investigation": [
+      {
+        "name": "CT brain, plain",
+        "notes": "Chronic small vessel ischaemic changes with age related cerebral atrophy. No evidence of trauma related neuro-parenchymal injury.",
+        "_source": {
+          "factId": "rpt8",
+          "encounterId": "E1",
+          "page": 165,
+          "region": "p165-ct-brain",
+          "asWritten": "Intra axial confluent hypodense areas noted in centrum semiovale, periventricular white matter and corona radiate regions- s/o chronic small vessel ischaemic changes. Sulci, ventricles and cisterns are prominent - age related cerebral atrophy. No e/o extra axial lesions/collection. Mucosal thickening of sphenoid sinus noted. Left concha bullosa noted.",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "CT cervical spine, plain",
+        "notes": "No evidence of trauma related cervical spine injury. Diffuse osteopenia and degenerative changes (anterior marginal osteophytes, uncovertebral hypertrophy).",
+        "_source": {
+          "factId": "rpt9",
+          "encounterId": "E1",
+          "page": 165,
+          "region": "p165-ct-cspine",
+          "asWritten": "Craniovertebral junction is normal. Vertebrae are normal in alignment. Disc spaces are grossly maintained. Diffuse osteopenia. Degenerative changes in the form of anterior marginal osteophytes, uncovertebral hypertrophy.",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Chest X-ray",
+        "notes": "General medicine: left sided homogenous opacification of the lung field, cardiophrenic and costophrenic angles not blunted. Pulmonology: rotated film, cannot comment.",
+        "_source": {
+          "factId": "rpt10",
+          "encounterId": "E1",
+          "page": 189,
+          "region": "p189-cxr",
+          "asWritten": "(L) sided homogenous opacification of lung field. Cardio & Costo Phrenic angles not blunted · CT yet to be reported",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "ECG",
+        "notes": "Normal sinus rhythm, rate 80, no ST-T changes, PR and QTc within normal limits.",
+        "_source": {
+          "factId": "rpt11",
+          "encounterId": "E1",
+          "page": 251,
+          "region": "p251-ecg",
+          "asWritten": "(N) SR rate 80 · no ST-T · PR / QTc WNL",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Echocardiogram",
+        "notes": "EF 63%, normal biventricular systolic function, no regional wall motion abnormality. MAC present, mild MR, LVH, mild LVDD, TR present, no PAH. The cardiology note calls it a normal study.",
+        "_source": {
+          "factId": "rpt12",
+          "encounterId": "E1",
+          "page": 251,
+          "region": "p251-echo",
+          "asWritten": "EF 63% · (N) BV sys func · no RWMA · MAC (+) · mild MR · LVH (+) · mild LVDD · TR (+) · no PAH",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "CT pulmonary angiography",
+        "notes": "No evidence of acute pulmonary embolism; right and left pulmonary arteries prominent in calibre. Bilateral (right more than left) dependent basal atelectasis. Hypodense lesions with calcification in the right lobe of the thyroid.",
+        "_source": {
+          "factId": "rpt13",
+          "encounterId": "E1",
+          "page": 165,
+          "region": "p165-ctpa",
+          "asWritten": "-Right and left pulmonary arteries are prominent in calibre, however, no evidence of acute pulmonary embolism. -Bilateral(right>left) dependent basal atelectasis. -Hypodense lesions with calcification in right lobe of thyroid. Suggested USG correlation if clinically indicated.",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "X-ray of hip, pelvis and left leg after surgery",
+        "notes": "The HDU transfer note of 8 Nov says the X-ray was done. The report is not in this file.",
+        "_source": {
+          "factId": "rpt14",
+          "encounterId": "E1",
+          "page": 74,
+          "region": "p74-xray",
+          "asWritten": "X-ray of hip pelvis + left leg done",
+          "confidence": 0.65,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "X-rays: chest, pelvis, left femur (AP, lateral)",
+        "notes": "Radiological findings written by the Orthopaedics resident: left femur neck fracture. The nursing tracker logs an ortho X-ray sent at 2:40 PM and back at 3:05 PM. There is no formal radiology report in this file.",
+        "_source": {
+          "factId": "rpt15",
+          "encounterId": "E2",
+          "page": 12,
+          "region": "p12-xray-findings",
+          "asWritten": "X-rays - Chest, pelvis, left femur - AP, lateral. Radiological findings: left femur neck fracture",
+          "confidence": 0.9,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "E-FAST in emergency",
+        "notes": "E-FAST negative, with lung sliding present on both sides.",
+        "_source": {
+          "factId": "rpt16",
+          "encounterId": "E2",
+          "page": 171,
+          "region": "p171-efast",
+          "asWritten": "all views marked (-) · with B/L lung sliding (+)",
+          "confidence": 0.7,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "2D echo requested from Cardiology",
+        "notes": "Medicine (MED005) asked Cardiology to do a 2D echo on 19/5 at 9 am. There is no reply or result on the page.",
+        "_source": {
+          "factId": "rpt18",
+          "encounterId": "E3",
+          "page": 51,
+          "region": "p51-request",
+          "asWritten": "Respected staff, kindly do 2D ECHO",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Chest X-ray",
+        "notes": "Written in the Medicine note as left-sided haziness. Logged by nursing as sent 5:55 pm, back 6 pm. No formal report in this file.",
+        "_source": {
+          "factId": "rpt19",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-cxr",
+          "asWritten": "CXR - (L) haziness",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "ECG",
+        "notes": "Written as NSR in the Medicine note. Done at the bedside at 5:10 pm, seen by the ED resident and attached to the OP file. No tracing in this file.",
+        "_source": {
+          "factId": "rpt20",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-ecg",
+          "asWritten": "ECG - NSR",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "2D echo (listed, no result)",
+        "notes": "Written under the lab results in the investigations column of the Medicine note, with no finding beside it.",
+        "_source": {
+          "factId": "rpt21",
+          "encounterId": "E4",
+          "page": 21,
+          "region": "p21-echo",
+          "asWritten": "2D ECHO",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      }
+    ],
+    "others": [
+      {
+        "name": "Pre-anaesthetic assessment",
+        "notes": "High risk consent. Plan: subarachnoid block or general anaesthesia, with or without a block. Pantoprazole 40 mg at night and at 6 am, antidiabetic medicines withheld, IV fluid with neutralising insulin in DNS, Duolin and Budecort nebulisation at night and 30 minutes before the procedure; pulmonology clearance to be reviewed on the morning of surgery.",
+        "kind": "Operation notes",
+        "_source": {
+          "factId": "rpt22",
+          "encounterId": "E1",
+          "page": 251,
+          "region": "p251-plan",
+          "asWritten": "under SAB / GA ± Block · T. PANTAPRAZOLE 40mg HS & 6 AM · To cont all medication as per schedule · PTCD clearance -> will be reviewed in the morning prior procedure (i/v/o decreased SpO2, raised RR, CXR changes) · High risk informed consent · NPO: Solids 8 hrs, Clear fluids 2 hr · Arrange blood products: adequately · Investigations required: FBS · To W/H Antidiabetic medication · IVF with neutralising dose of Insulin in DNS as per Medicine order · Neb. Duolin, Budecort: HS & 30 mins prior procedure",
+          "confidence": 0.8,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Anaesthesia given",
+        "notes": "Subarachnoid block at L3-L4 (2.2 ml of 0.5% heavy bupivacaine + 30 mcg clonidine) with left femoral and left lateral femoral cutaneous nerve blocks under ultrasound (10 ml 0.5% levobupivacaine + 10 ml 2% lignoadrenaline + 4 mg dexamethasone). Spontaneous breathing with face mask oxygen, SpO2 92 to 93%. Blood loss written as 500 ml. No adverse anaesthetic events; shifted to HDU.",
+        "kind": "Operation notes",
+        "_source": {
+          "factId": "rpt23",
+          "encounterId": "E1",
+          "page": 261,
+          "region": "p261-regional",
+          "asWritten": "Technique: subarachnoid block · Position: sitting · Approach: midline · Space: L3-L4 · Needle type: 23G Quincke Babcock's needle · Drug injected/Dose: 2.2 ml of 0.5% Heavy bupivacaine + 30 mcg of clonidine · Adequacy of block: Adequate · (L) femoral + (L) LFCN block under USG guidance: 10 ml of 0.5% levobupivacaine + 10 ml of 2% lignoadrenaline + 4 mg dexamethasone - adequate analgesia",
+          "confidence": 0.72,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Theatre times and drain",
+        "notes": "Shifted to theatre at 1:10 pm on 7 Nov and received in OR-1 at 1:15 pm. The 4:30 pm note records the surgery done and a 10F drain in the left hip. Received in HDU at 5 pm.",
+        "kind": "Operation notes",
+        "_source": {
+          "factId": "rpt24",
+          "encounterId": "E1",
+          "page": 67,
+          "region": "p67-ot",
+          "asWritten": "1:10pm patient shifted to KHSB OT. 1:15pm Patient received to KH OT OR-1. 4:30pm Patient underwent Left Bipolar Hemiarthroplasty ... Romovac 10F DT present in left hip. Patient shifted to KHSB HDU",
+          "confidence": 0.78,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Implants",
+        "notes": "CORAIL cemented femoral stem 12/14 AMT 135° size 8 standard no collar; Aqurate cement stopper 40 mm; self centering bipolar head 28 mm ID 43 mm OD; ARTICUL/EZE femoral head 28 mm +1.5 12/14 taper; SmartSet GHV gentamicin bone cement 40 g.",
+        "kind": "Operation notes",
+        "_source": {
+          "factId": "rpt25",
+          "encounterId": "E1",
+          "page": 165,
+          "region": "p165-implants",
+          "asWritten": "CORAIL Hip system cemented Femoral stem 12/14 AMT 135° size 8 standard no collar · Aqurate cement stopper diameter 40mm UHMWPE · Self centering Bipolar head 28mm ID 43mm OD · ARTICUL/EZE Femoral head 28mm +1.5 12/14 taper · SmartSet GHV Gentamicin bone cement 40g",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Operation report: what was done",
+        "notes": "Right lateral decubitus, Southern Moore approach with a 15 cm curved incision. Fractured femoral head extracted; 28 mm head chosen; 40 mm cement stopper and a cemented femoral stem size 8 in about 15 degrees of anteversion. Drain placed. Above knee compression and knee immobilizer applied; shifted out with stable vitals. Counts verified. Approximate blood loss 200 ml.",
+        "kind": "Operation notes",
+        "_source": {
+          "factId": "rpt26",
+          "encounterId": "E1",
+          "page": 269,
+          "region": "p269-steps",
+          "asWritten": "a head size of 28mm was chosen. Broaching was done on femur serially from small to larger size (till 9 size) keeping anteversion ~15 degree. Trial implants were placed; head reduced and hip range of movements assessed. Cement stopper (40mm) was inserted in the femoral canal. A cemented femoral stem (size 8) inserted in approximately 15 degrees of anteversion. Irrigation done, hemostasis achieved and drain placed. Capsular layer sutured with vicryl no.1, short external rotators sutured through transosseously with GT. Deep fascia closed with Stratafix and subcutaneus closure done with Vicryl 1-0. Skin closed with stratafix. Above knee compression & knee immobilizer were applied and patient shifted out with stable vitals",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      }
+    ],
+    "symptoms": [
+      {
+        "name": "Pain over left hip",
+        "duration": "",
+        "severity": "Severe",
+        "notes": "Sudden onset, non radiating, after a slip and fall at home. No loss of consciousness, ENT bleed or seizures.",
+        "_source": {
+          "factId": "sym1",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-complaint",
+          "asWritten": "Pain over left hip",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Unable to bear weight on left lower limb",
+        "duration": "",
+        "severity": "",
+        "notes": "",
+        "_source": {
+          "factId": "sym2",
+          "encounterId": "E1",
+          "page": 164,
+          "region": "p164-complaint",
+          "asWritten": "Pain over left hip",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Cough",
+        "duration": "3 Day(s)",
+        "severity": "",
+        "notes": "Mucoid expectoration",
+        "_source": {
+          "factId": "sym3",
+          "encounterId": "E4",
+          "page": 27,
+          "region": "p27-complaint",
+          "asWritten": "Cough and generalized weakness · Since from 3 days",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Generalised weakness",
+        "duration": "3 Day(s)",
+        "severity": "",
+        "notes": "",
+        "_source": {
+          "factId": "sym4",
+          "encounterId": "E4",
+          "page": 27,
+          "region": "p27-complaint",
+          "asWritten": "Cough and generalized weakness · Since from 3 days",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Shortness of breath",
+        "duration": "",
+        "severity": "",
+        "notes": "mMRC grade 2",
+        "_source": {
+          "factId": "sym5",
+          "encounterId": "E4",
+          "page": 27,
+          "region": "p27-complaint",
+          "asWritten": "Cough and generalized weakness · Since from 3 days",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Fever",
+        "duration": "3 Day(s)",
+        "severity": "",
+        "notes": "Low grade, no chills",
+        "_source": {
+          "factId": "sym6",
+          "encounterId": "E4",
+          "page": 27,
+          "region": "p27-complaint",
+          "asWritten": "Cough and generalized weakness · Since from 3 days",
+          "confidence": 0.88,
+          "status": "draft"
+        }
+      }
+    ],
+    "examinations": [
+      {
+        "name": "Skin on admission",
+        "notes": "On 6 Nov: back skin intact, dry and fragile skin, blackish discolouration in the right hand. Before theatre on 7 Nov: a blister over the back, 5 cm, near the lower back.",
+        "_source": {
+          "factId": "rpt55",
+          "encounterId": "E1",
+          "page": 60,
+          "region": "p60-skin",
+          "asWritten": "Back skin intact. dry skin with fragile skin present. Blackish discolouration present in right hand / 5cm blister present near lower back",
+          "confidence": 0.78,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Skin findings noted by nursing",
+        "notes": "Scar mark present on the buttocks and blackish discolouration over the right hand.",
+        "_source": {
+          "factId": "rpt67",
+          "encounterId": "E2",
+          "page": 9,
+          "region": "p9-skin",
+          "asWritten": "Scar mark present in Buttocks & Blackish discolouration over Right hand.",
+          "confidence": 0.7,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Orthopaedic examination",
+        "notes": "Left lower limb shortened and externally rotated, tenderness over the left hip; movement of the left hip and knee could not be assessed due to pain. No external injuries, no swelling. Right hip, knee and both ankles move within normal limits; active toe movements present on both sides; distal pulses palpable, distal sensation intact. Nil significant injuries of the upper limbs, spine, pelvis, abdomen, chest, face and skull.",
+        "_source": {
+          "factId": "rpt68",
+          "encounterId": "E2",
+          "page": 14,
+          "region": "p14-lower-limb",
+          "asWritten": "Left lower limb shortened and externally rotated - No external injuries - No swelling - Tenderness present over left hip - ROM left hip and knee couldn't be assessed due to pain",
+          "confidence": 0.9,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Skin findings noted by nursing",
+        "notes": "Blackish discolouration of both upper limbs and the left lower limb.",
+        "_source": {
+          "factId": "rpt76",
+          "encounterId": "E4",
+          "page": 26,
+          "region": "p26-skin",
+          "asWritten": "Blackish discolouration bilateral upper and (L) lower limb.",
+          "confidence": 0.85,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Examination",
+        "notes": "ED record: pallor present, pedal oedema present, no icterus, no clubbing; S1 S2 present; bilateral crepitations; abdomen soft and non-tender with bowel sounds; no focal neurological deficit; work of breathing marked as increased. Medicine note: crepitations in the left infrascapular and infra-axillary areas (written L ISA, IAA), heart sounds written as muffled, JVP not raised, abdomen and CNS NAD.",
+        "_source": {
+          "factId": "rpt77",
+          "encounterId": "E4",
+          "page": 30,
+          "region": "p30-exam",
+          "asWritten": "Pallor (+) icterus (-) clubbing (-) pedal oedema (+). CVS: S1 S2 (+). RS: B/L crepitations (+). P/A: soft, non tender, BS (+). CNS: no FND",
+          "confidence": 0.75,
+          "status": "draft"
+        }
+      }
+    ],
+    "follow_up": [
+      {
+        "name": "Suture removal at local hospital",
+        "notes": "Suture removal on 21/11/2026 (Saturday) at the local hospital.",
+        "_source": {
+          "factId": "rpt59",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-follow-up",
+          "asWritten": "Suture removal on 21/11/2026(Saturday) at local hospital · Review in Ortho 4 OPD on 09/12/2026 (Wednesday) for follow up · Review in PTCD 2 OPD on 09/12/2026 (Wednesday) for follow up. · KINDLY BRING WALKER ON REVIEW",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Review in Orthopaedics and Pulmonology OPD",
+        "notes": "Review in Ortho 4 OPD and in PTCD 2 OPD on 09/12/2026 (Wednesday). Bring the walker.",
+        "_source": {
+          "factId": "rpt60",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-follow-up",
+          "asWritten": "Suture removal on 21/11/2026(Saturday) at local hospital · Review in Ortho 4 OPD on 09/12/2026 (Wednesday) for follow up · Review in PTCD 2 OPD on 09/12/2026 (Wednesday) for follow up. · KINDLY BRING WALKER ON REVIEW",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Eye OPD review once stable and shiftable",
+        "notes": "Review in eye OPD (1) once stable and shiftable; Monday, Wednesday or Friday.",
+        "_source": {
+          "factId": "rpt63",
+          "encounterId": "E1",
+          "page": 35,
+          "region": "p35-followup",
+          "asWritten": "R/w in eye OPD (1) once stable & shiftable. (mon, wed, fri)",
+          "confidence": 0.78,
+          "status": "draft"
+        }
+      }
+    ],
+    "advice": [
+      {
+        "name": "Advice on discharge",
+        "notes": "Wound care and hygiene; change patch dressings once in 3 days; physiotherapy (partial weight bearing with walker, QSE, SLR, knee ROM, ankle pumps); no left hip adduction, flexion and internal rotation; chest physiotherapy; ice packs; abduction pillow between the legs.",
+        "_source": {
+          "factId": "rpt61",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-advice",
+          "asWritten": "Maintain hygiene and wound care · Continue medications as advised · Change patch dressings once in 3 days as advised · Continue physiotherapy as advised (PWB mobilization with walker, QSE, SLR, Knee ROM, ankle pumps) · NO LEFT HIP ADDUCTION,FLEXION AND INTERNAL ROTATION · Continue chest physio (DBE, Incentive spirometry) · Icepacks to continue · Abduction pillow between the legs to continue",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      },
+      {
+        "name": "Diet and when to call",
+        "notes": "Low salt diet, diabetic diet. Call the hospital if fever or pain.",
+        "_source": {
+          "factId": "rpt62",
+          "encounterId": "E1",
+          "page": 167,
+          "region": "p167-diet",
+          "asWritten": "low salt diet · Diabetic diet",
+          "confidence": 0.95,
+          "status": "draft"
+        }
+      }
+    ]
+  },
+  "hospital_course": [
+    {
+      "encounterId": "E3",
+      "type": "IPD",
+      "department": "General Medicine",
+      "admittedOn": "2026-05-15",
+      "dischargedOn": "2026-05-21",
+      "days": 6,
+      "entry": "emergency",
+      "outcome": "discharged",
+      "events": [],
+      "text": "Patient is conscious and oriented. Patient seen by EMD PG and medicine PG. Advised for admission. Patient and party willing for admission. medicine reconciliation done. 20G Venflow secured on (R) hand.",
+      "textSource": "asWritten",
+      "_source": {
+        "factId": "rpt74",
+        "page": 22,
+        "region": "p22-transfer"
+      }
+    },
+    {
+      "encounterId": "E1",
+      "type": "IPD",
+      "department": "Orthopaedics",
+      "admittedOn": "2026-11-05",
+      "dischargedOn": "2026-11-12",
+      "days": 7,
+      "entry": "emergency",
+      "outcome": "discharged",
+      "events": [],
+      "text": "The patient came with the above mentioned complaints and was clinicoradiologically diagnosed as mentioned above. After appropriate pre-anaesthetic clearances and informed consents, the patient underwent on 07/11/2026. Intra-op and Post-op period was uneventful. Wound inspection was done as per unit protocol on POD2, POD4, and was found to be healthy. The patient underwent supervised physiotherapy in the form of PWB mobilization with crutches, knee ROM, sQSE, ankle pumps. The patient is symptomatically better, hence being discharged with the following advice",
+      "textSource": "asWritten",
+      "_source": {
+        "factId": "rpt31",
+        "page": 166,
+        "region": "p166-course"
+      }
+    }
+  ]
+}

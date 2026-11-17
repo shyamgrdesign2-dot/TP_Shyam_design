@@ -3461,3 +3461,9 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   color: var(--tesseract-fg-primary);
 }
 .rail .courseText { padding-left: 0; }
+
+// Clinical data: where the review stands, as one tag above the filters.
+.reviewTag {
+  display: flex;
+  align-items: center;
+}
