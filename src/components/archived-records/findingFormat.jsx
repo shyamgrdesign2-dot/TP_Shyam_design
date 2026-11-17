@@ -3,7 +3,10 @@ import { Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { ArrowDown, ArrowLeft2, ArrowRight2, ArrowUp, DocumentText, Edit2, TickCircle, Warning2 } from "iconsax-reactjs";
 import ARCHIVED_RECORDS_MOCK from "./mock/archivedRecordsMock";
 import { archivedRecordsStore, citeNumberForPage, citesOf, documentForPage } from "./archivedRecordsStore";
-import { rxQuals } from "./rxFormat";
+import { DX_TITLES, dxTitle, isDiagnosis } from "./diagnosisTypes";
+import { HISTORY_TITLES, historyNeedsDate, historyTitle, isHistory } from "./medicalHistory";
+import { PROC_TITLES, isProcedure, procGroupOf } from "./procedureTypes";
+import { rxQuals, rxRow } from "./rxFormat";
 import { scrollWithin } from "./scrollWithin";
 import styles from "./ArchivedRecords.module.scss";
 
@@ -299,7 +302,12 @@ export function TrendStrip({ finding }) {
 // when the row's own words already carry it ("given 9 Jul 2026 at 4 pm").
 const NEEDS_DATE = ["MED", "ALG"];
 function withDate(finding, quals = [], dated, dateInTag) {
-  if (!dated || dateInTag || !finding.dateLabel || !NEEDS_DATE.includes(finding.domain)) return quals;
+  if (!dated || dateInTag || !finding.dateLabel || !(NEEDS_DATE.includes(finding.domain) || historyNeedsDate(finding) || isDiagnosis(finding) || finding.sym)) return quals;
+  // Only a real date is added ("9 Jul 2026", "Jan 2026"). A bare year on a
+  // past operation is already its bracket, and "Past history" is not a date.
+  if (!/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/.test(finding.dateLabel)) return quals;
+  // A row that still carries its date among its own words is left alone.
+  if (quals.some((item) => typeof item === "string" && item === houseDate(finding.dateLabel))) return quals;
   // Only what is on the line counts: a date inside a hidden note does not show.
   const day = finding.dateLabel.replace(/ \d{4}$/, "").toLowerCase();
   const said = quals.some((item) => String(typeof item === "string" ? item : item?.tip ? "" : item?.v || "").toLowerCase().includes(day));
@@ -307,6 +315,22 @@ function withDate(finding, quals = [], dated, dateInTag) {
   // The date sits before a trailing "note", so the bracket ends on the hover word.
   const at = quals.length && quals[quals.length - 1]?.tip ? quals.length - 1 : quals.length;
   return [...quals.slice(0, at), houseDate(finding.dateLabel), ...quals.slice(at)];
+}
+
+// What a medicine is, after its brand name: the generic in mid grey. Hover or
+// focus shows the full composition as printed, when the page gives one.
+function Generic({ finding }) {
+  const { name = "", generic } = rxRow(finding).row;
+  // "Tramadol 50 mg" needs no "Tramadol" after it.
+  if (!generic || name.toLowerCase().includes(generic.toLowerCase())) return null;
+  const full = finding.med?.composition;
+  return full ? (
+    <Tooltip content={full}>
+      <span className={styles.rowGeneric} data-info="true" tabIndex={0}> {generic}</span>
+    </Tooltip>
+  ) : (
+    <span className={styles.rowGeneric}> {generic}</span>
+  );
 }
 
 // `dateInTag`: the group tag above this row already carries the row's date.
@@ -364,7 +388,8 @@ export function FindingBody({ finding, marks = null, dated = true, compact = fal
     );
   }
 
-  if (finding.domain === "RPT") {
+  // A symptom reads as a short fact (name, then its bracket), not as a note.
+  if (finding.domain === "RPT" && !finding.sym) {
     return (
       <p className={styles.rowLine}>
         <span className={styles.rowLabel}>{finding.title}:</span>{" "}
@@ -378,6 +403,7 @@ export function FindingBody({ finding, marks = null, dated = true, compact = fal
   return (
     <p className={styles.rowLine}>
       <span className={styles.rowLabel}>{finding.label || finding.title}</span>
+      {finding.domain === "MED" ? <Generic finding={finding} /> : null}
       <Quals quals={withDate(finding, rxQuals(finding) || [], dated, dateInTag)} />
       {marks}
     </p>
@@ -388,16 +414,21 @@ export function FindingBody({ finding, marks = null, dated = true, compact = fal
 
 // Reports and notes read in this order: what to keep in mind, then results,
 // then the operation, then the stay.
-export const REPORT_GROUPS = ["Keep in mind", "Investigations", "Surgery", "Course"];
+// (the order a discharge summary tells it in: what to watch, why the patient
+// came, what was found, what the specialists said, the operation, the stay,
+// what was advised, then the rest)
+export const REPORT_GROUPS = ["Keep in mind", "Symptoms", "Examination", "Investigations", "Opinions", "Operation notes", "Course", "Advice and follow-up", "Other notes"];
 // Inside a group a note is placed by the part it plays (its role), so the
 // order holds for any file: what to watch, results, the operation, then the
 // stay from complaint to follow-up. Notes with the same role keep the order
 // the file gave them. A group or role this list does not know goes last.
-const REPORT_ROLES = ["alert", "investigation", "anaesthesia", "complaint", "course", "hospitalMeds", "dischargeDate", "conditionAtDischarge", "detail", "followUp"];
+const REPORT_ROLES = ["alert", "symptom", "investigation", "anaesthesia", "complaint", "course", "hospitalMeds", "dischargeDate", "conditionAtDischarge", "detail", "followUp", "advice"];
+// Under Examination the doctor's own examination comes before nursing notes.
+const doctorFirst = (item) => (item.group === "Examination" && !/examination/i.test(item.title) ? 1 : 0);
 const placeIn = (list, value) => (list.indexOf(value) < 0 ? list.length : list.indexOf(value));
 export const inReadingOrder = (items) =>
   items[0]?.domain === "RPT"
-    ? [...items].sort((a, b) => placeIn(REPORT_GROUPS, a.group) - placeIn(REPORT_GROUPS, b.group) || placeIn(REPORT_ROLES, a.role) - placeIn(REPORT_ROLES, b.role))
+    ? [...items].sort((a, b) => placeIn(REPORT_GROUPS, a.group) - placeIn(REPORT_GROUPS, b.group) || placeIn(REPORT_ROLES, a.role) - placeIn(REPORT_ROLES, b.role) || doctorFirst(a) - doctorFirst(b))
     : items;
 
 // Labs are grouped so a date is written once per group, not on every row:
@@ -412,16 +443,25 @@ export const labGroup = (finding) => (finding.abnormal ? LAB_GROUPS[0] : finding
 // [[groupTitle, items], ...] in reading order. An empty title means no heading.
 export function groupFindings(items) {
   const groups = new Map();
+  const procTag = procGroupOf(items.filter(isProcedure));
   inReadingOrder(items).forEach((item) => {
     // A vitals set is named by its tag: "At discharge (12 Mar'26)".
     const key =
-      item.domain === "LAB" ? labGroup(item)
+      isHistory(item) ? historyTitle(item)
+      : item.domain === "DX" ? dxTitle(item)
+      : isProcedure(item) ? procTag(item)
+      : item.domain === "LAB" ? labGroup(item)
       : item.domain === "VIT" ? `${item.title}${item.dateLabel ? ` (${houseDate(item.dateLabel)})` : ""}`
       : item.group || "";
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   });
   const entries = [...groups.entries()];
+  // Medical History reads in its own section order.
+  if (items.length && items.every(isHistory)) return entries.sort((a, b) => HISTORY_TITLES.indexOf(a[0]) - HISTORY_TITLES.indexOf(b[0]));
+  // Diagnoses: the conclusion, what else was found, what was considered.
+  if (items.length && items.every(isProcedure)) return entries.sort((a, b) => PROC_TITLES.indexOf(a[0]) - PROC_TITLES.indexOf(b[0]));
+  if (items.length && items.every(isDiagnosis)) return entries.sort((a, b) => DX_TITLES.indexOf(a[0]) - DX_TITLES.indexOf(b[0]));
   // Lab groups always read worst first.
   return items[0]?.domain === "LAB" ? entries.sort((a, b) => LAB_GROUPS.indexOf(a[0]) - LAB_GROUPS.indexOf(b[0])) : entries;
 }

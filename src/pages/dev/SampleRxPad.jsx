@@ -7,7 +7,7 @@ import { HeaderPatient } from '../../common/prescription-header/HeaderPatient';
 import { prescriptionHeaderActions, headerIcon } from '../../common/prescription-header/prescriptionHeaderActions';
 import RxActionTooltip from '../../common/prescription-header/RxActionTooltip';
 import { NAV_ITEMS, NavPanel, RxSection, SECTION_TITLES } from '../../components/sideNavbar/SideNavbar';
-import { AiDraftHeaderTag, ArchivedRecordsRailPanel } from '../../components/archived-records';
+import { AiDraftHeaderTag, ArchivedRecordsRailPanel, useCaseFileRailSignal } from '../../components/archived-records';
 import { PrescriptionEmptyLineDraftSearch, PrescriptionEmptyLineRow } from '../../components/PrescriptionEmptyLineUi';
 import PrescriptionNoteInput from '../../components/PrescriptionNoteInput';
 import { attachTesseractCtBehind } from '../../components/tesseractCt';
@@ -294,7 +294,10 @@ function SampleHeader() {
 }
 
 export default function SampleRxPad({ onOpenReview }) {
-  const [activeId, setActiveId] = useState('archivedRecords');
+  // The pad opens with the rail only, as it does for the doctor: the red dot
+  // on Case File says there is something to open, and opening it clears the dot.
+  const [activeId, setActiveId] = useState(null);
+  const signals = useCaseFileRailSignal();
   // Same rule as the product: the active item closes the panel, any other opens its own.
   const select = (id) => setActiveId(current => (current === id ? null : id));
   return (
@@ -302,7 +305,7 @@ export default function SampleRxPad({ onOpenReview }) {
       <SampleHeader />
       <div className={`${shellStyles.prescriptionNewRouteShell || ''} srx-shell`}>
         <aside className="snv-root" data-side-navbar="true">
-          <NavPanel activeId={activeId} onSelect={select} items={RAIL_ITEMS} />
+          <NavPanel activeId={activeId} onSelect={select} items={RAIL_ITEMS} signals={signals} />
           {activeId ? <SectionPanel activeId={activeId} onClose={() => setActiveId(null)} onOpenReview={onOpenReview} /> : null}
         </aside>
         <div className="w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper--newrx srx-pad">

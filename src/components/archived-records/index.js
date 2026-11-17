@@ -7,4 +7,4 @@ export { AiDraftHeaderTag } from "./AiDraftBadge";
 export { default as CaseFileRecord, CaseFileSection } from "./CaseFileRecord";
 export { isArchivedRecordsEnabled } from "./archivedRecordsFlag";
 export { FEATURE_NAME } from "./archivedRecordsName";
-export { archivedRecordsStore, useArchivedRecords, countsFor } from "./archivedRecordsStore";
+export { archivedRecordsStore, useArchivedRecords, useCaseFileRailSignal, countsFor } from "./archivedRecordsStore";

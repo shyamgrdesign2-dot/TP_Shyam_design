@@ -179,7 +179,7 @@ function tell(encounter, mine, review, brief = false, wayIn = []) {
   add("diagnosis", dxParts.map(sentence).join(" "), dx);
 
   // What was done.
-  const procedures = role("PROC", "procedure");
+  const procedures = [...role("PROC", "surgery"), ...role("PROC", "procedure")];
   if (procedures.length) {
     const dates = [...new Set(procedures.map((item) => item.dateLabel).filter(Boolean))];
     add("treatment", `${listOf(procedures.map((item) => named(item, review)), 3)}${dates.length === 1 ? on(dates[0]) : ""}.`, procedures);
@@ -265,7 +265,7 @@ function oneLine(encounter, own, review, brief = false, wayIn = []) {
   const ended = stay && OUTCOME[encounter.outcome] ? `, ${lowerFirst(OUTCOME[encounter.outcome])}${on(endOf(encounter)).replace(" on ", " ")}` : "";
   const head = `${opening(encounter)}${where}${ended}`;
   const dx = mine.find((item) => item.domain === "DX" && item.role !== "chronic");
-  const procedure = mine.find((item) => item.domain === "PROC" && item.role === "procedure");
+  const procedure = mine.find((item) => item.domain === "PROC" && item.role === "surgery") || mine.find((item) => item.domain === "PROC" && item.role === "procedure");
   const complaint = mine.find((item) => item.role === "complaint");
   const reports = mine.filter((item) => item.domain === "RPT" && item.role === "investigation");
   const abnormal = mine.filter((item) => item.domain === "LAB" && item.abnormal);

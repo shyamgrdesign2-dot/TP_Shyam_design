@@ -38,7 +38,7 @@ export default function ArchivedRecordsSmoke() {
         <div className="ars-record">
           <CaseFileRecord heading quick onOpenReview={openReview} />
         </div>
-        <ArchivedRecordsSourceDrawer onOpenReview={openReview} />
+        <ArchivedRecordsSourceDrawer />
         <ArchivedRecordsDrawer open={drawerOpen} onOpenChange={setDrawerOpen} reviewerName="Dr. Demo" />
       </div>
     );

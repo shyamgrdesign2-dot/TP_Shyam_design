@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import ARCHIVED_RECORDS_MOCK, { DOMAINS } from "./mock/archivedRecordsMock";
+import { HISTORY_SECTIONS, historyType, kindOf } from "./medicalHistory";
 import { RX_COLUMNS, factFromRx, rxEditKeys } from "./rxFormat";
 
 /**
@@ -19,7 +20,9 @@ export const CLEAR_CONFIDENCE = 0.85;
 // corrected Rx pad row: { rx: { name, dosage, frequency, ... } }. The reading
 // itself (verbatim, source page) is never changed: an edit sits on top of it
 // and can be undone.
-let state = { review: {}, edits: {}, viewer: { page: 2, rid: null, n: 0 }, quickView: false, focusDomain: null };
+// railSeen: has the doctor opened the Case File panel on the Rx pad yet. Until
+// they have, the rail's Case File icon carries a red dot.
+let state = { review: {}, edits: {}, viewer: { page: 2, rid: null, n: 0 }, quickView: false, focusDomain: null, railSeen: false };
 const listeners = new Set();
 
 const emit = () => listeners.forEach((listener) => listener());
@@ -88,6 +91,10 @@ export const archivedRecordsStore = {
   focusDomain(code) {
     set({ focusDomain: code });
   },
+  // The panel was opened: the dot on the rail icon has done its job.
+  markRailSeen() {
+    if (!state.railSeen) set({ railSeen: true });
+  },
 };
 
 /* ----------------------------------------------------------------- edits */
@@ -116,6 +123,14 @@ function applyEdit(finding, patch) {
 // one that is shown, reviewed and saved. The rest are counted, never listed:
 // saving them all would flood the patient's vitals. "Last" is the set marked
 // last in the newest encounter, or failing that the newest set there is.
+// The last set is sometimes one reading off a chart (a blood pressure and
+// nothing else). A doctor still needs pulse, SpO2, temperature and breathing,
+// so when the last set carries fewer than three of the main vitals, the most
+// recent set of the same stay that does is kept with it. Each set stays whole,
+// under its own date: readings from two moments are never merged into one.
+const MAIN_VITALS = ["BP", "Pulse", "HR", "SpO2", "Temp", "RR"];
+const mainVitals = (item) => new Set((item.facts || []).map((fact) => fact.k).filter((key) => MAIN_VITALS.includes(key))).size;
+const takenOn = (item) => Date.parse(item.dateLabel || "") || 0;
 function lastVitalsOnly(bundle) {
   const sets = bundle.findings.filter((item) => item.domain === "VIT");
   if (sets.length < 2) return bundle;
@@ -123,7 +138,14 @@ function lastVitalsOnly(bundle) {
   const [last] = [...sets].sort(
     (a, b) => (when[b.encounterId] || "").localeCompare(when[a.encounterId] || "") || Number(b.role === "last") - Number(a.role === "last"),
   );
-  return { ...bundle, findings: bundle.findings.filter((item) => item.domain !== "VIT" || item.id === last.id), vitalsNotShown: { count: sets.length - 1 } };
+  const keep = [last.id];
+  if (mainVitals(last) < 3) {
+    const [fuller] = sets
+      .filter((item) => item.id !== last.id && item.encounterId === last.encounterId && mainVitals(item) >= 3)
+      .sort((a, b) => takenOn(b) - takenOn(a));
+    if (fuller) keep.push(fuller.id);
+  }
+  return { ...bundle, findings: bundle.findings.filter((item) => item.domain !== "VIT" || keep.includes(item.id)), vitalsNotShown: { count: sets.length - keep.length } };
 }
 
 const BASE = lastVitalsOnly(ARCHIVED_RECORDS_MOCK);
@@ -140,6 +162,18 @@ const bundleWith = (edits) => {
   }
   return cache.bundle;
 };
+
+// The red dot on the rail's Case File icon, in the shape the blue rail takes
+// its signals in ({ sectionId: { unread } }). It is there from the moment the
+// Rx pad opens for a patient who has a Case File, and goes once the doctor
+// opens the panel. In the real build "seen" is kept per doctor and patient,
+// and comes back when new pages are added to the file.
+const RAIL_UNSEEN = { archivedRecords: { unread: true } };
+const RAIL_SEEN = {};
+export function useCaseFileRailSignal() {
+  const seen = useSyncExternalStore(archivedRecordsStore.subscribe, () => archivedRecordsStore.getSnapshot().railSeen);
+  return seen ? RAIL_SEEN : RAIL_UNSEEN;
+}
 
 export function useArchivedRecords() {
   const snapshot = useSyncExternalStore(archivedRecordsStore.subscribe, archivedRecordsStore.getSnapshot);
@@ -185,7 +219,9 @@ export function countsFor(findings, review) {
 
 export function domainSummaries(bundle, review) {
   return DOMAINS.map((domain) => {
-    const items = bundle.findings.filter((item) => item.domain === domain.code);
+    // A fact is listed under its kind: everything the Rx pad keeps under
+    // Medical History is one kind, whatever it was filed as when read.
+    const items = bundle.findings.filter((item) => kindOf(item) === domain.code);
     return { ...domain, items, ...countsFor(items, review) };
   });
 }
@@ -193,9 +229,9 @@ export function domainSummaries(bundle, review) {
 // What the patient's Medical History gains from this review, by TP section.
 export function historyAdditions(bundle, review) {
   const sections = {};
-  DOMAINS.filter((domain) => domain.historySection).forEach((domain) => {
-    sections[domain.historySection] = bundle.findings.filter(
-      (item) => item.domain === domain.code && statusOf(review, item.id) === "verified",
+  HISTORY_SECTIONS.forEach((section) => {
+    sections[section.title] = bundle.findings.filter(
+      (item) => historyType(item) === section.type && statusOf(review, item.id) === "verified",
     );
   });
   return sections;

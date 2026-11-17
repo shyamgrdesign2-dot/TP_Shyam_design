@@ -5,6 +5,7 @@ import { DOCUMENT_CATEGORIES, DOMAINS } from "./mock/archivedRecordsMock";
 import { archivedRecordsStore, isShownToDoctor, statusOf } from "./archivedRecordsStore";
 import { documentPeriods } from "./documentGroups";
 import { Carousel, FindingBody, RowMarks } from "./findingFormat";
+import { kindOf } from "./medicalHistory";
 import { ImageTileArt } from "./SourcePageViewer";
 import styles from "./ArchivedRecords.module.scss";
 
@@ -36,7 +37,7 @@ const inFile = (doc, file) => (doc.fileId ? doc.fileId === file.id : doc.from >=
 const DOMAIN_LABEL = Object.fromEntries(DOMAINS.map((domain) => [domain.code, domain.label]));
 
 function DocumentCard({ doc, number, items, held, unread, fileName, review, open, onToggle, onOpenAttention }) {
-  const groups = DOMAINS.map((domain) => [domain.code, items.filter((item) => item.domain === domain.code)]).filter(([, list]) => list.length);
+  const groups = DOMAINS.map((domain) => [domain.code, items.filter((item) => kindOf(item) === domain.code)]).filter(([, list]) => list.length);
   const bodyId = `doc-${doc.id}`;
   return (
     <li className={styles.doc} data-open={open ? "true" : undefined}>

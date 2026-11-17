@@ -178,6 +178,12 @@ export function documentName(doc) {
 // used by the data to the scan page that carries it. When the folder is not
 // there (everywhere except a developer's own machine) this returns null and
 // the drawn sample pages are used.
+//
+// Beside the manifest, regions.json says where on its page each cited region
+// sits: { dataPage: { rid: [x, y, width, height] } }, as fractions of the
+// page image. It is what the extraction service returns with every fact (the
+// box of the words it read). A citation then lands on those words, marked,
+// not just on their page. A region with no box falls back to marking the page.
 function useLocalScan() {
   const [scan, setScan] = useState(null);
   useEffect(() => {
@@ -186,7 +192,14 @@ function useLocalScan() {
     fetch(`${process.env.PUBLIC_URL || ""}/case-file-local/manifest.json`)
       .then((response) => (response.ok && (response.headers.get("content-type") || "").includes("json") ? response.json() : null))
       .then((manifest) => {
-        if (alive && manifest?.pages && manifest.map) setScan(manifest);
+        if (!alive || !manifest?.pages || !manifest.map) return null;
+        const json = (response) => (response.ok && (response.headers.get("content-type") || "").includes("json") ? response.json() : null);
+        return fetch(`${process.env.PUBLIC_URL || ""}/case-file-local/regions.json`)
+          .then(json)
+          .catch(() => null)
+          .then((regions) => {
+            if (alive) setScan({ ...manifest, regions: regions || {} });
+          });
       })
       .catch(() => {});
     return () => {
@@ -198,7 +211,10 @@ function useLocalScan() {
 
 // `onGoToFinding`, when given, is how the viewer asks its host to bring one
 // fact up on the record side too, so the row and its page sit side by side.
-export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageChange, onHide, onGoToFinding }) {
+// `reviewTools` is false where the page is only read (the Rx pad's source drawer):
+// "Next to review" belongs to the people who verify the file, not to a doctor
+// checking one line during a consultation.
+export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageChange, onHide, onGoToFinding, reviewTools = true }) {
   const scan = useLocalScan();
   const [zoomIndex, setZoomIndex] = useState(2);
   const [visiblePage, setVisiblePage] = useState(page);
@@ -222,6 +238,8 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
     return stripPage > 1 ? fromStrip(stripPage - 1) : 1;
   };
   const cited = toStrip(page);
+  // Where the cited words sit on a real scan, when their box is known.
+  const box = scan && rid ? scan.regions?.[page]?.[rid] || null : null;
 
   // Jump to the asked page, then to the cited region on it.
   useEffect(() => {
@@ -234,7 +252,7 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
     if (target) scrollWithin(root, target, { align: "center" });
     else scrollWithin(root, sheet, { offset: 44 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cited, rid, jump, Boolean(scan)]);
+  }, [cited, rid, jump, Boolean(scan), Boolean(box)]);
 
   // The whole file scrolls as one strip. The page in view is the one crossing
   // a line a third of the way down the pane; the tag and the counter follow it.
@@ -452,20 +470,32 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
       >
         {scan
           ? pageNumbers.map((pageNo) => (
-              <div key={pageNo} className={styles.sheet} data-page={pageNo} data-cited={pageNo === cited && rid ? "true" : undefined}>
+              <div key={pageNo} className={styles.sheet} data-page={pageNo} data-cited={pageNo === cited && rid ? (box ? "words" : "true") : undefined}>
                 <span className={styles.sheetNo}>
                   Page {pageNo}
-                  {pageNo === cited && rid ? " · cited on this page" : ""}
+                  {pageNo === cited && rid ? (box ? " · cited words marked" : " · cited on this page") : ""}
                 </span>
-                <img
-                  className={styles.scanPage}
-                  src={`${process.env.PUBLIC_URL || ""}/case-file-local/${scan.image.replace("{n}", String(pageNo).padStart(scan.pad || 3, "0"))}`}
-                  alt={`Scanned page ${pageNo}`}
-                  loading="lazy"
-                  width={sizeOf(pageNo)[0] || undefined}
-                  height={sizeOf(pageNo)[1] || undefined}
-                  style={{ width: `${Math.round(ZOOMS[zoomIndex] * 100)}%` }}
-                />
+                <div className={styles.scanWrap} style={{ width: `${Math.round(ZOOMS[zoomIndex] * 100)}%` }}>
+                  <img
+                    className={styles.scanPage}
+                    src={`${process.env.PUBLIC_URL || ""}/case-file-local/${scan.image.replace("{n}", String(pageNo).padStart(scan.pad || 3, "0"))}`}
+                    alt={`Scanned page ${pageNo}`}
+                    loading="lazy"
+                    width={sizeOf(pageNo)[0] || undefined}
+                    height={sizeOf(pageNo)[1] || undefined}
+                  />
+                  {/* The cited words themselves: the citation scrolls to this box. */}
+                  {pageNo === cited && box ? (
+                    <span
+                      key={`${rid}-${jump}`}
+                      className={styles.scanHit}
+                      data-rid={rid}
+                      role="img"
+                      aria-label="The cited words"
+                      style={{ left: `${box[0] * 100}%`, top: `${box[1] * 100}%`, width: `${box[2] * 100}%`, height: `${box[3] * 100}%` }}
+                    />
+                  ) : null}
+                </div>
               </div>
             ))
           : pageNumbers.map((pageNo) => {
@@ -511,7 +541,7 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
         <Tooltip content="Zoom in">
           <button type="button" aria-label="Zoom in" disabled={zoomIndex === ZOOMS.length - 1} onClick={() => setZoomIndex((value) => value + 1)}><Add size={16} /></button>
         </Tooltip>
-        {nextToReview ? (
+        {reviewTools && nextToReview ? (
           <>
             <span className={styles.dockDivider} aria-hidden="true" />
             <Tooltip content="Open the next item to review, here and in Clinical data">
