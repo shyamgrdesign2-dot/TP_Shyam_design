@@ -1089,19 +1089,32 @@ html body :where(.workspace, .rail, .sourceOnly) :is(div, span, p, table, tr, th
 
 // A subheading inside a section ("On discharge", "In hospital", a sample
 // date) is a short tag: enough to catch the eye, not a second heading.
+// The tag over a group of rows ("Medical Condition", "Final diagnosis"). It
+// is a heading, so it is read before the rows under it: caption size in the
+// darker ink at semibold, behind a small dot in the brand colour.
 .rowGroupTitle {
-  margin: var(--tesseract-space-2) var(--tesseract-space-2) var(--tesseract-space-0-5);
+  margin: var(--tesseract-space-3) var(--tesseract-space-2) var(--tesseract-space-1);
   display: inline-flex;
   align-items: center;
-  height: 18px;
-  padding: 0 var(--tesseract-space-1-5);
+  gap: var(--tesseract-space-1-5);
+  max-width: 100%;
+  min-height: 24px;
+  padding: var(--tesseract-space-1) var(--tesseract-space-2);
   border-radius: var(--tesseract-radius-4);
   background: var(--tesseract-slate-100);
-  font-size: var(--tesseract-text-micro);
-  line-height: 1;
-  font-weight: var(--tesseract-weight-medium);
-  color: var(--tesseract-fg-secondary);
-  white-space: nowrap;
+  font-size: var(--tesseract-text-caption);
+  line-height: var(--tesseract-text-caption-lh);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-primary);
+
+  &::before {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tesseract-blue-500);
+  }
 }
 
 .rows {

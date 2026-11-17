@@ -149,6 +149,7 @@ Rules:
 - **Emphasis in content is by colour, never by weight.** The fact is the darkest ink; what introduces or qualifies it is lighter. Semibold is kept for headings (card titles, section names, group titles). Bold is not used. In a summary sentence the key words are the darker ink at medium weight; in rows the fact is the darker ink at regular weight.
 - **Colour is spent only on two things:** red for a value the source flagged high or low, amber for a warning the doctor should see (suspected, conflict, unclear). Citations are link blue. Everything else is grey scale.
 - **Sizes:** 13px for a row, 12px for bracket details, 11px for trends and units, 10px for citations. Summary text is 12px.
+- **A group tag is a heading and must be seen first** (17 Nov 2026): the tag over a group of rows (`Medical Condition`, `Final diagnosis`, a stay in Hospital Course) is 12px semibold in the darker ink on a soft grey tag, 24px tall, with a 6px dot in the brand blue before the name. Row dots stay grey, so the blue dot always means "a new group starts here". A tag too long for the panel wraps; it is never cut.
 - **One idea per row.** A row never mixes two facts to save space.
 
 ---
