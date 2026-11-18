@@ -246,6 +246,14 @@ const EMPTY_TITLE = {
   rejected: "Nothing removed",
 };
 
+// A section's review state, as one tag beside its heading.
+function SectionState({ domain }) {
+  const done = domain.verified + (domain.rejected || 0);
+  if (domain.total && done >= domain.total) return <Badge variant="soft" color="success" size="sm">Verified</Badge>;
+  if (domain.verified) return <Badge variant="soft" color="warning" size="sm">{`${domain.verified} of ${domain.total} verified`}</Badge>;
+  return <Badge variant="soft" color="warning" size="sm">Not verified</Badge>;
+}
+
 export default function ClinicalDataTab({ bundle, review, reviewerName, onApprove, focusId, onFocused, editing, setEditing, domainFilter, setDomainFilter, statusFilter, setStatusFilter }) {
   const rootRef = useRef(null);
   const [selected, setSelected] = useState(() => new Set());
@@ -258,8 +266,6 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
   const byId = useMemo(() => Object.fromEntries(bundle.findings.map((item) => [item.id, item])), [bundle]);
   const editingId = editing && byId[editing.id] ? editing.id : null;
   const domains = domainSummaries(bundle, review);
-  const totals = countsFor(bundle.findings, review);
-  const allDone = totals.pending === 0;
   const inDomain = (code) => domainFilter === "all" || code === domainFilter;
   const count = (items, filter) => items.filter((item) => matches(item, review, filter)).length;
 
@@ -458,14 +464,6 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
 
   return (
     <div className={`${styles.stack} ${styles.dataTab}`} ref={rootRef}>
-      {/* Where the review stands: a tag, nothing more. */}
-      {bundle.findings.length ? (
-        <div className={styles.reviewTag}>
-          <Badge variant="soft" color={allDone ? "success" : "warning"} size="sm">
-            {allDone ? "Reviewed and saved" : totals.verified ? `${totals.verified} of ${totals.total} verified` : "Not verified"}
-          </Badge>
-        </div>
-      ) : null}
 
       {/* One line: what kind of data, then which review status. */}
       <div className={styles.dataBar} data-after="true">
@@ -508,8 +506,15 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
         return (
           <SectionCard
             key={domain.code}
-            title={domain.label}
-            subtitle={`${domain.verified} of ${domain.total} verified${domain.rejected ? ` · ${domain.rejected} removed` : ""}`}
+            // Where this section's review stands sits on its heading:
+            // Not verified, then "3 of 12 verified", then Verified.
+            title={
+              <span className={data.sectionTitle}>
+                {domain.label}
+                <SectionState domain={domain} />
+              </span>
+            }
+            subtitle={domain.rejected ? `${domain.rejected} removed` : undefined}
             // The section's own checkbox, where an icon would be: none, some
             // or all of its listed rows.
             iconBg="none"

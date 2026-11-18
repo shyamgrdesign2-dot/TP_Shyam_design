@@ -2,14 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button, InputBox, Progress, Tabs, TabsContent, TabsList, TabsTrigger, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { InfoCircle, SearchNormal1, SidebarRight } from "iconsax-reactjs";
 import { archivedRecordsStore, countsFor, useArchivedRecords } from "./archivedRecordsStore";
-import AiDraftBadge from "./AiDraftBadge";
+import AiDraftBadge, { InfoTag } from "./AiDraftBadge";
 import PatientTag from "./PatientTag";
 import ClinicalDataTab from "./ClinicalDataTab";
 import DocumentsTab from "./DocumentsTab";
 import RecordTab from "./RecordTab";
 import SearchResults from "./SearchResults";
 import SourcePageViewer from "./SourcePageViewer";
-import { FEATURE_NAME } from "./archivedRecordsName";
 import { encounterMix } from "./encounterTypes";
 import styles from "./ArchivedRecords.module.scss";
 
@@ -150,15 +149,9 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
       {header === "inline" ? (
         <header className={styles.top}>
           <PatientTag />
-          <div className={styles.topTitle}>
-            <h2>
-              {variant === "drawer" ? null : FEATURE_NAME}
-              <AiDraftBadge />
-            </h2>
-            <p>
-              {fileLine(bundle)}
-              {aboutFile}
-            </p>
+          <div className={styles.topTags}>
+            <AiDraftBadge />
+            <InfoTag tone="neutral" label={fileLine(bundle).replace(/^\(|\)$/g, "")} note={fileDetails(bundle)} ariaLabel="About this file" />
           </div>
         </header>
       ) : null}
@@ -171,7 +164,7 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
             <div className={styles.toolbar}>
               <TabsList>
                 <TabsTrigger value="record">Structured record</TabsTrigger>
-                <TabsTrigger value="data" tag={totals.pending ? String(totals.pending) : undefined} tagTone="warning">Clinical data</TabsTrigger>
+                <TabsTrigger value="data" tag={totals.pending ? String(totals.pending) : undefined} tagTone="warning">Review data</TabsTrigger>
                 <TabsTrigger value="documents" tag={String(bundle.documents.length)}>Documents</TabsTrigger>
               </TabsList>
               <div className={styles.toolbarEnd}>

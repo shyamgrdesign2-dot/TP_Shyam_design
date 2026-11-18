@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { InfoCircle } from "iconsax-reactjs";
 import { TpAiSparkIcon } from "../dr-agent/shared/AiBrandSparkIcon";
 import styles from "./ArchivedRecords.module.scss";
@@ -17,18 +17,24 @@ export function AiDraftHeaderTag() {
   );
 }
 
-// "AI draft" with an (i) beside it that says what that means and how it ends.
-// `details`, when given, adds what is known about the file to the same hover,
-// so the header needs only one (i).
-export default function AiDraftBadge({ onDark = false, details = "" }) {
+// A header tag with its (i) inside, at the right end: hover or focus on the
+// tag says what it means. One tag, one (i), so a header never collects a row
+// of loose info icons.
+//   tone   "violet" (AI draft) or "neutral" (facts about the file)
+export function InfoTag({ tone = "neutral", icon = null, label, note, ariaLabel }) {
   return (
-    <span className={styles.aiDraft}>
-      <Badge variant="soft" color="violet" size="sm" icon={<TpAiSparkIcon size={12} />}>AI draft</Badge>
-      <Tooltip content={details ? `${AI_DRAFT_NOTE} ${details}` : AI_DRAFT_NOTE}>
-        <button type="button" className={styles.infoBtn} data-on-dark={onDark ? "true" : undefined} aria-label="What AI draft means">
-          <InfoCircle size={14} />
-        </button>
-      </Tooltip>
-    </span>
+    <Tooltip content={note}>
+      <span className={styles.infoTag} data-tone={tone} tabIndex={0} aria-label={ariaLabel || `${label}. ${note}`}>
+        {icon ? <span className={styles.infoTagIcon} aria-hidden="true">{icon}</span> : null}
+        <span>{label}</span>
+        <InfoCircle size={14} className={styles.infoTagInfo} aria-hidden="true" />
+      </span>
+    </Tooltip>
   );
+}
+
+// "AI draft", violet, with its (i) inside. `details`, when given, adds what
+// is known about the file to the same hover.
+export default function AiDraftBadge({ details = "" }) {
+  return <InfoTag tone="violet" icon={<TpAiSparkIcon size={14} />} label="AI draft" note={details ? `${AI_DRAFT_NOTE} ${details}` : AI_DRAFT_NOTE} ariaLabel="AI draft: what it means" />;
 }

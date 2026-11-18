@@ -246,3 +246,10 @@
   gap: var(--tesseract-space-2);
   margin-left: auto;
 }
+
+// A section heading with its review state beside it.
+.sectionTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+}

@@ -453,7 +453,7 @@ export function buildStory(bundle, review, { brief = false } = {}) {
     unread ? `${plural(unread, "page")} could not be read` : null,
     held ? `${plural(held, "unclear reading")} ${held === 1 ? "is" : "are"} held back until reviewed` : null,
     removed ? `${plural(removed, "entry", "entries")} removed in review` : null,
-    loose ? `${plural(loose, "fact")} could not be tied to a visit; see Clinical data` : null,
+    loose ? `${plural(loose, "fact")} could not be tied to a visit; see Review data` : null,
     // The placeholder never names the kind of sensitive item.
     sensitive ? `${plural(sensitive, "item")} in this file ${sensitive === 1 ? "is" : "are"} marked sensitive and not shown here` : null,
   ].filter(Boolean);
