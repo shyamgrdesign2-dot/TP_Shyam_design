@@ -282,31 +282,17 @@
   &:focus-visible { outline: 2px solid var(--tesseract-amber-400); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
 }
 
-// A kind in the filter, with its count as a small tag.
+// A kind in the filter, with its count in brackets.
 .kind {
   display: inline-flex;
   align-items: center;
-  gap: var(--tesseract-space-1-5);
+  gap: var(--tesseract-space-1);
 }
 
 .kindCount {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 20px;
-  padding: 0 var(--tesseract-space-1-5);
-  border-radius: var(--tesseract-radius-4);
-  background: var(--tesseract-slate-100);
-  font-size: var(--tesseract-text-caption);
-  font-weight: var(--tesseract-weight-medium);
-  color: var(--tesseract-slate-600);
-
-  // Neutral always; the chosen kind's count is a touch darker.
-  button[role="radio"][data-state="active"] & {
-    background: var(--tesseract-slate-200);
-    color: var(--tesseract-slate-700);
-  }
+  font-weight: var(--tesseract-weight-regular);
+  color: var(--tesseract-slate-500);
+  font-variant-numeric: tabular-nums;
 }
 
 // Second line of the filters: search, status, then how far the review is.
@@ -317,17 +303,81 @@
   align-items: center;
   flex-shrink: 0;
   gap: var(--tesseract-space-2);
+  margin-left: auto;
   font-size: var(--tesseract-text-body-xs);
   font-weight: var(--tesseract-weight-medium);
   color: var(--tesseract-slate-700);
   white-space: nowrap;
 
-  margin-left: auto;
-  min-width: 220px;
-  padding: 0 var(--tesseract-space-3);
-  height: 36px;
-
-  > :first-child { flex: 1 1 auto; min-width: 80px; }
+  > [role="progressbar"] { width: 88px; }
 
   &[data-done="true"] { color: var(--tesseract-success-700); }
 }
+
+.progressNum {
+  min-width: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.progressInfo {
+  display: inline-flex;
+  color: var(--tesseract-slate-500);
+  cursor: help;
+
+  &:focus-visible { outline: 2px solid var(--tesseract-violet-400); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+}
+
+// The confidence tooltip: a heading, why, the words as written, what to do.
+.bandTip {
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1-5);
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.5;
+  text-align: left;
+
+  p { margin: 0; }
+
+  mark {
+    padding: 0 2px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--tesseract-amber-300) 45%, transparent);
+    color: inherit;
+  }
+}
+
+.bandTipTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+.bandTipPct {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  opacity: 0.8;
+}
+
+.bandTipWritten {
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-2);
+  border-radius: var(--tesseract-radius-4);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  font-style: italic;
+
+  span {
+    display: block;
+    margin-bottom: 2px;
+    font-style: normal;
+    font-size: var(--tesseract-text-micro);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+  }
+}
+
+.bandTipDo { opacity: 0.85; }

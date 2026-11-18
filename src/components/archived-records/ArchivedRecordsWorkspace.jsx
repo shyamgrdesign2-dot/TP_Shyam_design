@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Dropdown, Tabs, TabsContent, TabsList, TabsTrigger, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Button, Dropdown, Progress, Tabs, TabsContent, TabsList, TabsTrigger, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { SidebarRight } from "iconsax-reactjs";
 import { archivedRecordsStore, countsFor, statusOf, useArchivedRecords } from "./archivedRecordsStore";
 import { KebabIcon } from "../../pages/appointment-listing/components/rowActions";
@@ -178,7 +178,12 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
 
   const pageTools = (
     <div className={styles.pageTools}>
-      <InfoTag tone="neutral" label={fileLine(bundle).replace(/^\(|\)$/g, "")} note={fileDetails(bundle)} ariaLabel="About this file" />
+      <Tooltip content={`Rows verified so far, out of every row read from this file.${totals.pending ? ` ${totals.pending} still to review.` : ""} Each row is checked against its page, then verified, edited or removed.`}>
+        <span className={styles.progressTag} data-done={totals.pending === 0 ? "true" : undefined} tabIndex={0}>
+          <Progress value={totals.total ? (totals.verified / totals.total) * 100 : 0} tone="success" size="sm" aria-hidden="true" />
+          <span>{totals.verified} of {totals.total} verified</span>
+        </span>
+      </Tooltip>
       <div className={styles.textSize} role="group" aria-label="Text size">
         {TEXT_SIZES.map((size) => (
           <Tooltip key={size.value} content={`${size.name} text`}>
@@ -257,6 +262,7 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
               onPageChange={(page, rid) => archivedRecordsStore.openSource(page, rid)}
               onHide={() => setViewerOpen(false)}
               onGoToFinding={goToFinding}
+              headerEnd={<InfoTag tone="neutral" label={fileLine(bundle).replace(/^\(|\)$/g, "")} note={fileDetails(bundle)} ariaLabel="About this file" />}
             />
           ) : null}
         </div>
