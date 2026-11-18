@@ -592,6 +592,7 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
         return (
           <SectionCard
             key={domain.code}
+            className={data.sectionBox}
             // Where this section's review stands sits on its heading:
             // Not verified, then "3 of 12 verified", then Verified.
             title={
