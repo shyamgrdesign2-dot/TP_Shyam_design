@@ -3596,13 +3596,14 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   height: 28px;
   padding: 0 var(--tesseract-space-2-5);
   border-radius: var(--tesseract-radius-6);
-  background: var(--tesseract-slate-100);
+  background: transparent;
+  cursor: help;
   font-size: var(--tesseract-text-body-xs);
   font-weight: var(--tesseract-weight-medium);
   color: var(--tesseract-slate-700);
   white-space: nowrap;
 
-  > :first-child { width: 64px; }
+  > :first-child { width: 80px; }
 
   &[data-done="true"] {
     background: var(--tesseract-success-50);
@@ -3615,3 +3616,6 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
 
 // The tabs take the toolbar's full width.
 .toolbar > :first-child { flex: 1 1 auto; }
+
+// What the file is (pages, documents), at the right of the viewer's header.
+.viewerHeadEnd { margin-left: auto; }

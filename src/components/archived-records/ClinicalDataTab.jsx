@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Checkbox, Empty, InputBox, Progress, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Badge, Button, Checkbox, Empty, InputBox, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { Edit2, SearchNormal1, TickCircle, Trash, Warning2 } from "iconsax-reactjs";
 import {
   archivedRecordsStore,
   confidenceBand,
-  countsFor,
   domainSummaries,
   exceptionFor,
   isClear,
@@ -45,11 +44,37 @@ import data from "./clinicalData.module.scss";
 // Shown as amber badges, like every other doubt about a reading. Red is kept
 // for abnormal values.
 // Why a row with no flag of its own still wants a careful look: how sure the
-// reading is. Said on hover of a small icon, not as a vague word on the row.
-const BAND_NOTE = {
-  medium: "Read with medium confidence. Compare it with the page before verifying.",
-  low: "Hard to read: low confidence. Compare it with the page before verifying.",
-};
+// reading is, said on hover of a small amber icon.
+const BAND_TITLE = { medium: "Medium confidence", low: "Low confidence" };
+const pct = (value) => `${Math.round((value || 0) * 100)}%`;
+const bandReason = (finding) =>
+  `read at ${pct(finding.confidence)} certainty, below the ${pct(CLEAR_AT)} a clear reading needs${finding.handwritten ? ", from handwriting" : ""}`;
+const CLEAR_AT = 0.85;
+const VERBATIM_FITS = 140;
+
+function BandTip({ finding, band }) {
+  const written = (finding.original || finding).verbatim || "";
+  const shown = written.length > VERBATIM_FITS ? `${written.slice(0, VERBATIM_FITS).trim()}…` : written;
+  return (
+    <div className={data.bandTip}>
+      <p className={data.bandTipTitle}>
+        {BAND_TITLE[band]}
+        <span className={data.bandTipPct}>{pct(finding.confidence)}</span>
+      </p>
+      <p>
+        Read at <mark>{pct(finding.confidence)}</mark> certainty; a clear reading needs {pct(CLEAR_AT)} or more.
+        {finding.handwritten ? <> The line is <mark>handwritten</mark>, which is harder to read.</> : null}
+      </p>
+      {shown ? (
+        <p className={data.bandTipWritten}>
+          <span>As written</span>
+          {shown}
+        </p>
+      ) : null}
+      <p className={data.bandTipDo}>Compare it with the page, then verify, edit or remove it.</p>
+    </div>
+  );
+}
 
 // The review status filter, as a column the dropdown can be built from.
 const STATUS_FILTER = { key: "status", label: "Review status" };
@@ -104,8 +129,8 @@ function ReviewRow({ finding, bundle, entry, fit, active, selected, draft, onSel
     <>
       {flags.map((flag) => tag(flag, "warning", FLAG_LABEL[flag] || "Check this"))}
       {finding.flags.length === 0 && band !== "high" ? (
-        <Tooltip key="band" content={`${BAND_NOTE[band]}${finding.handwritten ? " The line is handwritten." : ""}`}>
-          <span className={data.bandIcon} data-band={band} tabIndex={0} role="img" aria-label={BAND_NOTE[band]}>
+        <Tooltip key="band" content={<BandTip finding={finding} band={band} />}>
+          <span className={data.bandIcon} data-band={band} tabIndex={0} role="img" aria-label={`${BAND_TITLE[band]}: ${bandReason(finding)}`}>
             <Warning2 size={16} variant="Bold" />
           </span>
         </Tooltip>
@@ -297,19 +322,17 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
   // status, statuses within the chosen kind.
   const scoped = domains.filter((domain) => inDomain(domain.code)).flatMap((domain) => domain.items);
   const everything = domains.flatMap((domain) => domain.items);
-  // Each kind with its count as a small tag, so the number reads apart from
-  // the name.
+  // Each kind with its count in brackets, in lighter ink.
   const kindLabel = (name, n) => (
     <span className={data.kind}>
       {name}
-      <span className={data.kindCount}>{n}</span>
+      <span className={data.kindCount}>({n})</span>
     </span>
   );
   const kinds = [
     { value: "all", label: kindLabel("All", count(everything, statusFilter)) },
     ...domains.map((domain) => ({ value: domain.code, label: kindLabel(domain.label, count(domain.items, statusFilter)) })),
   ];
-  const totals = countsFor(bundle.findings, review);
   const statuses = [
     { value: "all", label: `All rows (${scoped.length})` },
     { value: "draft", label: `To review (${count(scoped, "draft")})` },
@@ -530,12 +553,6 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
           <div className={data.status}>
             <SelectCell column={STATUS_FILTER} options={statuses} value={statusFilter} onChange={setStatusFilter} variant="field" />
           </div>
-          <span className={data.progress} data-done={totals.pending === 0 ? "true" : undefined}>
-            <Progress value={totals.total ? (totals.verified / totals.total) * 100 : 0} tone="success" size="sm" aria-hidden="true" />
-            <span>
-              {totals.verified} of {totals.total} verified
-            </span>
-          </span>
         </div>
       </div>
 

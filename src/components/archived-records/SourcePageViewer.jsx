@@ -232,7 +232,7 @@ function useLocalScan() {
 // `reviewTools` is false where the page is only read (the Rx pad's source drawer):
 // "Next to review" belongs to the people who verify the file, not to a doctor
 // checking one line during a consultation.
-export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageChange, onHide, onGoToFinding, reviewTools = true }) {
+export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageChange, onHide, onGoToFinding, reviewTools = true, headerEnd = null }) {
   const { scan, pending: scanPending } = useLocalScan();
   const [zoomIndex, setZoomIndex] = useState(2);
   const [visiblePage, setVisiblePage] = useState(page);
@@ -374,6 +374,7 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
       {/* A plain heading says which side this is. */}
       <header className={styles.viewerHead}>
         <strong>Original case file</strong>
+        {headerEnd ? <span className={styles.viewerHeadEnd}>{headerEnd}</span> : null}
       </header>
 
       {/* The index of the file floats over the pages, top left: it names the
