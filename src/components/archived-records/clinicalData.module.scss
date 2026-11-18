@@ -302,9 +302,10 @@
   font-weight: var(--tesseract-weight-medium);
   color: var(--tesseract-slate-600);
 
-  [data-state="active"] & {
-    background: var(--tesseract-violet-50);
-    color: var(--tesseract-violet-700);
+  // Neutral always; the chosen kind's count is a touch darker.
+  button[role="radio"][data-state="active"] & {
+    background: var(--tesseract-slate-200);
+    color: var(--tesseract-slate-700);
   }
 }
 
