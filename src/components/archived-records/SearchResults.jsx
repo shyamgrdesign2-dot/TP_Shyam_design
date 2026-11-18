@@ -135,7 +135,7 @@ export default function SearchResults({ bundle, review = {}, query, setQuery, on
         <strong>{found.total}</strong> {found.total === 1 ? "result" : "results"} for "{term}"
       </p>
       {found.data.length ? (
-        <SectionCard title="Clinical data" subtitle={`${found.data.length} ${found.data.length === 1 ? "item" : "items"} · opens the row for review`}>
+        <SectionCard title="Review data" subtitle={`${found.data.length} ${found.data.length === 1 ? "item" : "items"} · opens the row for review`}>
           <ul className={styles.results}>
             {found.data.map((item) => (
               <li key={item.id}>

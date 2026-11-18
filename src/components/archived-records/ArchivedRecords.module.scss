@@ -3529,3 +3529,54 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
 }
 
 .cfHeadingPatient { margin-left: auto; }
+
+/* ------------------------------------------------ header tags with an (i) */
+
+// Taller than a badge, with a small radius, and the (i) inside at the right
+// end. Violet for "AI draft", neutral for facts about the file.
+.infoTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+  height: 28px;
+  padding: 0 var(--tesseract-space-2) 0 var(--tesseract-space-2-5);
+  border: 1px solid var(--tesseract-slate-200);
+  border-radius: var(--tesseract-radius-6);
+  background: var(--tesseract-slate-50);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: var(--tesseract-weight-medium);
+  line-height: 1;
+  color: var(--tesseract-slate-700);
+  white-space: nowrap;
+  cursor: default;
+  vertical-align: middle;
+
+  &:focus-visible {
+    outline: 2px solid var(--tesseract-violet-400);
+    outline-offset: 2px;
+  }
+
+  &[data-tone="violet"] {
+    border-color: var(--tesseract-violet-200);
+    background: var(--tesseract-violet-50);
+    color: var(--tesseract-violet-700);
+  }
+}
+
+.infoTagIcon {
+  display: inline-flex;
+}
+
+.infoTagInfo {
+  flex-shrink: 0;
+  color: var(--tesseract-slate-500);
+
+  .infoTag[data-tone="violet"] & { color: var(--tesseract-violet-500); }
+}
+
+.topTags {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  flex-wrap: wrap;
+}

@@ -541,7 +541,7 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
         {reviewTools && nextToReview ? (
           <>
             <span className={styles.dockDivider} aria-hidden="true" />
-            <Tooltip content="Open the next item to review, here and in Clinical data">
+            <Tooltip content="Open the next item to review, here and in Review data">
               <button
                 type="button"
                 className={styles.dockWide}

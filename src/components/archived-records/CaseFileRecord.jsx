@@ -6,7 +6,6 @@ import AiDraftBadge from "./AiDraftBadge";
 import PatientTag from "./PatientTag";
 import { DOCUMENT_CATEGORIES } from "./mock/archivedRecordsMock";
 import { archivedRecordsStore, citeNumberForPage, countsFor, useArchivedRecords } from "./archivedRecordsStore";
-import { FEATURE_NAME } from "./archivedRecordsName";
 import { CiteChip, Cites, RichLine } from "./findingFormat";
 import { buildStory } from "./caseFileStory";
 import DataSections, { MIN_DATA_QUERY } from "./DataSections";
@@ -69,7 +68,7 @@ export function CaseFileSection({ code, title, icon, children, onOpenDomain }) {
       <header className={styles.cfSectionTitle}>
         <span className={styles.cfSectionIcon}>{icon}</span>
         {code && onOpenDomain ? (
-          <button type="button" onClick={() => onOpenDomain(code)} title="Review and verify these in Clinical data">{title}</button>
+          <button type="button" onClick={() => onOpenDomain(code)} title="Review and verify these in Review data">{title}</button>
         ) : (
           <span>{title}</span>
         )}
@@ -352,7 +351,6 @@ export default function CaseFileRecord({
     >
       {heading ? (
         <div className={styles.cfHeading}>
-          <strong>{FEATURE_NAME}</strong>
           <AiDraftBadge />
           <span className={styles.cfHeadingPatient}>
             <PatientTag />
