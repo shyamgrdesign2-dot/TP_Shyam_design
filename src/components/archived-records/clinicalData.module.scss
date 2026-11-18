@@ -296,7 +296,8 @@
 }
 
 // Second line of the filters: search, status, then how far the review is.
-.search .status { width: 180px; }
+// Search on the left, the status filter at the far right.
+.search .status { width: 180px; margin-left: auto; }
 
 .progress {
   display: inline-flex;
@@ -381,3 +382,51 @@
 }
 
 .bandTipDo { opacity: 0.85; }
+
+// "3 selected", in the section header while rows are chosen.
+.chosenCount {
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-secondary);
+  white-space: nowrap;
+}
+
+/* -------------------------------------------- Review data's filter block */
+
+// Room to breathe: the kinds, then search and status, set apart from the
+// tabs above and the first section below.
+:global(.tp-review-filters) {
+  gap: var(--tesseract-space-3) !important;
+  padding-top: var(--tesseract-space-4) !important;
+  padding-bottom: var(--tesseract-space-4) !important;
+  margin-bottom: var(--tesseract-space-2);
+}
+
+// The kinds read as a light row of choices, not a heavy grey bar.
+:global(.tp-review-filters) [role="radiogroup"] {
+  background: transparent;
+  padding: 0;
+  gap: var(--tesseract-space-1);
+}
+
+:global(.tp-review-filters) [role="radiogroup"] button[role="radio"] {
+  padding: 0 var(--tesseract-space-3);
+  height: 34px;
+  border-radius: var(--tesseract-radius-8);
+}
+
+:global(.tp-review-filters) [role="radiogroup"] button[role="radio"][data-state="inactive"]:hover {
+  background: var(--tesseract-slate-100);
+}
+
+// The chosen kind: a soft neutral pill under it, its name in darker ink.
+:global(.tp-review-filters) [role="radiogroup"] > span[aria-hidden="true"] {
+  background: var(--tesseract-slate-100);
+  box-shadow: none;
+  border-radius: var(--tesseract-radius-8);
+}
+
+:global(.tp-review-filters) [role="radiogroup"] button[role="radio"][data-state="active"] {
+  color: var(--tesseract-slate-900);
+  font-weight: var(--tesseract-weight-semibold);
+}

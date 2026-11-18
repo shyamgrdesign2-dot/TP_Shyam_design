@@ -523,7 +523,7 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
 
       {/* One line: what kind of data, then which review status. */}
       {/* Kind first, as the main choice; then search, status and progress. */}
-      <div className={styles.dataBar}>
+      <div className={`${styles.dataBar} tp-review-filters`}>
         <Carousel label="Kinds of clinical data">
           <SegmentedControl options={kinds} value={domainFilter} onValueChange={setDomainFilter} size="md" aria-label="Kinds of clinical data" />
         </Carousel>
@@ -617,24 +617,29 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
             collapsible
             collapsed={closed.has(domain.code)}
             onCollapsedChange={(shut) => fold(domain.code, Boolean(shut))}
+            // Nothing until rows are chosen; then the bulk action and the way
+            // out of the selection. No greyed-out buttons in the resting state.
             headerActions={
-              <div className={data.headerActions}>
-                {/* The row button's bulk form: the main action once rows are chosen. */}
-                <Button
-                  variant="solid"
-                  theme="primary"
-                  size="sm"
-                  leftIcon={<TickCircle size={14} />}
-                  disabled={!toVerify.length}
-                  aria-label={toVerify.length ? `Verify all ${toVerify.length} selected ${kind}` : `Verify all selected ${kind}`}
-                  onClick={() => verifyPicked(toVerify)}
-                >
-                  {toVerify.length ? `Verify all (${toVerify.length})` : "Verify all"}
-                </Button>
-                <Button variant="ghost" theme="neutral" size="sm" disabled={!chosen.length} aria-label={`Clear the selection in ${kind}`} onClick={() => select(ids, false)}>
-                  Clear
-                </Button>
-              </div>
+              chosen.length ? (
+                <div className={data.headerActions}>
+                  <span className={data.chosenCount}>{chosen.length} selected</span>
+                  <Button variant="link" theme="neutral" size="sm" aria-label={`Clear the selection in ${kind}`} onClick={() => select(ids, false)}>
+                    Clear selection
+                  </Button>
+                  {toVerify.length ? (
+                    <Button
+                      variant="solid"
+                      theme="primary"
+                      size="sm"
+                      leftIcon={<TickCircle size={14} />}
+                      aria-label={`Verify ${toVerify.length} selected ${kind}`}
+                      onClick={() => verifyPicked(toVerify)}
+                    >
+                      {`Verify ${toVerify.length}`}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null
             }
           >
             <DomainRows domain={domain} items={domain.rows} renderRow={renderRow} />
