@@ -3540,9 +3540,8 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   gap: var(--tesseract-space-1-5);
   height: 28px;
   padding: 0 var(--tesseract-space-2) 0 var(--tesseract-space-2-5);
-  border: 1px solid var(--tesseract-slate-200);
   border-radius: var(--tesseract-radius-6);
-  background: var(--tesseract-slate-50);
+  background: var(--tesseract-slate-100);
   font-size: var(--tesseract-text-body-xs);
   font-weight: var(--tesseract-weight-medium);
   line-height: 1;
@@ -3557,7 +3556,6 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   }
 
   &[data-tone="violet"] {
-    border-color: var(--tesseract-violet-200);
     background: var(--tesseract-violet-50);
     color: var(--tesseract-violet-700);
   }
@@ -3580,3 +3578,40 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   gap: var(--tesseract-space-2);
   flex-wrap: wrap;
 }
+
+/* ------------------------------------------------ page tools in the header */
+
+// Review progress and text size, at the right end of the header.
+.pageTools {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  margin-left: auto;
+}
+
+.progressTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  height: 28px;
+  padding: 0 var(--tesseract-space-2-5);
+  border-radius: var(--tesseract-radius-6);
+  background: var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-slate-700);
+  white-space: nowrap;
+
+  > :first-child { width: 64px; }
+
+  &[data-done="true"] {
+    background: var(--tesseract-success-50);
+    color: var(--tesseract-success-700);
+  }
+}
+
+.top { gap: var(--tesseract-space-3); }
+.toolbar .pageTools { margin-left: auto; }
+
+// The tabs take the toolbar's full width.
+.toolbar > :first-child { flex: 1 1 auto; }

@@ -374,9 +374,6 @@ export default function SourcePageViewer({ bundle, page, rid, jump = 0, onPageCh
       {/* A plain heading says which side this is. */}
       <header className={styles.viewerHead}>
         <strong>Original case file</strong>
-        {bundle.source.languagesNotRead ? (
-          <span className={styles.viewerLang}>Read: {bundle.source.language}. Not read: {bundle.source.languagesNotRead}</span>
-        ) : null}
       </header>
 
       {/* The index of the file floats over the pages, top left: it names the

@@ -253,3 +253,19 @@
   align-items: center;
   gap: var(--tesseract-space-2);
 }
+
+// Review data's own search, under its filters.
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  margin-top: var(--tesseract-space-3);
+
+  > :first-child { flex: 1 1 auto; min-width: 0; }
+}
+
+.searchCount {
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-secondary);
+}
