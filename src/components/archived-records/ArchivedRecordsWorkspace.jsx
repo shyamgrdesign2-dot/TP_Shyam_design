@@ -1,7 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Progress, Tabs, TabsContent, TabsList, TabsTrigger, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Button, Dropdown, Tabs, TabsContent, TabsList, TabsTrigger, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
 import { SidebarRight } from "iconsax-reactjs";
-import { archivedRecordsStore, countsFor, useArchivedRecords } from "./archivedRecordsStore";
+import { archivedRecordsStore, countsFor, statusOf, useArchivedRecords } from "./archivedRecordsStore";
+import { KebabIcon } from "../../pages/appointment-listing/components/rowActions";
+import { buildDigitization } from "./rxFormat";
+import { buildMedicalHistory } from "./medicalHistory";
+import { buildHospitalCourse } from "./hospitalCourse";
+import { isCourseSummary } from "./noteGroups";
 import AiDraftBadge, { InfoTag } from "./AiDraftBadge";
 import PatientTag from "./PatientTag";
 import ClinicalDataTab from "./ClinicalDataTab";
@@ -124,12 +129,56 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
 
   // Text size and how far the review has got: tools for the whole page, so
   // they sit in the header, not between the tabs and the rows.
+  // The file as the product stores it, for a download: rows with their
+  // source and review state, Medical History in its own table shape, and
+  // the hospital course as written.
+  const exportJson = () => {
+    const facts = bundle.findings;
+    const factOf = (id) => facts.find((item) => item.id === id) || (bundle.unlisted || []).find((item) => item.id === id) || null;
+    const summaryOf = (encounterId) => facts.find((item) => isCourseSummary(item) && item.encounterId === encounterId) || null;
+    const out = {
+      patient: bundle.patient,
+      medical_history: buildMedicalHistory(facts.filter((item) => statusOf(review, item.id) !== "rejected")),
+      digitization: buildDigitization(facts.filter((item) => !isCourseSummary(item) && statusOf(review, item.id) !== "rejected"), { statusOf: (item) => statusOf(review, item.id) }),
+      hospital_course: buildHospitalCourse(bundle, { factOf, summaryOf }),
+    };
+    const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `case-file-${(bundle.patient?.name || "patient").toLowerCase().replace(/\s+/g, "-")}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const moreActions = [
+    { value: "review", label: totals.pending ? `Show only rows to review (${totals.pending})` : "Show all rows" },
+    { value: "viewer", label: viewerOpen ? "Hide original pages" : "Show original pages" },
+    { value: "json", label: "Download data (JSON)" },
+    { value: "print", label: "Print" },
+  ];
+  const onMore = (value) => {
+    if (value === "review") openReview();
+    if (value === "viewer") setViewerOpen((open) => !open);
+    if (value === "json") exportJson();
+    if (value === "print") window.print();
+  };
+  const moreMenu = (
+    <Dropdown
+      className="tpKebabMenu"
+      options={moreActions}
+      value={null}
+      onChange={onMore}
+      chevron={false}
+      variant="seamless"
+      placeholder=""
+      leadingIcon={<KebabIcon size={18} />}
+      ariaLabel="More actions for this file"
+    />
+  );
+
   const pageTools = (
     <div className={styles.pageTools}>
-      <span className={styles.progressTag} data-done={totals.pending === 0 ? "true" : undefined}>
-        <Progress value={totals.total ? (totals.verified / totals.total) * 100 : 0} tone="success" size="sm" aria-hidden="true" />
-        <span>{totals.verified} of {totals.total} verified</span>
-      </span>
+      <InfoTag tone="neutral" label={fileLine(bundle).replace(/^\(|\)$/g, "")} note={fileDetails(bundle)} ariaLabel="About this file" />
       <div className={styles.textSize} role="group" aria-label="Text size">
         {TEXT_SIZES.map((size) => (
           <Tooltip key={size.value} content={`${size.name} text`}>
@@ -139,6 +188,7 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
           </Tooltip>
         ))}
       </div>
+      {moreMenu}
     </div>
   );
 
@@ -150,7 +200,6 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
           <PatientTag />
           <div className={styles.topTags}>
             <AiDraftBadge />
-            <InfoTag tone="neutral" label={fileLine(bundle).replace(/^\(|\)$/g, "")} note={fileDetails(bundle)} ariaLabel="About this file" />
           </div>
           {pageTools}
         </header>

@@ -1824,14 +1824,14 @@ html body .dock :is(span, small) { color: inherit; }
 .vGroup + .vGroup { margin-top: var(--tesseract-space-3); }
 
 .vGroupTitle {
-  margin: 0 0 var(--tesseract-space-1);
+  margin: 0 0 var(--tesseract-space-1-5);
   display: inline-flex;
   align-items: center;
-  height: 18px;
-  padding: 0 var(--tesseract-space-1-5);
+  height: 24px;
+  padding: 0 var(--tesseract-space-2);
   border-radius: var(--tesseract-radius-4);
   background: var(--tesseract-slate-100);
-  font-size: var(--tesseract-text-micro);
+  font-size: var(--tesseract-text-caption);
   line-height: 1;
   font-weight: var(--tesseract-weight-medium);
   color: var(--tesseract-fg-secondary);

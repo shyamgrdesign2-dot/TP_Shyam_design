@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Checkbox, Empty, InputBox, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
-import { Edit2, SearchNormal1, TickCircle, Trash } from "iconsax-reactjs";
+import { Badge, Button, Checkbox, Empty, InputBox, Progress, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Edit2, SearchNormal1, TickCircle, Trash, Warning2 } from "iconsax-reactjs";
 import {
   archivedRecordsStore,
   confidenceBand,
+  countsFor,
   domainSummaries,
   exceptionFor,
   isClear,
@@ -43,7 +44,12 @@ import data from "./clinicalData.module.scss";
 
 // Shown as amber badges, like every other doubt about a reading. Red is kept
 // for abnormal values.
-const BAND_NOTE = { medium: "Check this", low: "Hard to read" };
+// Why a row with no flag of its own still wants a careful look: how sure the
+// reading is. Said on hover of a small icon, not as a vague word on the row.
+const BAND_NOTE = {
+  medium: "Read with medium confidence. Compare it with the page before verifying.",
+  low: "Hard to read: low confidence. Compare it with the page before verifying.",
+};
 
 // The review status filter, as a column the dropdown can be built from.
 const STATUS_FILTER = { key: "status", label: "Review status" };
@@ -97,7 +103,13 @@ function ReviewRow({ finding, bundle, entry, fit, active, selected, draft, onSel
   const tags = status === "draft" ? (
     <>
       {flags.map((flag) => tag(flag, "warning", FLAG_LABEL[flag] || "Check this"))}
-      {finding.flags.length === 0 && band !== "high" ? tag("band", "warning", BAND_NOTE[band]) : null}
+      {finding.flags.length === 0 && band !== "high" ? (
+        <Tooltip key="band" content={`${BAND_NOTE[band]}${finding.handwritten ? " The line is handwritten." : ""}`}>
+          <span className={data.bandIcon} data-band={band} tabIndex={0} role="img" aria-label={BAND_NOTE[band]}>
+            <Warning2 size={16} variant="Bold" />
+          </span>
+        </Tooltip>
+      ) : null}
       {finding.hold ? tag("hold", "neutral", "Held back from the doctor's view") : null}
     </>
   ) : null;
@@ -285,10 +297,19 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
   // status, statuses within the chosen kind.
   const scoped = domains.filter((domain) => inDomain(domain.code)).flatMap((domain) => domain.items);
   const everything = domains.flatMap((domain) => domain.items);
+  // Each kind with its count as a small tag, so the number reads apart from
+  // the name.
+  const kindLabel = (name, n) => (
+    <span className={data.kind}>
+      {name}
+      <span className={data.kindCount}>{n}</span>
+    </span>
+  );
   const kinds = [
-    { value: "all", label: `All ${count(everything, statusFilter)}` },
-    ...domains.map((domain) => ({ value: domain.code, label: `${domain.label} ${count(domain.items, statusFilter)}` })),
+    { value: "all", label: kindLabel("All", count(everything, statusFilter)) },
+    ...domains.map((domain) => ({ value: domain.code, label: kindLabel(domain.label, count(domain.items, statusFilter)) })),
   ];
+  const totals = countsFor(bundle.findings, review);
   const statuses = [
     { value: "all", label: `All rows (${scoped.length})` },
     { value: "draft", label: `To review (${count(scoped, "draft")})` },
@@ -478,15 +499,11 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
     <div className={`${styles.stack} ${styles.dataTab}`} ref={rootRef}>
 
       {/* One line: what kind of data, then which review status. */}
-      <div className={styles.dataBar} data-after="true">
-        <div className={data.filters}>
-          <Carousel label="Kinds of clinical data">
-            <SegmentedControl options={kinds} value={domainFilter} onValueChange={setDomainFilter} size="sm" aria-label="Kinds of clinical data" />
-          </Carousel>
-          <div className={data.status}>
-            <SelectCell column={STATUS_FILTER} options={statuses} value={statusFilter} onChange={setStatusFilter} variant="field" />
-          </div>
-        </div>
+      {/* Kind first, as the main choice; then search, status and progress. */}
+      <div className={styles.dataBar}>
+        <Carousel label="Kinds of clinical data">
+          <SegmentedControl options={kinds} value={domainFilter} onValueChange={setDomainFilter} size="md" aria-label="Kinds of clinical data" />
+        </Carousel>
         <div className={data.search} role="search">
           <InputBox
             fullWidth
@@ -510,6 +527,15 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
               {visibleIds.size} {visibleIds.size === 1 ? "row matches" : "rows match"}
             </span>
           ) : null}
+          <div className={data.status}>
+            <SelectCell column={STATUS_FILTER} options={statuses} value={statusFilter} onChange={setStatusFilter} variant="field" />
+          </div>
+          <span className={data.progress} data-done={totals.pending === 0 ? "true" : undefined}>
+            <Progress value={totals.total ? (totals.verified / totals.total) * 100 : 0} tone="success" size="sm" aria-hidden="true" />
+            <span>
+              {totals.verified} of {totals.total} verified
+            </span>
+          </span>
         </div>
       </div>
 

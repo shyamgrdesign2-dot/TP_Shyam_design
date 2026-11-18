@@ -259,13 +259,74 @@
   display: flex;
   align-items: center;
   gap: var(--tesseract-space-3);
-  margin-top: var(--tesseract-space-3);
 
-  > :first-child { flex: 1 1 auto; min-width: 0; }
+  > :first-child { flex: 1 1 280px; min-width: 200px; max-width: 460px; }
 }
 
 .searchCount {
   flex-shrink: 0;
   font-size: var(--tesseract-text-body-xs);
   color: var(--tesseract-fg-secondary);
+}
+
+// A reading to compare with the page: an amber icon, its reason on hover.
+.bandIcon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--tesseract-space-1);
+  vertical-align: -3px;
+  color: var(--tesseract-amber-500);
+  cursor: help;
+
+  &[data-band="low"] { color: var(--tesseract-amber-600); }
+  &:focus-visible { outline: 2px solid var(--tesseract-amber-400); outline-offset: 2px; border-radius: var(--tesseract-radius-4); }
+}
+
+// A kind in the filter, with its count as a small tag.
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+}
+
+.kindCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-4);
+  background: var(--tesseract-slate-100);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-slate-600);
+
+  [data-state="active"] & {
+    background: var(--tesseract-violet-50);
+    color: var(--tesseract-violet-700);
+  }
+}
+
+// Second line of the filters: search, status, then how far the review is.
+.search .status { width: 180px; }
+
+.progress {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: var(--tesseract-space-2);
+  font-size: var(--tesseract-text-body-xs);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-slate-700);
+  white-space: nowrap;
+
+  margin-left: auto;
+  min-width: 220px;
+  padding: 0 var(--tesseract-space-3);
+  height: 36px;
+
+  > :first-child { flex: 1 1 auto; min-width: 80px; }
+
+  &[data-done="true"] { color: var(--tesseract-success-700); }
 }
