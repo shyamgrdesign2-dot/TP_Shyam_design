@@ -1,6 +1,7 @@
 import React from "react";
 import { Drawer, DrawerContent } from "@dhspl-tatvacare/tesseract-ui";
 import AiDraftBadge from "./AiDraftBadge";
+import PatientTag from "./PatientTag";
 import { useArchivedRecords } from "./archivedRecordsStore";
 import ArchivedRecordsWorkspace, { fileDetails, fileLine } from "./ArchivedRecordsWorkspace";
 import { FEATURE_NAME } from "./archivedRecordsName";
@@ -15,7 +16,7 @@ export default function ArchivedRecordsDrawer({ open, onOpenChange, reviewerName
   const { bundle } = useArchivedRecords();
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent side="right" width="90vw" bodyPadding={0} bodyClassName={styles.drawerBody} title={`${FEATURE_NAME} review`} description={fileLine(bundle).replace(/^\(|\)$/g, "")} action={<AiDraftBadge details={fileDetails(bundle)} />} header={null}>
+      <DrawerContent side="right" width="90vw" bodyPadding={0} bodyClassName={styles.drawerBody} title={`${FEATURE_NAME} review`} description={fileLine(bundle).replace(/^\(|\)$/g, "")} action={<div className={styles.drawerAction}><PatientTag /><AiDraftBadge details={fileDetails(bundle)} /></div>} header={null}>
         {open ? <ArchivedRecordsWorkspace reviewerName={reviewerName} onApprove={onApprove} initialTab="data" header="banner" /> : null}
       </DrawerContent>
     </Drawer>

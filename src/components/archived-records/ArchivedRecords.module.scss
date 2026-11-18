@@ -3476,3 +3476,56 @@ html body :where(.workspace, .rail) .beatLabel { color: var(--tesseract-fg-terti
   color: var(--tesseract-fg-secondary);
   font-size: var(--tesseract-text-body-sm);
 }
+
+/* ------------------------------------------------ whose file this is */
+
+// The patient, at the top of the Case File, the way the Rx pad header shows
+// them: avatar, name, then sex | age | patient ID in lighter ink.
+.patientTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  min-width: 0;
+}
+
+.patientTagText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.patientTagName {
+  overflow: hidden;
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  line-height: 1.4;
+  color: var(--tesseract-slate-700);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patientTagMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.4;
+  color: var(--tesseract-slate-500);
+  white-space: nowrap;
+}
+
+.patientTagDivider { color: var(--tesseract-slate-300); }
+
+.top .patientTag {
+  margin-right: var(--tesseract-space-4);
+  padding-right: var(--tesseract-space-4);
+  border-right: 1px solid var(--tesseract-border-soft);
+}
+
+.drawerAction {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+}
+
+.cfHeadingPatient { margin-left: auto; }

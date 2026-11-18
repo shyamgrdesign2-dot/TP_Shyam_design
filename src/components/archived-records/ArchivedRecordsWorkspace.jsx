@@ -3,6 +3,7 @@ import { Button, InputBox, Progress, Tabs, TabsContent, TabsList, TabsTrigger, T
 import { InfoCircle, SearchNormal1, SidebarRight } from "iconsax-reactjs";
 import { archivedRecordsStore, countsFor, useArchivedRecords } from "./archivedRecordsStore";
 import AiDraftBadge from "./AiDraftBadge";
+import PatientTag from "./PatientTag";
 import ClinicalDataTab from "./ClinicalDataTab";
 import DocumentsTab from "./DocumentsTab";
 import RecordTab from "./RecordTab";
@@ -148,6 +149,7 @@ export default function ArchivedRecordsWorkspace({ reviewerName = "You", onAppro
       {/* On the patient page the violet banner carries the title and file line. */}
       {header === "inline" ? (
         <header className={styles.top}>
+          <PatientTag />
           <div className={styles.topTitle}>
             <h2>
               {variant === "drawer" ? null : FEATURE_NAME}
