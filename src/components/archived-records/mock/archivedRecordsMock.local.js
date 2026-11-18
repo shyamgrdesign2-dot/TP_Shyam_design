@@ -1941,7 +1941,7 @@ const timeline = [
 
 export const ARCHIVED_RECORDS_MOCK = {
   // Stated on the page cited. No name or identifier is ever held here.
-  patient: { name: "Flavy Picardo", sex: "Female", age: 84, cite: { page: 164, rid: "p164-age-sex" } },
+  patient: { name: "Flavy Picardo", id: "03097087", idCite: { page: 166, rid: "p166-patient" }, sex: "Female", age: 84, cite: { page: 164, rid: "p164-age-sex" } },
   source: {
     fileId: "Patient folder",
     fileName: "patient folder, 6 PDFs, 275 pages",

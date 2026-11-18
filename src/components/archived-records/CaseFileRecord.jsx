@@ -3,6 +3,7 @@ import { Button, InputBox, Tabs, TabsList, TabsTrigger, Tooltip } from "@dhspl-t
 import { ArrowDown2, ArrowRight2, Folder2, InfoCircle, SearchNormal1, ShieldTick, Warning2 } from "iconsax-reactjs";
 import { TpAiSparkIcon } from "../dr-agent/shared/AiBrandSparkIcon";
 import AiDraftBadge from "./AiDraftBadge";
+import PatientTag from "./PatientTag";
 import { DOCUMENT_CATEGORIES } from "./mock/archivedRecordsMock";
 import { archivedRecordsStore, citeNumberForPage, countsFor, useArchivedRecords } from "./archivedRecordsStore";
 import { FEATURE_NAME } from "./archivedRecordsName";
@@ -353,6 +354,9 @@ export default function CaseFileRecord({
         <div className={styles.cfHeading}>
           <strong>{FEATURE_NAME}</strong>
           <AiDraftBadge />
+          <span className={styles.cfHeadingPatient}>
+            <PatientTag />
+          </span>
         </div>
       ) : null}
 

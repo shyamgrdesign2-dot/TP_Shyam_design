@@ -290,7 +290,7 @@ function SampleHeader() {
       leading={
         <>
           <HeaderPatient patient={SAMPLE_PATIENT} age={SAMPLE_AGE} />
-          <Badge variant="soft" color="neutral" size="sm">Sample Rx pad</Badge>
+          <Badge variant="soft" color="neutral" size="sm">Case File demo</Badge>
         </>
       }
       actions={actions} />
