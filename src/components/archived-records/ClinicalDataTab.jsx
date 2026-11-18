@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Checkbox, Empty, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
-import { Edit2, TickCircle, Trash } from "iconsax-reactjs";
+import { Badge, Button, Checkbox, Empty, InputBox, SectionCard, SegmentedControl, Tooltip } from "@dhspl-tatvacare/tesseract-ui";
+import { Edit2, SearchNormal1, TickCircle, Trash } from "iconsax-reactjs";
 import {
   archivedRecordsStore,
   confidenceBand,
-  countsFor,
   domainSummaries,
   exceptionFor,
   isClear,
@@ -246,6 +245,17 @@ const EMPTY_TITLE = {
   rejected: "Nothing removed",
 };
 
+// Search in Review data: every word typed must be somewhere in the row (its
+// name, details, the words as written, its group or date), in any order.
+const fold = (text) => String(text || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+const rowText = (item) => fold([item.title, item.detail, item.verbatim, item.group, item.dateLabel, item.value, item.unit, ...(item.quals || [])].filter(Boolean).join(" "));
+const hitsQuery = (item, query) => {
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = rowText(item);
+  return words.every((word) => hay.includes(word));
+};
+
 // A section's review state, as one tag beside its heading.
 function SectionState({ domain }) {
   const done = domain.verified + (domain.rejected || 0);
@@ -262,6 +272,8 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
   const [closed, setClosed] = useState(() => new Set());
   // What the last action did, with the way back when there is one.
   const [note, setNote] = useState(null);
+  // This tab's own search; the structured record has its own.
+  const [query, setQuery] = useState("");
   const say = (text, undo = null) => setNote({ text, undo });
   const byId = useMemo(() => Object.fromEntries(bundle.findings.map((item) => [item.id, item])), [bundle]);
   const editingId = editing && byId[editing.id] ? editing.id : null;
@@ -290,7 +302,7 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
   const sections = domains
     .map((domain) => ({
       ...domain,
-      rows: domain.items.filter((item) => item.id === editingId || (inDomain(domain.code) && matches(item, review, statusFilter))),
+      rows: domain.items.filter((item) => item.id === editingId || (inDomain(domain.code) && matches(item, review, statusFilter) && hitsQuery(item, query))),
     }))
     .filter((domain) => domain.rows.length);
   const visibleIds = new Set(sections.flatMap((domain) => domain.rows.map((item) => item.id)));
@@ -475,10 +487,41 @@ export default function ClinicalDataTab({ bundle, review, reviewerName, onApprov
             <SelectCell column={STATUS_FILTER} options={statuses} value={statusFilter} onChange={setStatusFilter} variant="field" />
           </div>
         </div>
+        <div className={data.search} role="search">
+          <InputBox
+            fullWidth
+            clearable
+            size="sm"
+            placeholder="Search review data: a medicine, a test, a word on the page"
+            aria-label="Search review data"
+            leftIcon={<SearchNormal1 size={16} />}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              // Escape clears the search; it must not also close the drawer.
+              if (event.key === "Escape" && query) {
+                event.stopPropagation();
+                setQuery("");
+              }
+            }}
+          />
+          {query.trim() ? (
+            <span className={data.searchCount} role="status">
+              {visibleIds.size} {visibleIds.size === 1 ? "row matches" : "rows match"}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {sections.length === 0 ? (
-        chosenDomain && chosenDomain.total === 0 ? (
+        query.trim() ? (
+          <Empty
+            size="sm"
+            title={`Nothing matches "${query.trim()}"`}
+            description="Try a shorter word, or another kind or status above."
+            action={<Button variant="outline" theme="neutral" size="sm" onClick={() => setQuery("")}>Clear search</Button>}
+          />
+        ) : chosenDomain && chosenDomain.total === 0 ? (
           // Nothing read is not the same as nothing there.
           <Empty
             size="sm"
